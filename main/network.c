@@ -22,6 +22,10 @@
 #include <stddef.h>
 #include <errno.h>
 
+#ifdef PHP_ASYNC
+#include "async/async.h"
+#include "async/network.h"
+#endif
 
 #ifdef PHP_WIN32
 # include <Ws2tcpip.h>
@@ -339,6 +343,13 @@ PHPAPI int php_network_connect_socket(php_socket_t sockfd,
 		zend_string **error_string,
 		int *error_code)
 {
+
+#ifdef PHP_ASYNC
+  	if(!asynchronous && ASYNC_IS_FIBER()) {
+          return php_async_network_connect_socket(sockfd, addr, addrlen, timeout, error_string, error_code);
+	}
+#endif
+
 	php_non_blocking_flags_t orig_flags;
 	int n;
 	int error = 0;

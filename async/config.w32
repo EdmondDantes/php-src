@@ -1,0 +1,10 @@
+// vim:ft=javascript
+
+ARG_ENABLE('async', 'Enable true async support in PHP core', 'no');
+
+if (PHP_ASYNC == "yes") {
+    ADD_SOURCES("async", "network.c");
+    ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
+
+    PHP_INSTALL_HEADERS("async", "async.h");
+}
