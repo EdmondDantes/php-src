@@ -23,7 +23,7 @@
 #include <errno.h>
 
 #ifdef PHP_ASYNC
-#include "async/async.h"
+#include "async/php_async.h"
 #include "async/network.h"
 #endif
 

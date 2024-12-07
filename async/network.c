@@ -1,19 +1,5 @@
 
-#include "php.h"
-
-#include <stddef.h>
-#include <errno.h>
-#include "main/php_network.h"
-
-#ifdef PHP_WIN32
-# include <Ws2tcpip.h>
-# include "win32/winutil.h"
-# define O_RDONLY _O_RDONLY
-# include "win32/param.h"
-#else
-#include <sys/param.h>
-#endif
-
+#include "network.h"
 
 /* Connect to a socket using an interruptible connect with optional timeout.
  * Optionally, the connect can be made asynchronously, which will implicitly
