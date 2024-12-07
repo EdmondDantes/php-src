@@ -5,6 +5,7 @@
 #include "engine.h"
 #include "zend_engine.h"
 #include <threads.h>
+#include <uv.h>
 
 thread_local uv_loop_t *thread_loop = NULL;
 

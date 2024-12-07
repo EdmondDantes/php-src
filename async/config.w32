@@ -3,8 +3,18 @@
 ARG_ENABLE('async', 'Enable true async support in PHP core', 'no');
 
 if (PHP_ASYNC == "yes") {
-    ADD_SOURCES("async", "network.c");
-    ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
 
-    PHP_INSTALL_HEADERS("async", "async.h");
+    var PHP_UV = PHP_SDK_VS_DIR + "\\deps";
+
+	if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_UV + "\\include")
+		&& CHECK_LIB("libuv.lib", "uv", PHP_UV)) {
+
+        ADD_SOURCES("async", "network.c");
+        ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
+
+        PHP_INSTALL_HEADERS("async", "async.h");
+
+	} else {
+		WARNING("uv not enabled; libraries and/or headers not found");
+	}
 }
