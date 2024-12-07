@@ -63,5 +63,16 @@
 
 #define PHP_ASYNC_FD_NONE 	-1
 #define PHP_ASYNC_FD_FAILED -1
+#define PHP_ASYNC_MAIN_FIBER 0
+
+typedef struct {
+    zend_fiber *fiber;
+    int fd;
+} io_wait_context_t;
+
+typedef struct {
+    io_wait_context_t context;
+    uv_poll_t poll;
+} io_poll_t;
 
 #endif //ENGINE_H

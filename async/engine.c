@@ -5,7 +5,7 @@
 #include "engine.h"
 #include "zend_engine.h"
 #include <threads.h>
-#include <uv.h>
+#include "uv.h"
 
 thread_local uv_loop_t *thread_loop = NULL;
 
@@ -45,6 +45,67 @@ void free_loop() {
 		uv_loop_close(thread_loop);
 		free(thread_loop);
 		thread_loop = NULL;
+	}
+}
+
+void on_socket_event(uv_poll_t *handle, int status, int events) {
+	if (status < 0) {
+		fprintf(stderr, "Poll error: %s\n", uv_strerror(status));
+	}
+
+	uv_poll_stop(handle);
+	free(handle);
+}
+
+io_poll_t* watch_io_descriptor(int fd, int events, zend_fiber *fiber, uv_poll_cb callback) {
+
+	io_poll_t *io_poll 	= emalloc(sizeof(io_poll_t));
+	io_poll->context.fd = fd;
+    // Setup reference to io_poll structure
+    io_poll->poll.data 	= io_poll;
+
+	if (fiber != NULL) {
+		io_poll->context.fiber = fiber;
+	} else {
+		io_poll->context.fiber = EG(active_fiber);
+	}
+
+	if (uv_poll_init(get_loop(), &io_poll->poll, fd) != 0) {
+		fprintf(stderr, "Failed to initialize poll handle\n");
+		efree(io_poll);
+		return NULL;
+	}
+
+	if (uv_poll_start(&io_poll->poll, events, callback) != 0) {
+		fprintf(stderr, "Failed to start poll handle\n");
+		efree(io_poll);
+		return NULL;
+	}
+
+	return io_poll;
+}
+
+void add_timeout(int timeout, void (*callback)(uv_timer_t *handle)) {
+
+	uv_loop_t *loop = get_loop();
+
+	if (!loop || loop == INVALID_POINTER) {
+		fprintf(stderr, "Failed to retrieve thread-local loop\n");
+		return;
+	}
+
+	uv_timer_t *timer_handle = malloc(sizeof(uv_timer_t));
+
+	if (uv_timer_init(loop, timer_handle) != 0) {
+		fprintf(stderr, "Failed to initialize timer handle\n");
+		free(timer_handle);
+		return;
+	}
+
+	if (uv_timer_start(timer_handle, callback, timeout, 0) != 0) {
+		fprintf(stderr, "Failed to start timer handle\n");
+		free(timer_handle);
+		return;
 	}
 }
 
