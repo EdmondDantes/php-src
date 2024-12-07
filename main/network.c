@@ -345,7 +345,7 @@ PHPAPI int php_network_connect_socket(php_socket_t sockfd,
 {
 
 #ifdef PHP_ASYNC
-  	if(!asynchronous && ASYNC_IS_FIBER()) {
+  	if(!asynchronous && ASYNC_IS_FIBER) {
           return php_async_network_connect_socket(sockfd, addr, addrlen, timeout, error_string, error_code);
 	}
 #endif

@@ -23,11 +23,10 @@
 
 
 PHPAPI int php_async_network_connect_socket(php_socket_t sockfd,
-        const struct sockaddr *addr,
-        socklen_t addrlen,
-        int asynchronous,
-        struct timeval *timeout,
-        zend_string **error_string,
-        int *error_code);
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                struct timeval *timeout,
+                zend_string **error_string,
+                int *error_code);
 
 #endif //NETWORK_H
