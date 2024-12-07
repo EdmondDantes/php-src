@@ -32,7 +32,7 @@ void async_unbind_fd_from_fiber(int fd)
     zend_hash_index_del(get_fd_to_fiber(), fd);
 }
 
-zend_fiber * get_fd_fiber_binding(int fd)
+zend_fiber * async_get_fd_fiber_binding(int fd)
 {
     zend_fiber **found_pointer = (zend_fiber **) zend_hash_index_find(get_fd_to_fiber(), fd);
     if (found_pointer) {
