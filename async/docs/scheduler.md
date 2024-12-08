@@ -52,7 +52,85 @@ The `Async` provides several different awaitable objects that make development m
 
 * `AwaitInputOutput`    — waits for input/output with timeout and cancellation.
 * `AwaitTimer`          — waits for a timer.
+* `AwaitPromise`        — waits for a promise.
+* `AwaitCancellation`   — waits for a cancellation signal.
 * `AwaitSignal`         — waits for an operating system signal.
-* `AwaitEvent`          — waits for an event.
 * `AwaitChannel`        — waits for a data transfer channel.
 * `AwaitComposite`      — waits for a set of awaitable objects.
+
+## Microtasks
+
+`Microtasks` are a special type of primitives in the context of the `Scheduler`, 
+an idea originating from the implementation of `JavaScript`. 
+`Microtasks` are specialized **high-priority** code that is **GUARANTEED** to execute before 
+any `I/O event` handling code. 
+`Microtasks` should take the minimal possible time and ideally should not create 
+any asynchronous operations.
+
+To save resources on `Fiber` context switching, the `Scheduler` uses 
+a shared `Fiber` context for executing all microtasks. 
+Therefore, if `microtasks` execute quickly and do not call `await()` within themselves, 
+no Fiber switching occurs.
+
+`Microtasks` are executed directly within the `Scheduler's Fiber`, meaning they can disrupt the event loop. 
+If a `microtask` calls `await` within itself, this triggers specific system behavior.
+
+A `microtask` calls await and becomes a `macrotask`:
+
+1. The `Scheduler` detects an attempt to call await within the context of the `Scheduler's Fiber`.
+2. The `Scheduler` creates a new `Fiber` for the `Scheduler`, while the current `Fiber` loses its `Scheduler` status 
+and becomes a `Fiber` for the `microtask`, essentially turning into a `macrotask`.
+3. Control is then returned to the Scheduler's Fiber.
+
+The `Scheduler` provides a method to create `microtasks` explicitly:
+
+```php
+function defer(callable|DeferredTaskInterface $task): void;
+function delay(int $timeout, callable|DeferredTaskInterface $task): void;
+function repeat(RepeatableCallInterface $task): void;
+function onSignal(int $signo, callable|DeferredTaskInterface $task): void;
+```
+
+These three methods allow explicit creation of microtasks that will be 
+executed immediately when control is handed over to the `Scheduler`. 
+
+All of them will not create new Fiber objects but will be executed within the `Scheduler`.
+
+A microtask of the defer type has the highest execution priority and is **GUARANTEED** 
+to execute before the `Scheduler` transitions to event waiting.
+
+Microtasks involving timers, signals, and other types of events will execute **BEFORE** I/O tasks 
+but after polling the event queue.
+
+## Promise and Deferred primitives
+
+The `Promise`/`Deferred` classes are fundamental primitives implementing the `AwaitableInterface`. 
+The `Deferred` class represents an object that can transition into a completed state with either a result or an error, 
+while the `Promise` represents its readonly state.
+
+## Cancellation
+
+The `Cancellation` primitive is a special type of awaitable object that allows you to cancel the execution or waiting.
+In essence, a `Cancellation` is a type of Promise that can be resolved to a completed state only once.
+
+## Channels
+
+`Channels` are a special type of awaitable object that allows you to transfer data between Fibers.
+
+`Channels` are objects that logically consist of two `EndPoints` – points for receiving and sending messages. 
+`Fibers` act as the owners of an EndPoint. 
+When a `channel` is created, the current Fiber automatically becomes the owner of 
+the **writer `EndPoint`** and gains the ability to send data.
+
+As soon as another `Fiber` attempts to read data, it automatically becomes the owner of the **reader EndPoint**.
+
+To prevent complex errors, `Async` does not allow the read methods to be called by 
+a Fiber owning the writer EndPoint, nor does it allow 
+a Fiber owning the read EndPoint to attempt writing to the channel.
+
+You can retrieve information about which `Fibers` are bound to the read or write `EndPoints` of a `channel`.
+
+If you need two-way communication between `Fibers`, create two separate `channels`.
+
+## Timers
+
