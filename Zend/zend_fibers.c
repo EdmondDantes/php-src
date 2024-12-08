@@ -603,6 +603,23 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 
 		zend_call_function(&fiber->fci, &fiber->fci_cache);
 
+		//
+		// PHP ASYNC FIBER FEATURES
+		//
+#ifdef PHP_ASYNC
+        // Call shutdown handlers.
+		if(fiber->shutdown_handlers) {
+			zend_fiber_invoke_shutdown_handlers(fiber);
+		}
+
+		// Cleanup user local storage.
+        if(fiber->user_local_storage) {
+			zend_hash_destroy(fiber->user_local_storage);
+			FREE_HASHTABLE(fiber->user_local_storage);
+		}
+
+#endif
+
 		/* Cleanup callback and unset field to prevent GC / duplicate dtor issues. */
 		zval_ptr_dtor(&fiber->fci.function_name);
 		ZVAL_UNDEF(&fiber->fci.function_name);
@@ -1092,6 +1109,78 @@ ZEND_METHOD(Fiber, getCurrent)
 	RETURN_OBJ_COPY(&fiber->std);
 }
 
+//
+// PHP ASYNC FIBER FEATURES
+//
+#ifdef PHP_ASYNC
+
+ZEND_METHOD(Fiber, getContext)
+{
+	zend_fiber *fiber;
+
+	fiber = (zend_fiber *) Z_OBJ_P(ZEND_THIS);
+
+	if (fiber->user_local_storage) {
+		RETURN_ARR(fiber->user_local_storage);
+	} else {
+		ALLOC_HASHTABLE(fiber->user_local_storage);
+		zend_hash_init(fiber->user_local_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
+		RETURN_ARR(fiber->user_local_storage);
+	}
+}
+
+ZEND_METHOD(Fiber, addShutdownHandler)
+{
+	zend_fiber *fiber;
+	zval *callback;
+
+	fiber = (zend_fiber *) Z_OBJ_P(ZEND_THIS);
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+	    Z_PARAM_CALLABLE(callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!fiber->shutdown_handlers) {
+		ALLOC_HASHTABLE(fiber->shutdown_handlers);
+		zend_hash_init(fiber->shutdown_handlers, 0, NULL, ZVAL_PTR_DTOR, 0);
+	}
+
+	zval new_callback;
+	ZVAL_COPY(&new_callback, callback);
+	zend_hash_next_index_insert(fiber->shutdown_handlers, &new_callback);
+}
+
+ZEND_METHOD(Fiber, removeShutdownHandler)
+{
+	zend_fiber *fiber;
+	zval *callback;
+
+	fiber = (zend_fiber *) Z_OBJ_P(ZEND_THIS);
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+	    Z_PARAM_ZVAL(callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!fiber->shutdown_handlers) {
+		RETURN_FALSE;
+	}
+
+	zend_ulong index;
+	zend_string *key;
+	zval *entry;
+
+	ZEND_HASH_FOREACH_KEY_VAL(fiber->shutdown_handlers, index, key, entry) {
+		if (zend_is_identical(entry, callback)) {
+			zend_hash_index_del(fiber->shutdown_handlers, index);
+			RETURN_TRUE;
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	RETURN_FALSE;
+}
+
+#endif
+
 ZEND_METHOD(FiberError, __construct)
 {
 	zend_throw_error(
@@ -1150,3 +1239,146 @@ void zend_fiber_shutdown(void)
 
 	zend_fiber_switch_block();
 }
+
+#ifdef PHP_ASYNC
+
+static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
+{
+    if (fiber->shutdown_handlers == NULL) {
+        return;
+    }
+
+    zend_object *original_exception = EG(exception);
+    EG(exception) = NULL;
+
+    HashTable *exception_stack = NULL;
+
+    zval *callback;
+
+    ZEND_HASH_FOREACH_VAL(fiber->shutdown_handlers, callback) {
+        const char *debug_type = zend_get_debug_type(callback);
+
+        if (zend_call_function(ZEND_CALL_ARG(callback, 0), NULL) != SUCCESS) {
+            php_error_docref(
+                NULL,
+                E_WARNING,
+                "Failed to execute fiber shutdown handler with type: %s",
+                debug_type
+            );
+        }
+
+        if (EG(exception)) {
+            php_error_docref(
+                NULL,
+                E_WARNING,
+                "Exception occurred during shutdown handler execution. Handler type: %s",
+                debug_type
+            );
+
+            if (!exception_stack) {
+                ALLOC_HASHTABLE(exception_stack);
+                zend_hash_init(exception_stack, 0, NULL, ZVAL_PTR_DTOR, 0);
+            }
+
+            zval exception;
+            ZVAL_OBJ_COPY(&exception, EG(exception));
+            zend_hash_next_index_insert(exception_stack, &exception);
+
+            zend_clear_exception();
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    zend_hash_destroy(fiber->shutdown_handlers);
+    efree(fiber->shutdown_handlers);
+    fiber->shutdown_handlers = NULL;
+
+    if (exception_stack) {
+        zend_throw_composite_exception(exception_stack);
+        zend_hash_destroy(exception_stack);
+        efree(exception_stack);
+    } else {
+        EG(exception) 	= original_exception;
+    }
+}
+
+static void zend_throw_composite_exception(HashTable *exception_stack)
+{
+    const char *header 	= "Multiple exceptions occurred during Fiber shutdown:\n";
+    size_t header_len 	= strlen(header);
+
+    char message[4096] 	= {0};
+    size_t message_len 	= 0;
+
+    strncpy(message, header, sizeof(message) - 1);
+    message_len 		+= header_len;
+
+	zend_object *original_exception = EG(exception);
+	EG(exception) 		= NULL;
+
+    zval *exception_zval = NULL;
+
+    ZEND_HASH_FOREACH_VAL(exception_stack, exception_zval) {
+        if (Z_TYPE_P(exception_zval) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zval), zend_ce_throwable)) {
+            zend_object *exception_obj = Z_OBJ_P(exception_zval);
+            zval rv;
+
+            zval *message_zval = zend_read_property(
+                zend_ce_throwable, exception_obj, "message", sizeof("message") - 1, 0, &rv
+			);
+
+            const char *exception_message = Z_STRVAL_P(message_zval);
+
+            zval *file_zval = zend_read_property(zend_ce_throwable, exception_obj, "file", sizeof("file") - 1, 0, &rv);
+
+            const char *exception_file = Z_STRVAL_P(file_zval);
+
+            zval *line_zval = zend_read_property(zend_ce_throwable, exception_obj, "line", sizeof("line") - 1, 0, &rv);
+
+            zend_long exception_line = Z_LVAL_P(line_zval);
+
+            char exception_info[512] = {0};
+
+            int len 		= snprintf(
+                exception_info,
+                sizeof(exception_info),
+                "Message: %s, File: %s, Line: %ld\n",
+                exception_message,
+                exception_file,
+                exception_line
+            );
+
+            if (message_len + len >= sizeof(message)) {
+                strncat(message, "...(truncated)", sizeof(message) - message_len - 1);
+                break;
+            }
+
+            strncat(message, exception_info, sizeof(message) - message_len - 1);
+            message_len += len;
+        }
+
+    } ZEND_HASH_FOREACH_END();
+
+    char *heap_message = estrdup(message);
+
+    zval *composite_exception = emalloc(sizeof(zval));
+    object_init_ex(composite_exception, zend_ce_exception);
+
+    zend_update_property_string(
+        zend_ce_exception,
+        Z_OBJ_P(composite_exception),
+        "message",
+        sizeof("message") - 1,
+        heap_message
+    );
+
+	if (original_exception) {
+		zend_exception_set_previous(composite_exception, original_exception);
+	}
+
+    // Освобождаем временную строку
+    efree(heap_message);
+
+	EG(exception) 		= composite_exception;
+}
+
+#endif

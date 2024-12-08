@@ -26,6 +26,12 @@ final class Fiber
 
     public function getReturn(): mixed {}
 
+    public function &getContext(): array {}
+
+    public function addShutdownHandler(callable $callable): void {}
+
+    public function removeShutdownHandler(callable $callable): void {}
+
     public static function getCurrent(): ?Fiber {}
 
     public static function suspend(mixed $value = null): mixed {}

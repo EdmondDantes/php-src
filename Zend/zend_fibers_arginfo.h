@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e82bbc8e81fe98873a9a5697a4b38e63a24379da */
+ * Stub hash: 5e7a87c32c042202a14050a7618576873b852706 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Fiber___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -29,6 +29,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Fiber_getReturn, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Fiber_getContext, 1, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Fiber_addShutdownHandler, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, callable, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Fiber_removeShutdownHandler arginfo_class_Fiber_addShutdownHandler
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
 
@@ -46,6 +55,9 @@ ZEND_METHOD(Fiber, isSuspended);
 ZEND_METHOD(Fiber, isRunning);
 ZEND_METHOD(Fiber, isTerminated);
 ZEND_METHOD(Fiber, getReturn);
+ZEND_METHOD(Fiber, getContext);
+ZEND_METHOD(Fiber, addShutdownHandler);
+ZEND_METHOD(Fiber, removeShutdownHandler);
 ZEND_METHOD(Fiber, getCurrent);
 ZEND_METHOD(Fiber, suspend);
 ZEND_METHOD(FiberError, __construct);
@@ -60,6 +72,9 @@ static const zend_function_entry class_Fiber_methods[] = {
 	ZEND_ME(Fiber, isRunning, arginfo_class_Fiber_isRunning, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isTerminated, arginfo_class_Fiber_isTerminated, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getReturn, arginfo_class_Fiber_getReturn, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getContext, arginfo_class_Fiber_getContext, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, addShutdownHandler, arginfo_class_Fiber_addShutdownHandler, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, removeShutdownHandler, arginfo_class_Fiber_removeShutdownHandler, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_class_Fiber_getCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_class_Fiber_suspend, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END

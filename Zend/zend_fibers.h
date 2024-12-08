@@ -130,6 +130,19 @@ struct _zend_fiber {
 
 	/* Storage for fiber return value. */
 	zval result;
+
+//
+// PHP ASYNC FIBER FEATURES
+//
+#ifdef PHP_ASYNC
+
+	/* Fiber local storage. */
+	HashTable *user_local_storage;
+
+    /* Fiber shutdown_handlers */
+	HashTable *shutdown_handlers;
+
+#endif
 };
 
 ZEND_API zend_result zend_fiber_start(zend_fiber *fiber, zval *return_value);
