@@ -34,6 +34,7 @@ interface AwaitableInterface
     public function isFailed(): bool;
     public function getResult(): mixed;
     public function getError(): ?Throwable;
+    public function getBindedFiber(): ?\Fiber;
 }
 ```
 

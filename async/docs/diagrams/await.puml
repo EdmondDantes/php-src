@@ -1,0 +1,35 @@
+@startuml
+skinparam linetype ortho
+
+|Fiber1|
+start
+:Fiber create FiberDeferred object;
+:Scheduler links FiberDeferred to the current Fiber1;
+:Fiber calls await(FiberDeferred);
+:Scheduler switches control to its Fiber;
+
+
+|#AntiqueWhite|Scheduler|
+:Execution of microtasks;
+:Waiting for new events;
+:Switching execution to active Fibers;
+
+|#LightGreen|Fiber2|
+:Some work...;
+:Calls **FiberDeferred.resolve()/reject()**;
+:Scheduler blocks Fiber switching;
+:Scheduler marks the associated Fiber1 as **resumed**;
+:Scheduler executes all CompletionPublisherInterface handlers;
+:Scheduler returns control to the current Fiber;
+:Fiber2 call await();
+
+|Scheduler|
+:Execution of microtasks;
+:Waiting for new events;
+:Switching execution to active Fibers;
+
+|Fiber1|
+:Scheduler returns control to Fiber1;
+
+stop
+@enduml
