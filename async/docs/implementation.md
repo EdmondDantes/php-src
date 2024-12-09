@@ -28,7 +28,7 @@ final class DeferredResume implements DeferredInterface
 }
 ```
 
-The `DeferredResume` class describes an awaitable context 
+The `DeferredResume` class describes a future object 
 whose resolution indirectly leads to calling the `Fiber::resume()` method.
 
 The `DeferredResume` class requires adherence to the following usage rules:
@@ -42,78 +42,6 @@ The following low-level interfaces/classes manage what happens during event proc
 * `DeferredResolverInterface`: Implements the logic for resolving a `Deferred`. 
 This interface is typically implemented by `Event objects` that transition the state 
 of the `Event` to the state of a Deferred. 
-
-The following classes implement both of these interfaces:
-
-* `InputOutputEvent`  - an event for handling input/output
-* `TimerEvent`        - an event for handling timers
-* `SignalEvent`       - an event for handling signals
-* `FileSystemEvent`   - an event from the file system
-* `ProcessEvent`      - an event related to processes
-* `ThreadEvent`       - an event related to threads 
-
-Using these primitives, you can create any awaitable context with unique logic.
-Let's consider this with an example: `AwaitTimeout`:
-
-```php
-
-use Async\DeferredResume;
-
-final readonly class AwaitTimeout implements AwaitableInterface
-{
-    private TimerEvent $event;
-
-    public function __construct(int $timeout)
-    {
-        $this->event = new TimerEvent($timeout, new DeferredResume());
-    }
-    
-    public function getWaitingEvents(): array
-    {
-        return [$this->event];
-    }
-}
-
-```
-
-In this example, a `Timer` event descriptor is created, 
-which resolves a `DeferredResume` when the timer triggers. 
-This is the simplest example of using primitives.
-
-Now, let's consider a more complex example: waiting for read/write operations.
-
-```php
-
-use Async\DeferredResume;
-
-final readonly class AwaitSocket implements AwaitableInterface
-{
-    private InputOutputEvent $event;
-    private TimerEvent $timeout;
-
-    public function __construct(Socket $socket, int $events, int $timeout = 0)
-    {
-        $this->deferred = new DeferredResume();
-        $this->event    = new InputOutputEvent($stream, $events, $this->deferred);
-        $this->timeout  = null;
-        
-        if ($timeout > 0) {            
-            $this->timeout  = new TimerEvent($timeout, $this->deferred);
-            $this->timeout->thenIgnore($this->event);
-        }
-    }
-    
-    public function getDeferredResume(): DeferredResume
-    {
-        return $this->deferred;
-    }    
-    
-    public function getWaitingEvents(): array
-    {
-        return [$this->event, $this->timeout];
-    }
-}
-```
 
 ## AwaitContext
 
@@ -136,7 +64,6 @@ This limitation has several important implications:
 * When a `Fiber` is waiting for something, the `Scheduler` knows exactly what it is waiting for.
 * If an exception needs to be thrown into the waiting `Fiber`,
   it will automatically cause the await object to transition to its final state.
-
 
 
 ## Await Algorithm
@@ -232,6 +159,79 @@ start
 
 stop
 @enduml
+```
+
+### Awaitable Context Examples
+
+Using these primitives, you can create any awaitable contexts with unique logic.
+Let's consider this with an example: `AwaitTimeout`:
+
+```php
+
+use Async\DeferredResume;
+
+final readonly class AwaitTimeout implements AwaitableInterface
+{
+    private DeferredResume $deferred;
+    private TimerEvent $event;
+
+    public function __construct(int $timeout)
+    {
+        $this->deferred = new DeferredResume();
+        $this->event = new TimerEvent($timeout, $this->deferred);
+    }
+    
+    public function getDeferredResume(): DeferredResume
+    {
+        return $this->deferred;
+    }
+    
+    public function getWaitingEvents(): array
+    {
+        return [$this->event];
+    }
+}
+
+```
+
+In this example, a `Timer` event descriptor is created,
+which resolves a `DeferredResume` when the timer triggers.
+This is the simplest example of using primitives.
+
+Now, let's consider a more complex example: waiting for read/write operations.
+
+```php
+
+use Async\DeferredResume;
+
+final readonly class AwaitSocket implements AwaitableInterface
+{
+    private DeferredResume $deferred;
+    private InputOutputEvent $event;
+    private TimerEvent $timeout;
+
+    public function __construct(Socket $socket, int $events, int $timeout = 0)
+    {
+        $this->deferred = new DeferredResume();
+        $this->event    = new InputOutputEvent($stream, $events, $this->deferred);
+        $this->timeout  = null;
+        
+        if ($timeout > 0) {            
+            $this->timeout  = new TimerEvent($timeout, $this->deferred);
+            $this->timeout->thenIgnore($this->event);
+        }
+    }
+    
+    public function getDeferredResume(): DeferredResume
+    {
+        return $this->deferred;
+    }    
+    
+    public function getWaitingEvents(): array
+    {
+        return [$this->event, $this->timeout];
+    }
+}
 ```
 
 ## Persistent Await Context
