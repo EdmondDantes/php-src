@@ -234,7 +234,7 @@ final readonly class AwaitSocket implements AwaitableInterface
 }
 ```
 
-## Persistent Await Context
+### Persistent Await Context
 
 It is often necessary to implement interaction with the `event loop` within a cycle. 
 If a new `await context` is created and then destroyed each time, 
