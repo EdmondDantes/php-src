@@ -19,15 +19,15 @@ which blocks the execution of the current Fiber until certain conditions are met
 The general prototype of the `await()` function:
 ```php
 
-function await(AwaitableInterface $awaitable = null): void;
+function await(FutureInterface $awaitable = null): void;
 
 ```
 
 The `await` method takes a single optional parameter — an awaitable object.
-The `AwaitableInterface` is defined as follows:
+The `FutureInterface` is defined as follows:
 
 ```php
-interface AwaitableInterface
+interface FutureInterface
 {
     public function getStatus(): int;
     public function isReady(): bool;
@@ -53,7 +53,7 @@ The `Async` provides several different awaitable objects that make development m
 
 * `AwaitInputOutput`    — waits for input/output with timeout and cancellation.
 * `AwaitTimer`          — waits for a timer.
-* `AwaitPromise`        — waits for a promise.
+* `AwaitFuture`         — waits for a future.
 * `AwaitCancellation`   — waits for a cancellation signal.
 * `AwaitSignal`         — waits for an operating system signal.
 * `AwaitChannel`        — waits for a data transfer channel.
@@ -105,7 +105,7 @@ but after polling the event queue.
 
 ## Promise and Deferred primitives
 
-The `Promise`/`Deferred` classes are fundamental primitives implementing the `AwaitableInterface`. 
+The `Promise`/`Deferred` classes are fundamental primitives implementing the `FutureInterface`. 
 The `Deferred` class represents an object that can transition into a completed state with either a result or an error, 
 while the `Promise` represents its readonly state.
 
