@@ -1,121 +1,34 @@
-# Implementation await
+# Implementation
 
-When a waiting object is created and passed to the `await()` method, 
-it is automatically associated with the current `Fiber`, 
-and the `Fiber` is suspended, transferring control to the `Fiber Scheduler`.
+## Event descriptors
 
-A `Fiber` can have only one waiting object at any given time. 
-This limitation has several important implications:
+The `Async` component is based on low-level `event descriptors` 
+that cannot be implemented at the user-mode level.
 
-* When a `Fiber` is waiting for something, the `Scheduler` knows exactly what it is waiting for.
-* If an exception needs to be thrown into the waiting `Fiber`, 
-it will automatically cause the await object to transition to its final state.
+An `event descriptor` is an object that describes an event that can occur in the system.
+The `Async` library implements the following event descriptors:
 
-The `Scheduler` distinguishes between two types of AwaitObjects:
+* `InputOutputEvent`  - an event for handling input/output
+* `TimerEvent`        - an event for handling timers
+* `SignalEvent`       - an event for handling signals
+* `FileSystemEvent`   - an event from the file system
+* `ProcessEvent`      - an event related to processes
+* `ThreadEvent`       - an event related to threads
 
-* System `AwaitObjects`, such as I/O streams, timers, and signals.
-* User-mode `AwaitObjects`, which are part of the application program, such as `Promises` or `Channels`.
+## DeferredResume
 
-## Low-level AwaitObjects
-
-The `Async` component is based on low-level awaitable objects that cannot be implemented at the user-mode level. 
 The key class of the library for implementing `Fiber` switching is the `DeferredResume` class.
 
 ```php
-
 use Async\Deferred;
 use Async\FutureInterface;
-
-interface AwaitableInterface
-{
-    /**
-     * Returns events associated with the awaitable object.
-     *
-     * @return EventHandlerInterface[]
-     */
-    public function getWaitingEvents(): array;
-}
-
-interface CompletionPublisherInterface
-{
-    /**
-     * Registers a subscriber for success events.
-     *
-     * @param callable $onFulfilled The success callback.
-     * @return void
-     */
-    public function onSuccess(callable $onFulfilled): void;
-
-    /**
-     * Registers a subscriber for error events.
-     *
-     * @param callable $onRejected The error callback.
-     * @return void
-     */
-    public function onError(callable $onRejected): void;
-
-    /**
-     * Registers a subscriber for finalization events.
-     *
-     * @param callable $onFinally The finalization callback.
-     * @return void
-     */
-    public function onFinally(callable $onFinally): void;
-}
-
-interface IgnorableInterface
-{
-    public function ignore(): void;
-}
-
-interface ThenInterface
-{
-    public function thenIgnore(IgnorableInterface $object): static;
-    
-    public function thenResolve(DeferredInterface $object): static;
-    
-    public function thenReject(DeferredInterface $object): static;
-}
-
-interface DeferredInterface extends FutureInterface, ThenInterface, CompletionPublisherInterface
-{
-    /**
-     * Resolves the deferred object with a result.
-     *
-     * @param mixed $value The result value.
-     * @return void
-     */
-    public function resolve(mixed $value): void;
-
-    /**
-     * Rejects the deferred object with an error.
-     *
-     * @param Throwable $error The reason for rejection.
-     * @return void
-     */
-    public function reject(\Throwable $error): void;
-    
-    /**
-     * Ignores the deferred object.
-     *
-     * @return void
-     */
-    public function ignore(): void;
-    
-    /**
-     * Returns the future associated with the deferred object.
-     *
-     * @return FutureInterface
-     */
-    public function getFuture(): FutureInterface;
-}
 
 final class DeferredResume implements DeferredInterface
 {
 }
 ```
 
-The `DeferredResume` class describes an awaitable object 
+The `DeferredResume` class describes an awaitable context 
 whose resolution indirectly leads to calling the `Fiber::resume()` method.
 
 The `DeferredResume` class requires adherence to the following usage rules:
@@ -139,7 +52,7 @@ The following classes implement both of these interfaces:
 * `ProcessEvent`      - an event related to processes
 * `ThreadEvent`       - an event related to threads 
 
-Using these primitives, you can create any awaitable object with unique logic.
+Using these primitives, you can create any awaitable context with unique logic.
 Let's consider this with an example: `AwaitTimeout`:
 
 ```php
@@ -180,25 +93,86 @@ final readonly class AwaitSocket implements AwaitableInterface
 
     public function __construct(Socket $socket, int $events, int $timeout = 0)
     {
-        $this->event    = new InputOutputEvent($stream, $events, new DeferredResume());
+        $this->deferred = new DeferredResume();
+        $this->event    = new InputOutputEvent($stream, $events, $this->deferred);
         $this->timeout  = null;
         
-        if ($timeout > 0) {
-            $deferred       = new DeferredResume();
-            $this->timeout  = new TimerEvent($timeout, $deferred);
-            $this->timeout->thenIgnore($this->event);       
-        }        
+        if ($timeout > 0) {            
+            $this->timeout  = new TimerEvent($timeout, $this->deferred);
+            $this->timeout->thenIgnore($this->event);
+        }
     }
+    
+    public function getDeferredResume(): DeferredResume
+    {
+        return $this->deferred;
+    }    
     
     public function getWaitingEvents(): array
     {
         return [$this->event, $this->timeout];
     }
 }
-
 ```
 
-## User-mode AwaitObjects
+## AwaitContext
+
+The `await(AwaitableInterface $context)` method is a method that triggers context switching between
+`Fibers`. It is the primary and only way to transfer control between `Fibers`, unlike low-level methods.
+
+`AwaitContext` is a high-level object that can be implemented by a `PHP` developer and encapsulates the following:
+
+* A DeferredResume object that must be resolved within the `AwaitContext` code.
+* A list of events that the `Fiber` should wait for.
+* The logic linking the events to the `DeferredResume`.
+
+When a `AwaitContext` is created and passed to the `await()` method,
+it is automatically associated with the current `Fiber`,
+and the `Fiber` is suspended, transferring control to the `Fiber Scheduler`.
+
+A `Fiber` can have only one `AwaitContext` at any given time.
+This limitation has several important implications:
+
+* When a `Fiber` is waiting for something, the `Scheduler` knows exactly what it is waiting for.
+* If an exception needs to be thrown into the waiting `Fiber`,
+  it will automatically cause the await object to transition to its final state.
+
+
+
+## Await Algorithm
+
+The `await()` method validates the correctness of the awaitable context. 
+The awaitable context must have at least one event descriptor.
+The `await()` method retrieves an array of event descriptors and processes them one by one.
+The `await()` method switches the context to the `Scheduler`.
+
+```plantuml
+@startuml
+title Await Algorithm
+
+start
+:Validate awaitable context;
+if (Has at least one event descriptor?) then (Yes)
+  :Retrieve array of event descriptors;
+  repeat
+    :Process event descriptor;
+  repeat while (More descriptors?)
+  :Switch context to Scheduler;
+else (No)
+  :Throw error;
+endif
+stop
+
+@enduml
+```
+
+The `Scheduler` processes the event descriptors in the following way:
+
+Async adds callbacks to the event loop based on the type of descriptor 
+and sets up a handler so that it invokes the descriptor's `handle()` method, 
+passing additional event data that may vary depending on the type of event.
+
+## User-mode AwaitContexts
 
 To implement `User-mode` waiting objects, the `Async` library defines the `DeferredResume` class, 
 which implements the methods:
@@ -257,5 +231,21 @@ start
 :Scheduler returns control to Fiber1;
 
 stop
-@enduml```
+@enduml
+```
 
+## Persistent Await Context
+
+It is often necessary to implement interaction with the `event loop` within a cycle. 
+If a new `await context` is created and then destroyed each time, 
+it can lead to unnecessary overhead. 
+Additionally, event descriptors will repeatedly be removed from and added to the `EventLoop`, 
+which can also negatively impact performance.
+
+A persistent await context helps avoid unnecessary memory allocation operations and the addition of event descriptors.
+
+In this case, the `Fiber` creates a persistent await context and is required to pass it again 
+or NULL to the await method.
+
+The `Scheduler` does not delete the await context after the `Fiber` is activated 
+but continues monitoring the events.
