@@ -1616,8 +1616,15 @@ function ADD_SOURCES(dir, file_list, target, obj_dir)
 		if (obj_dir == null) {
 			if (MODE_PHPIZE) {
 				/* In the phpize mode, the subdirs are always relative to BUID_DIR.
-					No need to differentiate by extension, only one gets built. */
-				var build_dir = (dirname ? dirname : "").replace(new RegExp("^..\\\\"), "");
+					No need to differentiate by extension, only one gets built.
+					We still need to cater to subfolders, though. */
+				if (dir.charAt(configure_module_dirname.length) === "\\" &&
+					dir.substr(0, configure_module_dirname.length) === configure_module_dirname) {
+					var reldir = dir.substr(configure_module_dirname.length + 1);
+					var build_dir = (dirname ? (reldir + "\\" + dirname) : reldir).replace(new RegExp("^..\\\\"), "");
+				} else {
+					var build_dir = (dirname ? dirname : "").replace(new RegExp("^..\\\\"), "");
+				}
 			} else {
 				var build_dir = (dirname ? (dir + "\\" + dirname) : dir).replace(new RegExp("^..\\\\"), "");
 			}
@@ -2272,6 +2279,10 @@ function generate_config_h()
 
 	outfile = FSO.CreateTextFile("main/config.w32.h", true);
 
+	outfile.WriteLine("#ifndef CONFIG_W32_H");
+	outfile.WriteLine("#define CONFIG_W32_H");
+	outfile.WriteBlankLines(1);
+
 	indata = indata.replace(new RegExp("@PREFIX@", "g"), prefix);
 	outfile.Write(indata);
 
@@ -2319,6 +2330,8 @@ function generate_config_h()
 	outfile.WriteLine("#if __has_include(\"main/config.pickle.h\")");
 	outfile.WriteLine("#include \"main/config.pickle.h\"");
 	outfile.WriteLine("#endif");
+	outfile.WriteBlankLines(1);
+	outfile.WriteLine("#endif /* CONFIG_W32_H */");
 
 	outfile.Close();
 }
