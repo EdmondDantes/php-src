@@ -17,15 +17,15 @@ interface FutureInterface
 }
 ```
 
-### IgnorableInterface
+### CancellationInterface
 
-The `IgnorableInterface` interface is used to ignore the result of an awaitable object.
+The `CancellationInterface` interface is used to ignore the result of an awaitable object.
 
 ```php
 
-interface IgnorableInterface
+interface CancellationInterface
 {
-    public function ignore(): void;
+    public function cancel(): void;
 }
 
 ```
@@ -37,9 +37,14 @@ and handler that is invoked when the event occurs.
 
 ```php
 
-interface EventDescriptorInterface extends IgnorableInterface
+interface EventDescriptorInterface extends CancellationInterface
 {
-
+    /**
+     * Called when the event was registered in the event loop.
+     *
+     * @return EventHandlerInterface
+     */
+    public function onRegistered(callable $disposeCallback): void;
 }
 ```
 
@@ -108,7 +113,7 @@ interface ThenInterface
      * Indicates that the specified objects (events or Deferred) 
      * should be ignored if this event has occurred.
      */
-    public function thenIgnore(IgnorableInterface ...$objects): static;
+    public function thenIgnore(CancellationInterface ...$objects): static;
     
     /**
      * Indicates that the specified objects (events or Deferred) 
@@ -128,7 +133,7 @@ interface ThenInterface
 
 ```php
 interface DeferredInterface extends FutureInterface, 
-                                    IgnorableInterface, 
+                                    CancellationInterface, 
                                     CompletionPublisherInterface,
                                     ThenInterface
 
