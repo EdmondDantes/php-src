@@ -40,9 +40,9 @@ static zval* weak_reference_from(zval* referent) {
 // CompletionPublisher class
 // ===========================
 
-static zend_result async_completion_add_callback(async_completion_publisher_t* publisher, zval* callback, ASYNC_COMPLETION_ACTION action) {
+static zend_result async_completion_add_binded_object(async_completion_publisher_t* publisher, zval* object, ASYNC_COMPLETION_ACTION action) {
 
-	if (!zend_is_callable(callback, 0, NULL)) {
+	if (!zend_is_callable(object, 0, NULL)) {
 		zend_throw_exception_ex(zend_ce_type_error, 0, "Argument is not a valid callable");
 		return FAILURE;
 	}	
@@ -54,13 +54,64 @@ static zend_result async_completion_add_callback(async_completion_publisher_t* p
 
 	// Allocate async_completion_binded_object_t structure
 	async_completion_binded_object_t* binded_obj = emalloc(sizeof(async_completion_binded_object_t));
-	binded_obj->weak_reference = weak_reference_from(callback);
+	binded_obj->weak_reference = weak_reference_from(object);
 	binded_obj->action = ASYNC_COMPLETION_RESOLV;
 
 	zend_hash_next_index_insert(publisher->bindedObjects, binded_obj);
 
 	return SUCCESS;
 }
+
+static zend_result async_completion_add_binded_list(async_completion_publisher_t* publisher, zval* objects, int object_count, ASYNC_COMPLETION_ACTION action)
+{
+	int i;
+
+	for (i = 0; i < object_count; i++) {
+
+		if (UNEXPECTED(Z_TYPE(objects[i]) != IS_OBJECT || !instanceof_function(Z_OBJCE(objects[i]), CancellationInterface_ce))) {
+
+			zend_throw_exception_ex(zend_ce_type_error, 0, "Argument number %d must implement CancellationInterface", i + 1);
+			return FAILURE;
+		}
+
+		if (UNEXPECTED(async_completion_add_binded_object(publisher, Z_OBJ_P(objects[i]), ASYNC_COMPLETION_CANCEL) != SUCCESS)) {
+			return FAILURE;
+		}
+	}
+
+	return SUCCESS;
+}
+
+static zend_result async_completion_add_callback(zval* handlers, zval* callback)
+{
+	if (Z_TYPE_P(on_fulfilled) != IS_ARRAY) {
+		zend_throw_exception_ex(zend_ce_type_error, 0, "Property 'onFulfilled' is not an array or accessible.");
+		return FAILED;
+	}
+
+	if (!zend_is_callable(callback, 0, NULL)) {
+		zend_throw_exception_ex(zend_ce_type_error, 0, "Parameter must be callable.");
+		return FAILED;
+	}
+
+	HashTable* array = Z_ARRVAL_P(handlers);
+	zval* entry;
+
+	ZEND_HASH_FOREACH_VAL(array, entry) {
+		if (Z_TYPE_P(entry) == IS_OBJECT && Z_OBJ_P(entry) == Z_OBJ_P(callback)) {
+			return SUCCESS;
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	Z_ADDREF_P(callback);
+	add_next_index_zval(handlers, callback);
+
+	return SUCCESS;
+}
+
+#define PUBLISHER_PROPERTY_ON_FULFILLED 0
+#define PUBLISHER_PROPERTY_ON_REJECTED 1
+#define PUBLISHER_PROPERTY_ON_FINALLY 2
 
 // ---------------------------
 #pragma region CompletionPublisher class methods
@@ -75,9 +126,7 @@ ZEND_METHOD(Async_CompletionPublisher, onSuccess)
 		Z_PARAM_ZVAL(callback)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
-
-	if (UNEXPECTED(async_completion_add_callback(publisher, callback, ASYNC_COMPLETION_RESOLV) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_callback(THIS_PROPERTY(PUBLISHER_PROPERTY_ON_FULFILLED), callback) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 
@@ -90,11 +139,9 @@ ZEND_METHOD(Async_CompletionPublisher, onError)
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_ZVAL(callback)
-	ZEND_PARSE_PARAMETERS_END();
+		ZEND_PARSE_PARAMETERS_END();
 
-	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
-
-	if (UNEXPECTED(async_completion_add_callback(publisher, callback, ASYNC_COMPLETION_REJECT) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_callback(THIS_PROPERTY(PUBLISHER_PROPERTY_ON_REJECTED), callback) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 
@@ -107,11 +154,9 @@ ZEND_METHOD(Async_CompletionPublisher, onFinally)
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_ZVAL(callback)
-	ZEND_PARSE_PARAMETERS_END();
+		ZEND_PARSE_PARAMETERS_END();
 
-	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
-
-	if (UNEXPECTED(async_completion_add_callback(publisher, callback, ASYNC_COMPLETION_FINALLY) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_callback(THIS_PROPERTY(PUBLISHER_PROPERTY_ON_FINALLY), callback) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 
@@ -123,30 +168,61 @@ ZEND_METHOD(Async_CompletionPublisher, thenCancel)
 	zval* objects;
 	int object_count, i;
 
-	// Разбираем все переданные аргументы как массив zval
 	ZEND_PARSE_PARAMETERS_START(1, -1)
 		Z_PARAM_VARIADIC('+', objects, object_count)
-		ZEND_PARSE_PARAMETERS_END();
+	ZEND_PARSE_PARAMETERS_END();
 
-	// Обрабатываем переданные объекты
-	for (i = 0; i < object_count; i++) {
-		if (Z_TYPE(objects[i]) != IS_OBJECT || !instanceof_function(Z_OBJCE(objects[i]), CancellationInterface_ce)) {
-			zend_throw_exception_ex(zend_ce_type_error, 0,
-				"All arguments must implement CancellationInterface");
-			RETURN_THROWS();
-		}
-
-		// Здесь можно сохранить объект в свойство или массив
-		// Пример: добавить объект в свойство-список
-		add_next_index_zval(zend_read_property(MyClass_ce, Z_OBJ_P(ZEND_THIS), "cancellations", sizeof("cancellations") - 1, 1, NULL), &objects[i]);
-
-		// Увеличиваем ссылочный счётчик, так как zval добавляется в массив
-		Z_TRY_ADDREF(objects[i]);
+	if (UNEXPECTED(object_count == 0)) {
+		RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
 	}
 
 	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
 
-	if (UNEXPECTED(async_completion_add_callback(publisher, callback, ASYNC_COMPLETION_FINALLY) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_CANCEL) != SUCCESS)) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
+}
+
+ZEND_METHOD(Async_CompletionPublisher, thenResolve)
+{
+	zval* objects;
+	int object_count, i;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_VARIADIC('+', objects, object_count)
+		ZEND_PARSE_PARAMETERS_END();
+
+	if (UNEXPECTED(object_count == 0)) {
+		RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
+	}
+
+	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
+
+	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_RESOLV) != SUCCESS)) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
+}
+
+ZEND_METHOD(Async_CompletionPublisher, thenReject)
+{
+	zval* objects;
+	int object_count, i;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_VARIADIC('+', objects, object_count)
+		ZEND_PARSE_PARAMETERS_END();
+
+	if (UNEXPECTED(object_count == 0)) {
+		RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
+	}
+
+	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
+
+	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_REJECT) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 

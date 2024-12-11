@@ -10,6 +10,7 @@
 #include "zend_interfaces.h"
 #include "php_async_arginfo.h"
 #include "internal/async_api.h"
+#include "internal/zend_engine.h"
 #include "uv.h"
 
 
@@ -19,7 +20,7 @@ typedef struct _async_completion_binded_object_s async_completion_binded_object_
 typedef enum {
 	ASYNC_COMPLETION_RESOLV = 1,
 	ASYNC_COMPLETION_REJECT = 2,
-	ASYNC_COMPLETION_IGNORE = 3,
+	ASYNC_COMPLETION_CANCEL = 3,
 	ASYNC_COMPLETION_FINALLY = 4
 } ASYNC_COMPLETION_ACTION;
 

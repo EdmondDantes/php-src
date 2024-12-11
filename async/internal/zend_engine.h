@@ -2,22 +2,14 @@
 // Created by Edmond on 07.12.2024.
 //
 
-#ifndef ZEND_API_MACROS_H
-#define ZEND_API_MACROS_H
+#ifndef ZEND_ENGINE_H
+#define ZEND_ENGINE_H
 
 #include <Zend/zend.h>
-#include <Zend/zend_compile.h>
-#include <Zend/zend_exceptions.h>
-#include <Zend/zend_extensions.h>
-#include <Zend/zend_globals.h>
-#include <Zend/zend_hash.h>
-#include <Zend/zend_interfaces.h>
-#include <Zend/zend_list.h>
-#include <Zend/zend_object_handlers.h>
-#include <Zend/zend_variables.h>
-#include <Zend/zend_vm.h>
 
 #define INVALID_POINTER ((void *)-1)
+
+#define THIS_PROPERTY(prop_index) OBJ_PROP_NUM(Z_OBJ_P(ZEND_THIS), (prop_index))
 
 #define GET_CLASS_ENTRY(class_name_str, ce_ptr) static zend_class_entry *(ce_ptr) = INVALID_POINTER; 		\
     if ((ce_ptr) == INVALID_POINTER) {                                                		\
@@ -28,4 +20,4 @@
     }
 
 
-#endif //ZEND_API_MACROS_H
+#endif //ZEND_ENGINE_H

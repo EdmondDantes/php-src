@@ -170,7 +170,7 @@ abstract class CompletionPublisherAbstract implements CompletionPublisherInterfa
 
     public function onFinally(callable $onFinally): void {}
 
-    public function thenIgnore(CancellationInterface ...$objects): static {}
+    public function thenCancel(CancellationInterface ...$objects): static {}
 
     public function thenResolve(DeferredInterface ...$objects): static {}
 

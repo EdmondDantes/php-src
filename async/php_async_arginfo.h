@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: c1ddb49b28f9b2423a1e61405f6328e80e16d2c4 */
+ * Stub hash: 57f601300b7b29172f771a296a087c36a393dd75 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_await, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, awaitable, Async\\AwaitableInterface, 0)
@@ -55,19 +55,19 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_AwaitableInterface_getWaitingEvents, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onSuccess, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onSuccess, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_TYPE_INFO(0, onFulfilled, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onError, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onError, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_TYPE_INFO(0, onRejected, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onFinally, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherInterface_onFinally, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_TYPE_INFO(0, onFinally, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ThenInterface_thenIgnore, 0, 0, IS_STATIC, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ThenInterface_thenCancel, 0, 0, IS_STATIC, 0)
 	ZEND_ARG_VARIADIC_OBJ_INFO(0, objects, Async\\CancellationInterface, 0)
 ZEND_END_ARG_INFO()
 
@@ -88,13 +88,19 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_DeferredInterface_getFuture, 0, 0, Async\\FutureInterface, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_CompletionPublisherAbstract_onSuccess arginfo_class_Async_CompletionPublisherInterface_onSuccess
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherAbstract_onSuccess, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, onFulfilled, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_CompletionPublisherAbstract_onError arginfo_class_Async_CompletionPublisherInterface_onError
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherAbstract_onError, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, onRejected, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_CompletionPublisherAbstract_onFinally arginfo_class_Async_CompletionPublisherInterface_onFinally
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherAbstract_onFinally, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, onFinally, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_CompletionPublisherAbstract_thenIgnore arginfo_class_Async_ThenInterface_thenIgnore
+#define arginfo_class_Async_CompletionPublisherAbstract_thenCancel arginfo_class_Async_ThenInterface_thenCancel
 
 #define arginfo_class_Async_CompletionPublisherAbstract_thenResolve arginfo_class_Async_ThenInterface_thenResolve
 
@@ -162,7 +168,7 @@ ZEND_FUNCTION(Async_onSignal);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onSuccess);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onError);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onFinally);
-ZEND_METHOD(Async_CompletionPublisherAbstract, thenIgnore);
+ZEND_METHOD(Async_CompletionPublisherAbstract, thenCancel);
 ZEND_METHOD(Async_CompletionPublisherAbstract, thenResolve);
 ZEND_METHOD(Async_CompletionPublisherAbstract, thenReject);
 ZEND_METHOD(Async_CompletionPublisherAbstract, invokeCompletionHandlers);
@@ -233,7 +239,7 @@ static const zend_function_entry class_Async_CompletionPublisherInterface_method
 };
 
 static const zend_function_entry class_Async_ThenInterface_methods[] = {
-	ZEND_RAW_FENTRY("thenIgnore", NULL, arginfo_class_Async_ThenInterface_thenIgnore, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
+	ZEND_RAW_FENTRY("thenCancel", NULL, arginfo_class_Async_ThenInterface_thenCancel, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("thenResolve", NULL, arginfo_class_Async_ThenInterface_thenResolve, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("thenReject", NULL, arginfo_class_Async_ThenInterface_thenReject, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
@@ -250,7 +256,7 @@ static const zend_function_entry class_Async_CompletionPublisherAbstract_methods
 	ZEND_ME(Async_CompletionPublisherAbstract, onSuccess, arginfo_class_Async_CompletionPublisherAbstract_onSuccess, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, onError, arginfo_class_Async_CompletionPublisherAbstract_onError, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, onFinally, arginfo_class_Async_CompletionPublisherAbstract_onFinally, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_CompletionPublisherAbstract, thenIgnore, arginfo_class_Async_CompletionPublisherAbstract_thenIgnore, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_CompletionPublisherAbstract, thenCancel, arginfo_class_Async_CompletionPublisherAbstract_thenCancel, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, thenResolve, arginfo_class_Async_CompletionPublisherAbstract_thenResolve, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, thenReject, arginfo_class_Async_CompletionPublisherAbstract_thenReject, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, invokeCompletionHandlers, arginfo_class_Async_CompletionPublisherAbstract_invokeCompletionHandlers, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
