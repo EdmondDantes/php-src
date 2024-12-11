@@ -1,5 +1,32 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: dbebb49051294b48bc37eed812a0532d773440ed */
+ * Stub hash: 36e4532076c11a7c288603e91ba03dd194f608d1 */
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_await, 0, 1, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, awaitable, Async\\AwaitableInterface, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Async_async, 0, 1, Async\\FutureInterface, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_defer, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, task, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_delay, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, task, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_repeat, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, interval, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, task, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_onSignal, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, task, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FutureInterface_getStatus, 0, 0, Async\\FutureStatus, 0)
 ZEND_END_ARG_INFO()
@@ -121,6 +148,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_ThreadEvent_onRegistered arginfo_class_Async_EventDescriptorInterface_onRegistered
 
+ZEND_FUNCTION(Async_await);
+ZEND_FUNCTION(Async_async);
+ZEND_FUNCTION(Async_defer);
+ZEND_FUNCTION(Async_delay);
+ZEND_FUNCTION(Async_repeat);
+ZEND_FUNCTION(Async_onSignal);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onSuccess);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onError);
 ZEND_METHOD(Async_CompletionPublisherAbstract, onFinally);
@@ -150,6 +183,16 @@ ZEND_METHOD(Async_ProcessEvent, cancel);
 ZEND_METHOD(Async_ProcessEvent, onRegistered);
 ZEND_METHOD(Async_ThreadEvent, cancel);
 ZEND_METHOD(Async_ThreadEvent, onRegistered);
+
+static const zend_function_entry ext_functions[] = {
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "await"), zif_Async_await, arginfo_Async_await, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "async"), zif_Async_async, arginfo_Async_async, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "defer"), zif_Async_defer, arginfo_Async_defer, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "delay"), zif_Async_delay, arginfo_Async_delay, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "repeat"), zif_Async_repeat, arginfo_Async_repeat, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "onSignal"), zif_Async_onSignal, arginfo_Async_onSignal, 0, NULL, NULL)
+	ZEND_FE_END
+};
 
 static const zend_function_entry class_Async_FutureInterface_methods[] = {
 	ZEND_RAW_FENTRY("getStatus", NULL, arginfo_class_Async_FutureInterface_getStatus, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)

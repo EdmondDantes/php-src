@@ -156,6 +156,8 @@ interface DeferredInterface extends FutureInterface,
     public function getFuture(): FutureInterface;
 }
 
+
+
 abstract class CompletionPublisherAbstract implements CompletionPublisherInterface
 {
     public function onSuccess(callable $onFulfilled): void {}
@@ -256,3 +258,15 @@ final class ThreadEvent extends CompletionPublisherAbstract implements EventDesc
 
     public function onRegistered(callable $disposeCallback): void {}
 }
+
+function await(AwaitableInterface $awaitable): void {};
+
+function async(callable $callback): FutureInterface {};
+
+function defer(callable $task): void {};
+
+function delay(int $timeout, callable $task): void {};
+
+function repeat(int $interval, callable $task): void {};
+
+function onSignal(int $sigNumber, callable $task): void {};
