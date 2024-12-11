@@ -2,8 +2,8 @@
 //
 // Condition if fiber
 //
-#ifndef PHP_ASYNC_H
-#define PHP_ASYNC_H
+#ifndef ASYNC_API_H
+#define ASYNC_API_H
 
 #include "php.h"
 #include "zend_types.h"
@@ -33,11 +33,16 @@ struct _async_future_s {
     zval *result;
 };
 
-// DeferredResume structure
+/**
+ * DeferredResume structure
+ */
 struct _async_deferred_resume_s {
+    /* PHP object handle. */
+    zend_object std;
+    /* Deferred state. */
     zend_atomic_int status;
+    /* Fiber that will be resumed. */
     zend_fiber *fiber;
-    zval *value;
 };
 
 //
@@ -94,4 +99,4 @@ if (!EG(active_fiber)) {                         \
     return FUN_CALL;                             \
 }
 
-#endif //PHP_ASYNC_H
+#endif //ASYNC_API_H

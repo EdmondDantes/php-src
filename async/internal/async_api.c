@@ -2,7 +2,7 @@
 // Created by Edmond on 07.12.2024.
 //
 
-#include "php_async.h"
+#include "async_api.h"
 
 zend_result async_await(async_await_context *context) {
 
