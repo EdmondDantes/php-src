@@ -80,7 +80,7 @@ interface CompletionPublisherInterface
      * @param callable $onFulfilled The success callback.
      * @return void
      */
-    public function onSuccess(callable $onFulfilled): void;
+    public function onSuccess(callable $onFulfilled): static;
 
     /**
      * Registers a subscriber for error events.
@@ -88,7 +88,7 @@ interface CompletionPublisherInterface
      * @param callable $onRejected The error callback.
      * @return void
      */
-    public function onError(callable $onRejected): void;
+    public function onError(callable $onRejected): static;
 
     /**
      * Registers a subscriber for finalization events.
@@ -96,7 +96,7 @@ interface CompletionPublisherInterface
      * @param callable $onFinally The finalization callback.
      * @return void
      */
-    public function onFinally(callable $onFinally): void;
+    public function onFinally(callable $onFinally): static;
 }
 
 /**
@@ -108,7 +108,7 @@ interface ThenInterface
      * Indicates that the specified objects (events or Deferred)
      * should be ignored if this event has occurred.
      */
-    public function thenIgnore(CancellationInterface ...$objects): static;
+    public function thenCancel(CancellationInterface ...$objects): static;
 
     /**
      * Indicates that the specified objects (events or Deferred)
@@ -160,6 +160,10 @@ interface DeferredInterface extends FutureInterface,
 
 abstract class CompletionPublisherAbstract implements CompletionPublisherInterface
 {
+    private array $onFulfilled  = [];
+    private array $onRejected   = [];
+    private array $onFinally    = [];
+
     public function onSuccess(callable $onFulfilled): void {}
 
     public function onError(callable $onRejected): void {}
@@ -172,7 +176,7 @@ abstract class CompletionPublisherAbstract implements CompletionPublisherInterfa
 
     public function thenReject(DeferredInterface ...$objects): static {}
 
-    protected function invokeCompletionHandlers(): void {}
+    final protected function invokeCompletionHandlers(FutureStatus $status): void {}
 }
 
 /**
@@ -211,6 +215,8 @@ abstract class DeferredAbstract extends CompletionPublisherAbstract implements D
  */
 final class DeferredResume extends DeferredAbstract
 {
+    public function __construct() {}
+
     protected function internalHandler(): void {}
 }
 

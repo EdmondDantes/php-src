@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 36e4532076c11a7c288603e91ba03dd194f608d1 */
+ * Stub hash: c1ddb49b28f9b2423a1e61405f6328e80e16d2c4 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_await, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, awaitable, Async\\AwaitableInterface, 0)
@@ -100,7 +100,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_CompletionPublisherAbstract_thenReject arginfo_class_Async_ThenInterface_thenResolve
 
-#define arginfo_class_Async_CompletionPublisherAbstract_invokeCompletionHandlers arginfo_class_Async_CancellationInterface_cancel
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_CompletionPublisherAbstract_invokeCompletionHandlers, 0, 1, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, status, Async\\FutureStatus, 0)
+ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_DeferredAbstract_getStatus arginfo_class_Async_FutureInterface_getStatus
 
@@ -121,6 +123,9 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Async_DeferredAbstract_getFuture arginfo_class_Async_DeferredInterface_getFuture
 
 #define arginfo_class_Async_DeferredAbstract_internalHandler arginfo_class_Async_CancellationInterface_cancel
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_DeferredResume___construct, 0, 0, 0)
+ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_DeferredResume_internalHandler arginfo_class_Async_CancellationInterface_cancel
 
@@ -170,6 +175,7 @@ ZEND_METHOD(Async_DeferredAbstract, cancel);
 ZEND_METHOD(Async_DeferredAbstract, resolve);
 ZEND_METHOD(Async_DeferredAbstract, reject);
 ZEND_METHOD(Async_DeferredAbstract, getFuture);
+ZEND_METHOD(Async_DeferredResume, __construct);
 ZEND_METHOD(Async_DeferredResume, internalHandler);
 ZEND_METHOD(Async_InputOutputEvent, cancel);
 ZEND_METHOD(Async_InputOutputEvent, onRegistered);
@@ -247,7 +253,7 @@ static const zend_function_entry class_Async_CompletionPublisherAbstract_methods
 	ZEND_ME(Async_CompletionPublisherAbstract, thenIgnore, arginfo_class_Async_CompletionPublisherAbstract_thenIgnore, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, thenResolve, arginfo_class_Async_CompletionPublisherAbstract_thenResolve, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_CompletionPublisherAbstract, thenReject, arginfo_class_Async_CompletionPublisherAbstract_thenReject, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_CompletionPublisherAbstract, invokeCompletionHandlers, arginfo_class_Async_CompletionPublisherAbstract_invokeCompletionHandlers, ZEND_ACC_PROTECTED)
+	ZEND_ME(Async_CompletionPublisherAbstract, invokeCompletionHandlers, arginfo_class_Async_CompletionPublisherAbstract_invokeCompletionHandlers, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
@@ -266,6 +272,7 @@ static const zend_function_entry class_Async_DeferredAbstract_methods[] = {
 };
 
 static const zend_function_entry class_Async_DeferredResume_methods[] = {
+	ZEND_ME(Async_DeferredResume, __construct, arginfo_class_Async_DeferredResume___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_DeferredResume, internalHandler, arginfo_class_Async_DeferredResume_internalHandler, ZEND_ACC_PROTECTED)
 	ZEND_FE_END
 };
@@ -408,6 +415,24 @@ static zend_class_entry *register_class_Async_CompletionPublisherAbstract(zend_c
 	INIT_NS_CLASS_ENTRY(ce, "Async", "CompletionPublisherAbstract", class_Async_CompletionPublisherAbstract_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_ABSTRACT);
 	zend_class_implements(class_entry, 1, class_entry_Async_CompletionPublisherInterface);
+
+	zval property_onFulfilled_default_value;
+	ZVAL_EMPTY_ARRAY(&property_onFulfilled_default_value);
+	zend_string *property_onFulfilled_name = zend_string_init("onFulfilled", sizeof("onFulfilled") - 1, 1);
+	zend_declare_typed_property(class_entry, property_onFulfilled_name, &property_onFulfilled_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_onFulfilled_name);
+
+	zval property_onRejected_default_value;
+	ZVAL_EMPTY_ARRAY(&property_onRejected_default_value);
+	zend_string *property_onRejected_name = zend_string_init("onRejected", sizeof("onRejected") - 1, 1);
+	zend_declare_typed_property(class_entry, property_onRejected_name, &property_onRejected_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_onRejected_name);
+
+	zval property_onFinally_default_value;
+	ZVAL_EMPTY_ARRAY(&property_onFinally_default_value);
+	zend_string *property_onFinally_name = zend_string_init("onFinally", sizeof("onFinally") - 1, 1);
+	zend_declare_typed_property(class_entry, property_onFinally_name, &property_onFinally_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_onFinally_name);
 
 	return class_entry;
 }
