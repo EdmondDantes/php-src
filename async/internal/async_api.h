@@ -15,9 +15,9 @@
 //
 
 typedef struct _async_future_s async_future;
-typedef struct _async_deferred_resume_s async_deferred_resume;
-typedef struct _async_await_context_s async_await_context;
-typedef struct _async_event_handler_s async_event_handler;
+typedef struct _async_deferred_resume_s async_deferred_resume_t;
+typedef struct _async_await_context_s async_await_context_t;
+typedef struct _async_event_handler_s async_event_handler_t;
 
 // Future statuses
 typedef enum {
@@ -56,13 +56,13 @@ typedef enum {
     ASYNC_CONTEXT_DISPOSED = 2,
 } ASYNC_CONTEXT_STATUS;
 
-typedef void (*async_event_handler_method)(async_event_handler *event_handler);
+typedef void (*async_event_handler_method)(async_event_handler_t *event_handler);
 
 struct _async_event_handler_s {
     async_event_handler_method callback;
     async_event_handler_method dispose;
     zval *event_descriptor;
-    async_await_context *context;
+    async_await_context_t *context;
     uv_handle_t uv_handle;
 };
 
@@ -71,17 +71,17 @@ struct _async_event_handler_s {
 // This structure is used to handle the context of the await.
 //
 
-typedef void (*async_context_method)(async_await_context *await_context);
+typedef void (*async_context_method)(async_await_context_t *await_context);
 
 struct _async_await_context_s {
     zend_atomic_int status;
-    async_deferred_resume *deferred_resume;
+    async_deferred_resume_t *deferred_resume;
     zval *context;
     async_context_method apply;
     async_context_method reset;
     async_context_method dispose;
     size_t event_handler_count;
-    async_event_handler event_handlers[];
+    async_event_handler_t event_handlers[];
 };
 
 //
