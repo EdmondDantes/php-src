@@ -25,8 +25,16 @@ typedef enum {
 } ASYNC_COMPLETION_ACTION;
 
 
+/**
+ * Completion binded object structure.
+ * 
+ * Describes an object associated with a completion event.
+ * The object can be a PHP callable or a WeakReference to a awaitable object.
+ * The CompletionPublisher object should be responsible for releasing memory associated with the object.
+ */
 struct _async_completion_binded_object_s {
-	zval *weak_reference;
+	/* Awaiting object (weak reference) or callable handler */
+	zval *object;
 	ASYNC_COMPLETION_ACTION action;
 };
 
@@ -36,6 +44,7 @@ struct _async_completion_publisher_s {
 	/**
 	 * An array of objects associated with completion events.
 	 * It is an array of async_completion_binded_object_t structures.
+	 * The CompletionPublisher object should be responsible for releasing memory associated with the objects.
 	 **/
 	HashTable* bindedObjects;
 };

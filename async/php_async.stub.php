@@ -160,10 +160,6 @@ interface DeferredInterface extends FutureInterface,
 
 abstract class CompletionPublisherAbstract implements CompletionPublisherInterface
 {
-    private array $onFulfilled  = [];
-    private array $onRejected   = [];
-    private array $onFinally    = [];
-
     public function onSuccess(callable $onFulfilled): void {}
 
     public function onError(callable $onRejected): void {}

@@ -40,7 +40,16 @@ static zval* weak_reference_from(zval* referent) {
 // CompletionPublisher class
 // ===========================
 
-static zend_result async_completion_add_binded_object(async_completion_publisher_t* publisher, zval* object, ASYNC_COMPLETION_ACTION action) {
+ /**
+  * Add binded objects to the completion publisher binded objects list.
+  *
+  * @param publisher	The publisher
+  * @param object		The object to be bound to the completion.
+  * @param action		The action to execute upon completion (@see ASYNC_COMPLETION_ACTION).
+  * @param is_callable	Indicates whether the object is callable.
+  * @return				A zend_result indicating success or failure of the operation.
+  */
+static zend_result async_completion_add_binded_object(async_completion_publisher_t* publisher, zval* object, ASYNC_COMPLETION_ACTION action, bool is_callable) {
 
 	if (!zend_is_callable(object, 0, NULL)) {
 		zend_throw_exception_ex(zend_ce_type_error, 0, "Argument is not a valid callable");
@@ -52,29 +61,45 @@ static zend_result async_completion_add_binded_object(async_completion_publisher
 		zend_hash_init(publisher->bindedObjects, 0, NULL, ZVAL_PTR_DTOR, 0);
 	}
 
+	ZEND_HASH_FOREACH_VAL(publisher->bindedObjects, entry) {
+		if (Z_TYPE_P(entry->) == IS_OBJECT && Z_OBJ_P(entry) == Z_OBJ_P(callback)) {
+			return SUCCESS;
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	// Allocate async_completion_binded_object_t structure
 	async_completion_binded_object_t* binded_obj = emalloc(sizeof(async_completion_binded_object_t));
-	binded_obj->weak_reference = weak_reference_from(object);
-	binded_obj->action = ASYNC_COMPLETION_RESOLV;
 
-	zend_hash_next_index_insert(publisher->bindedObjects, binded_obj);
+	if (is_callable) {
+		Z_TRY_ADDREF_P(object);
+		binded_obj->object = object;
+	} else {
+		binded_obj->object = weak_reference_from(object);
+	}
+	
+	binded_obj->action = action;
+
+	zend_hash_index_add_ptr(publisher->bindedObjects, binded_obj);
 
 	return SUCCESS;
 }
 
-static zend_result async_completion_add_binded_list(async_completion_publisher_t* publisher, zval* objects, int object_count, ASYNC_COMPLETION_ACTION action)
+/*
+ * Add deferred objects to the completion publisher binded objects list.
+ */
+static zend_result async_completion_add_deferred(async_completion_publisher_t* publisher, zval* objects, int object_count, ASYNC_COMPLETION_ACTION action)
 {
 	int i;
 
 	for (i = 0; i < object_count; i++) {
 
-		if (UNEXPECTED(Z_TYPE(objects[i]) != IS_OBJECT || !instanceof_function(Z_OBJCE(objects[i]), CancellationInterface_ce))) {
+		if (UNEXPECTED(Z_TYPE(objects[i]) != IS_OBJECT || !instanceof_function(Z_OBJCE(objects[i]), DeferredInterface_ce))) {
 
-			zend_throw_exception_ex(zend_ce_type_error, 0, "Argument number %d must implement CancellationInterface", i + 1);
+			zend_throw_exception_ex(zend_ce_type_error, 0, "Argument number %d must implement DeferredInterface", i + 1);
 			return FAILURE;
 		}
 
-		if (UNEXPECTED(async_completion_add_binded_object(publisher, Z_OBJ_P(objects[i]), ASYNC_COMPLETION_CANCEL) != SUCCESS)) {
+		if (UNEXPECTED(async_completion_add_binded_object(publisher, Z_OBJ_P(objects[i]), action) != SUCCESS)) {
 			return FAILURE;
 		}
 	}
@@ -82,13 +107,8 @@ static zend_result async_completion_add_binded_list(async_completion_publisher_t
 	return SUCCESS;
 }
 
-static zend_result async_completion_add_callback(zval* handlers, zval* callback)
+static zend_result async_completion_add_callback(async_completion_publisher_t* publisher, zval* callback, ASYNC_COMPLETION_ACTION action)
 {
-	if (Z_TYPE_P(on_fulfilled) != IS_ARRAY) {
-		zend_throw_exception_ex(zend_ce_type_error, 0, "Property 'onFulfilled' is not an array or accessible.");
-		return FAILED;
-	}
-
 	if (!zend_is_callable(callback, 0, NULL)) {
 		zend_throw_exception_ex(zend_ce_type_error, 0, "Parameter must be callable.");
 		return FAILED;
@@ -178,8 +198,16 @@ ZEND_METHOD(Async_CompletionPublisher, thenCancel)
 
 	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
 
-	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_CANCEL) != SUCCESS)) {
-		RETURN_THROWS();
+	for (i = 0; i < object_count; i++) {
+
+		if (UNEXPECTED(Z_TYPE(objects[i]) != IS_OBJECT || !instanceof_function(Z_OBJCE(objects[i]), CancellationInterface_ce))) {
+			zend_throw_exception_ex(zend_ce_type_error, 0, "Argument number %d must implement CancellationInterface", i + 1);
+			RETURN_THROWS();
+		}
+
+		if (UNEXPECTED(async_completion_add_binded_object(publisher, Z_OBJ_P(objects[i]), ASYNC_COMPLETION_CANCEL) != SUCCESS)) {
+			RETURN_THROWS();
+		}
 	}
 
 	RETURN_OBJ(Z_OBJ_P(ZEND_THIS));
@@ -200,7 +228,7 @@ ZEND_METHOD(Async_CompletionPublisher, thenResolve)
 
 	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
 
-	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_RESOLV) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_deferred(publisher, objects, object_count, ASYNC_COMPLETION_RESOLV) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 
@@ -222,7 +250,7 @@ ZEND_METHOD(Async_CompletionPublisher, thenReject)
 
 	async_completion_publisher_t* publisher = (async_completion_publisher_t*)Z_OBJ_P(ZEND_THIS);
 
-	if (UNEXPECTED(async_completion_add_binded_list(publisher, objects, object_count, ASYNC_COMPLETION_REJECT) != SUCCESS)) {
+	if (UNEXPECTED(async_completion_add_deferred(publisher, objects, object_count, ASYNC_COMPLETION_REJECT) != SUCCESS)) {
 		RETURN_THROWS();
 	}
 
@@ -264,9 +292,9 @@ static void async_completion_publisher_free(zend_object* object)
 		ZEND_HASH_FOREACH_VAL(publisher->bindedObjects, item) {
 			binded_obj = Z_PTR_P(item);
 
-			if (EXPECTED(binded_obj->weak_reference)) {
-				zval_ptr_dtor(binded_obj->weak_reference);
-				efree(binded_obj->weak_reference);
+			if (EXPECTED(binded_obj->object)) {
+				zval_ptr_dtor(binded_obj->object);
+				efree(binded_obj->object);
 			}
 
 			efree(binded_obj);
