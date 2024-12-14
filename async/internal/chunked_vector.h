@@ -37,4 +37,13 @@ struct _chunked_vector_chunk_s {
 		offset += vector->item_size; \
 	}
 
+chunked_vector_t* chunked_vector_allocate(size_t item_size, int reserve_items, size_t trigger_chunk_size);
+chunked_vector_chunk_t* chunked_vector_expand(chunked_vector_t* vector, chunked_vector_chunk_t* chunk, chunked_vector_chunk_t* prev_chunk, size_t required_memory);
+chunked_vector_chunk_t* chunked_vector_pickup(chunked_vector_t* vector, size_t required_memory);
+void* chunked_vector_allocate_items(chunked_vector_t* vector, int count);
+zend_result chunked_vector_add(chunked_vector_t* vector, const void* item);
+zend_result chunked_vector_remove_from(chunked_vector_t* vector, chunked_vector_chunk_t* chunk, int item_offset);
+zend_result chunked_vector_free(chunked_vector_t* vector);
+zend_result chunked_vector_optimize(chunked_vector_t* vector);
+
 #endif // CHUNKED_VECTOR_H
