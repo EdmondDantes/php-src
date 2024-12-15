@@ -304,3 +304,4 @@ tmp-php.ini
 /.vs
 /.idea
 /async/internal/uv.h
+/async/arh
