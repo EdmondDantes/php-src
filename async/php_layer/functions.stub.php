@@ -19,7 +19,7 @@ function async(callable $task): FiberHandle {}
  * Creates a microtask that is guaranteed to execute before events are processed, and other Fibers are started,
  * and immediately after the Scheduler takes control.
  *
- * You can pass an CallbackInterface object as an argument, allowing you to cancel the execution of the task.
+ * You can pass a CallbackInterface object as an argument, allowing you to cancel the execution of the task.
  */
 function defer(callable $microtask): void {}
 

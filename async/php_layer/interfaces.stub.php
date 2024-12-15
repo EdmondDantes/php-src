@@ -11,5 +11,5 @@ interface CallbackInterface
 
 interface EventHandleInterface
 {
-    public function addCallback(EventCallbackInterface $callback): static;
+    public function addCallback(CallbackInterface $callback): static;
 }
