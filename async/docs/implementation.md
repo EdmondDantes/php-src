@@ -213,7 +213,7 @@ final readonly class AwaitSocket implements AwaitableInterface
     public function __construct(Socket $socket, int $events, int $timeout = 0)
     {
         $this->deferred = new DeferredResume();
-        $this->event    = new InputOutputEvent($stream, $events, $this->deferred);
+        $this->event    = new InputOutputEvent($socket, $events, $this->deferred);
         $this->timeout  = null;
         
         if ($timeout > 0) {            
