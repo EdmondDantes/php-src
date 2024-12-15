@@ -4,7 +4,7 @@
 
 namespace Async;
 
-interface EventCallbackInterface
+interface CallbackInterface
 {
     public function disposeCallback(): void;
 }
