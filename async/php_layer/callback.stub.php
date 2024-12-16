@@ -15,16 +15,11 @@ class Callback
     private mixed $callback;
 
     /**
-     * @param Notifier|null $notifier
+     * @param Notifier[] $notifiers
      */
-    private ?Notifier $notifier = null;
+    private array $notifiers = [];
 
     public function __construct(callable $callback) {}
-
-    /**
-     * Returns TRUE if the callback is registered with a notifier.
-     */
-    public function isRegistered(): bool {}    
 
    /**
      * Dispose of the callback, releasing any associated resources.

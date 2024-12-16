@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a426d54cf384fe81c97d03d7d6d6cb937f6d3da8 */
+ * Stub hash: 4e9f1529b6ca2f58d383734f72473f572df2004f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_MIXED, 0, "null")
@@ -41,6 +41,13 @@ static zend_class_entry *register_class_Async_Resume(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Resume", class_Async_Resume_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
+
+	zval property_callback_default_value;
+	ZVAL_NULL(&property_callback_default_value);
+	zend_string *property_callback_name = zend_string_init("callback", sizeof("callback") - 1, 1);
+	zend_string *property_callback_class_Async_Callback = zend_string_init("Async\\Callback", sizeof("Async\\Callback")-1, 1);
+	zend_declare_typed_property(class_entry, property_callback_name, &property_callback_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_callback_class_Async_Callback, 0, MAY_BE_NULL));
+	zend_string_release(property_callback_name);
 
 	return class_entry;
 }

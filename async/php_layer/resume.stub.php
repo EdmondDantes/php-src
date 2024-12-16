@@ -17,6 +17,11 @@ namespace Async;
 final class Resume
 {
     /**
+     * Internal Callback object for Notifiers.
+     */
+    private ?Callback $callback = null;
+
+    /**
      * Resumes the fiber with a value.
      */
     public function resume(mixed $value = null): void {}
