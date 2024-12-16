@@ -30,5 +30,5 @@ final class Resume
 
     public function getEventDescriptors(): array {}
 
-    public function when(Callback $notifier, ?callable $callback = null): static {}
+    public function when(Notifier $notifier, ?callable $callback = null): static {}
 }
