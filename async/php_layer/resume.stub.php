@@ -30,9 +30,9 @@ final class Resume
 
     public function getEventDescriptors(): array {}
 
-    public function when(EventHandleInterface $event, callable $callback): static {}
+    public function when(NotifierInterface $notifier, callable $callback): static {}
 
-    public function resumeWhen(EventHandleInterface $event): static {}
+    public function resumeWhen(NotifierInterface $notifier): static {}
 
-    public function throwWhen(EventHandleInterface $event): static {}
+    public function throwWhen(NotifierInterface $notifier): static {}
 }
