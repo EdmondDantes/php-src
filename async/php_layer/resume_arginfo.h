@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: fd3f2ad7dbac191fe6a28c6660ea43d5ed30f4a7 */
+ * Stub hash: 10c4a1b751a057f898f24e73cb24064f1fbfb09f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_MIXED, 0, "null")
@@ -20,19 +20,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_when, 0, 1, I
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, callback, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resumeWhen, 0, 1, IS_STATIC, 0)
-	ZEND_ARG_OBJ_INFO(0, notifier, Async\\\116otifierInterface, 0)
-ZEND_END_ARG_INFO()
-
-#define arginfo_class_Async_Resume_throwWhen arginfo_class_Async_Resume_resumeWhen
-
 ZEND_METHOD(Async_Resume, resume);
 ZEND_METHOD(Async_Resume, throw);
 ZEND_METHOD(Async_Resume, isResolved);
 ZEND_METHOD(Async_Resume, getEventDescriptors);
 ZEND_METHOD(Async_Resume, when);
-ZEND_METHOD(Async_Resume, resumeWhen);
-ZEND_METHOD(Async_Resume, throwWhen);
 
 static const zend_function_entry class_Async_Resume_methods[] = {
 	ZEND_ME(Async_Resume, resume, arginfo_class_Async_Resume_resume, ZEND_ACC_PUBLIC)
@@ -40,8 +32,6 @@ static const zend_function_entry class_Async_Resume_methods[] = {
 	ZEND_ME(Async_Resume, isResolved, arginfo_class_Async_Resume_isResolved, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, getEventDescriptors, arginfo_class_Async_Resume_getEventDescriptors, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, when, arginfo_class_Async_Resume_when, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Resume, resumeWhen, arginfo_class_Async_Resume_resumeWhen, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Resume, throwWhen, arginfo_class_Async_Resume_throwWhen, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
