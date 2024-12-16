@@ -19,14 +19,14 @@ final class Resume
     /**
      * Resumes the fiber with a value.
      */
-    public function resume(mixed $value = null): void {};
+    public function resume(mixed $value = null): void {}
 
     /**
      * Throws an exception into the fiber.
      */
-    public function throw(?\Throwable $error = null): void {};
+    public function throw(?\Throwable $error = null): void {}
 
-    public function isResolved(): bool {};
+    public function isResolved(): bool {}
 
     public function getEventDescriptors(): array {}
 

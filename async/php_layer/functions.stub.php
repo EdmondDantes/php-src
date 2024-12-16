@@ -8,7 +8,7 @@ namespace Async;
  * Suspends the execution of a Fiber until the Resume object is resolved.
  * If the Resume object is destructed for any reason, it automatically resumes the Fiber.
  */
-function await(Resume $resume): void {}
+function await(?Resume $resume = null): void {}
 
 /**
  * Creates a coroutine (Fiber) that will execute as soon as an opportunity arises.

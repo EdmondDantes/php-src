@@ -14,20 +14,20 @@ abstract class Handle implements EventHandleInterface
  */
 final class FiberHandle extends Handle
 {
-    public function isStarted(): bool {};
+    public function isStarted(): bool {}
 
-    public function isSuspended(): bool {};
+    public function isSuspended(): bool {}
 
-    public function isRunning(): bool {};
+    public function isRunning(): bool {}
 
-    public function isTerminated(): bool {};
+    public function isTerminated(): bool {}
 
-    public function &getContext(): array {};
+    public function &getContext(): array {}
 
     /**
      * Allows canceling the execution of a coroutine with an exception.
      */
-    public function cancelWith(\Throwable $error): void {};
+    public function cancelWith(\Throwable $error): void {}
 }
 
 final class InputOutputHandle extends Handle
