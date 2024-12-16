@@ -4,20 +4,16 @@
 
 namespace Async;
 
-final class TimerHandle implements EventHandleInterface
+abstract class Handle implements EventHandleInterface
 {
-    public function __construct(int $seconds) {}
-
     public function addCallback(CallbackInterface $callback): static {}
 }
 
 /**
  * An interface for representing Fiber as Event Handle.
  */
-final class FiberHandle implements EventHandleInterface
+final class FiberHandle extends Handle
 {
-    public function addCallback(CallbackInterface $callback): static {}
-
     public function isStarted(): bool {};
 
     public function isSuspended(): bool {};
@@ -34,25 +30,32 @@ final class FiberHandle implements EventHandleInterface
     public function cancelWith(\Throwable $error): void {};
 }
 
+final class InputOutputHandle extends Handle
+{
+    public function __construct(mixed $handle) {}
+}
 
-final class SignalHandle implements EventHandleInterface
+final class TimerHandle extends Handle
+{
+    public function __construct(int $microseconds) {}
+}
+
+final class SignalHandle extends Handle
 {
     public function __construct(int $sigNumber) {}
-
-    public function addCallback(CallbackInterface $callback): static {}
 }
 
-final class ThreadHandle implements EventHandleInterface
+final class ThreadHandle extends Handle
 {
     public function __construct(int $threadId) {}
-
-    public function addCallback(CallbackInterface $callback): static {}
 }
 
-
-final class ProcessHandle implements EventHandleInterface
+final class ProcessHandle extends Handle
 {
     public function __construct(int $processId) {}
+}
 
-    public function addCallback(CallbackInterface $callback): static {}
+final class FileSystemHandle extends Handle
+{
+    public function __construct(int $processId) {}
 }
