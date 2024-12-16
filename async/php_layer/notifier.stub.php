@@ -9,6 +9,8 @@ namespace Async;
  */
 class Notifier
 {
+    private array $callbacks = [];
+
     /**
      * Adds a callback to the event.
      *

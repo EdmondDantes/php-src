@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 88f95b16a1de8f3dc3fdbfe4ef6beeac7e88ad12 */
+ * Stub hash: af66920ffdf13ce3b67ca66cfcc3cf0a1c360dec */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_addCallback, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
@@ -29,6 +29,12 @@ static zend_class_entry *register_class_Async_Notifier(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Notifier", class_Async_Notifier_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
+
+	zval property_callbacks_default_value;
+	ZVAL_EMPTY_ARRAY(&property_callbacks_default_value);
+	zend_string *property_callbacks_name = zend_string_init("callbacks", sizeof("callbacks") - 1, 1);
+	zend_declare_typed_property(class_entry, property_callbacks_name, &property_callbacks_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_callbacks_name);
 
 	return class_entry;
 }

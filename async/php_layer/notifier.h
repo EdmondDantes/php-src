@@ -5,4 +5,8 @@
 #ifndef NOTIFIER_H
 #define NOTIFIER_H
 
+ZEND_API zend_class_entry* async_ce_notifier;
+
+void async_register_notifier_ce(void);
+
 #endif //NOTIFIER_H

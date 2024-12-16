@@ -9,6 +9,13 @@ namespace Async;
  */
 class Callback
 {
+    /**
+     * @param callable $callback
+     */
+    private mixed $callback;
+
+    public function __construct(callable $callback) {}
+
    /**
      * Dispose of the callback, releasing any associated resources.
      */
