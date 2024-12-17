@@ -1,6 +1,18 @@
-//
-// Created by Edmond on 16.12.2024.
-//
+/*
++----------------------------------------------------------------------+
+  | Copyright (c) The PHP Group                                          |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | https://www.php.net/license/3_01.txt                                 |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Edmond                                                       |
+  +----------------------------------------------------------------------+
+*/
 
 #include "zend_common.h"
 #include "notifier.h"
@@ -9,10 +21,10 @@
 
 #define METHOD(name) PHP_METHOD(Async_Notifier, name)
 #define PROPERTY_CALLBACKS "callbacks"
-#define GET_PROPERTY_CALLBACKS() zend_read_property(async_ce_notifier, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACKS, strlen(PROPERTY_CALLBACKS), 0, NULL);
+#define GET_PROPERTY_CALLBACKS() zend_read_property(async_ce_notifier, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACKS, \
+		strlen(PROPERTY_CALLBACKS), 0, NULL);
 
 
-ZEND_API zend_class_entry *async_ce_notifier;
 static zend_object_handlers async_notifier_handlers;
 
 METHOD(addCallback)
@@ -24,6 +36,7 @@ METHOD(addCallback)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zval* callbacks = GET_PROPERTY_CALLBACKS();
+	zval *current;
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
 		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(callback)) {
@@ -47,11 +60,19 @@ METHOD(removeCallback)
 		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
 		ZEND_PARSE_PARAMETERS_END();
 
-	zval* callbacks = GET_PROPERTY_CALLBACKS();
+	const zval* callbacks = GET_PROPERTY_CALLBACKS();
 
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
+	zval *current;
+	zend_string *key;
+	zend_ulong index;
+
+	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(callbacks), index, key, current)
 		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(callback)) {
-			zend_hash_del(__ht, zend_hash_get_current_key_zval(__ht));
+			if (key) {
+				zend_hash_del(Z_ARRVAL_P(callbacks), key);
+			} else {
+				zend_hash_index_del(Z_ARRVAL_P(callbacks), index);
+			}
 		}
 	ZEND_HASH_FOREACH_END();
 
@@ -69,10 +90,11 @@ METHOD(notify)
 		Z_PARAM_OBJECT_OF_CLASS_OR_NULL(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	zval* callbacks = GET_PROPERTY_CALLBACKS();
+	const zval* callbacks = GET_PROPERTY_CALLBACKS();
+	zval *current;
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
-		async_callback_notify(Z_OBJ_P(current), ZEND_THIS, event, error);
+		async_callback_notify(Z_OBJ_P(current), Z_OBJ_P(ZEND_THIS), event, error);
 		IF_THROW_RETURN_VOID;
 	ZEND_HASH_FOREACH_END();
 }
