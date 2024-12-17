@@ -19,6 +19,12 @@ class Callback
      */
     private array $notifiers = [];
 
+    /**
+     * Resume object.
+     * @param WeakReference<Resume>|null $resume
+     */
+    private ?WeakReference $resume = null;
+
     public function __construct(callable $callback) {}
 
    /**

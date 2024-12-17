@@ -37,12 +37,26 @@ METHOD(addCallback)
 
 	zval* callbacks = GET_PROPERTY_CALLBACKS();
 	zval *current;
+	zval resolved_callback;
+	ZVAL_UNDEF(&resolved_callback);
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
-		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(callback)) {
-			RETURN_ZVAL(ZEND_THIS, 1, 0);
+		// Unreferenced the weak reference and compare the objects.
+		if (Z_TYPE_P(current) == IS_OBJECT) {
+			async_resolve_weak_reference(current, &resolved_callback);
+
+			bool is_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
+			zval_ptr_dtor(&resolved_callback);
+
+			if (is_same) {
+				RETURN_ZVAL(ZEND_THIS, 1, 0);
+			}
 		}
 	ZEND_HASH_FOREACH_END();
+
+	if (async_callback_bind_resume(Z_OBJ_P(callback), ZEND_THIS) == FAILURE) {
+		RETURN_THROWS();
+	}
 
 	zval* callback_ref = async_new_weak_reference_from(callback);
 

@@ -8,5 +8,6 @@
 ZEND_API zend_class_entry *async_ce_callback;
 
 zend_result async_callback_notify(zend_object *callback, zend_object *notifier, zval *event, zval *error);
+zend_result async_callback_bind_resume(zend_object* callback, zval* resume);
 
 #endif //CALLBACK_H

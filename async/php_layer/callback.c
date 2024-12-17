@@ -28,6 +28,10 @@
 #define GET_PROPERTY_NOTIFIERS() zend_read_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, \
 		strlen(PROPERTY_NOTIFIERS), 0, NULL);
 
+#define PROPERTY_RESUME "resume"
+#define GET_PROPERTY_RESUME() zend_read_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_RESUME, \
+		strlen(PROPERTY_RESUME), 0, NULL);
+
 static zend_object_handlers async_callback_handlers;
 
 static void async_callback_object_destroy(zend_object* object)
@@ -70,9 +74,69 @@ zend_result async_callback_notify(zend_object* callback, zend_object* notifier, 
 
 }
 
+/**
+ * This method is used to bind the Callback and Resume object.
+ *
+ * Such a binding can be useful for debugging to know which Callbacks affect which events.
+ * This code is available only within the PHP Core and is not accessible from userland.
+ */
+zend_result async_callback_bind_resume(zend_object* callback, zval* resume)
+{
+	const zval* resume_current = zend_read_property(
+		async_ce_callback, callback, PROPERTY_RESUME,strlen(PROPERTY_RESUME), 0, NULL
+	);
+
+	if (UNEXPECTED(resume_current != NULL && Z_TYPE_P(resume_current) == IS_NULL)) {
+		zend_error(E_WARNING, "Attempt to bind the resume object and Callback twice.");
+		return FAILURE;
+	}
+
+	zval * resume_ref = async_new_weak_reference_from(resume);
+
+	zend_update_property(
+		async_ce_callback,
+		callback,
+		PROPERTY_RESUME,
+		strlen(PROPERTY_RESUME),
+		resume_ref
+	);
+
+	zval_ptr_dtor(resume_ref);
+
+	return SUCCESS;
+}
+
+/**
+ * This method is used to get the Notifiers array from the Callback object.
+ *
+ * The method returns a pointer to the HashTable.
+ */
 zend_always_inline HashTable* async_callback_get_notifiers(zend_object* callback)
 {
-	return zend_read_property(
-		async_ce_callback, callback, GET_PROPERTY_NOTIFIERS, strlen(GET_PROPERTY_NOTIFIERS), 0, NULL
+	return Z_ARRVAL_P(zend_read_property(
+        async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
+    ));
+}
+
+/**
+ * This method is used to get the Resume object from the Callback object.
+ *
+ * The method returns a created ZVAL and transfers ownership.
+ */
+zend_always_inline zval* async_callback_get_resume(zend_object* callback)
+{
+	zval* resume_ref = zend_read_property(
+		async_ce_callback, callback, PROPERTY_RESUME, strlen(PROPERTY_RESUME), 0, NULL
 	);
+
+	if (resume_ref == NULL || Z_TYPE_P(resume_ref) == IS_NULL) {
+        return NULL;
+    }
+
+	zval* retval = emalloc(sizeof(zval));
+	ZVAL_UNDEF(retval);
+
+	async_resolve_weak_reference(resume_ref, retval);
+
+	return retval;
 }
