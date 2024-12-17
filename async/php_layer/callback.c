@@ -34,9 +34,42 @@
 
 static zend_object_handlers async_callback_handlers;
 
+/**
+ * This method is used to get the Notifiers array from the Callback object.
+ *
+ * The method returns a pointer to the HashTable.
+ */
+static zend_always_inline HashTable* async_callback_get_notifiers(zend_object* callback)
+{
+	return Z_ARRVAL_P(zend_read_property(
+		async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
+	));
+}
+
+/**
+ * The method is called before the destruction
+ * of the object and notifies all Notifiers about it.
+ */
 static void async_callback_object_destroy(zend_object* object)
 {
-	zend_fiber* fiber = (zend_fiber*)object;
+	// Notify the notifiers about the destruction of the Callback object.
+	const HashTable* notifiers = async_callback_get_notifiers(object);
+
+	zval* current;
+	zval current_object;
+	ZVAL_OBJ(&current_object, object);
+
+	ZEND_HASH_FOREACH_VAL(notifiers, current)
+		if (Z_TYPE_P(current) == IS_OBJECT) {
+			zend_call_method_with_1_params(
+				Z_OBJ_P(current), Z_OBJ_P(current)->ce, NULL, "removeCallback", NULL, &current_object
+			);
+
+	        // Ignore the exceptions.
+        }
+	ZEND_HASH_FOREACH_END();
+
+	zend_object_std_dtor(object);
 }
 
 void async_register_notifier_ce(void)
@@ -47,31 +80,6 @@ void async_register_notifier_ce(void)
 	async_callback_handlers = std_object_handlers;
 	async_callback_handlers.dtor_obj = async_callback_object_destroy;
 	async_callback_handlers.clone_obj = NULL;
-}
-
-zend_result async_callback_register(zend_object* callback, zval* notifier)
-{
-	const zval * notifiers = zend_read_property(
-		async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
-	);
-
-	zval *current;
-
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
-		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(notifier)) {
-			return FAILURE;
-		}
-	ZEND_HASH_FOREACH_END();
-
-	add_next_index_zval(callbacks, notifier);
-	Z_TRY_ADDREF_P(notifier);
-
-	return SUCCESS;
-}
-
-zend_result async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
-{
-
 }
 
 /**
@@ -107,23 +115,8 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
 }
 
 /**
- * This method is used to get the Notifiers array from the Callback object.
- *
- * The method returns a pointer to the HashTable.
- */
-zend_always_inline HashTable* async_callback_get_notifiers(zend_object* callback)
-{
-	return Z_ARRVAL_P(zend_read_property(
-        async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
-    ));
-}
-
-/**
  * The method links the notifier and the callback together.
  * The method is always called from the notifier when someone attempts to add a callback to the notifier.
- *
- * The method call does not increase the reference count of the Notifier object;
- * instead, a weak reference is stored in the notifiers array.
  */
 void async_callback_registered(zend_object* callback, const zval* notifier)
 {
@@ -132,22 +125,15 @@ void async_callback_registered(zend_object* callback, const zval* notifier)
     );
 
     zval *current;
-	zval unreferenced_notifier;
-	ZVAL_UNDEF(&unreferenced_notifier);
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
-		// Unreferenced the weak reference and compare the objects.
-		if (Z_TYPE_P(current) == IS_OBJECT) {
-			async_resolve_weak_reference(current, &unreferenced_notifier);
-
-			const bool is_the_same = Z_OBJ_P(&unreferenced_notifier) == Z_OBJ_P(notifier);
-			zval_ptr_dtor(&unreferenced_notifier);
-
-			if (is_the_same) {
-				return;
-			}
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
+		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(notifier)) {
+			return;
 		}
-    ZEND_HASH_FOREACH_END();
+	ZEND_HASH_FOREACH_END();
+
+	add_next_index_zval(notifiers, (zval*) notifier);
+	Z_TRY_ADDREF_P(notifier);
 
 	add_next_index_zval(notifiers, async_new_weak_reference_from(notifier));
 }
@@ -173,4 +159,9 @@ zval* async_callback_get_resume(const zend_object* callback)
 	async_resolve_weak_reference(resume_ref, retval);
 
 	return retval;
+}
+
+zend_result async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
+{
+
 }
