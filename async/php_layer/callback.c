@@ -16,6 +16,7 @@
 
 #include "zend_common.h"
 #include "callback.h"
+#include "notifier.h"
 #include "callback_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Callback, name)
@@ -61,11 +62,7 @@ static void async_callback_object_destroy(zend_object* object)
 
 	ZEND_HASH_FOREACH_VAL(notifiers, current)
 		if (Z_TYPE_P(current) == IS_OBJECT) {
-			zend_call_method_with_1_params(
-				Z_OBJ_P(current), Z_OBJ_P(current)->ce, NULL, "removeCallback", NULL, &current_object
-			);
-
-	        // Ignore the exceptions.
+			async_notifier_remove_callback(Z_OBJ_P(current), &current_object);
         }
 	ZEND_HASH_FOREACH_END();
 

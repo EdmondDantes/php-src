@@ -20,5 +20,6 @@
 ZEND_API zend_class_entry *async_ce_notifier;
 
 void async_register_notifier_ce(void);
+void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
 
 #endif //NOTIFIER_H

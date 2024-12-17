@@ -68,23 +68,9 @@ METHOD(removeCallback)
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
-		ZEND_PARSE_PARAMETERS_END();
+	ZEND_PARSE_PARAMETERS_END();
 
-	const zval* callbacks = GET_PROPERTY_CALLBACKS();
-
-	zval *current;
-	zend_string *key;
-	zend_ulong index;
-
-	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(callbacks), index, key, current)
-		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(callback)) {
-			if (key) {
-				zend_hash_del(Z_ARRVAL_P(callbacks), key);
-			} else {
-				zend_hash_index_del(Z_ARRVAL_P(callbacks), index);
-			}
-		}
-	ZEND_HASH_FOREACH_END();
+	async_notifier_remove_callback(Z_OBJ_P(ZEND_THIS), callback);
 
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
@@ -113,4 +99,40 @@ void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+}
+
+/**
+ * The method is used to remove the callback from the notifier.
+ *
+ * @param notifier The notifier object.
+ * @param callback The callback object.
+ */
+void async_notifier_remove_callback(zend_object* notifier, const zval* callback)
+{
+	const zval* callbacks = zend_read_property(
+		async_ce_notifier, notifier, PROPERTY_CALLBACKS, strlen(PROPERTY_CALLBACKS), 0, NULL
+	);
+
+	zval *current;
+	zend_string *key;
+	zend_ulong index;
+	zval resolved_callback;
+	ZVAL_UNDEF(&resolved_callback);
+
+	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(callbacks), index, key, current)
+		if (Z_TYPE_P(current) == IS_OBJECT) {
+			async_resolve_weak_reference(current, &resolved_callback);
+
+			const bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
+			zval_ptr_dtor(&resolved_callback);
+
+			if (is_the_same) {
+				if (key) {
+					zend_hash_del(Z_ARRVAL_P(callbacks), key);
+				} else {
+					zend_hash_index_del(Z_ARRVAL_P(callbacks), index);
+				}
+			}
+		}
+	ZEND_HASH_FOREACH_END();
 }
