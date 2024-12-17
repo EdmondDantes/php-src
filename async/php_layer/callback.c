@@ -80,7 +80,7 @@ zend_result async_callback_notify(zend_object* callback, zend_object* notifier, 
  * Such a binding can be useful for debugging to know which Callbacks affect which events.
  * This code is available only within the PHP Core and is not accessible from userland.
  */
-zend_result async_callback_bind_resume(zend_object* callback, zval* resume)
+zend_result async_callback_bind_resume(zend_object* callback, const zval* resume)
 {
 	const zval* resume_current = zend_read_property(
 		async_ce_callback, callback, PROPERTY_RESUME,strlen(PROPERTY_RESUME), 0, NULL
@@ -119,14 +119,48 @@ zend_always_inline HashTable* async_callback_get_notifiers(zend_object* callback
 }
 
 /**
+ * The method links the notifier and the callback together.
+ * The method is always called from the notifier when someone attempts to add a callback to the notifier.
+ *
+ * The method call does not increase the reference count of the Notifier object;
+ * instead, a weak reference is stored in the notifiers array.
+ */
+void async_callback_registered(zend_object* callback, const zval* notifier)
+{
+    zval* notifiers = zend_read_property(
+        async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
+    );
+
+    zval *current;
+	zval unreferenced_notifier;
+	ZVAL_UNDEF(&unreferenced_notifier);
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
+		// Unreferenced the weak reference and compare the objects.
+		if (Z_TYPE_P(current) == IS_OBJECT) {
+			async_resolve_weak_reference(current, &unreferenced_notifier);
+
+			const bool is_the_same = Z_OBJ_P(&unreferenced_notifier) == Z_OBJ_P(notifier);
+			zval_ptr_dtor(&unreferenced_notifier);
+
+			if (is_the_same) {
+				return;
+			}
+		}
+    ZEND_HASH_FOREACH_END();
+
+	add_next_index_zval(notifiers, async_new_weak_reference_from(notifier));
+}
+
+/**
  * This method is used to get the Resume object from the Callback object.
  *
  * The method returns a created ZVAL and transfers ownership.
  */
-zend_always_inline zval* async_callback_get_resume(zend_object* callback)
+zval* async_callback_get_resume(const zend_object* callback)
 {
 	zval* resume_ref = zend_read_property(
-		async_ce_callback, callback, PROPERTY_RESUME, strlen(PROPERTY_RESUME), 0, NULL
+		async_ce_callback, (zend_object*) callback, PROPERTY_RESUME, strlen(PROPERTY_RESUME), 0, NULL
 	);
 
 	if (resume_ref == NULL || Z_TYPE_P(resume_ref) == IS_NULL) {

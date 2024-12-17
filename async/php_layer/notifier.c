@@ -45,23 +45,19 @@ METHOD(addCallback)
 		if (Z_TYPE_P(current) == IS_OBJECT) {
 			async_resolve_weak_reference(current, &resolved_callback);
 
-			bool is_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
+			bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
 			zval_ptr_dtor(&resolved_callback);
 
-			if (is_same) {
+			if (is_the_same) {
 				RETURN_ZVAL(ZEND_THIS, 1, 0);
 			}
 		}
 	ZEND_HASH_FOREACH_END();
 
-	if (async_callback_bind_resume(Z_OBJ_P(callback), ZEND_THIS) == FAILURE) {
-		RETURN_THROWS();
-	}
-
-	zval* callback_ref = async_new_weak_reference_from(callback);
-
-	add_next_index_zval(callbacks, callback_ref);
-	Z_TRY_ADDREF_P(callback_ref);
+	// Add the weak reference to the callbacks array.
+	add_next_index_zval(callbacks, async_new_weak_reference_from(callback));
+	// Link the callback and the notifier together.
+	async_callback_registered(Z_OBJ_P(callback), (const zval*) Z_OBJ_P(ZEND_THIS));
 
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }

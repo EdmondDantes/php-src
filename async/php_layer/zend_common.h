@@ -25,7 +25,7 @@
 #define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
 #define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
 
-zval* async_new_weak_reference_from(zval* referent);
+zval* async_new_weak_reference_from(const zval* referent);
 void async_resolve_weak_reference(zval* weak_reference, zval* retval);
 
 #endif //ZEND_COMMON_H
