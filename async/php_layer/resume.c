@@ -13,4 +13,83 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
+#include "zend_common.h"
+#include "zend_smart_str.h"
+#include "zend_fibers.h"
 #include "resume.h"
+#include "notifier.h"
+#include "callback.h"
+#include "resume_arginfo.h"
+
+#define METHOD(name) PHP_METHOD(Async_Resume, name)
+#define PROPERTY_CALLBACK "callback"
+#define PROPERTY_FIBER "fiber"
+#define GET_PROPERTY_CALLBACK() zend_read_property(async_ce_notifier, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACK, \
+		strlen(PROPERTY_CALLBACK), 0, NULL);
+
+
+static zend_object_handlers async_resume_handlers;
+
+void async_resume_fiber(zend_object *resume)
+{
+}
+
+METHOD(__construct)
+{
+}
+
+METHOD(resume)
+{
+}
+
+METHOD(throw)
+{
+}
+
+METHOD(isResolved)
+{
+}
+
+METHOD(getEventDescriptors)
+{
+}
+
+METHOD(when)
+{
+}
+
+static zend_object *async_resume_object_create(zend_class_entry *ce)
+{
+	zend_object *object = zend_objects_new(ce);
+
+	zend_object_std_init(object, ce);
+	object_properties_init(object, ce);
+
+	object->handlers = &async_resume_handlers;
+
+	// Define current Fiber and set it to the property $fiber
+	if (EXPECTED(EG(active_fiber))) {
+		zval fiber_val;
+		ZVAL_OBJ(&fiber_val, &EG(active_fiber)->std);
+		zend_update_property(ce, object, PROPERTY_FIBER, sizeof(PROPERTY_FIBER) - 1, &fiber_val);
+	}
+
+	return object;
+}
+
+static void async_resume_object_destroy(zend_object* object)
+{
+}
+
+void async_register_resume_ce(void)
+{
+	async_ce_resume = register_class_Async_Resume();
+
+	async_ce_resume->default_object_handlers = &async_resume_handlers;
+	async_ce_resume->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    async_ce_resume->create_object = async_resume_object_create;
+
+	async_resume_handlers = std_object_handlers;
+	async_resume_handlers.dtor_obj = async_resume_object_destroy;
+	async_resume_handlers.clone_obj = NULL;
+}

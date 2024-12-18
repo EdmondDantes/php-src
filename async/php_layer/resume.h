@@ -16,4 +16,8 @@
 #ifndef RESUME_H
 #define RESUME_H
 
+ZEND_API zend_class_entry * async_ce_resume;
+
+void async_register_resume_ce(void);
+
 #endif //RESUME_H

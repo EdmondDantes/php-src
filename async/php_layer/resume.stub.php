@@ -17,9 +17,16 @@ namespace Async;
 final class Resume
 {
     /**
+     * The `Fiber` that will be resumed.
+     */
+    private ?\Fiber $fiber = null;
+
+    /**
      * Internal Callback object for Notifiers.
      */
     private ?Callback $callback = null;
+
+    private function __construct() {}
 
     /**
      * Resumes the fiber with a value.

@@ -13,18 +13,63 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-
-#ifndef ZEND_COMMON_H
-#define ZEND_COMMON_H
-
 #include "php.h"
-#include "zend_exceptions.h"
-#include "zend_interfaces.h"
+#include "async.h"
 
-#define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
-#define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
+#ifdef ZTS
+ZEND_API int async_globals_id;
+ZEND_API size_t async_globals_offset;
+TSRMLS_MAIN_CACHE_DEFINE()
+#else
+ZEND_API async_globals_t* async_globals;
+#endif
 
-zval* async_new_weak_reference_from(const zval* referent);
-void async_resolve_weak_reference(zval* weak_reference, zval* retval);
+/**
+ * Async globals constructor.
+ */
+static void async_globals_ctor(async_globals_t *async_globals)
+{
 
-#endif //ZEND_COMMON_H
+}
+
+/**
+ * Async globals destructor.
+ */
+static void async_globals_dtor(async_globals_t *async_globals)
+{
+
+}
+
+/**
+ * Async startup function.
+ */
+void async_startup(void)
+{
+#ifdef ZTS
+
+	ts_allocate_fast_id(
+		&async_globals_id,
+		&async_globals_offset,
+		sizeof(async_globals_t),
+		(ts_allocate_ctor) async_globals_ctor,
+		(ts_allocate_dtor) async_globals_dtor
+	);
+
+	async_globals_t *async_globals = ts_resource(async_globals_id);
+	async_globals_ctor(async_globals);
+#else
+	async_globals_ctor(async_globals);
+#endif
+}
+
+/**
+ * Async shutdown function.
+ */
+void async_shutdown(void)
+{
+#ifdef ZTS
+	ts_free_id(async_globals_id);
+#else
+	async_globals_dtor(async_globals);
+#endif
+}

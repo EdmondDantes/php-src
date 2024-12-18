@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 09ee73466022718607910d5eac19b6a185e06364 */
+ * Stub hash: d8e68020978ac6a618b9f88ea820641c476ff658 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Callback___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -35,6 +35,13 @@ static zend_class_entry *register_class_Async_Callback(void)
 	zend_string *property_notifiers_name = zend_string_init("notifiers", sizeof("notifiers") - 1, 1);
 	zend_declare_typed_property(class_entry, property_notifiers_name, &property_notifiers_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_notifiers_name);
+
+	zval property_resume_default_value;
+	ZVAL_NULL(&property_resume_default_value);
+	zend_string *property_resume_name = zend_string_init("resume", sizeof("resume") - 1, 1);
+	zend_string *property_resume_class_Async_WeakReference = zend_string_init("Async\\WeakReference", sizeof("Async\\WeakReference")-1, 1);
+	zend_declare_typed_property(class_entry, property_resume_name, &property_resume_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_resume_class_Async_WeakReference, 0, MAY_BE_NULL));
+	zend_string_release(property_resume_name);
 
 	return class_entry;
 }

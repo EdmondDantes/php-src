@@ -13,18 +13,24 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-
-#ifndef ZEND_COMMON_H
-#define ZEND_COMMON_H
+#ifndef PHP_ASYNC_H
+#define PHP_ASYNC_H
 
 #include "php.h"
-#include "zend_exceptions.h"
-#include "zend_interfaces.h"
 
-#define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
-#define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
+typedef struct _async_globals_s async_globals_t;
 
-zval* async_new_weak_reference_from(const zval* referent);
-void async_resolve_weak_reference(zval* weak_reference, zval* retval);
+struct _async_globals_s {
+	HashTable awaiting;
+};
 
-#endif //ZEND_COMMON_H
+/* Async global */
+#ifdef ZTS
+# define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
+#else
+# define EG(v) (async_globals.v)
+ZEND_API async_globals_t* async_globals;
+#endif
+
+
+#endif //ASYNC_H

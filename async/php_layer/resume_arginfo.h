@@ -1,5 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4e9f1529b6ca2f58d383734f72473f572df2004f */
+ * Stub hash: 8a2ce6df2b3bfe9365dbabd8e0120772c50d9c8f */
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Resume___construct, 0, 0, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_MIXED, 0, "null")
@@ -20,6 +23,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_when, 0, 1, I
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, callback, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
 
+ZEND_METHOD(Async_Resume, __construct);
 ZEND_METHOD(Async_Resume, resume);
 ZEND_METHOD(Async_Resume, throw);
 ZEND_METHOD(Async_Resume, isResolved);
@@ -27,6 +31,7 @@ ZEND_METHOD(Async_Resume, getEventDescriptors);
 ZEND_METHOD(Async_Resume, when);
 
 static const zend_function_entry class_Async_Resume_methods[] = {
+	ZEND_ME(Async_Resume, __construct, arginfo_class_Async_Resume___construct, ZEND_ACC_PRIVATE)
 	ZEND_ME(Async_Resume, resume, arginfo_class_Async_Resume_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, throw, arginfo_class_Async_Resume_throw, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, isResolved, arginfo_class_Async_Resume_isResolved, ZEND_ACC_PUBLIC)
@@ -41,6 +46,13 @@ static zend_class_entry *register_class_Async_Resume(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Resume", class_Async_Resume_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
+
+	zval property_fiber_default_value;
+	ZVAL_NULL(&property_fiber_default_value);
+	zend_string *property_fiber_name = zend_string_init("fiber", sizeof("fiber") - 1, 1);
+	zend_string *property_fiber_class_Fiber = zend_string_init("Fiber", sizeof("Fiber")-1, 1);
+	zend_declare_typed_property(class_entry, property_fiber_name, &property_fiber_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_fiber_class_Fiber, 0, MAY_BE_NULL));
+	zend_string_release(property_fiber_name);
 
 	zval property_callback_default_value;
 	ZVAL_NULL(&property_callback_default_value);

@@ -15,6 +15,8 @@
 */
 
 #include "zend_common.h"
+#include "zend_smart_str.h"
+#include "zend_fibers.h"
 #include "notifier.h"
 #include "callback.h"
 #include "notifier_arginfo.h"
