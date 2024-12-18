@@ -88,9 +88,22 @@ METHOD(notify)
 
 	const zval* callbacks = GET_PROPERTY_CALLBACKS();
 	zval *current;
+	zval resolved_callback;
+	ZVAL_UNDEF(&resolved_callback);
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
-		async_callback_notify(Z_OBJ_P(current), Z_OBJ_P(ZEND_THIS), event, error);
+		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
+			async_resolve_weak_reference(current, &resolved_callback);
+
+			if (Z_TYPE(resolved_callback) == IS_OBJECT) {
+				async_callback_notify(Z_OBJ(resolved_callback), Z_OBJ_P(ZEND_THIS), event, error);
+			}
+
+			zval_ptr_dtor(&resolved_callback);
+
+			IF_THROW_RETURN_VOID;
+		}
+
 		IF_THROW_RETURN_VOID;
 	ZEND_HASH_FOREACH_END();
 }

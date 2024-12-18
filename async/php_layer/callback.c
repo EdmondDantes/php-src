@@ -155,10 +155,71 @@ zval* async_callback_get_resume(const zend_object* callback)
 
 	async_resolve_weak_reference(resume_ref, retval);
 
+	if (Z_TYPE_P(retval) == IS_NULL) {
+        zval_ptr_dtor(retval);
+        efree(retval);
+        return NULL;
+    }
+
 	return retval;
 }
 
-zend_result async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
+/**
+ * The method is used to notify the callback about the event.
+ *
+ * The method calls the 'callable' with the notifier, event, and error.
+ */
+void async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
 {
+	const zval* callable = zend_read_property(
+		async_ce_callback, callback, PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK), 0, NULL
+	);
 
+	if (Z_TYPE_P(callable) == IS_NULL) {
+        return;
+    }
+
+	if (!zend_is_callable((zval*) callable, 0, NULL)) {
+		zend_update_property_null(async_ce_callback, callback, PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK));
+
+		// Notify the user about the error.
+		zend_string *callable_name = zend_get_callable_name((zval *) callable);
+		php_error_docref(NULL, E_WARNING, "The callable is not callable: %s", ZSTR_VAL(callable_name));
+		zend_string_release(callable_name);
+		return;
+	}
+
+	zval args[3];
+	ZVAL_OBJ(&args[0], notifier);
+
+	if (event) {
+		ZVAL_COPY(&args[1], event);
+	} else {
+		ZVAL_NULL(&args[1]);
+	}
+
+	if (error) {
+		ZVAL_COPY(&args[2], error);
+	} else {
+		ZVAL_NULL(&args[2]);
+	}
+
+	zval retval;
+	ZVAL_UNDEF(&retval);
+
+	// Call the callable
+	if (call_user_function(EG(function_table), NULL, (zval*) callable, &retval, 3, args) == FAILURE) {
+		// Notify the user about the error.
+		zend_string *callable_name = zend_get_callable_name((zval *) callable);
+		php_error_docref(NULL, E_WARNING, "Failed to call the callable %s", ZSTR_VAL(callable_name));
+		zend_string_release(callable_name);
+	}
+
+	// Cleanup arguments
+	zval_ptr_dtor(&args[0]);
+	zval_ptr_dtor(&args[1]);
+	zval_ptr_dtor(&args[2]);
+
+	// Cleanup return value
+	zval_ptr_dtor(&retval);
 }

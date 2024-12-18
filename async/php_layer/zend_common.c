@@ -59,6 +59,14 @@ zval* async_new_weak_reference_from(const zval* referent)
 	return retval;
 }
 
+/**
+ * The method is used to resolve the weak reference.
+ *
+ * The method returns the resolved object.
+ *
+ * @warning The method may return a ZVAL with the type NULL!
+ * @warning You must call the dtor if the result is no longer needed!
+ */
 void async_resolve_weak_reference(zval* weak_reference, zval* retval)
 {
 	if (!get_fn) {
