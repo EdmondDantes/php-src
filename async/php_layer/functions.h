@@ -13,26 +13,13 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef PHP_ASYNC_H
-#define PHP_ASYNC_H
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
 
-#include "php.h"
+#include "zend_common.h"
 
-typedef struct _async_globals_s async_globals_t;
+#define PHP_ASYNC_VERSION "1.0.0-dev"
 
-struct _async_globals_s {
-	HashTable awaiting;
-};
+zend_result async_register_module(void);
 
-/* Async global */
-#ifdef ZTS
-# define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
-#else
-# define EG(v) (async_globals.v)
-ZEND_API async_globals_t* async_globals;
-#endif
-
-void async_startup(void);
-void async_shutdown(void);
-
-#endif //ASYNC_H
+#endif //FUNCTIONS_H

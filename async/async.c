@@ -15,6 +15,7 @@
 */
 #include "php.h"
 #include "async.h"
+#include "php_layer/functions.h"
 
 #ifdef ZTS
 ZEND_API int async_globals_id;
@@ -45,6 +46,11 @@ static void async_globals_dtor(async_globals_t *async_globals)
  */
 void async_startup(void)
 {
+	if (async_register_module() == FAILURE) {
+		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
+		return;
+	}
+
 #ifdef ZTS
 
 	ts_allocate_fast_id(
