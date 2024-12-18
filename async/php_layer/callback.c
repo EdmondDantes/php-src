@@ -47,6 +47,48 @@ static zend_always_inline HashTable* async_callback_get_notifiers(zend_object* c
 	));
 }
 
+METHOD(__construct)
+{
+	zval* callable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callable)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!zend_is_callable(callable, 0, NULL)) {
+		zend_throw_exception_ex(zend_ce_type_error, 0, "Expected parameter to be a valid callable");
+		RETURN_THROWS();
+	}
+
+	zend_update_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK), callable);
+}
+
+METHOD(disposeCallback)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zval* notifiers = zend_read_property(
+		async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
+	);
+
+	zval *current;
+
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
+		if (Z_TYPE_P(current) == IS_OBJECT) {
+			async_notifier_remove_callback(Z_OBJ_P(current), ZEND_THIS);
+		}
+	ZEND_HASH_FOREACH_END();
+
+	zval new_notifiers;
+	array_init(&new_notifiers);
+
+	zend_update_property(
+		async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), &new_notifiers
+    );
+
+	zval_ptr_dtor(&new_notifiers);
+}
+
 /**
  * The method is called before the destruction
  * of the object and notifies all Notifiers about it.
