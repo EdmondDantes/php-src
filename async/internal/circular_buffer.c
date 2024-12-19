@@ -15,6 +15,8 @@
 */
 #include "circular_buffer.h"
 
+#define MINIMUM_COUNT 4
+
 /**
  * Initialize a new zval circular buffer.
  *
@@ -31,18 +33,20 @@ circular_buffer_t *circular_buffer_new(size_t count, const size_t item_size, con
 	}
 
     if(count <= 0) {
-		count = 4;
+		count = MINIMUM_COUNT;
 	}
 
     circular_buffer_t* buffer = (allocator->m_calloc)(1, sizeof(circular_buffer_t));
 
-    buffer->allocator	= allocator;
-	buffer->item_size	= item_size;
-	buffer->min_size	= count;
-	buffer->start		= (allocator->m_calloc)(count, item_size);
-	buffer->end			= buffer->start + (count - 1) * item_size;
-	buffer->head		= NULL;
-	buffer->tail		= NULL;
+	if (UNEXPECTED(buffer == NULL)) {
+		zend_error(E_ERROR, "Failed to allocate memory for circular buffer");
+		return NULL;
+	}
+
+	if (UNEXPECTED(circular_buffer_ctor(buffer, count, item_size, allocator) == FAILURE)) {
+		(allocator->m_free)(buffer);
+		return NULL;
+	}
 
 	return buffer;
 }
@@ -56,25 +60,64 @@ void circular_buffer_destroy(circular_buffer_t *buffer)
 	(buffer->allocator->m_free)(buffer);
 }
 
+zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const size_t item_size, const allocator_t *allocator)
+{
+	if(allocator == NULL) {
+		allocator = &zend_std_allocator;
+	}
+
+	if(count <= 0) {
+		count = MINIMUM_COUNT;
+	}
+
+	void *start = (allocator->m_calloc)(count, item_size);
+
+	if (UNEXPECTED(start == NULL)) {
+		zend_error(E_ERROR, "Failed to allocate memory for circular buffer");
+		return FAILURE;
+	}
+
+	buffer->allocator	= allocator;
+	buffer->item_size	= item_size;
+	buffer->min_size	= count;
+	buffer->start		= start;
+	buffer->end			= buffer->start + (count - 1) * item_size;
+	buffer->head		= NULL;
+	buffer->tail		= NULL;
+
+	return SUCCESS;
+}
+
+zend_always_inline void circular_buffer_dtor(const circular_buffer_t *buffer)
+{
+	(buffer->allocator->m_free)(buffer->start);
+}
+
 /**
  * The method will return TRUE if the buffer actually uses half the memory allocated.
  * This means the memory can be released.
  */
-zend_always_inline bool circular_buffer_should_be_relocate(circular_buffer_t *buffer)
+zend_always_inline bool circular_buffer_should_be_relocate(const circular_buffer_t *buffer)
 {
 	if(buffer->head == NULL || buffer->tail == NULL) {
 		return 0;
 	}
 
-	return llabs(buffer->head - buffer->tail) < (((buffer->end - buffer->start) + buffer->item_size) / 2);
+	ptrdiff_t dist = (char *)buffer->head - (char *)buffer->tail;
+
+	if (dist < 0) {
+		dist = -dist;
+	}
+
+	return dist < ((((char *)buffer->end - (char *)buffer->start) + buffer->item_size) / 2);
 }
 
 /**
  * Reallocate the memory associated with a zval circular buffer.
  */
-void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
+zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 {
-  	const size_t current_count = ((buffer->end - buffer->start) / buffer->item_size) + 1;
+	const size_t current_count = (((char *)buffer->end - (char *)buffer->start) / buffer->item_size) + 1;
     bool increase = true;
 
   	if(new_count <= 0) {
@@ -92,37 +135,50 @@ void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
 			increase = false;
 		} else {
             // No need to reallocate
-			return;
+			return SUCCESS;
 		}
 	}
 
     if(increase) {
-    	void *new_end = buffer->start + (new_count - 1) * buffer->item_size;
+    	const void *new_end = buffer->start + (new_count - 1) * buffer->item_size;
 
     	if(buffer->head > new_end || buffer->tail > new_end) {
     		zend_error(E_WARNING, "Cannot reallocate circular buffer, head or tail is out of bounds");
-    		return;
+    		return FAILURE;
     	}
 
-        const size_t head_offset = buffer->head - buffer->start;
-        const size_t tail_offset = buffer->tail != NULL ? buffer->tail - buffer->start : 0;
+    	const ptrdiff_t head_offset = (char *)buffer->head - (char *)buffer->start;
+    	const ptrdiff_t tail_offset = buffer->tail != NULL ? (char *)buffer->tail - (char *)buffer->start : 0;
 
-    	buffer->start = (buffer->allocator->m_realloc)(buffer->start, new_count * buffer->item_size);
-        buffer->head = buffer->start + head_offset;
-        buffer->tail = buffer->start + tail_offset;
-    	buffer->end = new_end;
+    	void *new_start = (buffer->allocator->m_realloc)(buffer->start, new_count * buffer->item_size);
 
-        return;
+		if(new_start == NULL) {
+			zend_error(E_WARNING, "Failed to reallocate circular buffer");
+			return FAILURE;
+		}
+
+    	buffer->start	= new_start;
+        buffer->head	= buffer->start + head_offset;
+        buffer->tail	= buffer->start + tail_offset;
+    	buffer->end		= new_start + (new_count - 1) * buffer->item_size;
+
+        return SUCCESS;
 	}
 
     // If buffer is empty we can simply free the memory and allocate a new buffer.
 	if(buffer->head == NULL || buffer->head == buffer->tail) {
 		(buffer->allocator->m_free)(buffer->start);
 		buffer->start = (buffer->allocator->m_alloc)(new_count * buffer->item_size);
+
+		if (buffer->start == NULL) {
+			zend_error(E_WARNING, "Failed to reallocate circular buffer");
+			return FAILURE;
+		}
+
         buffer->head = NULL;
         buffer->tail = NULL;
 		buffer->end = buffer->start + (new_count - 1) * buffer->item_size;
-		return;
+		return SUCCESS;
 	}
 
 	//
@@ -131,7 +187,6 @@ void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
 	// * Data is copied starting from the head/tail.
 	// * The old buffer is destroyed.
     //
-
 
     const void *tail	= buffer->tail != NULL ? buffer->tail : buffer->start;
     const void *start	= buffer->head > tail ? buffer->tail : buffer->head;
@@ -145,8 +200,8 @@ void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
     // copy data
     memcpy(new_start, start, size);
 
-	const size_t head_offset = buffer->head - buffer->start;
-	const size_t tail_offset = buffer->tail != NULL ? buffer->tail - buffer->start : 0;
+	const ptrdiff_t head_offset = (char *)buffer->head - (char *)buffer->start;
+	const ptrdiff_t tail_offset = buffer->tail != NULL ? (char *)buffer->tail - (char *)buffer->start : 0;
 
     // Free the old buffer
     buffer->allocator->m_free(buffer->start);
@@ -156,8 +211,10 @@ void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
 	buffer->end			= new_end;
 
     if(buffer->tail != NULL) {
-		buffer->tail = buffer->start + tail_offset;
+		buffer->tail	= buffer->start + tail_offset;
 	}
+
+	return SUCCESS;
 }
 
 /**
@@ -210,8 +267,8 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
  */
 zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 {
-  	if(circular_buffer_is_full(buffer)) {
-		circular_buffer_relocate(buffer, 0);
+  	if(circular_buffer_is_full(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
+		return FAILURE;
 	}
 
 	if(circular_buffer_header_next(buffer) == FAILURE) {
@@ -235,8 +292,8 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 
 	memcpy(value, buffer->tail, buffer->item_size);
 
-	if(circular_buffer_should_be_relocate(buffer)) {
-		circular_buffer_relocate(buffer, 0);
+	if(circular_buffer_should_be_relocate(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
+        return FAILURE;
 	}
 
 	return SUCCESS;
@@ -255,23 +312,44 @@ zend_always_inline zend_bool circular_buffer_is_empty(circular_buffer_t *buffer)
  */
 zend_always_inline zend_bool circular_buffer_is_full(const circular_buffer_t *buffer)
 {
-	const void *tail = buffer->tail != NULL ? buffer->tail : buffer->start;
-
-	return buffer->head != NULL
-         	&& ((buffer->tail == NULL && buffer->head == buffer->end)
-             || (llabs(buffer->head - tail) == (buffer->end - buffer->start)));
-}
-
-zend_always_inline size_t circular_buffer_count(const circular_buffer_t *buffer)
-{
-  	if(buffer->head == NULL) {
+	if (buffer->head == NULL) {
 		return 0;
 	}
 
-    const void *tail = buffer->tail != NULL ? buffer->tail : buffer->start;
+	const void *tail = (buffer->tail != NULL) ? buffer->tail : buffer->start;
 
-    return (llabs(buffer->head - tail) / buffer->item_size) + 1;
+	ptrdiff_t used = (char *)buffer->head - (char *)tail;
+
+	if (used < 0) {
+		used = -used;
+	}
+
+	const ptrdiff_t capacity = (char *)buffer->end - (char *)buffer->start;
+
+	return ((buffer->tail == NULL && buffer->head == buffer->end) || (used == capacity));
 }
+
+/**
+ * The method will return the number of existing elements currently in the ring buffer.
+ * Do not confuse this with the buffer’s capacity!
+ */
+zend_always_inline size_t circular_buffer_count(const circular_buffer_t *buffer)
+{
+	if (buffer->head == NULL) {
+		return 0;
+	}
+
+	const void *tail = (buffer->tail != NULL) ? buffer->tail : buffer->start;
+
+	ptrdiff_t dist = (char *)buffer->head - (char *)tail;
+
+	if (dist < 0) {
+		dist = -dist;
+	}
+
+	return (size_t)(dist / (ptrdiff_t)buffer->item_size) + 1;
+}
+
 
 //
 // Functions for ZVAL circular buffer
