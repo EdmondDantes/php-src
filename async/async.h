@@ -21,6 +21,7 @@
 typedef struct _async_globals_s async_globals_t;
 
 struct _async_globals_s {
+	HashTable microtasks;
 	HashTable awaiting;
 };
 
