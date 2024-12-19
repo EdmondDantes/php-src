@@ -33,6 +33,8 @@ struct _circular_buffer_s {
 
 zend_always_inline zend_bool circular_buffer_is_full(circular_buffer_t *buffer);
 zend_always_inline zend_bool circular_buffer_is_empty(circular_buffer_t *buffer);
+zend_result circular_buffer_push(circular_buffer_t *buffer, void *value);
+zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value);
 zend_always_inline size_t circular_buffer_count(circular_buffer_t *buffer);
 void circular_buffer_rellocate(circular_buffer_t *buffer, size_t new_count);
 
