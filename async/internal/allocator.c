@@ -21,12 +21,12 @@ void *zend_std_alloc(size_t size)
 	return emalloc(size);
 }
 
-void *zend_std_calloc(size_t num, size_t size)
+void *zend_std_calloc(const size_t num, const size_t size)
 {
 	return ecalloc(num, size);
 }
 
-void *zend_std_realloc(void *ptr, size_t size)
+void *zend_std_realloc(void *ptr, const size_t size)
 {
 	return erealloc(ptr, size);
 }
@@ -43,17 +43,17 @@ allocator_t zend_std_allocator = {
 	zend_std_free
 };
 
-void *zend_std_palloc(size_t size)
+void *zend_std_palloc(const size_t size)
 {
 	return pemalloc(size, 1);
 }
 
-void *zend_std_pcalloc(size_t num, size_t size)
+void *zend_std_pcalloc(const size_t num, const size_t size)
 {
 	return pecalloc(num, size, 1);
 }
 
-void *zend_std_prealloc(void *ptr, size_t size)
+void *zend_std_prealloc(void *ptr, const size_t size)
 {
 	return perealloc(ptr, size, 1);
 }
