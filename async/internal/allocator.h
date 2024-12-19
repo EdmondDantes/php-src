@@ -16,6 +16,8 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
+#include "php.h"
+
 typedef struct _allocator_s allocator_t;
 
 struct _allocator_s {

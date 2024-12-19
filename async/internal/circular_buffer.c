@@ -74,7 +74,7 @@ zend_always_inline bool circular_buffer_should_be_rellocate(circular_buffer_t *b
 /**
  * Reallocate the memory associated with a zval circular buffer.
  */
-void circular_buffer_rellocate(circular_buffer_t *buffer, size_t new_count)
+void circular_buffer_relocate(circular_buffer_t *buffer, size_t new_count)
 {
   	size_t current_count = ((buffer->end - buffer->start) / buffer->item_size) + 1;
     bool increase = true;
@@ -212,7 +212,7 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
 zend_result circular_buffer_push(circular_buffer_t *buffer, void *value)
 {
   	if(circular_buffer_is_full(buffer)) {
-		circular_buffer_rellocate(buffer, 0);
+		circular_buffer_relocate(buffer, 0);
 	}
 
 	if(circular_buffer_header_next(buffer) == FAILURE) {
@@ -237,7 +237,7 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 	memcpy(value, buffer->tail, buffer->item_size);
 
 	if(circular_buffer_should_be_rellocate(buffer)) {
-		circular_buffer_rellocate(buffer, 0);
+		circular_buffer_relocate(buffer, 0);
 	}
 
 	return SUCCESS;

@@ -17,12 +17,13 @@
 #define PHP_ASYNC_H
 
 #include "php.h"
+#include "internal/circular_buffer.h"
 
 typedef struct _async_globals_s async_globals_t;
 
 struct _async_globals_s {
-	HashTable microtasks;
-	HashTable awaiting;
+	circular_buffer_t microtasks;
+	circular_buffer_t awaiting_fibers;
 };
 
 /* Async global */
