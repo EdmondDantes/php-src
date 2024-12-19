@@ -59,6 +59,19 @@ void circular_buffer_destroy(circular_buffer_t *buffer)
 }
 
 /**
+ * The method will return TRUE if the buffer actually uses half the memory allocated.
+ * This means the memory can be released.
+ */
+zend_always_inline bool circular_buffer_should_be_rellocate(circular_buffer_t *buffer)
+{
+	if(buffer->head == NULL || buffer->tail == NULL) {
+		return 0;
+	}
+
+	return llabs(buffer->head - buffer->tail) < (((buffer->end - buffer->start) + buffer->item_size) / 2);
+}
+
+/**
  * Reallocate the memory associated with a zval circular buffer.
  */
 void circular_buffer_rellocate(circular_buffer_t *buffer, size_t new_count)
@@ -222,6 +235,11 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 	}
 
 	memcpy(value, buffer->tail, buffer->item_size);
+
+	if(circular_buffer_should_be_rellocate(buffer)) {
+		circular_buffer_rellocate(buffer, 0);
+	}
+
 	return SUCCESS;
 }
 
@@ -249,7 +267,7 @@ zend_always_inline size_t circular_buffer_count(circular_buffer_t *buffer)
 		return 0;
 	}
 
-    zval *tail = buffer->tail != NULL ? buffer->tail : buffer->start;
+    void *tail = buffer->tail != NULL ? buffer->tail : buffer->start;
 
     return (llabs(buffer->head - tail) / buffer->item_size) + 1;
 }
