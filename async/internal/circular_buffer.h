@@ -41,4 +41,8 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value);
 zend_always_inline size_t circular_buffer_count(circular_buffer_t *buffer);
 void circular_buffer_rellocate(circular_buffer_t *buffer, size_t new_count);
 
+zend_always_inline circular_buffer_t *zval_circular_buffer_new(size_t count, allocator_t *allocator);
+zend_always_inline zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value);
+zend_always_inline zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value);
+
 #endif //CIRCULAR_BUFFER_H

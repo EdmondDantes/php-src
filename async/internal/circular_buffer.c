@@ -271,3 +271,31 @@ zend_always_inline size_t circular_buffer_count(circular_buffer_t *buffer)
 
     return (llabs(buffer->head - tail) / buffer->item_size) + 1;
 }
+
+//
+// Functions for ZVAL circular buffer
+//
+zend_always_inline circular_buffer_t *zval_circular_buffer_new(size_t count, allocator_t *allocator)
+{
+	return circular_buffer_new(count, sizeof(zval), allocator);
+}
+
+/**
+ * Push a new zval into the circular buffer.
+ * The zval will be copied and its reference count will be increased.
+ */
+zend_always_inline zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value)
+{
+	Z_TRY_ADDREF_P(value);
+	return circular_buffer_push(buffer, value);
+}
+
+/**
+ * Pop a zval from the circular buffer.
+ * The zval will be copied and its reference count will not be changed because your code will get the ownership.
+ */
+zend_always_inline zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value)
+{
+  	ZVAL_UNDEF(value);
+	return circular_buffer_pop(buffer, value);
+}
