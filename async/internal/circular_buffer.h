@@ -31,7 +31,7 @@ struct _circular_buffer_s {
 	const allocator_t *allocator;
 };
 
-circular_buffer_t *circular_buffer_new(size_t count, size_t item_size, allocator_t *allocator);
+circular_buffer_t *circular_buffer_new(const size_t count, const size_t item_size, const allocator_t *allocator);
 void circular_buffer_destroy(circular_buffer_t *buffer);
 
 zend_always_inline zend_bool circular_buffer_is_full(const circular_buffer_t *buffer);
