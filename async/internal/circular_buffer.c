@@ -91,7 +91,8 @@ zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const
 	buffer->item_size	= item_size;
 	buffer->min_size	= count;
 	buffer->start		= start;
-	buffer->end			= (char *)buffer->start + (count - 1) * item_size;
+	buffer->end			= (char *) buffer->start + (count - 1) * item_size;
+	buffer->decrease_t	= 0;
 	buffer->head		= NULL;
 	buffer->tail		= NULL;
 
@@ -107,19 +108,19 @@ zend_always_inline void circular_buffer_dtor(const circular_buffer_t *buffer)
  * The method will return TRUE if the buffer actually uses half the memory allocated.
  * This means the memory can be released.
  */
-zend_always_inline bool circular_buffer_should_be_relocate(const circular_buffer_t *buffer)
+static zend_always_inline bool circular_buffer_should_be_decrease(const circular_buffer_t *buffer)
 {
 	if(buffer->head == NULL || buffer->tail == NULL) {
 		return 0;
 	}
 
-	ptrdiff_t dist = (char *)buffer->head - (char *)buffer->tail;
+	ptrdiff_t capacity = (char *)buffer->head - (char *)buffer->tail;
 
-	if (dist < 0) {
-		dist = -dist;
+	if (capacity < 0) {
+		capacity = -capacity;
 	}
 
-	return (size_t) dist < (((size_t)((char *)buffer->end - (char *)buffer->start) + buffer->item_size) / 2);
+	return (size_t)(capacity) < buffer->decrease_t;
 }
 
 /**
@@ -135,7 +136,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 		if(circular_buffer_is_full(buffer)) {
 			new_count = current_count * 2;
 			increase = true;
-		} else if(circular_buffer_count(buffer) < (current_count / 2)) {
+		} else if(circular_buffer_should_be_decrease(buffer)) {
 			new_count = current_count / 2;
 
             if(new_count < buffer->min_size) {
@@ -171,6 +172,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
         buffer->head	= (char *) buffer->start + head_offset;
         buffer->tail	= buffer->tail != NULL ? (char *) buffer->start + tail_offset : NULL;
     	buffer->end		= (char *) new_start + (new_count - 1) * buffer->item_size;
+    	buffer->decrease_t = new_count / 2 - new_count / 4;
 
         return SUCCESS;
 	}
@@ -188,6 +190,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
         buffer->head = NULL;
         buffer->tail = NULL;
 		buffer->end = (char*) buffer->start + (new_count - 1) * buffer->item_size;
+		buffer->decrease_t = new_count / 2 - new_count / 4;
 		return SUCCESS;
 	}
 
@@ -219,6 +222,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
     buffer->start		= new_start;
 	buffer->head		= (char *) buffer->start + head_offset;
 	buffer->end			= new_end;
+	buffer->decrease_t	= new_count / 2 - new_count / 4;
 
     if(buffer->tail != NULL) {
 		buffer->tail	= (char *)buffer->start + tail_offset;
@@ -277,7 +281,9 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
  */
 zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 {
-  	if(circular_buffer_is_full(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
+	const bool should_reallocate = circular_buffer_is_full(buffer);
+
+  	if(should_reallocate && circular_buffer_realloc(buffer, 0) == FAILURE) {
 		return FAILURE;
 	}
 
@@ -287,6 +293,11 @@ zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 	}
 
 	memcpy(buffer->head, value, buffer->item_size);
+
+	if(!should_reallocate && circular_buffer_should_be_decrease(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
+		return SUCCESS;
+	}
+
 	return SUCCESS;
 }
 
@@ -301,10 +312,6 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 	}
 
 	memcpy(value, buffer->tail, buffer->item_size);
-
-	if(circular_buffer_should_be_relocate(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
-        return FAILURE;
-	}
 
 	return SUCCESS;
 }

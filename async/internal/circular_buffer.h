@@ -24,6 +24,7 @@ typedef struct _circular_buffer_s circular_buffer_t;
 struct _circular_buffer_s {
     size_t item_size;
     size_t min_size;
+	size_t decrease_t;
 	void *start;
 	void *end;
 	void *head;
