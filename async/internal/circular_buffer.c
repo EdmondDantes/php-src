@@ -124,6 +124,20 @@ static zend_always_inline bool circular_buffer_should_be_decrease(const circular
 }
 
 /**
+ * Recalculate the decrease threshold.
+ */
+static void zend_always_inline circular_buffer_recalc_decrease_t(circular_buffer_t *buffer, const size_t new_count)
+{
+	if(new_count <= buffer->min_size) {
+		buffer->decrease_t = 0;
+		return;
+	}
+
+	// Recalculate decrease threshold by the formula: current_size / 2.5
+	buffer->decrease_t = (new_count / 2 - new_count / 4) * buffer->item_size;
+}
+
+/**
  * Reallocate the memory associated with a zval circular buffer.
  */
 zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
@@ -139,6 +153,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 		} else if(circular_buffer_should_be_decrease(buffer)) {
 			new_count = current_count / 2;
 
+			// Ensure the buffer size is not less than the minimum size
             if(new_count < buffer->min_size) {
 				new_count = buffer->min_size;
 			}
@@ -172,7 +187,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
         buffer->head	= (char *) buffer->start + head_offset;
         buffer->tail	= buffer->tail != NULL ? (char *) buffer->start + tail_offset : NULL;
     	buffer->end		= (char *) new_start + (new_count - 1) * buffer->item_size;
-    	buffer->decrease_t = new_count / 2 - new_count / 4;
+    	circular_buffer_recalc_decrease_t(buffer, new_count);
 
         return SUCCESS;
 	}
@@ -190,7 +205,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
         buffer->head = NULL;
         buffer->tail = NULL;
 		buffer->end = (char*) buffer->start + (new_count - 1) * buffer->item_size;
-		buffer->decrease_t = new_count / 2 - new_count / 4;
+		circular_buffer_recalc_decrease_t(buffer, new_count);
 		return SUCCESS;
 	}
 
@@ -222,7 +237,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
     buffer->start		= new_start;
 	buffer->head		= (char *) buffer->start + head_offset;
 	buffer->end			= new_end;
-	buffer->decrease_t	= new_count / 2 - new_count / 4;
+	circular_buffer_recalc_decrease_t(buffer, new_count);
 
     if(buffer->tail != NULL) {
 		buffer->tail	= (char *)buffer->start + tail_offset;

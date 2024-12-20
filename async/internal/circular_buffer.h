@@ -24,14 +24,34 @@ typedef struct _circular_buffer_s circular_buffer_t;
 struct _circular_buffer_s {
     size_t item_size;
     size_t min_size;
+	/**
+	 * Decrease threshold.
+	 *
+	 * The number of elements to decrease the buffer size.
+	 *
+	 * This value is recalculated each time the buffer is resized or its size is increased.
+	 * It is usually calculated using the formula: current_size / 2.5,
+	 * meaning the buffer will be reduced when its current size is equal to or
+	 * less than 2.5 times its current capacity.
+	 * This approach prevents frequent buffer reductions without explicit necessity.
+	 */
 	size_t decrease_t;
+	/* allocator handlers */
+	const allocator_t *allocator;
 	/* point to the first element */
 	void *start;
 	/* point to the last valid element */
 	void *end;
+	/**
+	 * The point to the next element to be written.
+	 * Equal NULL means the buffer is empty.
+	 */
 	void *head;
+	/**
+	 * The point to the next element to be read.
+	 * Equal NULL means the buffer is empty.
+	 */
 	void *tail;
-	const allocator_t *allocator;
 };
 
 zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const size_t item_size, const allocator_t *allocator);
