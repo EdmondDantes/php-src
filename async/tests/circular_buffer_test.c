@@ -39,7 +39,7 @@ static void test_create_and_destroy()
 
 	ASSERT(buffer != NULL, "Buffer creation failed");
     ASSERT(buffer->start != NULL, "Buffer memory allocation failed");
-    ASSERT(buffer->item_size == sizeof(int), "Buffer item size mismatch");
+    ASSERT(buffer->item_size == sizeof(test_struct_t), "Buffer item size mismatch");
 
     circular_buffer_destroy(buffer);
     printf("test_create_and_destroy passed\n");
@@ -89,11 +89,30 @@ static void test_reallocation()
     circular_buffer_t *buffer = circular_buffer_new(2, sizeof(test_struct_t), NULL);
     test_struct_t value = {100, 200, 'x', 'q'};
 
-    for (int i = 0; i < 5; i++) {
+	// Insert 5 elements into the buffer
+    for (int i = 1; i <= 5; i++) {
+		value.a++;
+		value.b--;
         circular_buffer_push(buffer, &value);
     }
 
-    ASSERT(buffer->end == (char *)buffer->start + 4 * sizeof(test_struct_t), "Buffer reallocation failed");
+	// Assert insertion
+	test_struct_t expected = {100, 200, 'x', 'q'};
+	test_struct_t result = {0, 0, '0', '0'};
+
+	for (int i = 1; i <= 5; i++) {
+		expected.a++;
+		expected.b--;
+        circular_buffer_pop(buffer, &result);
+
+	    ASSERT(
+            expected.a == result.a &&
+            expected.b == result.b &&
+            expected.c == result.c &&
+            expected.d == result.d
+            , "Expected mismatch after pop"
+        );
+	}
 
     circular_buffer_destroy(buffer);
     printf("test_reallocation passed\n");

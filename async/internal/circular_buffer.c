@@ -169,7 +169,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 
     	buffer->start	= new_start;
         buffer->head	= (char *) buffer->start + head_offset;
-        buffer->tail	= (char *) buffer->start + tail_offset;
+        buffer->tail	= buffer->tail != NULL ? (char *) buffer->start + tail_offset : NULL;
     	buffer->end		= (char *) new_start + (new_count - 1) * buffer->item_size;
 
         return SUCCESS;
