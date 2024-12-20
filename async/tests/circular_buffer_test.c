@@ -42,7 +42,7 @@ static void test_create_and_destroy()
     ASSERT(buffer->item_size == sizeof(test_struct_t), "Buffer item size mismatch");
 
     circular_buffer_destroy(buffer);
-    printf("test_create_and_destroy passed\n");
+    printf("[*] test_create_and_destroy passed\n");
 }
 
 static void test_push_and_pop()
@@ -63,7 +63,7 @@ static void test_push_and_pop()
 	);
 
     circular_buffer_destroy(buffer);
-    printf("test_push_and_pop passed\n");
+    printf("[*] test_push_and_pop passed\n");
 }
 
 static void test_is_empty_and_is_full()
@@ -81,7 +81,7 @@ static void test_is_empty_and_is_full()
     ASSERT(circular_buffer_is_full(buffer), "Buffer should be full after two pushes");
 
     circular_buffer_destroy(buffer);
-    printf("test_is_empty_and_is_full passed\n");
+    printf("[*] test_is_empty_and_is_full passed\n");
 }
 
 static void test_reallocation()
@@ -115,8 +115,81 @@ static void test_reallocation()
 	}
 
     circular_buffer_destroy(buffer);
-    printf("test_reallocation passed\n");
+    printf("[*] test_reallocation passed\n");
 }
+
+static void test_pop_empty()
+{
+    circular_buffer_t *buffer = circular_buffer_new(2, sizeof(test_struct_t), NULL);
+    test_struct_t result = {0, 0, '0', '0'};
+
+    ASSERT(circular_buffer_pop(buffer, &result) == FAILURE, "Pop from empty buffer should fail");
+
+    circular_buffer_destroy(buffer);
+    printf("[*] test_pop_empty passed\n");
+}
+
+static void test_push_full()
+{
+    circular_buffer_t *buffer = circular_buffer_new(2, sizeof(test_struct_t), NULL);
+    test_struct_t value = {100, 200, 'x', 'q'};
+
+    circular_buffer_push(buffer, &value, false);
+    circular_buffer_push(buffer, &value, false);
+
+    ASSERT(circular_buffer_push(buffer, &value, false) == FAILURE, "Push to full buffer should fail");
+
+    circular_buffer_destroy(buffer);
+    printf("[*] test_push_full passed\n");
+}
+
+static void test_head_and_tail_exchange()
+{
+    circular_buffer_t *buffer = circular_buffer_new(3, sizeof(test_struct_t), NULL);
+    test_struct_t value = {100, 200, 'x', 'q'};
+
+	// Insert 3 elements into the buffer
+    for (int i = 1; i <= 3; i++) {
+        circular_buffer_push(buffer, &value, false);
+    }
+
+    ASSERT(circular_buffer_is_full(buffer), "Buffer should be full");
+
+    circular_buffer_pop(buffer, &value);
+    circular_buffer_pop(buffer, &value);
+
+    test_struct_t new_value = {500, 500, 'a', 'z'};
+    circular_buffer_push(buffer, &new_value, false);
+    circular_buffer_push(buffer, &new_value, false);
+
+    // Buffer full?
+    ASSERT(circular_buffer_is_full(buffer), "Buffer should be full");
+
+    circular_buffer_pop(buffer, &value);
+
+    // This value should be equal to the {100, 200, 'x', 'q'}
+    ASSERT(
+        value.a == 100 &&
+        value.b == 200 &&
+        value.c == 'x' &&
+        value.d == 'q'
+        , "Value mismatch after pop"
+    );
+
+    // This value should be equal to the {500, 500, 'a', 'z'}
+    circular_buffer_pop(buffer, &value);
+    ASSERT(
+        value.a == 500 &&
+        value.b == 500 &&
+        value.c == 'a' &&
+        value.d == 'z'
+        , "Value mismatch after pop"
+    );
+
+    circular_buffer_destroy(buffer);
+    printf("[*] test_head_and_tail_exchange passed\n");
+}
+
 
 static void test_zval_buffer()
 {
@@ -136,7 +209,7 @@ static void test_zval_buffer()
     zval_ptr_dtor(&value_out);
     circular_buffer_destroy(buffer);
 
-    printf("test_zval_buffer passed\n");
+    printf("[*] test_zval_buffer passed\n");
 }
 
 void circular_buffer_run(void)
@@ -145,8 +218,11 @@ void circular_buffer_run(void)
     test_push_and_pop();
     test_is_empty_and_is_full();
     test_reallocation();
+    test_pop_empty();
+    test_push_full();
+    test_head_and_tail_exchange();
 
     //test_zval_buffer();
 
-    printf("Circular buffer All tests passed!\n");
+    printf("\nCircular buffer All tests passed!\n");
 }

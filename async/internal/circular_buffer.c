@@ -22,7 +22,7 @@
 #endif
 
 #ifdef ASYNC_UNIT_TESTS
-#define ASYNC_ERROR(type, format) fprintf(stderr, format)
+#define ASYNC_ERROR(type, format) fprintf(stderr, format "\n")
 #else
 #define ASYNC_ERROR(type, format) zend_error(type, format)
 #endif
