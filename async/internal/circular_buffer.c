@@ -242,7 +242,7 @@ static zend_always_inline zend_result circular_buffer_header_next(circular_buffe
 			return FAILURE;
 		}
 
-	} else if(((char *) buffer->head + buffer->item_size) >= buffer->tail) {
+	} else if(((char *) buffer->head + buffer->item_size) >= (char *) buffer->tail) {
 		buffer->head = (char *)buffer->head + buffer->item_size;
 	}
 
@@ -262,7 +262,7 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
 		buffer->tail = buffer->start;
 	} else if(buffer->tail >= buffer->end) {
 		buffer->tail = buffer->start;
-	} else if(((char *)buffer->tail + buffer->item_size) <= buffer->head) {
+	} else if(((char *)buffer->tail + buffer->item_size) <= (char *) buffer->head) {
 		buffer->tail = (char *) buffer->tail + buffer->item_size;
 	} else {
 		return FAILURE;
@@ -312,7 +312,7 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 /**
  * Check if the circular buffer is empty.
  */
-zend_always_inline zend_bool circular_buffer_is_empty(circular_buffer_t *buffer)
+zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer)
 {
   	return buffer->head == buffer->tail;
 }
@@ -320,7 +320,7 @@ zend_always_inline zend_bool circular_buffer_is_empty(circular_buffer_t *buffer)
 /**
  * Check if the circular buffer is full.
  */
-zend_always_inline zend_bool circular_buffer_is_full(const circular_buffer_t *buffer)
+zend_bool circular_buffer_is_full(const circular_buffer_t *buffer)
 {
 	if (buffer->head == NULL) {
 		return 0;
@@ -343,7 +343,7 @@ zend_always_inline zend_bool circular_buffer_is_full(const circular_buffer_t *bu
  * The method will return the number of existing elements currently in the ring buffer.
  * Do not confuse this with the buffer’s capacity!
  */
-zend_always_inline size_t circular_buffer_count(const circular_buffer_t *buffer)
+size_t circular_buffer_count(const circular_buffer_t *buffer)
 {
 	if (buffer->head == NULL) {
 		return 0;
@@ -364,7 +364,7 @@ zend_always_inline size_t circular_buffer_count(const circular_buffer_t *buffer)
 //
 // Functions for ZVAL circular buffer
 //
-zend_always_inline circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_t *allocator)
+circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_t *allocator)
 {
 	return circular_buffer_new(count, sizeof(zval), allocator);
 }
@@ -373,7 +373,7 @@ zend_always_inline circular_buffer_t *zval_circular_buffer_new(const size_t coun
  * Push a new zval into the circular buffer.
  * The zval will be copied and its reference count will be increased.
  */
-zend_always_inline zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value)
+zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value)
 {
 	Z_TRY_ADDREF_P(value);
 	return circular_buffer_push(buffer, value);
@@ -383,7 +383,7 @@ zend_always_inline zend_result zval_circular_buffer_push(circular_buffer_t *buff
  * Pop a zval from the circular buffer.
  * The zval will be copied and its reference count will not be changed because your code will get the ownership.
  */
-zend_always_inline zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value)
+zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value)
 {
   	ZVAL_UNDEF(value);
 	return circular_buffer_pop(buffer, value);

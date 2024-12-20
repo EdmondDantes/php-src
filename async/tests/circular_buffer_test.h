@@ -13,21 +13,9 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
+#ifndef CIRCULAR_BUFFER_TEST_H
+#define CIRCULAR_BUFFER_TEST_H
 
-#include <stdio.h>
+void circular_buffer_run(void);
 
-#ifdef __STDC_VERSION__
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#pragma message("__STDC_VERSION__ is defined: " TOSTRING(__STDC_VERSION__))
-#else
-#pragma message("__STDC_VERSION__ is not defined.")
-#endif
-
-#include "circular_buffer_test.h"
-
-int main() {
-	circular_buffer_run();
-	printf("All tests passed!\n");
-	return 0;
-}
+#endif //CIRCULAR_BUFFER_TEST_H
