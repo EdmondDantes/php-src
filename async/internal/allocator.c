@@ -18,22 +18,38 @@
 
 void *zend_std_alloc(size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return malloc(size);
+#else
 	return emalloc(size);
+#endif
 }
 
 void *zend_std_calloc(const size_t num, const size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return calloc(num, size);
+#else
 	return ecalloc(num, size);
+#endif
 }
 
 void *zend_std_realloc(void *ptr, const size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return realloc(ptr, size);
+#else
 	return erealloc(ptr, size);
+#endif
 }
 
 void zend_std_free(void *ptr)
 {
+#ifdef ASYNC_UNIT_TESTS
+	free(ptr);
+#else
 	efree(ptr);
+#endif
 }
 
 allocator_t zend_std_allocator = {
@@ -45,22 +61,38 @@ allocator_t zend_std_allocator = {
 
 void *zend_std_palloc(const size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return malloc(size);
+#else
 	return pemalloc(size, 1);
+#endif
 }
 
 void *zend_std_pcalloc(const size_t num, const size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return calloc(num, size);
+#else
 	return pecalloc(num, size, 1);
+#endif
 }
 
 void *zend_std_prealloc(void *ptr, const size_t size)
 {
+#ifdef ASYNC_UNIT_TESTS
+	return realloc(ptr, size);
+#else
 	return perealloc(ptr, size, 1);
+#endif
 }
 
 void zend_std_pfree(void *ptr)
 {
+#ifdef ASYNC_UNIT_TESTS
+	free(ptr);
+#else
 	pefree(ptr, 1);
+#endif
 }
 
 allocator_t zend_std_persistent_allocator = {

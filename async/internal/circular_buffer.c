@@ -17,6 +17,16 @@
 
 #define MINIMUM_COUNT 4
 
+#ifdef ASYNC_UNIT_TESTS
+#include <stdio.h>
+#endif
+
+#ifdef ASYNC_UNIT_TESTS
+#define ASYNC_ERROR(type, format) fprintf(stderr, format)
+#else
+#define ASYNC_ERROR(type, format) zend_error(type, format)
+#endif
+
 /**
  * Initialize a new zval circular buffer.
  *
@@ -24,7 +34,7 @@
 circular_buffer_t *circular_buffer_new(size_t count, const size_t item_size, const allocator_t *allocator)
 {
   	if(item_size <= 0) {
-		zend_error(E_ERROR, "Item size must be greater than zero");
+		ASYNC_ERROR(E_ERROR, "Item size must be greater than zero");
 		return NULL;
 	}
 
@@ -39,7 +49,7 @@ circular_buffer_t *circular_buffer_new(size_t count, const size_t item_size, con
     circular_buffer_t* buffer = (allocator->m_calloc)(1, sizeof(circular_buffer_t));
 
 	if (UNEXPECTED(buffer == NULL)) {
-		zend_error(E_ERROR, "Failed to allocate memory for circular buffer");
+		ASYNC_ERROR(E_ERROR, "Failed to allocate memory for circular buffer");
 		return NULL;
 	}
 
@@ -73,7 +83,7 @@ zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const
 	void *start = (allocator->m_calloc)(count, item_size);
 
 	if (UNEXPECTED(start == NULL)) {
-		zend_error(E_ERROR, "Failed to allocate memory for circular buffer");
+		ASYNC_ERROR(E_ERROR, "Failed to allocate memory for circular buffer");
 		return FAILURE;
 	}
 
@@ -81,7 +91,7 @@ zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const
 	buffer->item_size	= item_size;
 	buffer->min_size	= count;
 	buffer->start		= start;
-	buffer->end			= buffer->start + (count - 1) * item_size;
+	buffer->end			= (char *)buffer->start + (count - 1) * item_size;
 	buffer->head		= NULL;
 	buffer->tail		= NULL;
 
@@ -109,7 +119,7 @@ zend_always_inline bool circular_buffer_should_be_relocate(const circular_buffer
 		dist = -dist;
 	}
 
-	return dist < ((((char *)buffer->end - (char *)buffer->start) + buffer->item_size) / 2);
+	return (size_t) dist < (((size_t)((char *)buffer->end - (char *)buffer->start) + buffer->item_size) / 2);
 }
 
 /**
@@ -140,10 +150,10 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 	}
 
     if(increase) {
-    	const void *new_end = buffer->start + (new_count - 1) * buffer->item_size;
+    	const void *new_end = (char *)buffer->start + (new_count - 1) * buffer->item_size;
 
     	if(buffer->head > new_end || buffer->tail > new_end) {
-    		zend_error(E_WARNING, "Cannot reallocate circular buffer, head or tail is out of bounds");
+    		ASYNC_ERROR(E_WARNING, "Cannot reallocate circular buffer, head or tail is out of bounds");
     		return FAILURE;
     	}
 
@@ -153,14 +163,14 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
     	void *new_start = (buffer->allocator->m_realloc)(buffer->start, new_count * buffer->item_size);
 
 		if(new_start == NULL) {
-			zend_error(E_WARNING, "Failed to reallocate circular buffer");
+			ASYNC_ERROR(E_WARNING, "Failed to reallocate circular buffer");
 			return FAILURE;
 		}
 
     	buffer->start	= new_start;
-        buffer->head	= buffer->start + head_offset;
-        buffer->tail	= buffer->start + tail_offset;
-    	buffer->end		= new_start + (new_count - 1) * buffer->item_size;
+        buffer->head	= (char *) buffer->start + head_offset;
+        buffer->tail	= (char *) buffer->start + tail_offset;
+    	buffer->end		= (char *) new_start + (new_count - 1) * buffer->item_size;
 
         return SUCCESS;
 	}
@@ -171,13 +181,13 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 		buffer->start = (buffer->allocator->m_alloc)(new_count * buffer->item_size);
 
 		if (buffer->start == NULL) {
-			zend_error(E_WARNING, "Failed to reallocate circular buffer");
+			ASYNC_ERROR(E_WARNING, "Failed to reallocate circular buffer");
 			return FAILURE;
 		}
 
         buffer->head = NULL;
         buffer->tail = NULL;
-		buffer->end = buffer->start + (new_count - 1) * buffer->item_size;
+		buffer->end = (char*) buffer->start + (new_count - 1) * buffer->item_size;
 		return SUCCESS;
 	}
 
@@ -191,11 +201,11 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
     const void *tail	= buffer->tail != NULL ? buffer->tail : buffer->start;
     const void *start	= buffer->head > tail ? buffer->tail : buffer->head;
     const void *end		= buffer->head > tail ? buffer->head : buffer->tail;
-    const size_t size	= end - start;
+    const size_t size	= (char *)end - (char *)start;
 
     // allocate a new buffer
     void *new_start		= (buffer->allocator->m_alloc)(new_count * buffer->item_size);
-    void *new_end		= new_start + (new_count - 1) * buffer->item_size;
+    void *new_end		= (char *) new_start + (new_count - 1) * buffer->item_size;
 
     // copy data
     memcpy(new_start, start, size);
@@ -207,11 +217,11 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
     buffer->allocator->m_free(buffer->start);
 
     buffer->start		= new_start;
-	buffer->head		= buffer->start + head_offset;
+	buffer->head		= (char *) buffer->start + head_offset;
 	buffer->end			= new_end;
 
     if(buffer->tail != NULL) {
-		buffer->tail	= buffer->start + tail_offset;
+		buffer->tail	= (char *)buffer->start + tail_offset;
 	}
 
 	return SUCCESS;
@@ -232,8 +242,8 @@ static zend_always_inline zend_result circular_buffer_header_next(circular_buffe
 			return FAILURE;
 		}
 
-	} else if((buffer->head + buffer->item_size) >= buffer->tail) {
-		buffer->head += buffer->item_size;
+	} else if(((char *) buffer->head + buffer->item_size) >= buffer->tail) {
+		buffer->head = (char *)buffer->head + buffer->item_size;
 	}
 
 	return SUCCESS;
@@ -252,8 +262,8 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
 		buffer->tail = buffer->start;
 	} else if(buffer->tail >= buffer->end) {
 		buffer->tail = buffer->start;
-	} else if((buffer->tail + buffer->item_size) <= buffer->head) {
-		buffer->tail += buffer->item_size;
+	} else if(((char *)buffer->tail + buffer->item_size) <= buffer->head) {
+		buffer->tail = (char *) buffer->tail + buffer->item_size;
 	} else {
 		return FAILURE;
 	}
@@ -272,7 +282,7 @@ zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 	}
 
 	if(circular_buffer_header_next(buffer) == FAILURE) {
-		zend_error(E_WARNING, "Cannot push into full circular buffer");
+		ASYNC_ERROR(E_WARNING, "Cannot push into full circular buffer");
 		return FAILURE;
 	}
 
@@ -286,7 +296,7 @@ zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 {
 	if(circular_buffer_tail_next(buffer) == FAILURE) {
-		zend_error(E_WARNING, "Cannot pop from empty circular buffer");
+		ASYNC_ERROR(E_WARNING, "Cannot pop from empty circular buffer");
 		return FAILURE;
 	}
 

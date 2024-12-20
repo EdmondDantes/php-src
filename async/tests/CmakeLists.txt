@@ -21,7 +21,7 @@ foreach(DIR ${PHP_DIR} ${PHP_MAIN_DIR} ${ZEND_MAIN_DIR} ${SRC_DIR} ${TEST_DIR})
 endforeach()
 
 file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.c")
-file(GLOB_RECURSE TEST_FILES "${TEST_DIR}/*.c")
+file(GLOB TEST_FILES "${TEST_DIR}/*.c")
 
 add_executable(run_tests ${TEST_FILES} ${SRC_FILES})
 
@@ -36,6 +36,7 @@ target_include_directories(run_tests PRIVATE
 )
 
 target_compile_definitions(run_tests PRIVATE
+        ASYNC_UNIT_TESTS
         ZEND_DEBUG
         PHP_ASYNC
         ZTS
