@@ -278,12 +278,17 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
 
 /**
  * Push a new zval into the circular buffer.
+ *
+ * The push operation not only implicitly changes the size of the buffer but also reduces it.
+ * This allows structural modification operations to be concentrated solely on the writing side of the buffer.
  */
-zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
+zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value, const bool should_resize)
 {
 	const bool should_reallocate = circular_buffer_is_full(buffer);
 
-  	if(should_reallocate && circular_buffer_realloc(buffer, 0) == FAILURE) {
+  	if(should_resize && should_reallocate && circular_buffer_realloc(buffer, 0) == FAILURE) {
+		return FAILURE;
+	} else if (!should_resize && should_reallocate) {
 		return FAILURE;
 	}
 
@@ -294,7 +299,10 @@ zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value)
 
 	memcpy(buffer->head, value, buffer->item_size);
 
-	if(!should_reallocate && circular_buffer_should_be_decrease(buffer) && circular_buffer_realloc(buffer, 0) == FAILURE) {
+	if(should_resize
+		&& !should_reallocate
+		&& circular_buffer_should_be_decrease(buffer)
+		&& circular_buffer_realloc(buffer, 0) == FAILURE) {
 		return SUCCESS;
 	}
 
@@ -380,10 +388,10 @@ circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_
  * Push a new zval into the circular buffer.
  * The zval will be copied and its reference count will be increased.
  */
-zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value)
+zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value, const bool should_resize)
 {
 	Z_TRY_ADDREF_P(value);
-	return circular_buffer_push(buffer, value);
+	return circular_buffer_push(buffer, value, should_resize);
 }
 
 /**

@@ -25,7 +25,9 @@ struct _circular_buffer_s {
     size_t item_size;
     size_t min_size;
 	size_t decrease_t;
+	/* point to the first element */
 	void *start;
+	/* point to the last valid element */
 	void *end;
 	void *head;
 	void *tail;
@@ -39,13 +41,13 @@ void circular_buffer_destroy(circular_buffer_t *buffer);
 
 zend_bool circular_buffer_is_full(const circular_buffer_t *buffer);
 zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer);
-zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value);
+zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value, bool should_resize);
 zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value);
 size_t circular_buffer_count(const circular_buffer_t *buffer);
 zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count);
 
 circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_t *allocator);
-zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value);
+zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value, bool should_resize);
 zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value);
 
 #endif //CIRCULAR_BUFFER_H

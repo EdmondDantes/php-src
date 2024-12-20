@@ -51,7 +51,7 @@ static void test_push_and_pop()
     test_struct_t value_in = {1, 2, 'a', 'b'};
     test_struct_t value_out = {0, 0, 0, 0};
 
-    ASSERT(circular_buffer_push(buffer, &value_in) == SUCCESS, "Push operation failed");
+    ASSERT(circular_buffer_push(buffer, &value_in, true) == SUCCESS, "Push operation failed");
     ASSERT(circular_buffer_pop(buffer, &value_out) == SUCCESS, "Pop operation failed");
 
 	ASSERT(
@@ -74,10 +74,10 @@ static void test_is_empty_and_is_full()
     ASSERT(circular_buffer_is_empty(buffer), "Buffer should be empty initially");
     ASSERT(!circular_buffer_is_full(buffer), "Buffer should not be full initially");
 
-    circular_buffer_push(buffer, &value);
+    circular_buffer_push(buffer, &value, true);
     ASSERT(!circular_buffer_is_empty(buffer), "Buffer should not be empty after push");
 
-    circular_buffer_push(buffer, &value);
+    circular_buffer_push(buffer, &value, true);
     ASSERT(circular_buffer_is_full(buffer), "Buffer should be full after two pushes");
 
     circular_buffer_destroy(buffer);
@@ -93,7 +93,7 @@ static void test_reallocation()
     for (int i = 1; i <= 5; i++) {
 		value.a++;
 		value.b--;
-        circular_buffer_push(buffer, &value);
+        circular_buffer_push(buffer, &value, true);
     }
 
 	// Assert insertion
@@ -127,7 +127,7 @@ static void test_zval_buffer()
     circular_buffer_t *buffer = zval_circular_buffer_new(5, NULL);
     ASSERT(buffer != NULL, "zval buffer creation failed");
 
-    ASSERT(zval_circular_buffer_push(buffer, &value_in) == SUCCESS, "zval push failed");
+    ASSERT(zval_circular_buffer_push(buffer, &value_in, true) == SUCCESS, "zval push failed");
     ASSERT(zval_circular_buffer_pop(buffer, &value_out) == SUCCESS, "zval pop failed");
 
     ASSERT(Z_TYPE(value_out) == IS_STRING && strcmp(Z_STRVAL(value_out), "Hello, World!") == 0, "zval value mismatch");
