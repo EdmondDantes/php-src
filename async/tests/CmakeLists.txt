@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(async_tests C)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/../internal")
+set(TEST_DIR "${CMAKE_SOURCE_DIR}/../tests")
+#set(MOCK_DIR "${CMAKE_SOURCE_DIR}/../tests/mocks")
+set(PHP_MAIN_DIR "${CMAKE_SOURCE_DIR}/../../main")
+set(ZEND_MAIN_DIR "${CMAKE_SOURCE_DIR}/../../Zend")
+set(TSRM_DIR "${CMAKE_SOURCE_DIR}/../../TSRM")
+set(WIN32_DIR "${CMAKE_SOURCE_DIR}/../../win32")
+set(PHP_DIR "${CMAKE_SOURCE_DIR}/../../")
+
+foreach(DIR ${PHP_DIR} ${PHP_MAIN_DIR} ${ZEND_MAIN_DIR} ${SRC_DIR} ${TEST_DIR})
+    if(NOT EXISTS ${DIR})
+        message(FATAL_ERROR "Directory not found: ${DIR}")
+    endif()
+endforeach()
+
+file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.c")
+file(GLOB_RECURSE TEST_FILES "${TEST_DIR}/*.c")
+
+add_executable(run_tests ${TEST_FILES} ${SRC_FILES})
+
+target_include_directories(run_tests PRIVATE
+    ${PHP_DIR}
+    ${PHP_MAIN_DIR}
+    ${ZEND_MAIN_DIR}
+    ${SRC_DIR}
+    ${TSRM_DIR}
+    ${WIN32_DIR}
+    ${TEST_DIR}
+)
+
+target_compile_definitions(run_tests PRIVATE
+        ZEND_DEBUG
+        PHP_ASYNC
+        ZTS
+        PHP_WIN32
+        ZEND_WIN32
+        _WIN32
+)
+
+if(MSVC)
+    target_compile_options(run_tests PRIVATE /W4)
+else()
+    target_compile_options(run_tests PRIVATE -Wall -Wextra -pedantic)
+endif()
