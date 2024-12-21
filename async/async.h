@@ -19,11 +19,24 @@
 #include "php.h"
 #include "internal/circular_buffer.h"
 
+#ifdef PHP_ASYNC_LIBUV
+#include <uv.h>
+#endif
+
 typedef struct _async_globals_s async_globals_t;
 
 struct _async_globals_s {
+	/* Equal TRUE if the asynchronous context is enabled */
+	bool is_async;
+	/* Equal TRUE if the scheduler is running */
+	bool is_scheduler_running;
+	// Microtask and fiber queues
 	circular_buffer_t microtasks;
-	circular_buffer_t awaiting_fibers;
+	circular_buffer_t pending_fibers;
+#ifdef PHP_ASYNC_LIBUV
+	// Lib uv loop
+	uv_loop_t uv_loop;
+#endif
 };
 
 /* Async global */
@@ -35,6 +48,9 @@ ZEND_API size_t async_globals_offset;
 # define EG(v) (async_globals.v)
 ZEND_API async_globals_t* async_globals;
 #endif
+
+#define IS_ASYNC_ON (ASYNC_G(is_async) == true)
+#define IS_ASYNC_OFF (ASYNC_G(is_async) == false)
 
 void async_startup(void);
 void async_shutdown(void);

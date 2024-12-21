@@ -14,8 +14,15 @@
   +----------------------------------------------------------------------+
 */
 #include "scheduler.h"
+
+#include <zend_fibers.h>
+
 #include "zval_circular_buffer.h"
 #include "async/async.h"
+
+#ifdef PHP_ASYNC_LIBUV
+#include <uv.h>
+#endif
 
 //
 // The coefficient of the maximum number of microtasks that can be executed
@@ -91,12 +98,30 @@ static void execute_microtasks(void)
 
 static void handle_callbacks(void)
 {
-
+#ifdef PHP_ASYNC_LIBUV
+	uv_run(&ASYNC_G(uv_loop), UV_RUN_ONCE);
+#endif
 }
 
 static void resume_next_fiber(void)
 {
+	if (circular_buffer_is_empty(&ASYNC_G(pending_fibers))) {
+        return;
+    }
 
+    zval fiber_val;
+    zval_c_buffer_pop(&ASYNC_G(pending_fibers), &fiber_val);
+
+	if (Z_TYPE(fiber_val) == IS_OBJECT) {
+		zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(&fiber_val);
+		zval_ptr_dtor(&fiber_val);
+
+		if (fiber) {
+			zend_fiber_resume(fiber, NULL, NULL);
+		}
+	} else {
+		zval_ptr_dtor(&fiber_val);
+	}
 }
 
 /**
@@ -114,9 +139,26 @@ zend_result async_scheduler_fiber_resume()
 
 zend_result async_scheduler_yield()
 {
-	h_execute_microtasks();
-	h_handle_callbacks();
-	h_execute_microtasks();
+	do {
+
+		ASYNC_G(is_scheduler_running) = true;
+
+		zend_try {
+
+			h_execute_microtasks();
+			h_handle_callbacks();
+			h_execute_microtasks();
+
+		} zend_catch {
+			ASYNC_G(is_scheduler_running) = false;
+			zend_bailout();
+		} zend_end_try();
+
+		ASYNC_G(is_scheduler_running) = false;
+
+	} while (circular_buffer_is_empty(&ASYNC_G(pending_fibers)));
+
 	h_resume_next_fiber();
+
 	return SUCCESS;
 }
