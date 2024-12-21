@@ -251,18 +251,22 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
  */
 static zend_always_inline zend_result circular_buffer_header_next(circular_buffer_t *buffer)
 {
-  	if(buffer->head == NULL) {
+	if(UNEXPECTED(buffer->head == NULL)) {
 		buffer->head = buffer->start;
-	} else if(buffer->head >= buffer->end) {
+	} else if(UNEXPECTED(buffer->head >= buffer->end)) {
 
-        if(buffer->tail != NULL) {
+		// The header can't be moved to the same position as the tail.
+		if(buffer->tail != NULL && buffer->tail != buffer->start) {
 			buffer->head = buffer->start;
 		} else {
 			return FAILURE;
 		}
 
-	} else if(((char *) buffer->head + buffer->item_size) >= (char *) buffer->tail) {
+	} else if(EXPECTED(((char *) buffer->head - (char *) buffer->tail) >= 0
+		  || (((char *)buffer->head + buffer->item_size) < (char *) buffer->tail))) {
 		buffer->head = (char *)buffer->head + buffer->item_size;
+	} else {
+		return FAILURE;
 	}
 
 	return SUCCESS;
@@ -281,10 +285,8 @@ static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_
 		buffer->tail = buffer->start;
 	} else if(buffer->tail >= buffer->end) {
 		buffer->tail = buffer->start;
-	} else if(((char *)buffer->tail + buffer->item_size) <= (char *) buffer->head) {
-		buffer->tail = (char *) buffer->tail + buffer->item_size;
 	} else {
-		return FAILURE;
+		buffer->tail = (char *) buffer->tail + buffer->item_size;
 	}
 
 	return SUCCESS;
@@ -353,20 +355,27 @@ zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer)
 zend_bool circular_buffer_is_full(const circular_buffer_t *buffer)
 {
 	if (buffer->head == NULL) {
-		return 0;
+		return false;
 	}
 
-	const void *tail = (buffer->tail != NULL) ? buffer->tail : buffer->start;
+	/**
+	 * If the head is to the left of the tail and the difference between them is one element,
+	 * the circular buffer is considered full, even though the tail points to a read element
+	 * and theoretically one more element could be written.
+	 *
+	 * However, such an operation would put the buffer in an undefined state, which would be equivalent to being empty.
+	 * In other words, the rule is as follows:
+	 * the tail can "catch up" to the head, but the head is not allowed to catch up to the tail.
+	 *
+	 * The minimum difference between them must always be one element if the head is to the left.
+	 */
+	const ptrdiff_t diff = (char *)buffer->head - (char *)buffer->tail;
 
-	ptrdiff_t used = (char *)buffer->head - (char *)tail;
-
-	if (used < 0) {
-		used = -used;
+	if (diff < 0) {
+		return (size_t)(-diff) == buffer->item_size;
+	} else {
+		return buffer->head == buffer->end && (buffer->tail == NULL || buffer->tail == buffer->start);
 	}
-
-	const ptrdiff_t capacity = (char *)buffer->end - (char *)buffer->start;
-
-	return ((buffer->tail == NULL && buffer->head == buffer->end) || (used == capacity));
 }
 
 /**

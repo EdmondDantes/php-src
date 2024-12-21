@@ -159,8 +159,20 @@ static void test_head_and_tail_exchange()
     circular_buffer_pop(buffer, &value);
 
     test_struct_t new_value = {500, 500, 'a', 'z'};
+	/**
+	 * If the head is to the left of the tail and the difference between them is one element,
+	 * the circular buffer is considered full, even though the tail points to a read element
+	 * and theoretically one more element could be written.
+	 *
+	 * However, such an operation would put the buffer in an undefined state, which would be equivalent to being empty.
+	 * In other words, the rule is as follows:
+	 * the tail can "catch up" to the head, but the head is not allowed to catch up to the tail.
+	 *
+	 * The minimum difference between them must always be one element if the head is to the left.
+	 */
     circular_buffer_push(buffer, &new_value, false);
-    circular_buffer_push(buffer, &new_value, false);
+
+    ASSERT(circular_buffer_push(buffer, &new_value, false) == FAILURE, "Push to full buffer should fail");
 
     // Buffer full?
     ASSERT(circular_buffer_is_full(buffer), "Buffer should be full");
@@ -185,6 +197,8 @@ static void test_head_and_tail_exchange()
         value.d == 'z'
         , "Value mismatch after pop"
     );
+
+    ASSERT(circular_buffer_is_empty(buffer), "Buffer should be empty");
 
     circular_buffer_destroy(buffer);
     printf("[*] test_head_and_tail_exchange passed\n");
