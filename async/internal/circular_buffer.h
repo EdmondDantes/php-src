@@ -64,6 +64,7 @@ zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer);
 zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value, bool should_resize);
 zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value);
 size_t circular_buffer_count(const circular_buffer_t *buffer);
+size_t circular_buffer_capacity(const circular_buffer_t *buffer);
 zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count);
 
 circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_t *allocator);

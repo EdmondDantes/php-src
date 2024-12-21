@@ -14,10 +14,79 @@
   +----------------------------------------------------------------------+
 */
 #include "scheduler.h"
+#include "zval_circular_buffer.h"
+#include "async/async.h"
+
+//
+// The coefficient of the maximum number of microtasks that can be executed
+// without suspicion of an infinite loop (a task that creates microtasks).
+//
+#define MICROTASK_CYCLE_THRESHOLD_C 4
+
+static void invoke_microtask(zval *task)
+{
+	if (Z_TYPE(task) == IS_PTR) {
+		// Call the function directly
+		((void (*)(void)) Z_PTR(*task))();
+	} else if (zend_is_callable(task, 0, NULL)) {
+		zval retval;
+		ZVAL_UNDEF(&retval);
+		call_user_function(CG(function_table), NULL, task, &retval, 0, NULL);
+		zval_ptr_dtor(&retval);
+	}
+}
+
+static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const size_t max_count)
+{
+	if (circular_buffer_is_empty(buffer)) {
+		return SUCCESS;
+	}
+
+	for (size_t i = 0; i < max_count; i++) {
+		zval task;
+
+		zval_c_buffer_pop(buffer, &task);
+		invoke_microtask(&task);
+		zval_ptr_dtor(&task);
+
+		if (circular_buffer_is_empty(buffer)) {
+			return SUCCESS;
+		}
+	}
+
+	return FAILURE;
+}
 
 static void execute_microtasks(void)
 {
+	circular_buffer_t *buffer = &ASYNC_G(microtasks);
 
+	if (circular_buffer_is_empty(buffer)) {
+		return;
+	}
+
+	/**
+	 * The execution of the microtask queue occurs in two stages:
+	 * * All microtasks in the queue that were initially scheduled are executed.
+	 * * All subsequent microtasks in the queue are executed, but no more than twice the buffer size.
+	*/
+
+	if (execute_microtasks_stage(buffer, circular_buffer_count(buffer)) == SUCCESS) {
+		return;
+	}
+
+	const size_t max_count = circular_buffer_capacity(buffer) * MICROTASK_CYCLE_THRESHOLD_C;
+
+	if (execute_microtasks_stage(buffer, max_count) == SUCCESS) {
+		return;
+	}
+
+	// TODO make critical error
+	zend_throw_exception_ex(
+		NULL, 0,
+		"A possible infinite loop was detected during microtask execution. Max count: %u, remaining: %u",
+		max_count, circular_buffer_count(buffer)
+	);
 }
 
 static void handle_callbacks(void)

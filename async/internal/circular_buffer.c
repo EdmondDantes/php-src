@@ -399,6 +399,10 @@ size_t circular_buffer_count(const circular_buffer_t *buffer)
 	return (size_t)(dist / (ptrdiff_t)buffer->item_size) + 1;
 }
 
+size_t circular_buffer_capacity(const circular_buffer_t *buffer)
+{
+	return ((char *)buffer->end - (char *)buffer->start + buffer->item_size) / buffer->item_size;
+}
 
 //
 // Functions for ZVAL circular buffer

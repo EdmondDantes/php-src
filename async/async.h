@@ -28,6 +28,8 @@ struct _async_globals_s {
 
 /* Async global */
 #ifdef ZTS
+ZEND_API int async_globals_id;
+ZEND_API size_t async_globals_offset;
 # define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
 #else
 # define EG(v) (async_globals.v)
