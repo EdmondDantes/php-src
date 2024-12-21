@@ -20,11 +20,15 @@
 #include <string.h>
 #include "../internal/circular_buffer.h"
 
-#define ASSERT(condition, message) \
-    if (!(condition)) { \
-        fprintf(stderr, "Assertion failed: %s\n", message); \
-        exit(EXIT_FAILURE); \
-    }
+#define ASSERT(condition, message)            \
+    do {                                      \
+        if (!(condition)) {                   \
+            fprintf(stderr, "Assertion failed: %s\n", #condition); \
+            fprintf(stderr, "Message: %s\n", message); \
+            fprintf(stderr, "File: %s, Line: %d\n", __FILE__, __LINE__); \
+            exit(1);                          \
+        }                                     \
+    } while (0)
 
 typedef struct {
     int a;
@@ -226,8 +230,7 @@ static void test_zval_buffer()
     printf("[*] test_zval_buffer passed\n");
 }
 
-void circular_buffer_run(void)
-{
+int main() {
     test_create_and_destroy();
     test_push_and_pop();
     test_is_empty_and_is_full();
@@ -236,7 +239,5 @@ void circular_buffer_run(void)
     test_push_full();
     test_head_and_tail_exchange();
 
-    //test_zval_buffer();
-
-    printf("\nCircular buffer All tests passed!\n");
+    return 0;
 }

@@ -23,9 +23,17 @@ endforeach()
 file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.c")
 file(GLOB TEST_FILES "${TEST_DIR}/*.c")
 
-add_executable(run_tests ${TEST_FILES} ${SRC_FILES})
+add_executable(circular_buffer_tests
+        ${SRC_DIR}/circular_buffer.c
+        ${SRC_DIR}/allocator.c
+        ${TEST_DIR}/circular_buffer_test.c
+)
 
-target_include_directories(run_tests PRIVATE
+enable_testing()
+add_test(NAME CircularBufferTests COMMAND circular_buffer_tests)
+
+add_library(project_includes INTERFACE)
+target_include_directories(project_includes INTERFACE
     ${PHP_DIR}
     ${PHP_MAIN_DIR}
     ${ZEND_MAIN_DIR}
@@ -35,7 +43,8 @@ target_include_directories(run_tests PRIVATE
     ${TEST_DIR}
 )
 
-target_compile_definitions(run_tests PRIVATE
+add_library(project_definitions INTERFACE)
+target_compile_definitions(project_definitions INTERFACE
         ASYNC_UNIT_TESTS
         ZEND_DEBUG
         PHP_ASYNC
@@ -45,8 +54,10 @@ target_compile_definitions(run_tests PRIVATE
         _WIN32
 )
 
+target_link_libraries(circular_buffer_tests PRIVATE project_includes project_definitions)
+
 if(MSVC)
-    target_compile_options(run_tests PRIVATE /W4)
+    target_compile_options(circular_buffer_tests PRIVATE /W4)
 else()
-    target_compile_options(run_tests PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(circular_buffer_tests PRIVATE -Wall -Wextra -pedantic)
 endif()
