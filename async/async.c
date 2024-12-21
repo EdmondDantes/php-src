@@ -28,12 +28,17 @@ ZEND_API async_globals_t* async_globals;
  */
 static void async_globals_ctor(async_globals_t *async_globals)
 {
+	if (async_globals->is_async) {
+        return;
+    }
+
 	async_globals->is_async = true;
 	async_globals->is_scheduler_running = false;
 
 	// 512 bytes block size for microtasks and awaiting fibers
 	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
 	circular_buffer_ctor(&async_globals->pending_fibers, 32, sizeof(zval), &zend_std_persistent_allocator);
+
 #ifdef PHP_ASYNC_LIBUV
 	uv_loop_init(&async_globals->uv_loop);
 #endif
@@ -44,6 +49,10 @@ static void async_globals_ctor(async_globals_t *async_globals)
  */
 static void async_globals_dtor(async_globals_t *async_globals)
 {
+	if (!async_globals->is_async) {
+        return;
+    }
+
 	async_globals->is_async = false;
 	async_globals->is_scheduler_running = false;
 
@@ -56,16 +65,15 @@ static void async_globals_dtor(async_globals_t *async_globals)
 }
 
 /**
- * Async startup function.
+ * Activate the scheduler context.
  */
-void async_startup(void)
+void async_scheduler_startup(void)
 {
-	if (async_register_module() == FAILURE) {
-		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
+#ifdef ZTS
+
+	if (async_globals_id != 0) {
 		return;
 	}
-
-#ifdef ZTS
 
 	ts_allocate_fast_id(
 		&async_globals_id,
@@ -83,13 +91,35 @@ void async_startup(void)
 }
 
 /**
+ * Activate the scheduler context.
+ */
+void async_scheduler_shutdown(void)
+{
+#ifdef ZTS
+	if (async_globals_id == 0) {
+        return;
+    }
+
+	ts_free_id(async_globals_id);
+	async_globals_id = 0;
+#else
+	async_globals_dtor(async_globals);
+#endif
+}
+
+/**
+ * Async startup function.
+ */
+void async_startup(void)
+{
+	if (async_register_module() == FAILURE) {
+		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
+	}
+}
+
+/**
  * Async shutdown function.
  */
 void async_shutdown(void)
 {
-#ifdef ZTS
-	ts_free_id(async_globals_id);
-#else
-	async_globals_dtor(async_globals);
-#endif
 }
