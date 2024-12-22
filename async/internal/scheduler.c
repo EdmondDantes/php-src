@@ -109,10 +109,26 @@ static void resume_next_fiber(void)
         return;
     }
 
-	zend_fiber *fiber;
-	circular_buffer_pop(&ASYNC_G(pending_fibers), &fiber);
+	async_resume_t *resume;
+	circular_buffer_pop(&ASYNC_G(pending_fibers), &resume);
 
-	zend_fiber_resume(fiber, NULL, NULL);
+	if (resume->status == ASYNC_RESUME_PENDING) {
+		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
+		GC_DELREF(&resume->std);
+		return;
+	}
+
+	zval retval;
+	ZVAL_UNDEF(&retval);
+
+	if (resume->status == ASYNC_RESUME_SUCCESS) {
+		zend_fiber_resume(resume->fiber, resume->value, &retval);
+	} else {
+		zend_fiber_resume_exception(resume->fiber, resume->error, &retval);
+	}
+
+	GC_DELREF(&resume->std);
+	zval_ptr_dtor(&retval);
 }
 
 /**
@@ -122,6 +138,33 @@ static void resume_next_fiber(void)
 static void (*h_execute_microtasks)(void)	= execute_microtasks;
 static void (*h_handle_callbacks)(void)		= handle_callbacks;
 static void (*h_resume_next_fiber)(void)	= resume_next_fiber;
+
+/**
+ * The method returns TRUE if the specified handle is already waiting in the event loop.
+ * This check can detect complex errors in the application's operation.
+ */
+zend_bool async_scheduler_handle_is_waiting(const zend_object *handle)
+{
+#ifdef PHP_ASYNC_TRACK_HANDLES
+	return false;
+#else
+	// TODO: extract real handle->handle from zend_object
+	zval *result = zend_hash_index_find(&ASYNC_G(linked_handles), handle->handle);
+	const bool is_linked = result != NULL;
+	zval_ptr_dtor(result);
+	return is_linked;
+#endif
+}
+
+zend_result async_scheduler_add_handle(const zend_object *handle)
+{
+	if (async_scheduler_handle_is_waiting(handle)) {
+		zend_throw_exception(NULL, "Cannot add a handle that is already waiting", 0);
+		return FAILURE;
+	}
+
+
+}
 
 zend_result async_scheduler_fiber_resume()
 {
@@ -153,3 +196,4 @@ zend_result async_scheduler_yield(void)
 
 	return SUCCESS;
 }
+

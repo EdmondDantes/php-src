@@ -18,6 +18,7 @@
 
 #include "php.h"
 #include "internal/circular_buffer.h"
+#include "php_layer/resume.h"
 
 #ifdef PHP_ASYNC_LIBUV
 #include <uv.h>
@@ -32,14 +33,31 @@ struct _async_globals_s {
 	bool is_scheduler_running;
 	// Microtask and fiber queues
 	circular_buffer_t microtasks;
-	/* Queue of resume objects: Async\Resume */
+	/* Queue of resume objects: async_resume_t */
 	circular_buffer_t pending_fibers;
-	/* List of resume objects: Async\Resume */
-	HashTable fibers;
+	/* List of async_fiber_state_t  */
+	HashTable fibers_state;
+#ifdef PHP_ASYNC_TRACK_HANDLES
+	/* List of linked handles to fibers */
+	HashTable linked_handles;
+#endif
 #ifdef PHP_ASYNC_LIBUV
 	// Lib uv loop
 	uv_loop_t uv_loop;
 #endif
+};
+
+/**
+ * Fiber state structure.
+ * The structure describes the relationship between Fiber and the resume state.
+ * The resume state can be NULL, in which case the Fiber is considered active.
+*/
+typedef struct _async_fiber_state_s async_fiber_state_t;
+
+struct _async_fiber_state_s {
+	zend_fiber *fiber;
+	/* Fiber resume object. Can be NULL */
+	async_resume_t *resume;
 };
 
 /* Async global */
@@ -57,5 +75,6 @@ ZEND_API async_globals_t* async_globals;
 
 void async_startup(void);
 void async_shutdown(void);
+ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
 
 #endif //ASYNC_H

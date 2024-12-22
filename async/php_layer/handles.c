@@ -13,31 +13,4 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef RESUME_H
-#define RESUME_H
-
-typedef enum {
-	ASYNC_RESUME_PENDING = 0,
-	ASYNC_RESUME_SUCCESS = 1,
-	ASYNC_RESUME_ERROR = 2,
-} ASYNC_RESUME_STATUS;
-
-typedef struct _async_resume_s async_resume_t;
-
-/**
- * Object structure.
- */
-struct _async_resume_s {
-	/* PHP object handle. */
-	zend_object std;
-	zend_fiber *fiber;
-	ASYNC_RESUME_STATUS status;
-	zval *value;
-	zval *error;
-};
-
-ZEND_API zend_class_entry * async_ce_resume;
-
-void async_register_resume_ce(void);
-
-#endif //RESUME_H
+#include "handles.h"

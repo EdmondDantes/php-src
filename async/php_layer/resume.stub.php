@@ -17,26 +17,6 @@ namespace Async;
 final class Resume
 {
     /**
-     * The `Fiber` that will be resumed.
-     */
-    private ?\Fiber $fiber = null;
-
-    /**
-     * The `Fiber` that will be resumed.
-     */
-    private bool $isResolved = false;
-
-    /**
-     * The value that will be passed to the `Fiber` when it is resumed.
-     */
-    private mixed $value = null;
-
-    /**
-     * The error that will be thrown into the `Fiber` when it is resumed.
-     */
-    private ?\Throwable $error = null;
-
-    /**
      * Internal Callback object for Notifiers.
      */
     private ?Callback $callback = null;
