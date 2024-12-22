@@ -1645,7 +1645,9 @@ PHP_FUNCTION(socket_get_option)
 	struct linger	linger_val;
 	struct timeval	tv;
 #ifdef PHP_WIN32
-	int				timeout = 0;
+	DWORD				timeout = 0;
+#else
+	struct timeval timeout;
 #endif
 	socklen_t		optlen;
 	php_socket		*php_sock;
@@ -1749,23 +1751,19 @@ PHP_FUNCTION(socket_get_option)
 
 			case SO_RCVTIMEO:
 			case SO_SNDTIMEO:
-#ifndef PHP_WIN32
-				optlen = sizeof(tv);
-
-				if (getsockopt(php_sock->bsd_socket, level, optname, (char*)&tv, &optlen) != 0) {
-					PHP_SOCKET_ERROR(php_sock, "Unable to retrieve socket option", errno);
-					RETURN_FALSE;
-				}
-#else
-				optlen = sizeof(int);
+				optlen = sizeof(timeout);
 
 				if (getsockopt(php_sock->bsd_socket, level, optname, (char*)&timeout, &optlen) != 0) {
 					PHP_SOCKET_ERROR(php_sock, "Unable to retrieve socket option", errno);
 					RETURN_FALSE;
 				}
 
-				tv.tv_sec = timeout ? timeout / 1000 : 0;
-				tv.tv_usec = timeout ? (timeout * 1000) % 1000000 : 0;
+#ifndef PHP_WIN32
+				tv.tv_sec = timeout.tv_sec;
+				tv.tv_usec = timeout.tv_usec;
+#else
+				tv.tv_sec = timeout ? (long)(timeout / 1000) : 0;
+				tv.tv_usec = timeout ? (long)((timeout % 1000) * 1000) : 0;
 #endif
 
 				array_init(return_value);
@@ -1874,7 +1872,7 @@ PHP_FUNCTION(socket_set_option)
 	php_socket				*php_sock;
 	int						ov, optlen, retval;
 #ifdef PHP_WIN32
-	int						timeout;
+	DWORD						timeout;
 #else
 	struct					timeval tv;
 #endif
@@ -1970,8 +1968,16 @@ PHP_FUNCTION(socket_set_option)
 			const char l_onoff_key[] = "l_onoff";
 			const char l_linger_key[] = "l_linger";
 
-			convert_to_array(arg4);
-			opt_ht = Z_ARRVAL_P(arg4);
+			if (Z_TYPE_P(arg4) != IS_ARRAY) {
+				if (UNEXPECTED(Z_TYPE_P(arg4) != IS_OBJECT)) {
+					zend_argument_type_error(4, "must be of type array when argument #3 ($option) is SO_LINGER, %s given", zend_zval_value_name(arg4));
+					RETURN_THROWS();
+				} else {
+					opt_ht = Z_OBJPROP_P(arg4);
+				}
+			} else {
+				opt_ht = Z_ARRVAL_P(arg4);
+			}
 
 			if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == NULL) {
 				zend_argument_value_error(4, "must have key \"%s\"", l_onoff_key);
@@ -1982,11 +1988,21 @@ PHP_FUNCTION(socket_set_option)
 				RETURN_THROWS();
 			}
 
-			convert_to_long(l_onoff);
-			convert_to_long(l_linger);
+			zend_long val_lonoff = zval_get_long(l_onoff);
+			zend_long val_linger = zval_get_long(l_linger);
 
-			lv.l_onoff = (unsigned short)Z_LVAL_P(l_onoff);
-			lv.l_linger = (unsigned short)Z_LVAL_P(l_linger);
+			if (val_lonoff < 0 || val_lonoff > USHRT_MAX) {
+				zend_argument_value_error(4, "\"%s\" must be between 0 and %u", l_onoff_key, USHRT_MAX);
+				RETURN_THROWS();
+			}
+
+			if (val_linger < 0 || val_linger > USHRT_MAX) {
+				zend_argument_value_error(4, "\"%s\" must be between 0 and %d", l_linger, USHRT_MAX);
+				RETURN_THROWS();
+			}
+
+			lv.l_onoff = (unsigned short)val_lonoff;
+			lv.l_linger = (unsigned short)val_linger;
 
 			optlen = sizeof(lv);
 			opt_ptr = &lv;
@@ -1998,8 +2014,18 @@ PHP_FUNCTION(socket_set_option)
 			const char sec_key[] = "sec";
 			const char usec_key[] = "usec";
 
-			convert_to_array(arg4);
-			opt_ht = Z_ARRVAL_P(arg4);
+			if (Z_TYPE_P(arg4) != IS_ARRAY) {
+				if (UNEXPECTED(Z_TYPE_P(arg4) != IS_OBJECT)) {
+					zend_argument_type_error(4, "must be of type array when argument #3 ($option) is %s, %s given",
+							optname == SO_RCVTIMEO ? "SO_RCVTIMEO" : "SO_SNDTIMEO",
+							zend_zval_value_name(arg4));
+					RETURN_THROWS();
+				} else {
+					opt_ht = Z_OBJPROP_P(arg4);
+				}
+			} else {
+				opt_ht = Z_ARRVAL_P(arg4);
+			}
 
 			if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == NULL) {
 				zend_argument_value_error(4, "must have key \"%s\"", sec_key);
@@ -2010,16 +2036,33 @@ PHP_FUNCTION(socket_set_option)
 				RETURN_THROWS();
 			}
 
-			convert_to_long(sec);
-			convert_to_long(usec);
+			zend_long valsec = zval_get_long(sec);
+			zend_long valusec = zval_get_long(usec);
 #ifndef PHP_WIN32
-			tv.tv_sec = Z_LVAL_P(sec);
-			tv.tv_usec = Z_LVAL_P(usec);
+			tv.tv_sec = valsec;
+			tv.tv_usec = valusec;
 			optlen = sizeof(tv);
 			opt_ptr = &tv;
 #else
-			timeout = Z_LVAL_P(sec) * 1000 + Z_LVAL_P(usec) / 1000;
-			optlen = sizeof(int);
+			if (valsec < 0 || valsec > ULONG_MAX / 1000) {
+				zend_argument_value_error(4, "\"%s\" must be between 0 and %u", sec_key, (ULONG_MAX / 1000));
+				RETURN_THROWS();
+			}
+
+			timeout = valsec * 1000;
+
+
+			/*
+			 * We deliberately throw if (valusec / 1000) > ULONG_MAX, treating it as a programmer error.
+			 * On Windows, ULONG_MAX = 2^32, unlike ZEND_LONG_MAX = 2^63.
+			 */
+			if (valusec < 0 || timeout > ULONG_MAX - (valusec / 1000)) {
+				zend_argument_value_error(4, "\"%s\" must be between 0 and %u", usec_key, (DWORD)(ULONG_MAX - (valusec / 1000)));
+				RETURN_THROWS();
+			}
+
+			timeout += valusec / 1000;
+			optlen = sizeof(timeout);
 			opt_ptr = &timeout;
 #endif
 			break;
@@ -2070,15 +2113,15 @@ PHP_FUNCTION(socket_set_option)
 
 #ifdef SO_ATTACH_REUSEPORT_CBPF
 		case SO_ATTACH_REUSEPORT_CBPF: {
-			convert_to_long(arg4);
+			zend_long cbpf_val = zval_get_long(arg4);
 
-			if (!Z_LVAL_P(arg4)) {
+			if (!cbpf_val) {
 				ov = 1;
 				optlen = sizeof(ov);
 				opt_ptr = &ov;
 				optname = SO_DETACH_BPF;
 			} else {
-				uint32_t k = (uint32_t)Z_LVAL_P(arg4);
+				uint32_t k = (uint32_t)cbpf_val;
 				static struct sock_filter cbpf[8] = {0};
 				static struct sock_fprog bpfprog;
 
@@ -2105,8 +2148,7 @@ PHP_FUNCTION(socket_set_option)
 
 		default:
 default_case:
-			convert_to_long(arg4);
-			ov = Z_LVAL_P(arg4);
+			ov = zval_get_long(arg4);
 
 			optlen = sizeof(ov);
 			opt_ptr = &ov;

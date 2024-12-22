@@ -34,6 +34,8 @@ PHP 8.5 UPGRADE NOTES
     $object. If compared to a statically unknown value $object == $true, it
     would always return false. This behavior was consolidated to always follow
     the behavior of (bool) $object.
+  . The return value of gc_collect_cycles() no longer includes strings and
+    resources that were indirectly collected through cycles.
 
 - Intl:
   . The extension now requires at least ICU 57.1.
@@ -41,6 +43,16 @@ PHP 8.5 UPGRADE NOTES
 - LDAP:
   . ldap_get_option() and ldap_set_option() now throw a ValueError when
     passing an invalid option.
+
+- PCNTL:
+  . pcntl_exec() now throws ValueErrors when entries of the $args parameter
+    contain null bytes.
+  . pcntl_exec() now throws ValueErrors when entries or keys of the
+    $env_vars parameter contain null bytes.
+
+- PDO_FIREBIRD:
+  . A ValueError is now thrown when trying to set a cursor name that is too
+    long on a PDOStatement resulting from the Firebird driver.
 
 - SPL:
   . ArrayObject no longer accepts enums, as modifying the $name or $value
@@ -69,6 +81,10 @@ PHP 8.5 UPGRADE NOTES
 3. Changes in SAPI modules
 ========================================
 
+- CLI:
+  . Trying to set a process title that is too long with cli_set_process_title()
+    will now fail instead of silently truncating the given title.
+
 ========================================
 4. Deprecated Functionality
 ========================================
@@ -87,6 +103,9 @@ PHP 8.5 UPGRADE NOTES
     gzfile, gzopen and readgzfile functions had been changed
     from int to boolean.
 
+- PCNTL:
+  . pcntl_exec() now has a formal return type of false.
+
 - PDO_PGSQL:
   . PDO::pgsqlCopyFromArray also supports inputs as Iterable.
   . Pdo\Pgsql::setAttribute and Pdo\Pgsql::prepare supports
@@ -95,6 +114,14 @@ PHP 8.5 UPGRADE NOTES
 
 - PGSQL:
   . pg_copy_from also supports inputs as Iterable.
+
+- POSIX:
+  . posix_ttyname sets last_error to EBADF when encountering
+    an invalid file descriptor.
+  . posix_isatty raises an E_WARNING message when encountering
+    an invalid file descriptor.
+  . posix_fpathconf checks invalid file descriptors and sets
+    last_error to EBADF and raises an E_WARNING message.
 
 ========================================
 6. New Functions
@@ -189,13 +216,28 @@ PHP 8.5 UPGRADE NOTES
     and FFI::load(). However, this convenience feature should not be used in
     production.
 
+* Streams:
+  . If only pipe streams are contained in the $read array, and the $write and
+    $except arrays are empty, stream_select() now behaves similar to POSIX
+    systems, i.e. the function only returns if at least one pipe is ready to be
+    read, or after the timeout expires.  Previously, stream_select() returned
+    immediately, reporting all streams as ready to read.
+
 ========================================
 13. Other Changes
 ========================================
 
+- Core:
+  The high resolution timer (`hrtime()`) on macOS now uses the recommended
+  `clock_gettime_nsec_np(CLOCK_UPTIME_RAW)` API instead of
+  `mach_absolute_time()`.
+
 ========================================
 14. Performance Improvements
 ========================================
+
+- XMLReader:
+  . Improved property access performance.
 
 - XMLWriter:
   . Improved performance and reduce memory consumption.
