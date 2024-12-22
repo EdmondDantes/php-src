@@ -18,6 +18,7 @@
 
 #include <zend_fibers.h>
 
+#include "internal/scheduler.h"
 #include "php_layer/functions.h"
 
 #ifdef ZTS
@@ -148,13 +149,67 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber)
 	return resume;
 }
 
+static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_resume_t *resume)
+{
+	async_fiber_state_t * state = pecalloc(1, sizeof(async_fiber_state_t), 1);
+
+	if (state == NULL) {
+        return NULL;
+    }
+
+	state->fiber = fiber;
+	state->resume = resume;
+
+	// Add reference to the fiber object and the resume object.
+	GC_ADDREF(&fiber->std);
+
+	if (resume != NULL) {
+        GC_ADDREF(&resume->std);
+    }
+
+	zval zv;
+	ZVAL_PTR(&zv, state);
+
+	zend_hash_index_update(&ASYNC_G(fibers_state), fiber->std.handle, &zv);
+
+	return state;
+}
+
+/**
+ * Suspend the current fiber.
+ * The method puts the current Fiber into a waiting state for descriptors and events described by the Resume object.
+ * Calling this method essentially returns control to the Scheduler.
+ */
 void async_await(async_resume_t *resume)
 {
+	if (UNEXPECTED(IS_ASYNC_OFF)) {
+		return;
+	}
+
+	if (EG(active_fiber) == NULL) {
+		zend_error(E_CORE_WARNING, "Cannot await in a non-fiber context");
+        return;
+    }
+
+	if (resume->status != ASYNC_RESUME_PENDING) {
+        zend_throw_exception(NULL, "Attempt to use a Resume object that is not in the ASYNC_RESUME_PENDING state.", 0);
+        return;
+    }
+
+	if (resume->fiber != EG(active_fiber)) {
+        zend_throw_exception(NULL, "Attempt to use a Resume object that is not associated with the current Fiber.", 0);
+        return;
+    }
+
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
 
 	if (state == NULL) {
-		zend_throw_exception(NULL, "Attempt to manipulate a Fiber that was created outside of the Async API.", 0);
-		return;
+		state = async_add_fiber_state(resume->fiber, NULL);
+
+		if (state == NULL) {
+            zend_throw_exception(NULL, "Failed to create Fiber state", 0);
+            return;
+        }
 	}
 
 	if (state->resume != NULL) {
@@ -165,5 +220,23 @@ void async_await(async_resume_t *resume)
 	GC_ADDREF(&resume->std);
 	state->resume = resume;
 
+	zval *notifier;
+
+	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
+		if (Z_TYPE_P(notifier) == IS_OBJECT) {
+	        if (async_scheduler_add_handle(Z_OBJ_P(notifier)) == FAILURE) {
+                zend_throw_exception(NULL, "Failed to add notifier to the scheduler", 0);
+                return;
+            }
+		}
+	ZEND_HASH_FOREACH_END();
+
+	resume->status = ASYNC_RESUME_WAITING;
+
+	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
+}
+
+void async_await_resource(zend_resource * resource)
+{
 
 }

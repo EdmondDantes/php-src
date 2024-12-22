@@ -18,8 +18,9 @@
 
 typedef enum {
 	ASYNC_RESUME_PENDING = 0,
-	ASYNC_RESUME_SUCCESS = 1,
-	ASYNC_RESUME_ERROR = 2,
+	ASYNC_RESUME_WAITING = 1,
+	ASYNC_RESUME_SUCCESS = 2,
+	ASYNC_RESUME_ERROR = 3,
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
@@ -34,6 +35,7 @@ struct _async_resume_s {
 	ASYNC_RESUME_STATUS status;
 	zval *value;
 	zval *error;
+	HashTable notifiers;
 };
 
 ZEND_API zend_class_entry * async_ce_resume;

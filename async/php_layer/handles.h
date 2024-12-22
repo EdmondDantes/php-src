@@ -16,6 +16,8 @@
 #ifndef HANDLES_H
 #define HANDLES_H
 
+#include "zend_types.h"
+
 typedef enum {
 	ASYNC_UNKNOWN = 0,
 	ASYNC_FILE = 1,
@@ -33,5 +35,6 @@ typedef enum {
 	ASYNC_CUSTOM_TYPE = 128
 } ASYNC_HANDLE_TYPE;
 
+zend_object* async_resource_to_handle(zend_resource *resource);
 
 #endif //HANDLES_H

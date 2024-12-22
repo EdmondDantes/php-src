@@ -21,4 +21,6 @@
 #include "zend_smart_str.h"
 #include "zend_interfaces.h"
 
+zend_result async_scheduler_add_handle(const zend_object *handle);
+
 #endif //SCHEDULER_H

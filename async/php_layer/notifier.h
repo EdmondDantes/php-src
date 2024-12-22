@@ -17,7 +17,53 @@
 #ifndef NOTIFIER_H
 #define NOTIFIER_H
 
+#ifdef PHP_ASYNC_LIBUV
+#include <uv.h>
+#endif
+
 ZEND_API zend_class_entry *async_ce_notifier;
+
+typedef enum {
+	ASYNC_UNKNOWN = 0,
+	ASYNC_FILE = 1,
+	ASYNC_SOCKET = 2,
+	ASYNC_TIMER = 3,
+	ASYNC_SIGNAL = 4,
+	ASYNC_PIPE = 5,
+	ASYNC_TTY = 6,
+	ASYNC_FILE_SYSTEM = 7,
+	ASYNC_PROCESS = 8,
+	ASYNC_IDLE = 9,
+	ASYNC_GET_ADDR_INFO = 10,
+	ASYNC_GET_NAME_INFO = 11,
+	ASYNC_CUSTOM_TYPE = 128
+} ASYNC_HANDLE_TYPE;
+
+typedef struct _async_handle_s async_handle_t;
+typedef void (*async_handle_method)(async_handle_t *notifier);
+
+struct _async_handle_s {
+	/**
+	 * The type of handler that is hidden behind the Notify object.
+	 */
+	ASYNC_HANDLE_TYPE type;
+	/**
+	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
+	 */
+	async_handle_method dtor;
+#ifdef PHP_ASYNC_LIBUV
+	uv_handle_t *uv_handle;
+#endif
+};
+
+typedef struct _async_notifier_s async_notifier_t;
+
+struct _async_notifier_s {
+	/* PHP std object Async\Notifier */
+	zend_object std;
+	async_handle_t handle;
+};
+
 
 void async_register_notifier_ce(void);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
