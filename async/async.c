@@ -35,9 +35,9 @@ static void async_globals_ctor(async_globals_t *async_globals)
 	async_globals->is_async = true;
 	async_globals->is_scheduler_running = false;
 
-	// 512 bytes block size for microtasks and awaiting fibers
 	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 32, sizeof(zval), &zend_std_persistent_allocator);
+	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(zend_fiber *), &zend_std_persistent_allocator);
+	zend_hash_init(&async_globals->fibers, 128, NULL, NULL, 1);
 
 #ifdef PHP_ASYNC_LIBUV
 	uv_loop_init(&async_globals->uv_loop);
@@ -62,6 +62,7 @@ static void async_globals_dtor(async_globals_t *async_globals)
 
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->pending_fibers);
+	zend_hash_destroy(&async_globals->fibers);
 }
 
 /**

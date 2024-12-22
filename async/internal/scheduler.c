@@ -75,7 +75,7 @@ static void execute_microtasks(void)
 	/**
 	 * The execution of the microtask queue occurs in two stages:
 	 * * All microtasks in the queue that were initially scheduled are executed.
-	 * * All subsequent microtasks in the queue are executed, but no more than twice the buffer size.
+	 * * All subsequent microtasks in the queue are executed, but no more than MICROTASK_CYCLE_THRESHOLD_C the buffer size.
 	*/
 
 	if (execute_microtasks_stage(buffer, circular_buffer_count(buffer)) == SUCCESS) {
@@ -109,19 +109,10 @@ static void resume_next_fiber(void)
         return;
     }
 
-    zval fiber_val;
-    zval_c_buffer_pop(&ASYNC_G(pending_fibers), &fiber_val);
+	zend_fiber *fiber;
+	circular_buffer_pop(&ASYNC_G(pending_fibers), &fiber);
 
-	if (Z_TYPE(fiber_val) == IS_OBJECT) {
-		zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(&fiber_val);
-		zval_ptr_dtor(&fiber_val);
-
-		if (fiber) {
-			zend_fiber_resume(fiber, NULL, NULL);
-		}
-	} else {
-		zval_ptr_dtor(&fiber_val);
-	}
+	zend_fiber_resume(fiber, NULL, NULL);
 }
 
 /**
@@ -137,7 +128,7 @@ zend_result async_scheduler_fiber_resume()
     return SUCCESS;
 }
 
-zend_result async_scheduler_yield()
+zend_result async_scheduler_yield(void)
 {
 	do {
 

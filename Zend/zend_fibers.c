@@ -1131,10 +1131,9 @@ ZEND_METHOD(Fiber, getContext)
 
 ZEND_METHOD(Fiber, addShutdownHandler)
 {
-	zend_fiber *fiber;
 	zval *callback;
 
-	fiber = (zend_fiber *) Z_OBJ_P(ZEND_THIS);
+	zend_fiber* fiber = (zend_fiber*)Z_OBJ_P(ZEND_THIS);
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 	    Z_PARAM_CALLABLE(callback)
@@ -1152,10 +1151,9 @@ ZEND_METHOD(Fiber, addShutdownHandler)
 
 ZEND_METHOD(Fiber, removeShutdownHandler)
 {
-	zend_fiber *fiber;
 	zval *callback;
 
-	fiber = (zend_fiber *) Z_OBJ_P(ZEND_THIS);
+	const zend_fiber* fiber = (zend_fiber*)Z_OBJ_P(ZEND_THIS);
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 	    Z_PARAM_ZVAL(callback)

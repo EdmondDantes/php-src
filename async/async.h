@@ -32,7 +32,10 @@ struct _async_globals_s {
 	bool is_scheduler_running;
 	// Microtask and fiber queues
 	circular_buffer_t microtasks;
+	/* Queue of resume objects: Async\Resume */
 	circular_buffer_t pending_fibers;
+	/* List of resume objects: Async\Resume */
+	HashTable fibers;
 #ifdef PHP_ASYNC_LIBUV
 	// Lib uv loop
 	uv_loop_t uv_loop;

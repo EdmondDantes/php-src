@@ -4,11 +4,8 @@
 
 namespace Async;
 
-abstract class Handle implements NotifierInterface
+abstract class Handle implements Notifier
 {
-    public function addCallback(CallbackInterface $callback): static {}
-
-    public function removeCallback(CallbackInterface $callback): static {}
 }
 
 /**
