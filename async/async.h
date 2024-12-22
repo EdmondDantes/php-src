@@ -24,6 +24,11 @@
 #include <uv.h>
 #endif
 
+#define ASYNC_READABLE 1;
+#define ASYNC_WRITABLE 2;
+#define ASYNC_DISCONNECT 4;
+#define ASYNC_PRIORITIZED 8;
+
 typedef struct _async_globals_s async_globals_t;
 
 struct _async_globals_s {

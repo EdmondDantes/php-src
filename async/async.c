@@ -20,6 +20,7 @@
 
 #include "internal/scheduler.h"
 #include "php_layer/functions.h"
+#include "php_layer/notifier.h"
 
 #ifdef ZTS
 TSRMLS_MAIN_CACHE_DEFINE()
@@ -236,7 +237,24 @@ void async_await(async_resume_t *resume)
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
 }
 
-void async_await_resource(zend_resource * resource)
+void async_build_resume_with(zend_ulong timeout, async_notifier_t * cancellation)
+{
+
+}
+
+void async_await_socket()
+{
+
+}
+
+void async_await_resource(
+	zend_resource * resource, zend_ulong actions, zend_ulong timeout, async_notifier_t * cancellation
+)
+{
+
+}
+
+void async_await_readable(zend_resource * resource)
 {
 
 }

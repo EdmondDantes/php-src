@@ -16,25 +16,10 @@
 #ifndef HANDLES_H
 #define HANDLES_H
 
+#include "php.h"
 #include "zend_types.h"
+#include "notifier.h"
 
-typedef enum {
-	ASYNC_UNKNOWN = 0,
-	ASYNC_FILE = 1,
-	ASYNC_SOCKET = 2,
-	ASYNC_TIMER = 3,
-	ASYNC_SIGNAL = 4,
-	ASYNC_PIPE = 5,
-	ASYNC_TTY = 6,
-	ASYNC_FILE_SYSTEM = 7,
-	ASYNC_PROCESS = 8,
-	ASYNC_IDLE = 9,
-	ASYNC_GETADDRINFO = 10,
-	ASYNC_GETNAMEINFO = 11,
-
-	ASYNC_CUSTOM_TYPE = 128
-} ASYNC_HANDLE_TYPE;
-
-zend_object* async_resource_to_handle(zend_resource *resource);
+async_handle_t* async_resource_to_handle(zend_resource *resource);
 
 #endif //HANDLES_H
