@@ -20,6 +20,8 @@
 #include "zend_types.h"
 #include "notifier.h"
 
-async_handle_t* async_resource_to_handle(zend_resource *resource);
+async_handle_t* async_resource_to_handle(zend_resource *resource, zend_ulong actions);
+async_handle_t* async_timeout_new(zend_ulong timeout);
+async_handle_t* async_signal_new(zend_long sig_number);
 
 #endif //HANDLES_H

@@ -21,6 +21,7 @@
 #include "internal/scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
+#include "php_layer/handles.h"
 
 #ifdef ZTS
 TSRMLS_MAIN_CACHE_DEFINE()
@@ -180,6 +181,8 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
  * Suspend the current fiber.
  * The method puts the current Fiber into a waiting state for descriptors and events described by the Resume object.
  * Calling this method essentially returns control to the Scheduler.
+ *
+ * @param resume - Resume object. If NULL, a new object will be created.
  */
 void async_await(async_resume_t *resume)
 {
@@ -192,14 +195,26 @@ void async_await(async_resume_t *resume)
         return;
     }
 
+	bool is_owned_resume = false;
+
+	if (resume == NULL) {
+		is_owned_resume = true;
+		resume = async_resume_new();
+	}
+
+	if (resume == NULL) {
+		zend_throw_exception(NULL, "Failed to create a new Resume object", 0);
+		goto finally;
+	}
+
 	if (resume->status != ASYNC_RESUME_PENDING) {
         zend_throw_exception(NULL, "Attempt to use a Resume object that is not in the ASYNC_RESUME_PENDING state.", 0);
-        return;
+		goto finally;
     }
 
 	if (resume->fiber != EG(active_fiber)) {
         zend_throw_exception(NULL, "Attempt to use a Resume object that is not associated with the current Fiber.", 0);
-        return;
+	    goto finally;
     }
 
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
@@ -209,13 +224,13 @@ void async_await(async_resume_t *resume)
 
 		if (state == NULL) {
             zend_throw_exception(NULL, "Failed to create Fiber state", 0);
-            return;
+			goto finally;
         }
 	}
 
 	if (state->resume != NULL) {
 		zend_throw_exception(NULL, "Attempt to stop a Fiber that already has a Resume object.", 0);
-		return;
+		goto finally;
 	}
 
 	GC_ADDREF(&resume->std);
@@ -227,7 +242,7 @@ void async_await(async_resume_t *resume)
 		if (Z_TYPE_P(notifier) == IS_OBJECT) {
 	        if (async_scheduler_add_handle(Z_OBJ_P(notifier)) == FAILURE) {
                 zend_throw_exception(NULL, "Failed to add notifier to the scheduler", 0);
-                return;
+	        	goto finally;
             }
 		}
 	ZEND_HASH_FOREACH_END();
@@ -235,6 +250,12 @@ void async_await(async_resume_t *resume)
 	resume->status = ASYNC_RESUME_WAITING;
 
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
+
+finally:
+
+	if (is_owned_resume) {
+        GC_DELREF(&resume->std);
+    }
 }
 
 void async_build_resume_with(zend_ulong timeout, async_notifier_t * cancellation)
@@ -247,14 +268,86 @@ void async_await_socket()
 
 }
 
+/**
+ * The method stops Fiber execution for a Zend resource.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ */
 void async_await_resource(
-	zend_resource * resource, zend_ulong actions, zend_ulong timeout, async_notifier_t * cancellation
+	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, async_notifier_t * cancellation
 )
 {
+	const async_handle_t *handle = async_resource_to_handle(resource, actions);
 
+	if (handle == NULL) {
+		zend_throw_exception(NULL, "I can't create an event handle from the resource.", 0);
+		return;
+	}
+
+	async_resume_t *resume = async_resume_new();
+
+	if(resume == NULL) {
+        zend_throw_exception(NULL, "Failed to create a new Resume object", 0);
+        return;
+    }
+
+	// Add timer handle if a timeout is specified.
+	if (timeout > 0) {
+		async_resume_when(resume, async_timeout_new(timeout), async_resume_when_callback_cancel);
+	}
+
+	// Add cancellation handle if it is specified.
+	if (cancellation != NULL) {
+        async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+    }
+
+	async_await(resume);
+
+	// Release the reference to the resume object.
+	GC_DELREF(&resume->std);
 }
 
-void async_await_readable(zend_resource * resource)
+/**
+ * The method stops Fiber execution for a specified signal.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ */
+void async_await_signal(const zend_long sig_number, async_notifier_t * cancellation)
 {
+	async_resume_t *resume = async_resume_new();
 
+	async_resume_when(resume, async_signal_new(sig_number), async_resume_when_callback_resolve);
+
+	if (cancellation != NULL) {
+		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+	}
+
+	async_await(resume);
+
+	// Release the reference to the resume object.
+	GC_DELREF(&resume->std);
+}
+
+/**
+ * The method stops Fiber execution for a specified time.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ * It's like a sleep()/usleep() function.
+ */
+void async_await_timeout(const zend_ulong timeout, async_notifier_t * cancellation)
+{
+	if (timeout == 0) {
+		async_await(NULL);
+		return;
+	}
+
+	async_resume_t *resume = async_resume_new();
+
+	async_resume_when(resume, async_timeout_new(timeout), async_resume_when_callback_resolve);
+
+	if (cancellation != NULL) {
+		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+	}
+
+	async_await(resume);
+
+	// Release the reference to the resume object.
+	GC_DELREF(&resume->std);
 }

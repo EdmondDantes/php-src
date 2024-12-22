@@ -61,6 +61,7 @@ struct _async_handle_s {
 };
 
 void async_register_notifier_ce(void);
+void async_notifier_add_callback(zend_object* notifier, const zval* callback);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
 
 #endif //NOTIFIER_H

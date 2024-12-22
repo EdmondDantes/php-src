@@ -14,3 +14,8 @@
   +----------------------------------------------------------------------+
 */
 #include "handles.h"
+
+async_handle_t* async_resource_to_handle(zend_resource *resource)
+{
+
+}
