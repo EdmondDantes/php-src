@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 8a2ce6df2b3bfe9365dbabd8e0120772c50d9c8f */
+ * Stub hash: 7f4297bb4b10c45743b32a13eb23a0f70c37074b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Resume___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -15,7 +15,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_isResolved, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_getEventDescriptors, 0, 0, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_getNotifiers, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_when, 0, 1, IS_STATIC, 0)
@@ -27,7 +27,7 @@ ZEND_METHOD(Async_Resume, __construct);
 ZEND_METHOD(Async_Resume, resume);
 ZEND_METHOD(Async_Resume, throw);
 ZEND_METHOD(Async_Resume, isResolved);
-ZEND_METHOD(Async_Resume, getEventDescriptors);
+ZEND_METHOD(Async_Resume, getNotifiers);
 ZEND_METHOD(Async_Resume, when);
 
 static const zend_function_entry class_Async_Resume_methods[] = {
@@ -35,7 +35,7 @@ static const zend_function_entry class_Async_Resume_methods[] = {
 	ZEND_ME(Async_Resume, resume, arginfo_class_Async_Resume_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, throw, arginfo_class_Async_Resume_throw, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, isResolved, arginfo_class_Async_Resume_isResolved, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Resume, getEventDescriptors, arginfo_class_Async_Resume_getEventDescriptors, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Resume, getNotifiers, arginfo_class_Async_Resume_getNotifiers, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, when, arginfo_class_Async_Resume_when, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
@@ -46,13 +46,6 @@ static zend_class_entry *register_class_Async_Resume(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Resume", class_Async_Resume_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
-
-	zval property_fiber_default_value;
-	ZVAL_NULL(&property_fiber_default_value);
-	zend_string *property_fiber_name = zend_string_init("fiber", sizeof("fiber") - 1, 1);
-	zend_string *property_fiber_class_Fiber = zend_string_init("Fiber", sizeof("Fiber")-1, 1);
-	zend_declare_typed_property(class_entry, property_fiber_name, &property_fiber_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_fiber_class_Fiber, 0, MAY_BE_NULL));
-	zend_string_release(property_fiber_name);
 
 	zval property_callback_default_value;
 	ZVAL_NULL(&property_callback_default_value);
