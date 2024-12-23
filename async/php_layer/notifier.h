@@ -33,9 +33,10 @@ typedef enum {
 	ASYNC_TTY = 6,
 	ASYNC_FILE_SYSTEM = 7,
 	ASYNC_PROCESS = 8,
-	ASYNC_IDLE = 9,
-	ASYNC_GET_ADDR_INFO = 10,
-	ASYNC_GET_NAME_INFO = 11,
+	ASYNC_THREAD = 9,
+	ASYNC_GET_ADDR_INFO = 100,
+	ASYNC_GET_NAME_INFO = 101,
+	ASYNC_IDLE = 102,
 	ASYNC_CUSTOM = 128
 } ASYNC_HANDLE_TYPE;
 
@@ -54,10 +55,6 @@ struct _async_handle_s {
 	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
 	 */
 	async_handle_method dtor;
-	/**
-	 * The handle that is used to identify the handler in the event loop.
-	 */
-	void *handle;
 };
 
 void async_register_notifier_ce(void);
