@@ -21,7 +21,7 @@
 #include "uv.h"
 #include "../async.h"
 #include "../php_layer/notifier.h"
-#include "../php_layer/handles.h"
+#include "../php_layer/ev_handles.h"
 
 typedef struct _libuv_handle_s libuv_handle_t;
 typedef struct _libuv_poll_s libuv_poll_t;

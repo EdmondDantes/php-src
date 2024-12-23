@@ -28,6 +28,34 @@ void async_register_exceptions_ce(void)
 	async_ce_poll_exception = register_class_Async_PollException(exception_ce);
 }
 
+zend_object * async_new_exception(zend_class_entry *exception_ce, const char *format, ...)
+{
+	zval exception, message_val;
+
+	if (!exception_ce) {
+		exception_ce = zend_ce_exception;
+	}
+
+	ZEND_ASSERT(instanceof_function(exception_ce, zend_ce_throwable)
+		&& "Exceptions must implement Throwable");
+
+	object_init_ex(&exception, exception_ce);
+
+	va_list args;
+	va_start(args, format);
+	zend_string *message = zend_vstrpprintf(0, format, args);
+	va_end(args);
+
+	if (message) {
+		ZVAL_STR(&message_val, message);
+		zend_update_property_ex(exception_ce, Z_OBJ(exception), ZSTR_KNOWN(ZEND_STR_MESSAGE), &message_val);
+	}
+
+	zend_string_release(message);
+
+	return Z_OBJ(exception);
+}
+
 ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...)
 {
 	const zend_object *previous_exception = EG(exception);
