@@ -16,4 +16,17 @@
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H
 
+#include <php.h>
+
+ZEND_API zend_class_entry * async_ce_cancellation_exception;
+ZEND_API zend_class_entry * async_ce_input_output_exception;
+ZEND_API zend_class_entry * async_ce_timeout_exception;
+ZEND_API zend_class_entry * async_ce_poll_exception;
+
+void async_register_exceptions_ce(void);
+ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_input_output(char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_timeout(char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_poll(char *format, ...);
+
 #endif //EXCEPTIONS_H
