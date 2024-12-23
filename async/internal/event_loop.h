@@ -18,6 +18,6 @@
 
 #include <php.h>
 #include <Zend/zend_types.h>
-#include "../php_layer/handles.h"
+#include "../php_layer/ev_handles.h"
 
 #endif //EVENT_LOOP_H

@@ -83,7 +83,7 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	// TODO: handle error
 }
 
-static void libuv_poll_dtor(async_handle_t *handle)
+static void libuv_poll_dtor(async_ev_handle_t *handle)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
 	uv_close((uv_handle_t *)&poll->uv_handle, NULL);

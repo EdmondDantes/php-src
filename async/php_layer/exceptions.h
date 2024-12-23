@@ -13,62 +13,7 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "event_loop.h"
+#ifndef EXCEPTIONS_H
+#define EXCEPTIONS_H
 
-void async_ev_startup(void)
-{
-}
-
-void async_ev_shutdown(void)
-{
-}
-
-async_ev_handle_t* async_ev_handle_from_resource(zend_resource *resource, zend_ulong actions)
-{
-
-}
-
-async_ev_handle_t* async_ev_file_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-
-async_ev_handle_t* async_ev_socket_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-
-async_ev_handle_t* async_ev_timeout_new(zend_ulong timeout)
-{
-
-}
-async_ev_handle_t* async_ev_signal_new(zend_long sig_number)
-{
-
-}
-async_ev_handle_t* async_ev_pipe_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_tty_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_file_system_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_process_new(zend_ulong pid, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_thread_new(zend_ulong tread_id, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_idle_new(void)
-{
-
-}
-
-
+#endif //EXCEPTIONS_H

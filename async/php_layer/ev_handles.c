@@ -13,15 +13,9 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef HANDLES_H
-#define HANDLES_H
+#include "ev_handles.h"
 
-#include "php.h"
-#include "zend_types.h"
-#include "notifier.h"
+async_ev_handle_t* async_resource_to_handle(zend_resource *resource)
+{
 
-async_handle_t* async_resource_to_handle(zend_resource *resource, zend_ulong actions);
-async_handle_t* async_timeout_new(zend_ulong timeout);
-async_handle_t* async_signal_new(zend_long sig_number);
-
-#endif //HANDLES_H
+}

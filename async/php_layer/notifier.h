@@ -40,11 +40,11 @@ typedef enum {
 	ASYNC_CUSTOM = 128
 } ASYNC_HANDLE_TYPE;
 
-typedef struct _async_handle_s async_handle_t;
-typedef struct _async_handle_s async_notifier_t;
-typedef void (*async_handle_method)(async_handle_t *notifier);
+typedef struct _async_ev_handle_s async_ev_handle_t;
+typedef struct _async_ev_handle_s async_notifier_t;
+typedef void (*async_ev_handle_method)(async_ev_handle_t *notifier);
 
-struct _async_handle_s {
+struct _async_ev_handle_s {
 	/* PHP std object Async\Notifier */
 	zend_object std;
 	/**
@@ -54,7 +54,7 @@ struct _async_handle_s {
 	/**
 	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
 	 */
-	async_handle_method dtor;
+	async_ev_handle_method dtor;
 };
 
 void async_register_notifier_ce(void);

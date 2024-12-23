@@ -4,14 +4,14 @@
 
 namespace Async;
 
-abstract class Handle implements Notifier
+abstract class EvHandle implements Notifier
 {
 }
 
 /**
  * An interface for representing Fiber as Event Handle.
  */
-final class FiberHandle extends Handle
+final class FiberHandle extends EvHandle
 {
     public function isStarted(): bool {}
 
@@ -29,32 +29,32 @@ final class FiberHandle extends Handle
     public function cancelWith(\Throwable $error): void {}
 }
 
-final class InputOutputHandle extends Handle
+final class InputOutputHandle extends EvHandle
 {
     public function __construct(mixed $handle) {}
 }
 
-final class TimerHandle extends Handle
+final class TimerHandle extends EvHandle
 {
     public function __construct(int $microseconds) {}
 }
 
-final class SignalHandle extends Handle
+final class SignalHandle extends EvHandle
 {
     public function __construct(int $sigNumber) {}
 }
 
-final class ThreadHandle extends Handle
+final class ThreadHandle extends EvHandle
 {
     public function __construct(int $threadId) {}
 }
 
-final class ProcessHandle extends Handle
+final class ProcessHandle extends EvHandle
 {
     public function __construct(int $processId) {}
 }
 
-final class FileSystemHandle extends Handle
+final class FileSystemHandle extends EvHandle
 {
     public function __construct(int $processId) {}
 }

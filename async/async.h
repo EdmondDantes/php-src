@@ -29,7 +29,16 @@
 #define ASYNC_DISCONNECT 4
 #define ASYNC_PRIORITIZED 8
 
+/**
+ * Global asynchronous context.
+ */
 typedef struct _async_globals_s async_globals_t;
+/**
+ * Fiber state structure.
+ * The structure describes the relationship between Fiber and the resume state.
+ * The resume state can be NULL, in which case the Fiber is considered active.
+*/
+typedef struct _async_fiber_state_s async_fiber_state_t;
 
 struct _async_globals_s {
 	/* Equal TRUE if the asynchronous context is enabled */
@@ -51,13 +60,6 @@ struct _async_globals_s {
 	uv_loop_t uv_loop;
 #endif
 };
-
-/**
- * Fiber state structure.
- * The structure describes the relationship between Fiber and the resume state.
- * The resume state can be NULL, in which case the Fiber is considered active.
-*/
-typedef struct _async_fiber_state_s async_fiber_state_t;
 
 struct _async_fiber_state_s {
 	zend_fiber *fiber;

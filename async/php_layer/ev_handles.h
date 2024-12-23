@@ -13,62 +13,15 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "event_loop.h"
+#ifndef HANDLES_H
+#define HANDLES_H
 
-void async_ev_startup(void)
-{
-}
+#include "php.h"
+#include "zend_types.h"
+#include "notifier.h"
 
-void async_ev_shutdown(void)
-{
-}
+async_ev_handle_t* async_resource_to_handle(zend_resource *resource, zend_ulong actions);
+async_ev_handle_t* async_timeout_new(zend_ulong timeout);
+async_ev_handle_t* async_signal_new(zend_long sig_number);
 
-async_ev_handle_t* async_ev_handle_from_resource(zend_resource *resource, zend_ulong actions)
-{
-
-}
-
-async_ev_handle_t* async_ev_file_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-
-async_ev_handle_t* async_ev_socket_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-
-async_ev_handle_t* async_ev_timeout_new(zend_ulong timeout)
-{
-
-}
-async_ev_handle_t* async_ev_signal_new(zend_long sig_number)
-{
-
-}
-async_ev_handle_t* async_ev_pipe_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_tty_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_file_system_new(zend_ulong fd, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_process_new(zend_ulong pid, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_thread_new(zend_ulong tread_id, zend_ulong events)
-{
-
-}
-async_ev_handle_t* async_ev_idle_new(void)
-{
-
-}
-
-
+#endif //HANDLES_H
