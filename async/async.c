@@ -29,6 +29,11 @@ TSRMLS_MAIN_CACHE_DEFINE()
 ZEND_API async_globals_t* async_globals;
 #endif
 
+void async_ev_exception_new()
+{
+
+}
+
 /**
  * Async globals constructor.
  */

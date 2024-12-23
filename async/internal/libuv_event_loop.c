@@ -18,35 +18,6 @@
 #include <zend_exceptions.h>
 #include <async/async.h>
 
-static void on_poll_event(const uv_poll_t* handle, int status, const int events) {
-
-	libuv_poll_t *poll_handle = (libuv_poll_t *)handle->data;
-
-	if (events & UV_READABLE) {
-		printf("File is readable\n");
-	}
-
-	if (events & UV_WRITABLE) {
-		printf("File is writable\n");
-	}
-}
-
-
-static void libuv_poll_dtor(async_handle_t *handle)
-{
-	libuv_poll_t *poll = (libuv_poll_t *)handle;
-	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
-}
-
-libuv_poll_t *libuv_poll_ctor()
-{
-	libuv_poll_t *poll = pecalloc(1, sizeof(libuv_poll_t), 1);
-	poll->handle.dtor = libuv_poll_dtor;
-	poll->uv_handle.data = poll;
-
-	return poll;
-}
-
 static zend_always_inline int libuv_events_from_php(const zend_long events)
 {
 	int internal_events = 0;
@@ -68,6 +39,63 @@ static zend_always_inline int libuv_events_from_php(const zend_long events)
 	}
 
 	return internal_events;
+}
+
+static zend_always_inline zend_long libuv_events_to_php(const int events)
+{
+	zend_long php_events = 0;
+
+	if (events & UV_READABLE) {
+		php_events |= ASYNC_READABLE;
+	}
+
+	if (events & UV_WRITABLE) {
+		php_events |= ASYNC_WRITABLE;
+	}
+
+	if (events & UV_DISCONNECT) {
+		php_events |= ASYNC_DISCONNECT;
+	}
+
+	if (events & UV_PRIORITIZED) {
+		php_events |= ASYNC_PRIORITIZED;
+	}
+
+	return php_events;
+}
+
+static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
+{
+	libuv_poll_t *poll_handle = handle->data;
+	zval php_events;
+	ZVAL_LONG(&php_events, libuv_events_to_php(events));
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	if (status < 0) {
+		// TODO create exception
+		ZVAL_STRING(&error, uv_strerror(status));
+	}
+
+	async_notifier_notify(&poll_handle->handle, &php_events, &error);
+
+	// TODO: handle error
+}
+
+static void libuv_poll_dtor(async_handle_t *handle)
+{
+	libuv_poll_t *poll = (libuv_poll_t *)handle;
+	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
+}
+
+libuv_poll_t *libuv_poll_ctor()
+{
+	libuv_poll_t *poll = pecalloc(1, sizeof(libuv_poll_t), 1);
+	poll->handle.dtor = libuv_poll_dtor;
+	poll->uv_handle.data = poll;
+
+	return poll;
 }
 
 static libuv_poll_t* libuv_poll_new(const int fd, const ASYNC_HANDLE_TYPE type, const zend_long events)

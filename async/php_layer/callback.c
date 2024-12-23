@@ -213,7 +213,7 @@ zval* async_callback_get_resume(const zend_object* callback)
  *
  * The method calls the 'callable' with the notifier, event, and error.
  */
-void async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
+void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
 {
 	const zval* callable = zend_read_property(
 		async_ce_callback, callback, PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK), 0, NULL
