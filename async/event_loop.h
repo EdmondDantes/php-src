@@ -24,6 +24,8 @@
 typedef void (*async_ev_startup_t)(void);
 typedef void (*async_ev_shutdown_t)(void);
 
+typedef void (*async_ev_handle_method_t)(async_ev_handle_t *handle);
+
 typedef async_ev_handle_t* (*async_ev_handle_from_resource_t)(zend_resource *resource, zend_ulong actions);
 typedef async_ev_handle_t* (*async_ev_file_new_t)(zend_ulong fd, zend_ulong events);
 typedef async_ev_handle_t* (*async_ev_socket_new_t)(zend_ulong fd, zend_ulong events);
@@ -37,10 +39,14 @@ typedef async_ev_handle_t* (*async_ev_thread_new_t)(zend_ulong thread_id, zend_u
 typedef async_ev_handle_t* (*async_ev_idle_new_t)(void);
 
 ZEND_API zend_bool async_ev_is_enabled(void);
+void async_ev_add_handle(async_ev_handle_t *handle);
 
 ZEND_API async_ev_startup_t async_ev_global_ctor_fn;
 ZEND_API async_ev_startup_t async_ev_startup_fn;
 ZEND_API async_ev_shutdown_t async_ev_shutdown_fn;
+
+ZEND_API async_ev_handle_method_t async_ev_add_handle_ex_fn;
+ZEND_API async_ev_handle_method_t async_ev_remove_handle_fn;
 
 ZEND_API async_ev_handle_from_resource_t async_ev_handle_from_resource_fn;
 ZEND_API async_ev_file_new_t async_ev_file_new_fn;
@@ -53,6 +59,5 @@ ZEND_API async_ev_file_system_new_t async_ev_file_system_new_fn;
 ZEND_API async_ev_process_new_t async_ev_process_new_fn;
 ZEND_API async_ev_thread_new_t async_ev_thread_new_fn;
 ZEND_API async_ev_idle_new_t async_ev_idle_new_fn;
-
 
 #endif //EVENT_LOOP_H

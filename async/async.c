@@ -268,10 +268,12 @@ void async_await(async_resume_t *resume)
 
 	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
 		if (Z_TYPE_P(notifier) == IS_OBJECT) {
-	        if (async_scheduler_add_handle(Z_OBJ_P(notifier)) == FAILURE) {
-	        	async_throw_error("Failed to add notifier to the scheduler");
-	        	goto finally;
-            }
+
+			async_ev_add_handle((async_ev_handle_t *) Z_OBJ_P(notifier));
+
+			if (EG(exception) != NULL) {
+				goto finally;
+			}
 		}
 	ZEND_HASH_FOREACH_END();
 
