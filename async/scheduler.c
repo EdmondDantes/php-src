@@ -19,6 +19,7 @@
 
 #include "internal/zval_circular_buffer.h"
 #include "async.h"
+#include "php_layer/exceptions.h"
 
 #ifdef PHP_ASYNC_LIBUV
 #include <uv.h>
@@ -88,20 +89,15 @@ static void execute_microtasks(void)
 		return;
 	}
 
-	// TODO make critical error
-	zend_throw_exception_ex(
-		NULL, 0,
+	// TODO: make critical error
+	async_throw_error(
 		"A possible infinite loop was detected during microtask execution. Max count: %u, remaining: %u",
-		max_count, circular_buffer_count(buffer)
+		max_count,
+		circular_buffer_count(buffer)
 	);
 }
 
-static void handle_callbacks(void)
-{
-#ifdef PHP_ASYNC_LIBUV
-	uv_run(&ASYNC_G(uv_loop), UV_RUN_ONCE);
-#endif
-}
+static void handle_callbacks(void) {}
 
 static void resume_next_fiber(void)
 {
@@ -179,11 +175,12 @@ zend_bool async_scheduler_handle_is_waiting(const zend_object *handle)
 
 zend_result async_scheduler_add_handle(const zend_object *handle)
 {
+#ifdef PHP_ASYNC_TRACK_HANDLES
 	if (async_scheduler_handle_is_waiting(handle)) {
 		zend_throw_exception(NULL, "Cannot add a handle that is already waiting", 0);
 		return FAILURE;
 	}
-
+#endif
 
 }
 

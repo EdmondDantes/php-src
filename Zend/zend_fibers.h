@@ -147,6 +147,7 @@ struct _zend_fiber {
 
 ZEND_API zend_result zend_fiber_start(zend_fiber *fiber, zval *return_value);
 ZEND_API void zend_fiber_resume(zend_fiber *fiber, zval *value, zval *return_value);
+ZEND_API void zend_fiber_resume_exception(zend_fiber *fiber, zval *exception, zval *return_value);
 ZEND_API void zend_fiber_suspend(zend_fiber *fiber, zval *value, zval *return_value);
 
 /* These functions may be used to create custom fiber objects using the bundled fiber switching context. */

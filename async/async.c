@@ -18,21 +18,18 @@
 
 #include <zend_fibers.h>
 
+#include "event_loop.h"
 #include "scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"
+#include "php_layer/exceptions.h"
 
 #ifdef ZTS
 TSRMLS_MAIN_CACHE_DEFINE()
 #else
 ZEND_API async_globals_t* async_globals;
 #endif
-
-void async_ev_exception_new()
-{
-
-}
 
 static async_ex_globals_fn async_ex_globals_handler = NULL;
 
@@ -234,17 +231,17 @@ void async_await(async_resume_t *resume)
 	}
 
 	if (resume == NULL) {
-		zend_throw_exception(NULL, "Failed to create a new Resume object", 0);
+		async_throw_error("Failed to create a new Resume object");
 		goto finally;
 	}
 
 	if (resume->status != ASYNC_RESUME_PENDING) {
-        zend_throw_exception(NULL, "Attempt to use a Resume object that is not in the ASYNC_RESUME_PENDING state.", 0);
+		async_throw_error("Attempt to use a Resume object that is not in the ASYNC_RESUME_PENDING state.");
 		goto finally;
     }
 
 	if (resume->fiber != EG(active_fiber)) {
-        zend_throw_exception(NULL, "Attempt to use a Resume object that is not associated with the current Fiber.", 0);
+		async_throw_error("Attempt to use a Resume object that is not associated with the current Fiber.");
 	    goto finally;
     }
 
@@ -254,13 +251,13 @@ void async_await(async_resume_t *resume)
 		state = async_add_fiber_state(resume->fiber, NULL);
 
 		if (state == NULL) {
-            zend_throw_exception(NULL, "Failed to create Fiber state", 0);
+			async_throw_error("Failed to create Fiber state");
 			goto finally;
         }
 	}
 
 	if (state->resume != NULL) {
-		zend_throw_exception(NULL, "Attempt to stop a Fiber that already has a Resume object.", 0);
+		async_throw_error("Attempt to stop a Fiber that already has a Resume object.");
 		goto finally;
 	}
 
@@ -272,7 +269,7 @@ void async_await(async_resume_t *resume)
 	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
 		if (Z_TYPE_P(notifier) == IS_OBJECT) {
 	        if (async_scheduler_add_handle(Z_OBJ_P(notifier)) == FAILURE) {
-                zend_throw_exception(NULL, "Failed to add notifier to the scheduler", 0);
+	        	async_throw_error("Failed to add notifier to the scheduler");
 	        	goto finally;
             }
 		}
@@ -307,23 +304,23 @@ void async_await_resource(
 	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, async_notifier_t * cancellation
 )
 {
-	const async_ev_handle_t *handle = async_resource_to_handle(resource, actions);
+	const async_ev_handle_t *handle = async_ev_handle_from_resource_fn(resource, actions);
 
 	if (handle == NULL) {
-		zend_throw_exception(NULL, "I can't create an event handle from the resource.", 0);
+		async_throw_error("I can't create an event handle from the resource.");
 		return;
 	}
 
 	async_resume_t *resume = async_resume_new();
 
 	if(resume == NULL) {
-        zend_throw_exception(NULL, "Failed to create a new Resume object", 0);
+		async_throw_error("Failed to create a new Resume object");
         return;
     }
 
 	// Add timer handle if a timeout is specified.
 	if (timeout > 0) {
-		async_resume_when(resume, async_timeout_new(timeout), async_resume_when_callback_cancel);
+		async_resume_when(resume, async_ev_timeout_new_fn(timeout), async_resume_when_callback_cancel);
 	}
 
 	// Add cancellation handle if it is specified.
@@ -345,7 +342,7 @@ void async_await_signal(const zend_long sig_number, async_notifier_t * cancellat
 {
 	async_resume_t *resume = async_resume_new();
 
-	async_resume_when(resume, async_signal_new(sig_number), async_resume_when_callback_resolve);
+	async_resume_when(resume, async_ev_signal_new_fn(sig_number), async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
 		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
@@ -371,7 +368,7 @@ void async_await_timeout(const zend_ulong timeout, async_notifier_t * cancellati
 
 	async_resume_t *resume = async_resume_new();
 
-	async_resume_when(resume, async_timeout_new(timeout), async_resume_when_callback_resolve);
+	async_resume_when(resume, async_ev_timeout_new_fn(timeout), async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
 		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
