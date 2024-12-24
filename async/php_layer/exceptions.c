@@ -56,6 +56,18 @@ zend_object * async_new_exception(zend_class_entry *exception_ce, const char *fo
 	return Z_OBJ(exception);
 }
 
+ZEND_API ZEND_COLD zend_object * async_throw_error(char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	zend_object *obj = zend_throw_exception_ex(async_ce_async_exception, 0, format, args);
+
+	va_end(args);
+	return obj;
+}
+
+
 ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...)
 {
 	const zend_object *previous_exception = EG(exception);

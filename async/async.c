@@ -21,7 +21,7 @@
 #include "internal/scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
-#include "php_layer/handles.h"
+#include "php_layer/ev_handles.h"
 
 #ifdef ZTS
 TSRMLS_MAIN_CACHE_DEFINE()

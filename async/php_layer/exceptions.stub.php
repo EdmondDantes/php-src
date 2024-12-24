@@ -11,6 +11,11 @@ namespace Async;
 class CancellationException extends \Exception {}
 
 /**
+ * Common type of exception.
+ */
+class AsyncException extends \Exception {}
+
+/**
  * General exception for input/output operations.
  * Can be used with sockets, files, pipes, and other I/O descriptors.
  */
