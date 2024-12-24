@@ -17,7 +17,7 @@
 
 #include <zend_exceptions.h>
 #include "../async.h"
-#include "../internal/scheduler.h"
+#include "../scheduler.h"
 #include "../php_layer/exceptions.h"
 
 static zend_always_inline int libuv_events_from_php(const zend_long events)

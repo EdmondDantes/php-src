@@ -17,6 +17,7 @@
 #define EVENT_LOOP_H
 
 #include <php.h>
+#include "async.h"
 #include <Zend/zend_types.h>
 #include "php_layer/ev_handles.h"
 
@@ -37,6 +38,7 @@ typedef async_ev_handle_t* (*async_ev_idle_new_t)(void);
 
 ZEND_API zend_bool async_ev_is_enabled(void);
 
+ZEND_API async_ev_startup_t async_ev_global_ctor_fn;
 ZEND_API async_ev_startup_t async_ev_startup_fn;
 ZEND_API async_ev_shutdown_t async_ev_shutdown_fn;
 

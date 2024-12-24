@@ -18,7 +18,7 @@
 
 #include <zend_fibers.h>
 
-#include "internal/scheduler.h"
+#include "scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"
@@ -32,6 +32,15 @@ ZEND_API async_globals_t* async_globals;
 void async_ev_exception_new()
 {
 
+}
+
+static async_ex_globals_fn async_ex_globals_handler = NULL;
+
+ZEND_API async_ex_globals_fn async_set_ex_globals_handler(const async_ex_globals_fn handler)
+{
+	const async_ex_globals_fn old = async_ex_globals_handler;
+	async_ex_globals_handler = handler;
+	return old;
 }
 
 /**
@@ -50,9 +59,9 @@ static void async_globals_ctor(async_globals_t *async_globals)
 	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
 	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
 
-#ifdef PHP_ASYNC_LIBUV
-	uv_loop_init(&async_globals->uv_loop);
-#endif
+	if (async_ex_globals_handler != NULL) {
+		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
+	}
 }
 
 /**
@@ -67,9 +76,9 @@ static void async_globals_dtor(async_globals_t *async_globals)
 	async_globals->is_async = false;
 	async_globals->is_scheduler_running = false;
 
-#ifdef PHP_ASYNC_LIBUV
-	uv_loop_close(&async_globals->uv_loop);
-#endif
+	if (async_ex_globals_handler != NULL) {
+		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
+	}
 
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->pending_fibers);
@@ -81,6 +90,12 @@ static void async_globals_dtor(async_globals_t *async_globals)
  */
 void async_scheduler_startup(void)
 {
+	size_t globals_size = sizeof(async_globals_t);
+
+	if (async_ex_globals_handler != NULL) {
+		globals_size += async_ex_globals_handler(NULL, globals_size, false);
+	}
+
 #ifdef ZTS
 
 	if (async_globals_id != 0) {
@@ -90,7 +105,7 @@ void async_scheduler_startup(void)
 	ts_allocate_fast_id(
 		&async_globals_id,
 		&async_globals_offset,
-		sizeof(async_globals_t),
+		globals_size,
 		(ts_allocate_ctor) async_globals_ctor,
 		(ts_allocate_dtor) async_globals_dtor
 	);
@@ -98,6 +113,7 @@ void async_scheduler_startup(void)
 	async_globals_t *async_globals = ts_resource(async_globals_id);
 	async_globals_ctor(async_globals);
 #else
+	async_globals = pecalloc(1, globals_size, 1);
 	async_globals_ctor(async_globals);
 #endif
 }
@@ -116,6 +132,7 @@ void async_scheduler_shutdown(void)
 	async_globals_id = 0;
 #else
 	async_globals_dtor(async_globals);
+	pefree(async_globals, 1);
 #endif
 }
 
