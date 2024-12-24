@@ -44,27 +44,6 @@ ZEND_API async_ex_globals_fn async_set_ex_globals_handler(const async_ex_globals
 }
 
 /**
- * Async globals constructor.
- */
-static void async_globals_ctor(async_globals_t *async_globals)
-{
-	if (async_globals->is_async) {
-        return;
-    }
-
-	async_globals->is_async = true;
-	async_globals->is_scheduler_running = false;
-
-	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
-	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
-	}
-}
-
-/**
  * Async globals destructor.
  */
 static void async_globals_dtor(async_globals_t *async_globals)
@@ -83,6 +62,36 @@ static void async_globals_dtor(async_globals_t *async_globals)
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->pending_fibers);
 	zend_hash_destroy(&async_globals->fibers_state);
+}
+
+/**
+ * Async globals constructor.
+ */
+static void async_globals_ctor(async_globals_t *async_globals)
+{
+	if (async_globals->is_async) {
+		return;
+	}
+
+	async_globals->is_async = true;
+	async_globals->is_scheduler_running = false;
+
+	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
+	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
+	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
+
+	if (EG(exception) != NULL) {
+		async_globals_dtor(async_globals);
+		return;
+	}
+
+	if (async_ex_globals_handler != NULL) {
+		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
+	}
+
+	if (EG(exception) != NULL) {
+		async_globals_dtor(async_globals);
+	}
 }
 
 /**

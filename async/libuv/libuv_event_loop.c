@@ -20,6 +20,8 @@
 #include "../scheduler.h"
 #include "../php_layer/exceptions.h"
 
+#define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
+
 static zend_always_inline int libuv_events_from_php(const zend_long events)
 {
 	int internal_events = 0;
@@ -135,15 +137,45 @@ static libuv_poll_t* libuv_poll_new(const int fd, const ASYNC_HANDLE_TYPE type, 
 
 static void handle_callbacks(void)
 {
-	uv_run(&ASYNC_G(uv_loop), UV_RUN_ONCE);
+	uv_run(UVLOOP, UV_RUN_ONCE);
+}
+
+static size_t async_ex_globals_handler(const async_globals_t* async_globals, size_t current_size, const zend_bool is_destroy)
+{
+	if (async_globals == NULL) {
+		return sizeof(uv_loop_t);
+	}
+
+	uv_loop_t *loop = UVLOOP;
+
+	if (is_destroy) {
+
+		if (loop->data != NULL) {
+			uv_loop_close(loop);
+			loop->data = NULL;
+		}
+	} else {
+
+		const int result = uv_loop_init(loop);
+
+		if (result != 0) {
+			async_throw_error("Failed to initialize loop: %s", uv_strerror(result));
+		}
+
+		uv_loop_set_data(loop, (void *) async_globals);
+	}
+
+	return 0;
 }
 
 void async_libuv_startup(void)
 {
+	async_set_ex_globals_handler(async_ex_globals_handler);
 	async_scheduler_set_callback_handler(handle_callbacks);
 }
 
 void async_libuv_shutdown(void)
 {
 	async_scheduler_set_callback_handler(NULL);
+	async_set_ex_globals_handler(NULL);
 }
