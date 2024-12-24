@@ -115,7 +115,7 @@ static libuv_poll_t* libuv_poll_new(const int fd, const ASYNC_HANDLE_TYPE type, 
 
 	poll_handle->handle.type = type;
 
-	int res = uv_poll_init(&ASYNC_G(uv_loop), &poll_handle->uv_handle, fd);
+	int res = uv_poll_init(UVLOOP, &poll_handle->uv_handle, fd);
 
 	if (res < 0) {
 		async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(res));
