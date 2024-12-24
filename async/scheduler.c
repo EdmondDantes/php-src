@@ -15,10 +15,10 @@
 */
 #include "scheduler.h"
 
-#include <zend_fibers.h>
+#include <Zend/zend_fibers.h>
 
-#include "zval_circular_buffer.h"
-#include "async/async.h"
+#include "internal/zval_circular_buffer.h"
+#include "async.h"
 
 #ifdef PHP_ASYNC_LIBUV
 #include <uv.h>
@@ -135,9 +135,30 @@ static void resume_next_fiber(void)
  * Handlers for the scheduler.
  * This functions pointer will be set to the actual functions.
  */
-static void (*h_execute_microtasks)(void)	= execute_microtasks;
-static void (*h_handle_callbacks)(void)		= handle_callbacks;
-static void (*h_resume_next_fiber)(void)	= resume_next_fiber;
+static async_execute_microtasks_handler_t h_execute_microtasks = execute_microtasks;
+static async_callback_handler_t h_handle_callbacks = handle_callbacks;
+static async_resume_next_fiber_handler_t h_resume_next_fiber = resume_next_fiber;
+
+ZEND_API async_callback_handler_t async_scheduler_set_callback_handler(const async_callback_handler_t handler)
+{
+	const async_callback_handler_t prev = h_handle_callbacks;
+	h_handle_callbacks = handler ? handler : handle_callbacks;
+	return prev;
+}
+
+ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
+{
+	const async_resume_next_fiber_handler_t prev = h_resume_next_fiber;
+	h_resume_next_fiber = handler ? handler : resume_next_fiber;
+	return prev;
+}
+
+ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_execute_microtasks_handler_t handler)
+{
+	const async_execute_microtasks_handler_t prev = h_execute_microtasks;
+	h_execute_microtasks = handler ? handler : execute_microtasks;
+	return prev;
+}
 
 /**
  * The method returns TRUE if the specified handle is already waiting in the event loop.

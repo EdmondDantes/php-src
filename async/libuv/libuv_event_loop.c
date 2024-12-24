@@ -17,6 +17,7 @@
 
 #include <zend_exceptions.h>
 #include "../async.h"
+#include "../internal/scheduler.h"
 #include "../php_layer/exceptions.h"
 
 static zend_always_inline int libuv_events_from_php(const zend_long events)
@@ -130,4 +131,19 @@ static libuv_poll_t* libuv_poll_new(const int fd, const ASYNC_HANDLE_TYPE type, 
 	}
 
 	return poll_handle;
+}
+
+static void handle_callbacks(void)
+{
+	uv_run(&ASYNC_G(uv_loop), UV_RUN_ONCE);
+}
+
+void async_libuv_startup(void)
+{
+	async_scheduler_set_callback_handler(handle_callbacks);
+}
+
+void async_libuv_shutdown(void)
+{
+	async_scheduler_set_callback_handler(NULL);
 }

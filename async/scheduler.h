@@ -21,6 +21,14 @@
 #include "zend_smart_str.h"
 #include "zend_interfaces.h"
 
+typedef void (*async_callback_handler_t)(void);
+typedef void (*async_resume_next_fiber_handler_t)(void);
+typedef void (*async_execute_microtasks_handler_t)(void);
+
+ZEND_API async_callback_handler_t async_scheduler_set_callback_handler(async_callback_handler_t handler);
+ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_resume_next_fiber_handler_t handler);
+ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(async_execute_microtasks_handler_t handler);
+
 zend_result async_scheduler_add_handle(const zend_object *handle);
 
 #endif //SCHEDULER_H
