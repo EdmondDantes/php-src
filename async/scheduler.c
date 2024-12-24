@@ -21,10 +21,6 @@
 #include "async.h"
 #include "php_layer/exceptions.h"
 
-#ifdef PHP_ASYNC_LIBUV
-#include <uv.h>
-#endif
-
 //
 // The coefficient of the maximum number of microtasks that can be executed
 // without suspicion of an infinite loop (a task that creates microtasks).
@@ -97,7 +93,10 @@ static void execute_microtasks(void)
 	);
 }
 
-static void handle_callbacks(void) {}
+static void handle_callbacks(void)
+{
+	async_throw_error("Event Loop API method handle_callbacks not implemented");
+}
 
 static void resume_next_fiber(void)
 {
@@ -131,57 +130,29 @@ static void resume_next_fiber(void)
  * Handlers for the scheduler.
  * This functions pointer will be set to the actual functions.
  */
-static async_execute_microtasks_handler_t h_execute_microtasks = execute_microtasks;
-static async_callback_handler_t h_handle_callbacks = handle_callbacks;
-static async_resume_next_fiber_handler_t h_resume_next_fiber = resume_next_fiber;
+static async_execute_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
+static async_callback_handler_t handle_callbacks_fn = handle_callbacks;
+static async_resume_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
 
 ZEND_API async_callback_handler_t async_scheduler_set_callback_handler(const async_callback_handler_t handler)
 {
-	const async_callback_handler_t prev = h_handle_callbacks;
-	h_handle_callbacks = handler ? handler : handle_callbacks;
+	const async_callback_handler_t prev = handle_callbacks_fn;
+	handle_callbacks_fn = handler ? handler : handle_callbacks;
 	return prev;
 }
 
 ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
 {
-	const async_resume_next_fiber_handler_t prev = h_resume_next_fiber;
-	h_resume_next_fiber = handler ? handler : resume_next_fiber;
+	const async_resume_next_fiber_handler_t prev = resume_next_fiber_fn;
+	resume_next_fiber_fn = handler ? handler : resume_next_fiber;
 	return prev;
 }
 
 ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_execute_microtasks_handler_t handler)
 {
-	const async_execute_microtasks_handler_t prev = h_execute_microtasks;
-	h_execute_microtasks = handler ? handler : execute_microtasks;
+	const async_execute_microtasks_handler_t prev = execute_microtasks_fn;
+	execute_microtasks_fn = handler ? handler : execute_microtasks;
 	return prev;
-}
-
-/**
- * The method returns TRUE if the specified handle is already waiting in the event loop.
- * This check can detect complex errors in the application's operation.
- */
-zend_bool async_scheduler_handle_is_waiting(const zend_object *handle)
-{
-#ifdef PHP_ASYNC_TRACK_HANDLES
-	return false;
-#else
-	// TODO: extract real handle->handle from zend_object
-	zval *result = zend_hash_index_find(&ASYNC_G(linked_handles), handle->handle);
-	const bool is_linked = result != NULL;
-	zval_ptr_dtor(result);
-	return is_linked;
-#endif
-}
-
-zend_result async_scheduler_add_handle(const zend_object *handle)
-{
-#ifdef PHP_ASYNC_TRACK_HANDLES
-	if (async_scheduler_handle_is_waiting(handle)) {
-		zend_throw_exception(NULL, "Cannot add a handle that is already waiting", 0);
-		return FAILURE;
-	}
-#endif
-
 }
 
 zend_result async_scheduler_fiber_resume()
@@ -189,7 +160,7 @@ zend_result async_scheduler_fiber_resume()
     return SUCCESS;
 }
 
-zend_result async_scheduler_yield(void)
+void async_scheduler_loop(void)
 {
 	do {
 
@@ -197,9 +168,9 @@ zend_result async_scheduler_yield(void)
 
 		zend_try {
 
-			h_execute_microtasks();
-			h_handle_callbacks();
-			h_execute_microtasks();
+			execute_microtasks_fn();
+			handle_callbacks_fn();
+			execute_microtasks_fn();
 
 		} zend_catch {
 			ASYNC_G(is_scheduler_running) = false;
@@ -210,8 +181,6 @@ zend_result async_scheduler_yield(void)
 
 	} while (circular_buffer_is_empty(&ASYNC_G(pending_fibers)));
 
-	h_resume_next_fiber();
-
-	return SUCCESS;
+	resume_next_fiber_fn();
 }
 
