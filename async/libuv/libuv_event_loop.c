@@ -16,6 +16,8 @@
 #include "libuv_event_loop.h"
 
 #include <zend_exceptions.h>
+#include <async/event_loop.h>
+
 #include "../async.h"
 #include "../scheduler.h"
 #include "../php_layer/exceptions.h"
@@ -168,14 +170,71 @@ static size_t async_ex_globals_handler(const async_globals_t* async_globals, siz
 	return 0;
 }
 
+/**
+ * Previous handlers.
+ */
+static async_ev_startup_t prev_async_ev_startup_fn = NULL;
+static async_ev_shutdown_t prev_async_ev_shutdown_fn = NULL;
+
+static async_ev_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
+static async_ev_handle_method_t prev_async_ev_remove_handle_fn = NULL;
+
+static async_ev_loop_run_t prev_async_ev_loop_run_fn = NULL;
+static async_ev_loop_stop_t prev_async_ev_loop_stop_fn = NULL;
+static async_ev_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
+
+static async_ev_loop_set_microtask_handler prev_async_ev_loop_set_microtask_handler_fn = NULL;
+static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_handler_fn = NULL;
+
 void async_libuv_startup(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
 	async_scheduler_set_callback_handler(handle_callbacks);
+
+	prev_async_ev_startup_fn = async_ev_startup_fn;
+	async_ev_startup_fn = NULL;
+
+	prev_async_ev_shutdown_fn = async_ev_shutdown_fn;
+	async_ev_shutdown_fn = NULL;
+
+	prev_async_ev_add_handle_ex_fn = async_ev_add_handle_ex_fn;
+	async_ev_add_handle_ex_fn = NULL;
+
+	prev_async_ev_remove_handle_fn = async_ev_remove_handle_fn;
+	async_ev_remove_handle_fn = NULL;
+
+	prev_async_ev_loop_run_fn = async_ev_loop_run_fn;
+	async_ev_loop_run_fn = NULL;
+
+	prev_async_ev_loop_stop_fn = async_ev_loop_stop_fn;
+	async_ev_loop_stop_fn = NULL;
+
+	prev_async_ev_loop_alive_fn = async_ev_loop_alive_fn;
+	async_ev_loop_alive_fn = NULL;
+
+	prev_async_ev_loop_set_microtask_handler_fn = async_ev_loop_set_microtask_handler_fn;
+	async_ev_loop_set_microtask_handler_fn = NULL;
+
+	prev_async_ev_loop_set_next_fiber_handler_fn = async_ev_loop_set_next_fiber_handler_fn;
+	async_ev_loop_set_next_fiber_handler_fn = NULL;
+
 }
 
 void async_libuv_shutdown(void)
 {
 	async_scheduler_set_callback_handler(NULL);
 	async_set_ex_globals_handler(NULL);
+
+	async_ev_startup_fn = prev_async_ev_startup_fn;
+	async_ev_shutdown_fn = prev_async_ev_shutdown_fn;
+
+	async_ev_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
+	async_ev_remove_handle_fn = prev_async_ev_remove_handle_fn;
+
+	async_ev_loop_run_fn = prev_async_ev_loop_run_fn;
+	async_ev_loop_stop_fn = prev_async_ev_loop_stop_fn;
+	async_ev_loop_alive_fn = prev_async_ev_loop_alive_fn;
+
+	async_ev_loop_set_microtask_handler_fn = prev_async_ev_loop_set_microtask_handler_fn;
+	async_ev_loop_set_next_fiber_handler_fn = prev_async_ev_loop_set_next_fiber_handler_fn;
 }

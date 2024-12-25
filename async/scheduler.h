@@ -22,9 +22,22 @@
 #include "zend_interfaces.h"
 #include "async.h"
 
-typedef void (*async_callback_handler_t)(void);
+/**
+ * async_resume_next_fiber_handler_t - Function pointer type for resuming the next fiber in the queue.
+ * This function continues execution of the next scheduled fiber.
+ */
 typedef void (*async_resume_next_fiber_handler_t)(void);
+
+/**
+ * async_execute_microtasks_handler_t - Function pointer type for executing pending microtasks.
+ * This function processes and completes all queued microtasks.
+ */
 typedef void (*async_execute_microtasks_handler_t)(void);
+
+/**
+ * async_fiber_exception_handler_t - Function pointer type for handling exceptions in fibers.
+ * This function catches and processes exceptions that occur during fiber execution.
+ */
 typedef void (*async_fiber_exception_handler_t)(void);
 
 /**
@@ -42,7 +55,6 @@ typedef size_t (* async_ex_globals_fn)(async_globals_t *async_globals, size_t cu
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_run(void);
-ZEND_API async_callback_handler_t async_scheduler_set_callback_handler(async_callback_handler_t handler);
 ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_resume_next_fiber_handler_t handler);
 ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(async_execute_microtasks_handler_t handler);
 ZEND_API async_fiber_exception_handler_t async_scheduler_set_exception_handler(async_fiber_exception_handler_t handler);

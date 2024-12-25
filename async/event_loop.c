@@ -136,6 +136,12 @@ async_ev_shutdown_t async_ev_shutdown_fn = async_ev_shutdown;
 async_ev_handle_method_t async_ev_add_handle_ex_fn = async_ev_handle_method_no;
 async_ev_handle_method_t async_ev_remove_handle_fn = async_ev_handle_method_no;
 
+async_ev_loop_run_t async_ev_loop_run_fn = NULL;
+async_ev_loop_stop_t async_ev_loop_stop_fn = NULL;
+async_ev_loop_alive_t async_ev_loop_alive_fn = NULL;
+async_ev_loop_set_microtask_handler async_ev_loop_set_microtask_handler_fn = NULL;
+async_ev_loop_set_next_fiber_handler async_ev_loop_set_next_fiber_handler_fn = NULL;
+
 async_ev_handle_from_resource_t async_ev_handle_from_resource_fn = async_ev_handle_from_resource;
 async_ev_file_new_t async_ev_file_new_fn = async_ev_file_new;
 async_ev_socket_new_t async_ev_socket_new_fn = async_ev_socket_new;

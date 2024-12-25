@@ -255,17 +255,9 @@ static void resume_next_fiber(void)
  * Handlers for the scheduler.
  * This functions pointer will be set to the actual functions.
  */
-static async_execute_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
-static async_callback_handler_t handle_callbacks_fn = handle_callbacks;
-static async_resume_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
-static async_fiber_exception_handler_t fiber_exception_fn = NULL;
-
-ZEND_API async_callback_handler_t async_scheduler_set_callback_handler(const async_callback_handler_t handler)
-{
-	const async_callback_handler_t prev = handle_callbacks_fn;
-	handle_callbacks_fn = handler ? handler : handle_callbacks;
-	return prev;
-}
+static  async_execute_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
+static  async_resume_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
+static  async_fiber_exception_handler_t fiber_exception_fn = NULL;
 
 ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
 {
