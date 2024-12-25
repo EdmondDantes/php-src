@@ -184,9 +184,9 @@ static void prepare_cb(uv_prepare_t *handle)
 }
 
 /**
- * The check callback is executed right after the event loop polls for I/O events
- * but before any I/O callbacks are invoked. This allows for tasks to run after I/O
- * but before the next iteration of the event loop.
+ * The check callback is executed after all I/O callbacks have been invoked
+ * but before the next iteration of the event loop and before timers like setImmediate.
+ * This allows for tasks to run immediately after I/O processing.
  *
  * @param handle Pointer to the uv_check_t handle.
  */
@@ -210,28 +210,9 @@ static void check_cb(uv_check_t *handle)
 	}
 }
 
-static uv_loop_t *loop;
-static uv_check_t check_handle;
-static uv_prepare_t prepare_handle;
-
-static void libuv_loop_start(void)
+static zend_bool run_callbacks(void)
 {
-	zend_try {
-		uv_loop_t *loop = UVLOOP;
-
-		uv_prepare_init(loop, &prepare_handle);
-		uv_prepare_start(&prepare_handle, prepare_cb);
-
-		uv_check_init(loop, &check_handle);
-		uv_check_start(&check_handle, check_cb);
-
-		uv_run(loop, UV_RUN_DEFAULT);
-	} zend_catch {
-		uv_loop_close(loop);
-		zend_bailout();
-	} zend_end_try();
-
-	uv_loop_close(loop);
+	return uv_run(UVLOOP, UV_RUN_ONCE);
 }
 
 static void libuv_loop_stop(void)
@@ -296,7 +277,6 @@ static async_ev_shutdown_t prev_async_ev_shutdown_fn = NULL;
 static async_ev_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
 static async_ev_handle_method_t prev_async_ev_remove_handle_fn = NULL;
 
-static async_ev_loop_run_t prev_async_ev_loop_start_fn = NULL;
 static async_ev_loop_stop_t prev_async_ev_loop_stop_fn = NULL;
 static async_ev_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
 
@@ -306,6 +286,7 @@ static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_ha
 static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
+	async_scheduler_set_run_callbacks_handler(run_callbacks);
 
 	prev_async_ev_startup_fn = async_ev_startup_fn;
 	async_ev_startup_fn = NULL;
@@ -318,9 +299,6 @@ static void setup_handlers(void)
 
 	prev_async_ev_remove_handle_fn = async_ev_remove_handle_fn;
 	async_ev_remove_handle_fn = NULL;
-
-	prev_async_ev_loop_start_fn = async_ev_loop_start_fn;
-	async_ev_loop_start_fn = libuv_loop_start;
 
 	prev_async_ev_loop_stop_fn = async_ev_loop_stop_fn;
 	async_ev_loop_stop_fn = libuv_loop_stop;
@@ -345,7 +323,7 @@ static void restore_handlers(void)
 	async_ev_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
 	async_ev_remove_handle_fn = prev_async_ev_remove_handle_fn;
 
-	async_ev_loop_start_fn = prev_async_ev_loop_start_fn;
+	async_ev_loop_start_fn = prev_async_ev_run_callbacks_fn;
 	async_ev_loop_stop_fn = prev_async_ev_loop_stop_fn;
 	async_ev_loop_alive_fn = prev_async_ev_loop_alive_fn;
 

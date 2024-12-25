@@ -252,13 +252,33 @@ static void resume_next_fiber(void)
 	zval_ptr_dtor(&retval);
 }
 
+static zend_bool check_deadlocks(void)
+{
+	zval *value;
+	async_fiber_state_t *fiber_state;
+
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), value)
+		fiber_state = (async_fiber_state_t *) Z_PTR_P(value);
+	ZEND_HASH_FOREACH_END();
+
+	return false;
+}
+
 /**
  * Handlers for the scheduler.
  * This functions pointer will be set to the actual functions.
  */
+static  async_run_callbacks_handler_t run_callbacks_fn = NULL;
 static  async_execute_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
 static  async_resume_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
 static  async_fiber_exception_handler_t fiber_exception_fn = NULL;
+
+ZEND_API async_run_callbacks_handler_t async_scheduler_set_run_callbacks_handler(const async_run_callbacks_handler_t handler)
+{
+    const async_run_callbacks_handler_t prev = run_callbacks_fn;
+    run_callbacks_fn = handler ? handler : handle_callbacks;
+    return prev;
+}
 
 ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
 {
@@ -292,16 +312,32 @@ void async_scheduler_run(void)
     }
 
 	async_scheduler_startup();
-	async_ev_loop_start_fn();
 
-	zend_try {
+	zend_try
+	{
+		zend_bool has_handles = true;
+
 		do {
 
 			ASYNC_G(is_scheduler_running) = true;
 
 			execute_microtasks_fn();
-			handle_callbacks_fn();
+
+			if (EG(exception) != NULL) {
+				break;
+			}
+
+			has_handles = run_callbacks_fn();
+
+			if (EG(exception) != NULL) {
+				break;
+			}
+
 			execute_microtasks_fn();
+
+			if (EG(exception) != NULL) {
+				break;
+			}
 
 			ASYNC_G(is_scheduler_running) = false;
 
@@ -313,6 +349,10 @@ void async_scheduler_run(void)
 
 			if (EG(exception) != NULL) {
                 break;
+            }
+
+			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(pending_fibers)) && check_deadlocks()) {
+				break;
             }
 
 		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0);

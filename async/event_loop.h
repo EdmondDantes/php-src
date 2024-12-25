@@ -147,7 +147,6 @@ typedef async_ev_handle_t* (*async_ev_idle_new_t)(void);
 ZEND_API zend_bool async_ev_is_enabled(void);
 void async_ev_add_handle(async_ev_handle_t *handle);
 
-ZEND_API async_ev_loop_run_t async_ev_loop_start_fn;
 ZEND_API async_ev_loop_stop_t async_ev_loop_stop_fn;
 ZEND_API async_ev_loop_alive_t async_ev_loop_alive_fn;
 

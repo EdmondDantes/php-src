@@ -23,6 +23,13 @@
 #include "async.h"
 
 /**
+ * async_run_callbacks_handler_t - Function pointer type for running pending callbacks.
+ * This function processes and completes all queued callbacks.
+ * The function returns TRUE if event loop has descriptors to process.
+ */
+typedef zend_bool (*async_run_callbacks_handler_t)(void);
+
+/**
  * async_resume_next_fiber_handler_t - Function pointer type for resuming the next fiber in the queue.
  * This function continues execution of the next scheduled fiber.
  */
@@ -55,6 +62,7 @@ typedef size_t (* async_ex_globals_fn)(async_globals_t *async_globals, size_t cu
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_run(void);
+ZEND_API async_run_callbacks_handler_t async_scheduler_set_run_callbacks_handler(async_run_callbacks_handler_t handler);
 ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_resume_next_fiber_handler_t handler);
 ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(async_execute_microtasks_handler_t handler);
 ZEND_API async_fiber_exception_handler_t async_scheduler_set_exception_handler(async_fiber_exception_handler_t handler);
