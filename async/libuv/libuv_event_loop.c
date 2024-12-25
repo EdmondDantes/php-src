@@ -236,12 +236,12 @@ static void libuv_loop_start(void)
 
 static void libuv_loop_stop(void)
 {
-
+	uv_stop(UVLOOP);
 }
 
 static zend_bool libuv_loop_alive(void)
 {
-    return 0;
+    return uv_loop_alive(UVLOOP);
 }
 
 static async_execute_microtasks_handler_t libuv_set_microtask_handler(const async_execute_microtasks_handler_t handler)
