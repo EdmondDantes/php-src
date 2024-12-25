@@ -252,13 +252,60 @@ static void resume_next_fiber(void)
 	zval_ptr_dtor(&retval);
 }
 
+static zend_always_inline void put_fiber_to_pending(const async_resume_t *resume)
+{
+	circular_buffer_push(&ASYNC_G(pending_fibers), resume, true);
+}
+
+static void validate_fiber_status(const zend_fiber *fiber, const zend_ulong index)
+{
+	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+		// TODO: create resume object
+		put_fiber_to_pending(NULL);
+	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
+		// Just remove the fiber from the list
+		GC_DELREF(&fiber->std);
+		zend_hash_index_del(&ASYNC_G(fibers_state), index);
+	} else {
+		async_throw_error(
+			"Fiber detected without a Resume object in an invalid state. Fiber status: %d",
+			fiber->context.status
+		);
+	}
+}
+
+static void analyze_resume_waiting(const async_resume_t *resume)
+{
+    if (resume->status == ASYNC_RESUME_PENDING) {
+        put_fiber_to_pending(resume);
+    }
+}
+
+/**
+ * The method checks all fibers and their Resume objects for the existence of a DeadLock or a logical processing error.
+ * If a DeadLock is detected, the method throws a PHP exception and terminates the loop execution.
+ *
+ * @return zend_bool
+ */
 static zend_bool check_deadlocks(void)
 {
 	zval *value;
-	async_fiber_state_t *fiber_state;
+	zend_ulong index;
+	zend_string *key;
 
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), value)
-		fiber_state = (async_fiber_state_t *) Z_PTR_P(value);
+	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
+
+		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
+
+		if (fiber_state->resume == NULL) {
+			validate_fiber_status(fiber_state->fiber, index);
+        } else {
+        	analyze_resume_waiting(fiber_state->resume);
+        }
+
+		if (EG(exception) != NULL) {
+			return true;
+		}
 	ZEND_HASH_FOREACH_END();
 
 	return false;
