@@ -24,6 +24,9 @@
 
 #define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
 
+static async_execute_microtasks_handler_t microtask_handler = NULL;
+static async_resume_next_fiber_handler_t next_fiber_handler = NULL;
+
 static zend_always_inline int libuv_events_from_php(const zend_long events)
 {
 	int internal_events = 0;
@@ -142,6 +145,124 @@ static void handle_callbacks(void)
 	uv_run(UVLOOP, UV_RUN_ONCE);
 }
 
+static void libuv_startup(void)
+{
+
+}
+
+static void libuv_shutdown(void)
+{
+
+}
+
+static void libuv_add_handle_ex(async_ev_handle_t *handle)
+{
+
+}
+
+static void libuv_remove_handle(async_ev_handle_t *handle)
+{
+
+}
+
+/**
+ * The prepare callback is executed immediately before the event loop enters
+ * the blocking phase to wait for new I/O events. This allows for the execution
+ * of pending tasks or preparations right before the event loop goes idle.
+ *
+ * @param handle Pointer to the uv_prepare_t handle.
+ */
+static void prepare_cb(uv_prepare_t *handle)
+{
+	if (microtask_handler != NULL) {
+		ASYNC_G(is_scheduler_running) = true;
+		microtask_handler();
+		ASYNC_G(is_scheduler_running) = false;
+	}
+
+	if (EG(exception) != NULL) {
+        uv_stop(UVLOOP);
+    }
+}
+
+/**
+ * The check callback is executed right after the event loop polls for I/O events
+ * but before any I/O callbacks are invoked. This allows for tasks to run after I/O
+ * but before the next iteration of the event loop.
+ *
+ * @param handle Pointer to the uv_check_t handle.
+ */
+static void check_cb(uv_check_t *handle)
+{
+	if (microtask_handler != NULL) {
+		ASYNC_G(is_scheduler_running) = true;
+		microtask_handler();
+		ASYNC_G(is_scheduler_running) = false;
+	}
+
+	if (EG(exception) != NULL) {
+		uv_stop(UVLOOP);
+	}
+
+	// Execute the next fiber task if scheduled, after microtasks have been processed.
+	if (next_fiber_handler != NULL) {
+		next_fiber_handler();
+	}
+
+	if (EG(exception) != NULL) {
+		uv_stop(UVLOOP);
+	}
+}
+
+static uv_loop_t *loop;
+static uv_check_t check_handle;
+static uv_prepare_t prepare_handle;
+
+static void libuv_loop_start(void)
+{
+	zend_try {
+		uv_loop_t *loop = UVLOOP;
+
+		uv_prepare_init(loop, &prepare_handle);
+		uv_prepare_start(&prepare_handle, prepare_cb);
+
+		uv_check_init(loop, &check_handle);
+		uv_check_start(&check_handle, check_cb);
+
+		uv_run(loop, UV_RUN_DEFAULT);
+	} zend_catch {
+		uv_loop_close(loop);
+		zend_bailout();
+	} zend_end_try();
+
+	uv_loop_close(loop);
+}
+
+static void libuv_loop_stop(void)
+{
+
+}
+
+static zend_bool libuv_loop_alive(void)
+{
+    return 0;
+}
+
+static async_execute_microtasks_handler_t libuv_set_microtask_handler(const async_execute_microtasks_handler_t handler)
+{
+	const async_execute_microtasks_handler_t old = microtask_handler;
+	microtask_handler = handler;
+	return old;
+}
+
+static async_resume_next_fiber_handler_t libuv_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
+{
+    const async_resume_next_fiber_handler_t old = next_fiber_handler;
+    next_fiber_handler = handler;
+    return old;
+}
+
+
 static size_t async_ex_globals_handler(const async_globals_t* async_globals, size_t current_size, const zend_bool is_destroy)
 {
 	if (async_globals == NULL) {
@@ -179,17 +300,16 @@ static async_ev_shutdown_t prev_async_ev_shutdown_fn = NULL;
 static async_ev_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
 static async_ev_handle_method_t prev_async_ev_remove_handle_fn = NULL;
 
-static async_ev_loop_run_t prev_async_ev_loop_run_fn = NULL;
+static async_ev_loop_run_t prev_async_ev_loop_start_fn = NULL;
 static async_ev_loop_stop_t prev_async_ev_loop_stop_fn = NULL;
 static async_ev_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
 
 static async_ev_loop_set_microtask_handler prev_async_ev_loop_set_microtask_handler_fn = NULL;
 static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_handler_fn = NULL;
 
-void async_libuv_startup(void)
+static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
-	async_scheduler_set_callback_handler(handle_callbacks);
 
 	prev_async_ev_startup_fn = async_ev_startup_fn;
 	async_ev_startup_fn = NULL;
@@ -203,26 +323,24 @@ void async_libuv_startup(void)
 	prev_async_ev_remove_handle_fn = async_ev_remove_handle_fn;
 	async_ev_remove_handle_fn = NULL;
 
-	prev_async_ev_loop_run_fn = async_ev_loop_run_fn;
-	async_ev_loop_run_fn = NULL;
+	prev_async_ev_loop_start_fn = async_ev_loop_start_fn;
+	async_ev_loop_start_fn = libuv_loop_start;
 
 	prev_async_ev_loop_stop_fn = async_ev_loop_stop_fn;
-	async_ev_loop_stop_fn = NULL;
+	async_ev_loop_stop_fn = libuv_loop_stop;
 
 	prev_async_ev_loop_alive_fn = async_ev_loop_alive_fn;
-	async_ev_loop_alive_fn = NULL;
+	async_ev_loop_alive_fn = libuv_loop_alive;
 
 	prev_async_ev_loop_set_microtask_handler_fn = async_ev_loop_set_microtask_handler_fn;
-	async_ev_loop_set_microtask_handler_fn = NULL;
+	async_ev_loop_set_microtask_handler_fn = libuv_set_microtask_handler;
 
 	prev_async_ev_loop_set_next_fiber_handler_fn = async_ev_loop_set_next_fiber_handler_fn;
-	async_ev_loop_set_next_fiber_handler_fn = NULL;
-
+	async_ev_loop_set_next_fiber_handler_fn = libuv_set_next_fiber_handler;
 }
 
-void async_libuv_shutdown(void)
+static void restore_handlers(void)
 {
-	async_scheduler_set_callback_handler(NULL);
 	async_set_ex_globals_handler(NULL);
 
 	async_ev_startup_fn = prev_async_ev_startup_fn;
@@ -231,10 +349,20 @@ void async_libuv_shutdown(void)
 	async_ev_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
 	async_ev_remove_handle_fn = prev_async_ev_remove_handle_fn;
 
-	async_ev_loop_run_fn = prev_async_ev_loop_run_fn;
+	async_ev_loop_start_fn = prev_async_ev_loop_start_fn;
 	async_ev_loop_stop_fn = prev_async_ev_loop_stop_fn;
 	async_ev_loop_alive_fn = prev_async_ev_loop_alive_fn;
 
 	async_ev_loop_set_microtask_handler_fn = prev_async_ev_loop_set_microtask_handler_fn;
 	async_ev_loop_set_next_fiber_handler_fn = prev_async_ev_loop_set_next_fiber_handler_fn;
+}
+
+void async_libuv_startup(void)
+{
+	setup_handlers();
+}
+
+void async_libuv_shutdown(void)
+{
+	restore_handlers();
 }

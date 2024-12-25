@@ -19,6 +19,7 @@
 
 #include "internal/zval_circular_buffer.h"
 #include "async.h"
+#include "event_loop.h"
 #include "php_layer/exceptions.h"
 
 //
@@ -291,6 +292,7 @@ void async_scheduler_run(void)
     }
 
 	async_scheduler_startup();
+	async_ev_loop_start_fn();
 
 	zend_try {
 		do {
