@@ -24,8 +24,8 @@
 
 #define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
 
-static async_execute_microtasks_handler_t microtask_handler = NULL;
-static async_resume_next_fiber_handler_t next_fiber_handler = NULL;
+static async_microtasks_handler_t microtask_handler = NULL;
+static async_next_fiber_handler_t next_fiber_handler = NULL;
 
 static zend_always_inline int libuv_events_from_php(const zend_long events)
 {
@@ -225,16 +225,16 @@ static zend_bool libuv_loop_alive(void)
     return uv_loop_alive(UVLOOP);
 }
 
-static async_execute_microtasks_handler_t libuv_set_microtask_handler(const async_execute_microtasks_handler_t handler)
+static async_microtasks_handler_t libuv_set_microtask_handler(const async_microtasks_handler_t handler)
 {
-	const async_execute_microtasks_handler_t old = microtask_handler;
+	const async_microtasks_handler_t old = microtask_handler;
 	microtask_handler = handler;
 	return old;
 }
 
-static async_resume_next_fiber_handler_t libuv_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
+static async_next_fiber_handler_t libuv_set_next_fiber_handler(const async_next_fiber_handler_t handler)
 {
-    const async_resume_next_fiber_handler_t old = next_fiber_handler;
+    const async_next_fiber_handler_t old = next_fiber_handler;
     next_fiber_handler = handler;
     return old;
 }
@@ -286,7 +286,7 @@ static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_ha
 static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
-	async_scheduler_set_run_callbacks_handler(run_callbacks);
+	async_scheduler_set_callbacks_handler(run_callbacks);
 
 	prev_async_ev_startup_fn = async_ev_startup_fn;
 	async_ev_startup_fn = NULL;

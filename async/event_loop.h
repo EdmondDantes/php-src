@@ -60,7 +60,7 @@ typedef zend_bool (*async_ev_loop_alive_t)(void);
  * @param handler The new microtask handler to be set.
  * @return The previous microtask handler.
  */
-typedef async_execute_microtasks_handler_t (*async_ev_loop_set_microtask_handler)(async_execute_microtasks_handler_t handler);
+typedef async_microtasks_handler_t (*async_ev_loop_set_microtask_handler)(async_microtasks_handler_t handler);
 
 /**
  * async_ev_loop_set_next_fiber_handler - Function pointer type for setting the next fiber resume handler.
@@ -70,7 +70,7 @@ typedef async_execute_microtasks_handler_t (*async_ev_loop_set_microtask_handler
  * @param handler The new fiber resume handler to be set.
  * @return The previous fiber resume handler.
  */
-typedef async_resume_next_fiber_handler_t (*async_ev_loop_set_next_fiber_handler)(async_resume_next_fiber_handler_t handler);
+typedef async_next_fiber_handler_t (*async_ev_loop_set_next_fiber_handler)(async_next_fiber_handler_t handler);
 
 /**
  * async_ev_handle_method_t - Function pointer type for operating on an event handle.

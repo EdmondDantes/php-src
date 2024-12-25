@@ -268,28 +268,28 @@ static zend_bool check_deadlocks(void)
  * Handlers for the scheduler.
  * This functions pointer will be set to the actual functions.
  */
-static  async_run_callbacks_handler_t run_callbacks_fn = NULL;
-static  async_execute_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
-static  async_resume_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
+static  async_callbacks_handler_t execute_callbacks_fn = NULL;
+static  async_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
+static  async_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
 static  async_fiber_exception_handler_t fiber_exception_fn = NULL;
 
-ZEND_API async_run_callbacks_handler_t async_scheduler_set_run_callbacks_handler(const async_run_callbacks_handler_t handler)
+ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(const async_callbacks_handler_t handler)
 {
-    const async_run_callbacks_handler_t prev = run_callbacks_fn;
-    run_callbacks_fn = handler ? handler : handle_callbacks;
+    const async_callbacks_handler_t prev = execute_callbacks_fn;
+    execute_callbacks_fn = handler ? handler : handle_callbacks;
     return prev;
 }
 
-ZEND_API async_resume_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_resume_next_fiber_handler_t handler)
+ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_next_fiber_handler_t handler)
 {
-	const async_resume_next_fiber_handler_t prev = resume_next_fiber_fn;
+	const async_next_fiber_handler_t prev = resume_next_fiber_fn;
 	resume_next_fiber_fn = handler ? handler : resume_next_fiber;
 	return prev;
 }
 
-ZEND_API async_execute_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_execute_microtasks_handler_t handler)
+ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_microtasks_handler_t handler)
 {
-	const async_execute_microtasks_handler_t prev = execute_microtasks_fn;
+	const async_microtasks_handler_t prev = execute_microtasks_fn;
 	execute_microtasks_fn = handler ? handler : execute_microtasks;
 	return prev;
 }
@@ -327,7 +327,7 @@ void async_scheduler_run(void)
 				break;
 			}
 
-			has_handles = run_callbacks_fn();
+			has_handles = execute_callbacks_fn();
 
 			if (EG(exception) != NULL) {
 				break;
