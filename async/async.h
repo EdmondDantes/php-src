@@ -20,10 +20,6 @@
 #include "internal/circular_buffer.h"
 #include "php_layer/resume.h"
 
-#ifdef PHP_ASYNC_LIBUV
-#include <uv.h>
-#endif
-
 #define ASYNC_READABLE 1
 #define ASYNC_WRITABLE 2
 #define ASYNC_DISCONNECT 4
@@ -78,18 +74,8 @@ ZEND_API async_globals_t* async_globals;
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
 #define IS_ASYNC_OFF (ASYNC_G(is_async) == false)
 
-/**
- * Async globals Ex-constructor.
- * The method is called in three cases:
- * 1. When it is necessary to return the size of the extended memory.
- * 2. When it is necessary to create and initialize the global Async structure.
- * 3. When the destructor needs to be called.
- */
-typedef size_t (* async_ex_globals_fn)(async_globals_t *async_globals, size_t current_size, zend_bool is_destroy);
-
-void async_startup(void);
-void async_shutdown(void);
+void async_module_startup(void);
+void async_module_shutdown(void);
 ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
-ZEND_API async_ex_globals_fn async_set_ex_globals_handler(async_ex_globals_fn handler);
 
 #endif //ASYNC_H

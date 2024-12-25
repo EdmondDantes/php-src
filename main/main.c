@@ -2186,7 +2186,7 @@ zend_result php_module_startup(sapi_module_struct *sf, zend_module_entry *additi
 	zuf.random_bytes_insecure_function = php_random_bytes_insecure_for_zend;
 	zend_startup(&zuf);
 #ifdef PHP_ASYNC
-	async_startup();
+	async_module_startup();
 #endif
 	zend_reset_lc_ctype_locale();
 	zend_update_current_locale();
@@ -2441,7 +2441,7 @@ void php_module_shutdown(void)
 	}
 
 #ifdef PHP_ASYNC
-	async_shutdown();
+	async_module_shutdown();
 #endif
 
 	zend_interned_strings_switch_storage(0);

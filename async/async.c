@@ -25,127 +25,10 @@
 #include "php_layer/ev_handles.h"
 #include "php_layer/exceptions.h"
 
-#ifdef ZTS
-TSRMLS_MAIN_CACHE_DEFINE()
-#else
-ZEND_API async_globals_t* async_globals;
-#endif
-
-static async_ex_globals_fn async_ex_globals_handler = NULL;
-
-ZEND_API async_ex_globals_fn async_set_ex_globals_handler(const async_ex_globals_fn handler)
-{
-	const async_ex_globals_fn old = async_ex_globals_handler;
-	async_ex_globals_handler = handler;
-	return old;
-}
-
-/**
- * Async globals destructor.
- */
-static void async_globals_dtor(async_globals_t *async_globals)
-{
-	if (!async_globals->is_async) {
-        return;
-    }
-
-	async_globals->is_async = false;
-	async_globals->is_scheduler_running = false;
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
-	}
-
-	circular_buffer_dtor(&async_globals->microtasks);
-	circular_buffer_dtor(&async_globals->pending_fibers);
-	zend_hash_destroy(&async_globals->fibers_state);
-}
-
-/**
- * Async globals constructor.
- */
-static void async_globals_ctor(async_globals_t *async_globals)
-{
-	if (async_globals->is_async) {
-		return;
-	}
-
-	async_globals->is_async = true;
-	async_globals->is_scheduler_running = false;
-
-	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
-	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
-
-	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
-		return;
-	}
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
-	}
-
-	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
-	}
-}
-
-/**
- * Activate the scheduler context.
- */
-void async_scheduler_startup(void)
-{
-	size_t globals_size = sizeof(async_globals_t);
-
-	if (async_ex_globals_handler != NULL) {
-		globals_size += async_ex_globals_handler(NULL, globals_size, false);
-	}
-
-#ifdef ZTS
-
-	if (async_globals_id != 0) {
-		return;
-	}
-
-	ts_allocate_fast_id(
-		&async_globals_id,
-		&async_globals_offset,
-		globals_size,
-		(ts_allocate_ctor) async_globals_ctor,
-		(ts_allocate_dtor) async_globals_dtor
-	);
-
-	async_globals_t *async_globals = ts_resource(async_globals_id);
-	async_globals_ctor(async_globals);
-#else
-	async_globals = pecalloc(1, globals_size, 1);
-	async_globals_ctor(async_globals);
-#endif
-}
-
-/**
- * Activate the scheduler context.
- */
-void async_scheduler_shutdown(void)
-{
-#ifdef ZTS
-	if (async_globals_id == 0) {
-        return;
-    }
-
-	ts_free_id(async_globals_id);
-	async_globals_id = 0;
-#else
-	async_globals_dtor(async_globals);
-	pefree(async_globals, 1);
-#endif
-}
-
 /**
  * Async startup function.
  */
-void async_startup(void)
+void async_module_startup(void)
 {
 	if (async_register_module() == FAILURE) {
 		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
@@ -155,7 +38,7 @@ void async_startup(void)
 /**
  * Async shutdown function.
  */
-void async_shutdown(void)
+void async_module_shutdown(void)
 {
 }
 
