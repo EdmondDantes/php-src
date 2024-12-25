@@ -175,9 +175,7 @@ static void libuv_remove_handle(async_ev_handle_t *handle)
 static void prepare_cb(uv_prepare_t *handle)
 {
 	if (microtask_handler != NULL) {
-		ASYNC_G(is_scheduler_running) = true;
 		microtask_handler();
-		ASYNC_G(is_scheduler_running) = false;
 	}
 
 	if (EG(exception) != NULL) {
@@ -195,9 +193,7 @@ static void prepare_cb(uv_prepare_t *handle)
 static void check_cb(uv_check_t *handle)
 {
 	if (microtask_handler != NULL) {
-		ASYNC_G(is_scheduler_running) = true;
 		microtask_handler();
-		ASYNC_G(is_scheduler_running) = false;
 	}
 
 	if (EG(exception) != NULL) {
