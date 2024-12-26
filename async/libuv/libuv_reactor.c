@@ -95,7 +95,7 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	// TODO: handle error
 }
 
-static void libuv_poll_dtor(async_ev_handle_t *handle)
+static void libuv_poll_dtor(reactor_handle_t *handle)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
 	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
@@ -110,7 +110,7 @@ libuv_poll_t *libuv_poll_ctor()
 	return poll;
 }
 
-static libuv_poll_t* libuv_poll_new(const int fd, const ASYNC_HANDLE_TYPE type, const zend_long events)
+static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
 {
 	libuv_poll_t *poll_handle = libuv_poll_ctor();
 
@@ -155,12 +155,12 @@ static void libuv_shutdown(void)
 
 }
 
-static void libuv_add_handle_ex(async_ev_handle_t *handle)
+static void libuv_add_handle_ex(reactor_handle_t *handle)
 {
 
 }
 
-static void libuv_remove_handle(async_ev_handle_t *handle)
+static void libuv_remove_handle(reactor_handle_t *handle)
 {
 
 }
@@ -271,14 +271,14 @@ static size_t async_ex_globals_handler(const async_globals_t* async_globals, siz
 /**
  * Previous handlers.
  */
-static async_ev_startup_t prev_async_ev_startup_fn = NULL;
-static async_ev_shutdown_t prev_async_ev_shutdown_fn = NULL;
+static reactor_startup_t prev_async_ev_startup_fn = NULL;
+static reactor_shutdown_t prev_async_ev_shutdown_fn = NULL;
 
-static async_ev_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
-static async_ev_handle_method_t prev_async_ev_remove_handle_fn = NULL;
+static reactor_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
+static reactor_handle_method_t prev_async_ev_remove_handle_fn = NULL;
 
-static async_ev_loop_stop_t prev_async_ev_loop_stop_fn = NULL;
-static async_ev_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
+static reactor_stop_t prev_async_ev_loop_stop_fn = NULL;
+static reactor_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
 
 static async_ev_loop_set_microtask_handler prev_async_ev_loop_set_microtask_handler_fn = NULL;
 static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_handler_fn = NULL;
@@ -288,44 +288,38 @@ static void setup_handlers(void)
 	async_set_ex_globals_handler(async_ex_globals_handler);
 	async_scheduler_set_callbacks_handler(execute_callbacks);
 
-	prev_async_ev_startup_fn = async_ev_startup_fn;
-	async_ev_startup_fn = NULL;
+	prev_async_ev_startup_fn = reactor_startup_fn;
+	reactor_startup_fn = NULL;
 
-	prev_async_ev_shutdown_fn = async_ev_shutdown_fn;
-	async_ev_shutdown_fn = NULL;
+	prev_async_ev_shutdown_fn = reactor_shutdown_fn;
+	reactor_shutdown_fn = NULL;
 
-	prev_async_ev_add_handle_ex_fn = async_ev_add_handle_ex_fn;
-	async_ev_add_handle_ex_fn = NULL;
+	prev_async_ev_add_handle_ex_fn = reactor_add_handle_ex_fn;
+	reactor_add_handle_ex_fn = NULL;
 
-	prev_async_ev_remove_handle_fn = async_ev_remove_handle_fn;
-	async_ev_remove_handle_fn = NULL;
+	prev_async_ev_remove_handle_fn = reactor_remove_handle_fn;
+	reactor_remove_handle_fn = NULL;
 
-	prev_async_ev_loop_stop_fn = async_ev_loop_stop_fn;
-	async_ev_loop_stop_fn = libuv_loop_stop;
+	prev_async_ev_loop_stop_fn = reactor_stop_fn;
+	reactor_stop_fn = libuv_loop_stop;
 
-	prev_async_ev_loop_alive_fn = async_ev_loop_alive_fn;
-	async_ev_loop_alive_fn = libuv_loop_alive;
-
-	prev_async_ev_loop_set_microtask_handler_fn = async_ev_loop_set_microtask_handler_fn;
-	async_ev_loop_set_microtask_handler_fn = libuv_set_microtask_handler;
-
-	prev_async_ev_loop_set_next_fiber_handler_fn = async_ev_loop_set_next_fiber_handler_fn;
-	async_ev_loop_set_next_fiber_handler_fn = libuv_set_next_fiber_handler;
+	prev_async_ev_loop_alive_fn = reactor_loop_alive_fn;
+	reactor_loop_alive_fn = libuv_loop_alive;
 }
 
 static void restore_handlers(void)
 {
 	async_set_ex_globals_handler(NULL);
 
-	async_ev_startup_fn = prev_async_ev_startup_fn;
-	async_ev_shutdown_fn = prev_async_ev_shutdown_fn;
+	reactor_startup_fn = prev_async_ev_startup_fn;
+	reactor_shutdown_fn = prev_async_ev_shutdown_fn;
 
-	async_ev_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
-	async_ev_remove_handle_fn = prev_async_ev_remove_handle_fn;
+	reactor_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
+	reactor_remove_handle_fn = prev_async_ev_remove_handle_fn;
 
 	async_ev_loop_start_fn = prev_async_ev_run_callbacks_fn;
-	async_ev_loop_stop_fn = prev_async_ev_loop_stop_fn;
-	async_ev_loop_alive_fn = prev_async_ev_loop_alive_fn;
+	reactor_stop_fn = prev_async_ev_loop_stop_fn;
+	reactor_loop_alive_fn = prev_async_ev_loop_alive_fn;
 
 	async_ev_loop_set_microtask_handler_fn = prev_async_ev_loop_set_microtask_handler_fn;
 	async_ev_loop_set_next_fiber_handler_fn = prev_async_ev_loop_set_next_fiber_handler_fn;

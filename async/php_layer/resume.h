@@ -26,7 +26,7 @@ typedef enum {
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
-typedef void (*async_resume_when_callback)(async_resume_t *resume, async_notifier_t *notifier);
+typedef void (*async_resume_when_callback)(async_resume_t *resume, reactor_notifier_t *notifier);
 
 /**
  * Object structure.
@@ -46,8 +46,8 @@ ZEND_API zend_class_entry * async_ce_resume;
 void async_register_resume_ce(void);
 async_resume_t * async_resume_new();
 void async_resume_destroy(async_resume_t *resume);
-void async_resume_when(async_resume_t *resume, async_notifier_t *notifier, async_resume_when_callback *callback);
-void async_resume_when_callback_resolve(async_resume_t *resume, async_notifier_t *notifier);
-void async_resume_when_callback_cancel(async_resume_t *resume, async_notifier_t *notifier);
+void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback *callback);
+void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier);
+void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier);
 
 #endif //RESUME_H

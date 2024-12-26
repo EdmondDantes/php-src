@@ -28,17 +28,17 @@ typedef struct _libuv_poll_s libuv_poll_t;
 typedef struct _libuv_timer_s libuv_timer_t;
 
 struct _libuv_handle_s {
-	async_ev_handle_t handle;
+	reactor_handle_t handle;
 	uv_handle_t uv_handle;
 };
 
 struct _libuv_poll_s {
-	async_ev_handle_t handle;
+	reactor_handle_t handle;
 	uv_poll_t uv_handle;
 };
 
 struct _libuv_timer_s {
-	async_ev_handle_t handle;
+	reactor_handle_t handle;
 	uv_timer_t uv_handle;
 };
 

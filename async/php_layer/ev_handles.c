@@ -15,7 +15,7 @@
 */
 #include "ev_handles.h"
 
-async_ev_handle_t* async_resource_to_handle(zend_resource *resource)
+reactor_handle_t* async_resource_to_handle(zend_resource *resource)
 {
 
 }

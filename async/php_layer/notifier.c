@@ -29,7 +29,7 @@
 
 static zend_object_handlers async_notifier_handlers;
 
-void async_notifier_notify(async_notifier_t * notifier, const zval * event, const zval * error)
+void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error)
 {
 	const zval* callbacks = zend_read_property(
 		async_ce_notifier, &notifier->std, PROPERTY_CALLBACKS, strlen(PROPERTY_CALLBACKS), 0, NULL
@@ -115,7 +115,7 @@ METHOD(notify)
 		Z_PARAM_OBJECT_OF_CLASS_OR_NULL(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_notifier_notify((async_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
+	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
 void async_register_notifier_ce(void)

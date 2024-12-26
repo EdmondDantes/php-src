@@ -16,14 +16,14 @@
 #include "reactor.h"
 #include "php_layer/exceptions.h"
 
-void async_ev_startup(void)
+void reactor_startup(void)
 {
-	async_throw_error("Reactor API method ev_startup not implemented");
+	async_throw_error("Reactor API method startup not implemented");
 }
 
-void async_ev_shutdown(void)
+void reactor_shutdown(void)
 {
-	async_throw_error("Reactor API method ev_shutdown not implemented");
+	async_throw_error("Reactor API method shutdown not implemented");
 }
 
 #ifdef PHP_ASYNC_TRACK_HANDLES
@@ -31,7 +31,7 @@ void async_ev_shutdown(void)
  * The method returns TRUE if the specified handle is already waiting in the event loop.
  * This check can detect complex errors in the application's operation.
  */
-static zend_always_inline zend_bool async_ev_handle_is_waiting(const zend_object *handle)
+static zend_always_inline zend_bool reactor_handle_is_waiting(const zend_object *handle)
 {
 	// TODO: extract real handle->handle from zend_object
 	zval *result = zend_hash_index_find(&ASYNC_G(linked_handles), handle->handle);
@@ -41,114 +41,104 @@ static zend_always_inline zend_bool async_ev_handle_is_waiting(const zend_object
 }
 #endif
 
-void async_ev_add_handle(async_ev_handle_t *handle)
+void reactor_add_handle(reactor_handle_t *handle)
 {
 #ifdef PHP_ASYNC_TRACK_HANDLES
-	if (async_ev_handle_is_waiting(handle)) {
+	if (reactor_handle_is_waiting(handle)) {
 		async_throw_error("Cannot add a handle that is already waiting");
 		return;
 	}
 #endif
 
-	async_ev_add_handle_ex_fn(handle);
+	reactor_add_handle_ex_fn(handle);
 }
 
-static void async_ev_handle_method_no(async_ev_handle_t *handle)
+static void reactor_handle_method_no(reactor_handle_t *handle)
 {
-	async_throw_error("Reactor API method ev_handle_method not implemented");
+	async_throw_error("Reactor API method handle_method not implemented");
 }
 
-ZEND_API zend_bool async_ev_is_enabled(void)
+ZEND_API zend_bool reactor_is_enabled(void)
 {
-	return async_ev_startup_fn != async_ev_startup;
+	return reactor_startup_fn != reactor_startup;
 }
 
-static async_ev_handle_t* async_ev_handle_from_resource(zend_resource *resource, zend_ulong actions)
+static reactor_handle_t* reactor_handle_from_resource(zend_resource *resource, zend_ulong actions)
 {
-	async_throw_error("Reactor API method ev_handle_from_resource not implemented");
+	async_throw_error("Reactor API method handle_from_resource not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_file_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_file_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_file_new not implemented");
+	async_throw_error("Reactor API method file_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_socket_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_socket_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_socket_new not implemented");
+	async_throw_error("Reactor API method socket_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_timeout_new(zend_ulong timeout)
+static reactor_handle_t* reactor_timeout_new(zend_ulong timeout)
 {
-	async_throw_error("Reactor API method ev_timeout_new not implemented");
+	async_throw_error("Reactor API method timeout_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_signal_new(zend_long sig_number)
+static reactor_handle_t* reactor_signal_new(zend_long sig_number)
 {
-	async_throw_error("Reactor API method ev_signal_new not implemented");
+	async_throw_error("Reactor API method signal_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_pipe_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_pipe_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_pipe_new not implemented");
+	async_throw_error("Reactor API method pipe_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_tty_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_tty_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_tty_new not implemented");
+	async_throw_error("Reactor API method tty_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_file_system_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_file_system_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_file_system_new not implemented");
+	async_throw_error("Reactor API method file_system_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_process_new(zend_ulong pid, zend_ulong events)
+static reactor_handle_t* reactor_process_new(zend_ulong pid, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_process_new not implemented");
+	async_throw_error("Reactor API method process_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_thread_new(zend_ulong tread_id, zend_ulong events)
+static reactor_handle_t* reactor_thread_new(zend_ulong tread_id, zend_ulong events)
 {
-	async_throw_error("Reactor API method ev_thread_new not implemented");
+	async_throw_error("Reactor API method thread_new not implemented");
 	return NULL;
 }
 
-static async_ev_handle_t* async_ev_idle_new(void)
-{
-	async_throw_error("Reactor API method ev_idle_new not implemented");
-	return NULL;
-}
+reactor_startup_t reactor_startup_fn = reactor_startup;
+reactor_shutdown_t reactor_shutdown_fn = reactor_shutdown;
 
-async_ev_startup_t async_ev_startup_fn = async_ev_startup;
-async_ev_shutdown_t async_ev_shutdown_fn = async_ev_shutdown;
+reactor_handle_method_t reactor_add_handle_ex_fn = reactor_handle_method_no;
+reactor_handle_method_t reactor_remove_handle_fn = reactor_handle_method_no;
 
-async_ev_handle_method_t async_ev_add_handle_ex_fn = async_ev_handle_method_no;
-async_ev_handle_method_t async_ev_remove_handle_fn = async_ev_handle_method_no;
+reactor_stop_t reactor_stop_fn = NULL;
+reactor_loop_alive_t reactor_loop_alive_fn = NULL;
 
-async_ev_loop_run_t async_ev_run_callbacks_fn = NULL;
-async_ev_loop_stop_t async_ev_loop_stop_fn = NULL;
-async_ev_loop_alive_t async_ev_loop_alive_fn = NULL;
-async_ev_loop_set_microtask_handler async_ev_loop_set_microtask_handler_fn = NULL;
-async_ev_loop_set_next_fiber_handler async_ev_loop_set_next_fiber_handler_fn = NULL;
-
-async_ev_handle_from_resource_t async_ev_handle_from_resource_fn = async_ev_handle_from_resource;
-async_ev_file_new_t async_ev_file_new_fn = async_ev_file_new;
-async_ev_socket_new_t async_ev_socket_new_fn = async_ev_socket_new;
-async_ev_timeout_new_t async_ev_timeout_new_fn = async_ev_timeout_new;
-async_ev_signal_new_t async_ev_signal_new_fn = async_ev_signal_new;
-async_ev_pipe_new_t async_ev_pipe_new_fn = async_ev_pipe_new;
-async_ev_tty_new_t async_ev_tty_new_fn = async_ev_tty_new;
-async_ev_file_system_new_t async_ev_file_system_new_fn = async_ev_file_system_new;
-async_ev_process_new_t async_ev_process_new_fn = async_ev_process_new;
-async_ev_thread_new_t async_ev_thread_new_fn = async_ev_thread_new;
-async_ev_idle_new_t async_ev_idle_new_fn = async_ev_idle_new;
+reactor_handle_from_resource_t reactor_handle_from_resource_fn = reactor_handle_from_resource;
+reactor_file_new_t reactor_file_new_fn = reactor_file_new;
+reactor_socket_new_t reactor_socket_new_fn = reactor_socket_new;
+reactor_timeout_new_t reactor_timeout_new_fn = reactor_timeout_new;
+reactor_signal_new_t reactor_signal_new_fn = reactor_signal_new;
+reactor_pipe_new_t reactor_pipe_new_fn = reactor_pipe_new;
+reactor_tty_new_t reactor_tty_new_fn = reactor_tty_new;
+reactor_file_system_new_t reactor_file_system_new_fn = reactor_file_system_new;
+reactor_process_new_t reactor_process_new_fn = reactor_process_new;
+reactor_thread_new_t reactor_thread_new_fn = reactor_thread_new;

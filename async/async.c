@@ -157,7 +157,7 @@ void async_await(async_resume_t *resume)
 	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
 		if (Z_TYPE_P(notifier) == IS_OBJECT) {
 
-			async_ev_add_handle((async_ev_handle_t *) Z_OBJ_P(notifier));
+			reactor_add_handle((reactor_handle_t *) Z_OBJ_P(notifier));
 
 			if (EG(exception) != NULL) {
 				goto finally;
@@ -176,7 +176,7 @@ finally:
     }
 }
 
-void async_build_resume_with(zend_ulong timeout, async_notifier_t * cancellation)
+void async_build_resume_with(zend_ulong timeout, reactor_notifier_t * cancellation)
 {
 
 }
@@ -191,10 +191,10 @@ void async_await_socket()
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
  */
 void async_await_resource(
-	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, async_notifier_t * cancellation
+	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, reactor_notifier_t * cancellation
 )
 {
-	const async_ev_handle_t *handle = async_ev_handle_from_resource_fn(resource, actions);
+	const reactor_handle_t *handle = reactor_handle_from_resource_fn(resource, actions);
 
 	if (handle == NULL) {
 		async_throw_error("I can't create an event handle from the resource.");
@@ -228,7 +228,7 @@ void async_await_resource(
  * The method stops Fiber execution for a specified signal.
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
  */
-void async_await_signal(const zend_long sig_number, async_notifier_t * cancellation)
+void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancellation)
 {
 	async_resume_t *resume = async_resume_new();
 
@@ -249,7 +249,7 @@ void async_await_signal(const zend_long sig_number, async_notifier_t * cancellat
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
  * It's like a sleep()/usleep() function.
  */
-void async_await_timeout(const zend_ulong timeout, async_notifier_t * cancellation)
+void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation)
 {
 	if (timeout == 0) {
 		async_await(NULL);

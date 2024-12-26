@@ -17,49 +17,44 @@
 #ifndef NOTIFIER_H
 #define NOTIFIER_H
 
-#ifdef PHP_ASYNC_LIBUV
-#include <uv.h>
-#endif
-
 ZEND_API zend_class_entry *async_ce_notifier;
 
 typedef enum {
-	ASYNC_UNKNOWN = 0,
-	ASYNC_FILE = 1,
-	ASYNC_SOCKET = 2,
-	ASYNC_TIMER = 3,
-	ASYNC_SIGNAL = 4,
-	ASYNC_PIPE = 5,
-	ASYNC_TTY = 6,
-	ASYNC_FILE_SYSTEM = 7,
-	ASYNC_PROCESS = 8,
-	ASYNC_THREAD = 9,
-	ASYNC_GET_ADDR_INFO = 100,
-	ASYNC_GET_NAME_INFO = 101,
-	ASYNC_IDLE = 102,
-	ASYNC_CUSTOM = 128
-} ASYNC_HANDLE_TYPE;
+	REACTOR_H_UNKNOWN = 0,
+	REACTOR_H_FILE = 1,
+	REACTOR_H_SOCKET = 2,
+	REACTOR_H_TIMER = 3,
+	REACTOR_H_SIGNAL = 4,
+	REACTOR_H_PIPE = 5,
+	REACTOR_H_TTY = 6,
+	REACTOR_H_FILE_SYSTEM = 7,
+	REACTOR_H_PROCESS = 8,
+	REACTOR_H_THREAD = 9,
+	REACTOR_H_GET_ADDR_INFO = 100,
+	REACTOR_H_GET_NAME_INFO = 101,
+	REACTOR_H_CUSTOM = 128
+} REACTOR_HANDLE_TYPE;
 
-typedef struct _async_ev_handle_s async_ev_handle_t;
-typedef struct _async_ev_handle_s async_notifier_t;
-typedef void (*async_ev_handle_method)(async_ev_handle_t *notifier);
+typedef struct _reactor_handle_s reactor_handle_t;
+typedef struct _reactor_handle_s reactor_notifier_t;
+typedef void (*reactor_handle_method)(reactor_handle_t *notifier);
 
-struct _async_ev_handle_s {
+struct _reactor_handle_s {
 	/* PHP std object Async\Notifier */
 	zend_object std;
 	/**
 	 * The type of handler that is hidden behind the Notify object.
 	 */
-	ASYNC_HANDLE_TYPE type;
+	REACTOR_HANDLE_TYPE type;
 	/**
 	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
 	 */
-	async_ev_handle_method dtor;
+	reactor_handle_method dtor;
 };
 
 void async_register_notifier_ce(void);
 void async_notifier_add_callback(zend_object* notifier, const zval* callback);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
-void async_notifier_notify(async_notifier_t * notifier, const zval * event, const zval * error);
+void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error);
 
 #endif //NOTIFIER_H
