@@ -41,7 +41,7 @@ struct _async_globals_s {
 	/* Equal TRUE if the asynchronous context is enabled */
 	bool is_async;
 	/* Equal TRUE if the scheduler is running */
-	bool is_scheduler_running;
+	bool in_scheduler_context;
 	// Microtask and fiber queues
 	circular_buffer_t microtasks;
 	/* Queue of resume objects: async_resume_t */

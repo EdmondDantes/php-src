@@ -240,7 +240,7 @@ static void async_globals_dtor(async_globals_t *async_globals)
     }
 
 	async_globals->is_async = false;
-	async_globals->is_scheduler_running = false;
+	async_globals->in_scheduler_context = false;
 
 	if (async_ex_globals_handler != NULL) {
 		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
@@ -261,7 +261,7 @@ static void async_globals_ctor(async_globals_t *async_globals)
 	}
 
 	async_globals->is_async = true;
-	async_globals->is_scheduler_running = false;
+	async_globals->in_scheduler_context = false;
 
 	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
 	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
@@ -380,7 +380,7 @@ void async_scheduler_run(void)
 
 		do {
 
-			ASYNC_G(is_scheduler_running) = true;
+			ASYNC_G(in_scheduler_context) = true;
 
 			execute_microtasks_handler();
 			TRY_HANDLE_EXCEPTION();
@@ -391,7 +391,7 @@ void async_scheduler_run(void)
 			execute_microtasks_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			ASYNC_G(is_scheduler_running) = false;
+			ASYNC_G(in_scheduler_context) = false;
 
 			execute_next_fiber_handler();
 			TRY_HANDLE_EXCEPTION();
@@ -403,7 +403,7 @@ void async_scheduler_run(void)
 		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0);
 
 	} zend_catch {
-		ASYNC_G(is_scheduler_running) = false;
+		ASYNC_G(in_scheduler_context) = false;
 		async_scheduler_shutdown();
 		zend_bailout();
 	} zend_end_try();

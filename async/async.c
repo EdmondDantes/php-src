@@ -18,7 +18,7 @@
 
 #include <zend_fibers.h>
 
-#include "event_loop.h"
+#include "reactor.h"
 #include "scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
@@ -98,6 +98,11 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 void async_await(async_resume_t *resume)
 {
 	if (UNEXPECTED(IS_ASYNC_OFF)) {
+		return;
+	}
+
+	if (ASYNC_G(in_scheduler_context)) {
+		async_throw_error("Cannot await in the scheduler context");
 		return;
 	}
 
