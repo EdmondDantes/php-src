@@ -17,6 +17,7 @@
 #define PHP_ASYNC_H
 
 #include "php.h"
+#include "scheduler.h"
 #include "internal/circular_buffer.h"
 #include "php_layer/resume.h"
 
@@ -47,6 +48,11 @@ struct _async_globals_s {
 	circular_buffer_t pending_fibers;
 	/* List of async_fiber_state_t  */
 	HashTable fibers_state;
+	/* Handlers for the scheduler */
+	async_callbacks_handler_t execute_callbacks_handler;
+	async_next_fiber_handler_t execute_next_fiber_handler;
+	async_microtasks_handler_t execute_microtasks_handler;
+	async_exception_handler_t exception_handler;
 #ifdef PHP_ASYNC_TRACK_HANDLES
 	/* List of linked handles to fibers */
 	HashTable linked_handles;

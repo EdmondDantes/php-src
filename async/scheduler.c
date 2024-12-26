@@ -19,7 +19,7 @@
 
 #include "internal/zval_circular_buffer.h"
 #include "async.h"
-#include "event_loop.h"
+#include "reactor.h"
 #include "php_layer/exceptions.h"
 
 //
@@ -41,116 +41,6 @@ ZEND_API async_ex_globals_fn async_set_ex_globals_handler(const async_ex_globals
 	const async_ex_globals_fn old = async_ex_globals_handler;
 	async_ex_globals_handler = handler;
 	return old;
-}
-
-/**
- * Async globals destructor.
- */
-static void async_globals_dtor(async_globals_t *async_globals)
-{
-	if (!async_globals->is_async) {
-        return;
-    }
-
-	async_globals->is_async = false;
-	async_globals->is_scheduler_running = false;
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
-	}
-
-	circular_buffer_dtor(&async_globals->microtasks);
-	circular_buffer_dtor(&async_globals->pending_fibers);
-	zend_hash_destroy(&async_globals->fibers_state);
-}
-
-/**
- * Async globals constructor.
- */
-static void async_globals_ctor(async_globals_t *async_globals)
-{
-	if (async_globals->is_async) {
-		return;
-	}
-
-	async_globals->is_async = true;
-	async_globals->is_scheduler_running = false;
-
-	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
-	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
-
-	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
-		return;
-	}
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
-	}
-
-	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
-	}
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_scheduler_startup(void)
-{
-	size_t globals_size = sizeof(async_globals_t);
-
-	if (async_ex_globals_handler != NULL) {
-		globals_size += async_ex_globals_handler(NULL, globals_size, false);
-	}
-
-#ifdef ZTS
-
-	if (async_globals_id != 0) {
-		return;
-	}
-
-	ts_allocate_fast_id(
-		&async_globals_id,
-		&async_globals_offset,
-		globals_size,
-		(ts_allocate_ctor) async_globals_ctor,
-		(ts_allocate_dtor) async_globals_dtor
-	);
-
-	async_globals_t *async_globals = ts_resource(async_globals_id);
-	async_globals_ctor(async_globals);
-#else
-	if (async_globals != NULL) {
-        return;
-    }
-
-	async_globals = pecalloc(1, globals_size, 1);
-	async_globals_ctor(async_globals);
-#endif
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_scheduler_shutdown(void)
-{
-#ifdef ZTS
-	if (async_globals_id == 0) {
-        return;
-    }
-
-	ts_free_id(async_globals_id);
-	async_globals_id = 0;
-#else
-	if (async_globals == NULL) {
-        return;
-    }
-
-	async_globals_dtor(async_globals);
-	pefree(async_globals, 1);
-#endif
 }
 
 static void invoke_microtask(zval *task)
@@ -311,46 +201,153 @@ static zend_bool check_deadlocks(void)
 	return false;
 }
 
-/**
- * Handlers for the scheduler.
- * This functions pointer will be set to the actual functions.
- */
-static  async_callbacks_handler_t execute_callbacks_fn = NULL;
-static  async_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
-static  async_next_fiber_handler_t execute_next_fiber_fn = execute_next_fiber;
-static  async_exception_handler_t handle_exception_fn = NULL;
 
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(const async_callbacks_handler_t handler)
 {
-    const async_callbacks_handler_t prev = execute_callbacks_fn;
-    execute_callbacks_fn = handler ? handler : handle_callbacks;
+    const async_callbacks_handler_t prev = ASYNC_G(execute_callbacks_handler);
+    ASYNC_G(execute_callbacks_handler) = handler ? handler : handle_callbacks;
     return prev;
 }
 
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_next_fiber_handler_t handler)
 {
-	const async_next_fiber_handler_t prev = execute_next_fiber_fn;
-	execute_next_fiber_fn = handler ? handler : execute_next_fiber;
+	const async_next_fiber_handler_t prev = ASYNC_G(execute_next_fiber_handler);
+	ASYNC_G(execute_next_fiber_handler) = handler ? handler : execute_next_fiber;
 	return prev;
 }
 
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_microtasks_handler_t handler)
 {
-	const async_microtasks_handler_t prev = execute_microtasks_fn;
-	execute_microtasks_fn = handler ? handler : execute_microtasks;
+	const async_microtasks_handler_t prev = ASYNC_G(execute_microtasks_handler);
+	ASYNC_G(execute_microtasks_handler) = handler ? handler : execute_microtasks;
 	return prev;
 }
 
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const async_exception_handler_t handler)
 {
-    const async_exception_handler_t prev = handle_exception_fn;
-    handle_exception_fn = handler;
-    return prev;
+	const async_exception_handler_t prev = ASYNC_G(exception_handler);
+	ASYNC_G(exception_handler) = handler;
+	return prev;
+}
+
+/**
+ * Async globals destructor.
+ */
+static void async_globals_dtor(async_globals_t *async_globals)
+{
+	if (!async_globals->is_async) {
+        return;
+    }
+
+	async_globals->is_async = false;
+	async_globals->is_scheduler_running = false;
+
+	if (async_ex_globals_handler != NULL) {
+		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
+	}
+
+	circular_buffer_dtor(&async_globals->microtasks);
+	circular_buffer_dtor(&async_globals->pending_fibers);
+	zend_hash_destroy(&async_globals->fibers_state);
+}
+
+/**
+ * Async globals constructor.
+ */
+static void async_globals_ctor(async_globals_t *async_globals)
+{
+	if (async_globals->is_async) {
+		return;
+	}
+
+	async_globals->is_async = true;
+	async_globals->is_scheduler_running = false;
+
+	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
+	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
+	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
+
+	async_globals->execute_callbacks_handler = NULL;
+	async_globals->exception_handler = NULL;
+	async_globals->execute_next_fiber_handler = execute_next_fiber;
+	async_globals->execute_microtasks_handler = execute_microtasks;
+
+	if (EG(exception) != NULL) {
+		async_globals_dtor(async_globals);
+		return;
+	}
+
+	if (async_ex_globals_handler != NULL) {
+		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
+	}
+
+	if (EG(exception) != NULL) {
+		async_globals_dtor(async_globals);
+	}
+}
+
+/**
+ * Activate the scheduler context.
+ */
+static void async_scheduler_startup(void)
+{
+	size_t globals_size = sizeof(async_globals_t);
+
+	if (async_ex_globals_handler != NULL) {
+		globals_size += async_ex_globals_handler(NULL, globals_size, false);
+	}
+
+#ifdef ZTS
+
+	if (async_globals_id != 0) {
+		return;
+	}
+
+	ts_allocate_fast_id(
+		&async_globals_id,
+		&async_globals_offset,
+		globals_size,
+		(ts_allocate_ctor) async_globals_ctor,
+		(ts_allocate_dtor) async_globals_dtor
+	);
+
+	async_globals_t *async_globals = ts_resource(async_globals_id);
+	async_globals_ctor(async_globals);
+#else
+	if (async_globals != NULL) {
+        return;
+    }
+
+	async_globals = pecalloc(1, globals_size, 1);
+	async_globals_ctor(async_globals);
+#endif
+}
+
+/**
+ * Activate the scheduler context.
+ */
+static void async_scheduler_shutdown(void)
+{
+#ifdef ZTS
+	if (async_globals_id == 0) {
+        return;
+    }
+
+	ts_free_id(async_globals_id);
+	async_globals_id = 0;
+#else
+	if (async_globals == NULL) {
+        return;
+    }
+
+	async_globals_dtor(async_globals);
+	pefree(async_globals, 1);
+#endif
 }
 
 #define TRY_HANDLE_EXCEPTION() \
-	if (EG(exception) != NULL && handle_exception_fn != NULL) { \
-		handle_exception_fn(); \
+	if (EG(exception) != NULL && handle_exception_handler != NULL) { \
+		handle_exception_handler(); \
 	} \
 	if (EG(exception) != NULL) { \
 		break; \
@@ -362,11 +359,20 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const a
 void async_scheduler_run(void)
 {
 	if (EG(active_fiber) != NULL) {
-        async_throw_error("The scheduler cannot be started from a Fiber");
-        return;
-    }
+		async_throw_error("The scheduler cannot be started from a Fiber");
+		return;
+	}
 
 	async_scheduler_startup();
+
+	/**
+	 * Handlers for the scheduler.
+	 * This functions pointer will be set to the actual functions.
+	 */
+	const async_callbacks_handler_t execute_callbacks_handler = ASYNC_G(execute_callbacks_handler);
+	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler);
+	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler);
+	const async_exception_handler_t handle_exception_handler = ASYNC_G(exception_handler);
 
 	zend_try
 	{
@@ -376,23 +382,23 @@ void async_scheduler_run(void)
 
 			ASYNC_G(is_scheduler_running) = true;
 
-			execute_microtasks_fn();
+			execute_microtasks_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			has_handles = execute_callbacks_fn(circular_buffer_is_not_empty(&ASYNC_G(pending_fibers)));
+			has_handles = execute_callbacks_handler(circular_buffer_is_not_empty(&ASYNC_G(pending_fibers)));
 			TRY_HANDLE_EXCEPTION();
 
-			execute_microtasks_fn();
+			execute_microtasks_handler();
 			TRY_HANDLE_EXCEPTION();
 
 			ASYNC_G(is_scheduler_running) = false;
 
-			execute_next_fiber_fn();
+			execute_next_fiber_handler();
 			TRY_HANDLE_EXCEPTION();
 
 			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(pending_fibers)) && check_deadlocks()) {
 				break;
-            }
+			}
 
 		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0);
 
@@ -402,4 +408,3 @@ void async_scheduler_run(void)
 		zend_bailout();
 	} zend_end_try();
 }
-
