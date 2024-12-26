@@ -18,8 +18,6 @@
 
 #include <php_network.h>
 #include <zend_fibers.h>
-#include <ext/standard/proc_open.h>
-
 #include "reactor.h"
 #include "scheduler.h"
 #include "php_layer/functions.h"

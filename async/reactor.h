@@ -74,13 +74,13 @@ typedef reactor_handle_t* (*reactor_handle_from_resource_t)(zend_resource *resou
  * reactor_file_new_t - Creates a new file event handle.
  * Monitors file descriptor for specified events.
  */
-typedef reactor_handle_t* (*reactor_file_new_t)(zend_ulong fd, zend_ulong events);
+typedef reactor_handle_t* (*reactor_file_new_t)(php_file_descriptor_t fd, zend_ulong events);
 
 /**
  * reactor_socket_new_t - Creates a new socket event handle.
  * Monitors socket file descriptor for specified events.
  */
-typedef reactor_handle_t* (*reactor_socket_new_t)(zend_ulong fd, zend_ulong events);
+typedef reactor_handle_t* (*reactor_socket_new_t)(php_socket_t fd, zend_ulong events);
 
 /**
  * reactor_timeout_new_t - Creates a new timeout event handle.
@@ -98,13 +98,13 @@ typedef reactor_handle_t* (*reactor_signal_new_t)(zend_long sig_number);
  * reactor_pipe_new_t - Creates a new pipe event handle.
  * Monitors a pipe for specified events.
  */
-typedef reactor_handle_t* (*reactor_pipe_new_t)(zend_ulong fd, zend_ulong events);
+typedef reactor_handle_t* (*reactor_pipe_new_t)(php_file_descriptor_t fd, zend_ulong events);
 
 /**
  * reactor_tty_new_t - Creates a new TTY (terminal) event handle.
  * Monitors TTY file descriptor for specified events.
  */
-typedef reactor_handle_t* (*reactor_tty_new_t)(zend_ulong fd, zend_ulong events);
+typedef reactor_handle_t* (*reactor_tty_new_t)(php_file_descriptor_t fd, zend_ulong events);
 
 /**
  * reactor_file_system_new_t - Creates a new filesystem event handle.
@@ -116,13 +116,13 @@ typedef reactor_handle_t* (*reactor_file_system_new_t)(zend_ulong fd, zend_ulong
  * reactor_process_new_t - Creates a new process event handle.
  * Monitors process ID for specified events.
  */
-typedef reactor_handle_t* (*reactor_process_new_t)(zend_ulong pid, zend_ulong events);
+typedef reactor_handle_t* (*reactor_process_new_t)(php_process_id_t pid, zend_ulong events);
 
 /**
  * reactor_thread_new_t - Creates a new thread event handle.
  * Monitors thread ID for specified events.
  */
-typedef reactor_handle_t* (*reactor_thread_new_t)(zend_ulong thread_id, zend_ulong events);
+typedef reactor_handle_t* (*reactor_thread_new_t)(THREAD_T thread_id, zend_ulong events);
 
 ZEND_API zend_bool reactor_is_enabled(void);
 void reactor_add_handle(reactor_handle_t *handle);

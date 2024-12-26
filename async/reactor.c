@@ -71,13 +71,13 @@ static reactor_handle_t* reactor_handle_from_resource(zend_resource *resource, z
 	return NULL;
 }
 
-static reactor_handle_t* reactor_file_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_file_new(php_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method file_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_socket_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_socket_new(php_socket_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method socket_new not implemented");
 	return NULL;
@@ -95,13 +95,13 @@ static reactor_handle_t* reactor_signal_new(zend_long sig_number)
 	return NULL;
 }
 
-static reactor_handle_t* reactor_pipe_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_pipe_new(php_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method pipe_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_tty_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_tty_new(php_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method tty_new not implemented");
 	return NULL;
@@ -113,13 +113,13 @@ static reactor_handle_t* reactor_file_system_new(zend_ulong fd, zend_ulong event
 	return NULL;
 }
 
-static reactor_handle_t* reactor_process_new(zend_ulong pid, zend_ulong events)
+static reactor_handle_t* reactor_process_new(php_process_id_t pid, zend_ulong events)
 {
 	async_throw_error("Reactor API method process_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_thread_new(zend_ulong tread_id, zend_ulong events)
+static reactor_handle_t* reactor_thread_new(THREAD_T tread_id, zend_ulong events)
 {
 	async_throw_error("Reactor API method thread_new not implemented");
 	return NULL;

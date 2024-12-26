@@ -17,6 +17,8 @@
 #define PHP_ASYNC_H
 
 #include "php.h"
+#include <php_network.h>
+#include <ext/standard/proc_open.h>
 #include "scheduler.h"
 #include "internal/circular_buffer.h"
 #include "php_layer/resume.h"
@@ -82,6 +84,7 @@ ZEND_API async_globals_t* async_globals;
 
 void async_module_startup(void);
 void async_module_shutdown(void);
+ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
 ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
 
 #endif //ASYNC_H
