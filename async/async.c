@@ -76,18 +76,14 @@ void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, p
 
 	} else if (php_stream_is(stream, PHP_STREAM_IS_STDIO)) {
 
-		int fd = -1;
-
-		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &fd, false) == FAILURE) {
+#ifdef PHP_WIN32
+		async_throw_error("Not supported async file operation for Windows");
+		return;
+#else
+		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, file, false) == FAILURE) {
 			async_throw_error("Failed to cast the stream to a file descriptor.");
 		}
-
-#ifdef PHP_WIN32
-		*file = (void **)_get_osfhandle(fd);
-#else
-		*file = fd;
 #endif
-
 	} else {
 		async_throw_error("Invalid resource type. Expected a stream of STDIO or Socket.");
 	}
