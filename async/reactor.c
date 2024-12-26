@@ -13,18 +13,17 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "event_loop.h"
-
+#include "reactor.h"
 #include "php_layer/exceptions.h"
 
 void async_ev_startup(void)
 {
-	async_throw_error("Event Loop API method ev_startup not implemented");
+	async_throw_error("Reactor API method ev_startup not implemented");
 }
 
 void async_ev_shutdown(void)
 {
-	async_throw_error("Event Loop API method ev_shutdown not implemented");
+	async_throw_error("Reactor API method ev_shutdown not implemented");
 }
 
 #ifdef PHP_ASYNC_TRACK_HANDLES
@@ -56,7 +55,7 @@ void async_ev_add_handle(async_ev_handle_t *handle)
 
 static void async_ev_handle_method_no(async_ev_handle_t *handle)
 {
-	async_throw_error("Event Loop API method ev_handle_method not implemented");
+	async_throw_error("Reactor API method ev_handle_method not implemented");
 }
 
 ZEND_API zend_bool async_ev_is_enabled(void)
@@ -66,67 +65,67 @@ ZEND_API zend_bool async_ev_is_enabled(void)
 
 static async_ev_handle_t* async_ev_handle_from_resource(zend_resource *resource, zend_ulong actions)
 {
-	async_throw_error("Event Loop API method ev_handle_from_resource not implemented");
+	async_throw_error("Reactor API method ev_handle_from_resource not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_file_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_file_new not implemented");
+	async_throw_error("Reactor API method ev_file_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_socket_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_socket_new not implemented");
+	async_throw_error("Reactor API method ev_socket_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_timeout_new(zend_ulong timeout)
 {
-	async_throw_error("Event Loop API method ev_timeout_new not implemented");
+	async_throw_error("Reactor API method ev_timeout_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_signal_new(zend_long sig_number)
 {
-	async_throw_error("Event Loop API method ev_signal_new not implemented");
+	async_throw_error("Reactor API method ev_signal_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_pipe_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_pipe_new not implemented");
+	async_throw_error("Reactor API method ev_pipe_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_tty_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_tty_new not implemented");
+	async_throw_error("Reactor API method ev_tty_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_file_system_new(zend_ulong fd, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_file_system_new not implemented");
+	async_throw_error("Reactor API method ev_file_system_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_process_new(zend_ulong pid, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_process_new not implemented");
+	async_throw_error("Reactor API method ev_process_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_thread_new(zend_ulong tread_id, zend_ulong events)
 {
-	async_throw_error("Event Loop API method ev_thread_new not implemented");
+	async_throw_error("Reactor API method ev_thread_new not implemented");
 	return NULL;
 }
 
 static async_ev_handle_t* async_ev_idle_new(void)
 {
-	async_throw_error("Event Loop API method ev_idle_new not implemented");
+	async_throw_error("Reactor API method ev_idle_new not implemented");
 	return NULL;
 }
 

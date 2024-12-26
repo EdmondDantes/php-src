@@ -349,6 +349,11 @@ zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer)
   	return buffer->head == buffer->tail;
 }
 
+zend_bool circular_buffer_is_not_empty(const circular_buffer_t *buffer)
+{
+	return buffer->head != buffer->tail;
+}
+
 /**
  * Check if the circular buffer is full.
  */

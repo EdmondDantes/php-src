@@ -224,7 +224,7 @@ static void handle_callbacks(void)
 	async_throw_error("Event Loop API method handle_callbacks not implemented");
 }
 
-static void resume_next_fiber(void)
+static void execute_next_fiber(void)
 {
 	if (circular_buffer_is_empty(&ASYNC_G(pending_fibers))) {
         return;
@@ -317,8 +317,8 @@ static zend_bool check_deadlocks(void)
  */
 static  async_callbacks_handler_t execute_callbacks_fn = NULL;
 static  async_microtasks_handler_t execute_microtasks_fn = execute_microtasks;
-static  async_next_fiber_handler_t resume_next_fiber_fn = resume_next_fiber;
-static  async_fiber_exception_handler_t fiber_exception_fn = NULL;
+static  async_next_fiber_handler_t execute_next_fiber_fn = execute_next_fiber;
+static  async_exception_handler_t handle_exception_fn = NULL;
 
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(const async_callbacks_handler_t handler)
 {
@@ -329,8 +329,8 @@ ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(const a
 
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_next_fiber_handler_t handler)
 {
-	const async_next_fiber_handler_t prev = resume_next_fiber_fn;
-	resume_next_fiber_fn = handler ? handler : resume_next_fiber;
+	const async_next_fiber_handler_t prev = execute_next_fiber_fn;
+	execute_next_fiber_fn = handler ? handler : execute_next_fiber;
 	return prev;
 }
 
@@ -341,12 +341,20 @@ ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(const
 	return prev;
 }
 
-ZEND_API async_fiber_exception_handler_t async_scheduler_set_exception_handler(const async_fiber_exception_handler_t handler)
+ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const async_exception_handler_t handler)
 {
-    const async_fiber_exception_handler_t prev = fiber_exception_fn;
-    fiber_exception_fn = handler;
+    const async_exception_handler_t prev = handle_exception_fn;
+    handle_exception_fn = handler;
     return prev;
 }
+
+#define TRY_HANDLE_EXCEPTION() \
+	if (EG(exception) != NULL && handle_exception_fn != NULL) { \
+		handle_exception_fn(); \
+	} \
+	if (EG(exception) != NULL) { \
+		break; \
+	}
 
 /**
  * The main loop of the scheduler.
@@ -369,34 +377,18 @@ void async_scheduler_run(void)
 			ASYNC_G(is_scheduler_running) = true;
 
 			execute_microtasks_fn();
+			TRY_HANDLE_EXCEPTION();
 
-			if (EG(exception) != NULL) {
-				break;
-			}
-
-			has_handles = execute_callbacks_fn();
-
-			if (EG(exception) != NULL) {
-				break;
-			}
+			has_handles = execute_callbacks_fn(circular_buffer_is_not_empty(&ASYNC_G(pending_fibers)));
+			TRY_HANDLE_EXCEPTION();
 
 			execute_microtasks_fn();
-
-			if (EG(exception) != NULL) {
-				break;
-			}
+			TRY_HANDLE_EXCEPTION();
 
 			ASYNC_G(is_scheduler_running) = false;
 
-			resume_next_fiber_fn();
-
-			if (EG(exception) != NULL && fiber_exception_fn != NULL) {
-                fiber_exception_fn();
-            }
-
-			if (EG(exception) != NULL) {
-                break;
-            }
+			execute_next_fiber_fn();
+			TRY_HANDLE_EXCEPTION();
 
 			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(pending_fibers)) && check_deadlocks()) {
 				break;

@@ -13,10 +13,10 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "libuv_event_loop.h"
+#include "libuv_reactor.h"
 
 #include <zend_exceptions.h>
-#include <async/event_loop.h>
+#include <async/reactor.h>
 
 #include "../async.h"
 #include "../scheduler.h"
@@ -210,9 +210,9 @@ static void check_cb(uv_check_t *handle)
 	}
 }
 
-static zend_bool run_callbacks(void)
+static zend_bool execute_callbacks(const zend_bool no_wait)
 {
-	return uv_run(UVLOOP, UV_RUN_ONCE);
+	return uv_run(UVLOOP, no_wait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
 }
 
 static void libuv_loop_stop(void)
@@ -286,7 +286,7 @@ static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_ha
 static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
-	async_scheduler_set_callbacks_handler(run_callbacks);
+	async_scheduler_set_callbacks_handler(execute_callbacks);
 
 	prev_async_ev_startup_fn = async_ev_startup_fn;
 	async_ev_startup_fn = NULL;
