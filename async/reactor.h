@@ -156,4 +156,6 @@ ZEND_API reactor_file_system_new_t reactor_file_system_new_fn;
 ZEND_API reactor_process_new_t reactor_process_new_fn;
 ZEND_API reactor_thread_new_t reactor_thread_new_fn;
 
+ZEND_API reactor_get_os_handle();
+
 #endif //EVENT_LOOP_H

@@ -95,13 +95,24 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	// TODO: handle error
 }
 
+static void libuv_poll_ctor(reactor_handle_t *handle)
+{
+	libuv_poll_t *poll = (libuv_poll_t *)handle;
+
+	int error = uv_poll_init(poll->uv_handle.loop, poll->uv_handle, fd);
+
+	if (error < 0) {
+        async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(error));
+    }
+}
+
 static void libuv_poll_dtor(reactor_handle_t *handle)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
 	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
 }
 
-libuv_poll_t *libuv_poll_ctor()
+libuv_poll_t *libuv_poll_new()
 {
 	libuv_poll_t *poll = pecalloc(1, sizeof(libuv_poll_t), 1);
 	poll->handle.dtor = libuv_poll_dtor;
@@ -112,7 +123,7 @@ libuv_poll_t *libuv_poll_ctor()
 
 static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
 {
-	libuv_poll_t *poll_handle = libuv_poll_ctor();
+	libuv_poll_t *poll_handle = libuv_poll_new();
 
 	if (poll_handle == NULL) {
 		return NULL;
@@ -287,36 +298,50 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_SOCKET;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_file) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_FILE;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_pipe) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_PIPE;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_tty) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_TTY;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_timer) {
 
 		object = zend_object_alloc(sizeof(libuv_timer_t), class_entry);
 		object->handle.type = REACTOR_H_TIMER;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_signal) {
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_SIGNAL;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_process) {
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_PROCESS;
+		object->handle.ctor = libuv_poll_ctor;
+		object->handle.dtor = libuv_poll_dtor;
 
 	} else if (class_entry == async_ce_thread) {
 
@@ -331,6 +356,10 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 	} else {
 		return reactor_default_object_create(class_entry);
 	}
+
+	// Link the uv handle to the PHP object.
+	object->uv_handle.data = object;
+	object->uv_handle.loop = UVLOOP;
 
 	zend_object_std_init(&object->handle.std, class_entry);
 	object_properties_init(&object->handle.std, class_entry);

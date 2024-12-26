@@ -30,14 +30,12 @@ typedef enum {
 	REACTOR_H_FILE_SYSTEM = 7,
 	REACTOR_H_PROCESS = 8,
 	REACTOR_H_THREAD = 9,
-	REACTOR_H_GET_ADDR_INFO = 100,
-	REACTOR_H_GET_NAME_INFO = 101,
 	REACTOR_H_CUSTOM = 128
 } REACTOR_HANDLE_TYPE;
 
 typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
-typedef void (*reactor_handle_method)(reactor_handle_t *notifier);
+typedef void (*reactor_handle_method)(reactor_handle_t *handle);
 
 struct _reactor_handle_s {
 	/* PHP std object Async\Notifier */
@@ -46,6 +44,10 @@ struct _reactor_handle_s {
 	 * The type of handler that is hidden behind the Notify object.
 	 */
 	REACTOR_HANDLE_TYPE type;
+	/**
+	 * The method is called immediately after the constructor to complete the initialization of internal data structures.
+	 */
+	reactor_handle_method ctor;
 	/**
 	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
 	 */
