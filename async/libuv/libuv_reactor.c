@@ -268,42 +268,114 @@ static size_t async_ex_globals_handler(const async_globals_t* async_globals, siz
 	return 0;
 }
 
+static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
+{
+	// This is function call from zend_API.c
+	// ZEND_API zend_result object_and_properties_init(zval *arg, zend_class_entry *class_type, HashTable *properties)
+	// => _object_and_properties_init
+	//
+	// This function is responsible for:
+	// * Allocating memory
+	// * Initializing properties
+	//
+	// It is inherited by all child objects. Therefore, you must take this into account!
+	//
+
+	libuv_handle_t *object;
+
+	if (class_entry == async_ce_socket) {
+
+		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
+		object->handle.type = REACTOR_H_SOCKET;
+
+	} else if (class_entry == async_ce_file) {
+
+		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
+		object->handle.type = REACTOR_H_FILE;
+
+	} else if (class_entry == async_ce_pipe) {
+
+		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
+		object->handle.type = REACTOR_H_PIPE;
+
+	} else if (class_entry == async_ce_tty) {
+
+		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
+		object->handle.type = REACTOR_H_TTY;
+
+	} else if (class_entry == async_ce_timer) {
+
+		object = zend_object_alloc(sizeof(libuv_timer_t), class_entry);
+		object->handle.type = REACTOR_H_TIMER;
+
+	} else if (class_entry == async_ce_signal) {
+
+		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
+		object->handle.type = REACTOR_H_SIGNAL;
+
+	} else if (class_entry == async_ce_process) {
+
+		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
+		object->handle.type = REACTOR_H_PROCESS;
+
+	} else if (class_entry == async_ce_thread) {
+
+		object = zend_object_alloc(sizeof(libuv_thread_cb_t), class_entry);
+		object->handle.type = REACTOR_H_THREAD;
+
+	} else if (class_entry == async_ce_file_system) {
+
+		object = zend_object_alloc(sizeof(libuv_fs_event_t), class_entry);
+		object->handle.type = REACTOR_H_FILE_SYSTEM;
+
+	} else {
+		return reactor_default_object_create(class_entry);
+	}
+
+	zend_object_std_init(&object->handle.std, class_entry);
+	object_properties_init(&object->handle.std, class_entry);
+
+	return &object->handle;
+}
+
 /**
  * Previous handlers.
  */
-static reactor_startup_t prev_async_ev_startup_fn = NULL;
-static reactor_shutdown_t prev_async_ev_shutdown_fn = NULL;
+static reactor_startup_t prev_reactor_startup_fn = NULL;
+static reactor_shutdown_t prev_reactor_shutdown_fn = NULL;
 
-static reactor_handle_method_t prev_async_ev_add_handle_ex_fn = NULL;
-static reactor_handle_method_t prev_async_ev_remove_handle_fn = NULL;
+static reactor_object_create_t prev_reactor_object_create_fn = NULL;
 
-static reactor_stop_t prev_async_ev_loop_stop_fn = NULL;
-static reactor_loop_alive_t prev_async_ev_loop_alive_fn = NULL;
+static reactor_handle_method_t prev_reactor_add_handle_ex_fn = NULL;
+static reactor_handle_method_t prev_reactor_remove_handle_fn = NULL;
 
-static async_ev_loop_set_microtask_handler prev_async_ev_loop_set_microtask_handler_fn = NULL;
-static async_ev_loop_set_next_fiber_handler prev_async_ev_loop_set_next_fiber_handler_fn = NULL;
+static reactor_stop_t prev_reactor_loop_stop_fn = NULL;
+static reactor_loop_alive_t prev_reactor_loop_alive_fn = NULL;
 
 static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
 	async_scheduler_set_callbacks_handler(execute_callbacks);
 
-	prev_async_ev_startup_fn = reactor_startup_fn;
+	prev_reactor_startup_fn = reactor_startup_fn;
 	reactor_startup_fn = NULL;
 
-	prev_async_ev_shutdown_fn = reactor_shutdown_fn;
+	prev_reactor_shutdown_fn = reactor_shutdown_fn;
 	reactor_shutdown_fn = NULL;
 
-	prev_async_ev_add_handle_ex_fn = reactor_add_handle_ex_fn;
+	prev_reactor_object_create_fn = reactor_object_create_fn;
+	reactor_object_create_fn = libuv_object_create;
+
+	prev_reactor_add_handle_ex_fn = reactor_add_handle_ex_fn;
 	reactor_add_handle_ex_fn = NULL;
 
-	prev_async_ev_remove_handle_fn = reactor_remove_handle_fn;
+	prev_reactor_remove_handle_fn = reactor_remove_handle_fn;
 	reactor_remove_handle_fn = NULL;
 
-	prev_async_ev_loop_stop_fn = reactor_stop_fn;
+	prev_reactor_loop_stop_fn = reactor_stop_fn;
 	reactor_stop_fn = libuv_loop_stop;
 
-	prev_async_ev_loop_alive_fn = reactor_loop_alive_fn;
+	prev_reactor_loop_alive_fn = reactor_loop_alive_fn;
 	reactor_loop_alive_fn = libuv_loop_alive;
 }
 
@@ -311,18 +383,16 @@ static void restore_handlers(void)
 {
 	async_set_ex_globals_handler(NULL);
 
-	reactor_startup_fn = prev_async_ev_startup_fn;
-	reactor_shutdown_fn = prev_async_ev_shutdown_fn;
+	reactor_startup_fn = prev_reactor_startup_fn;
+	reactor_shutdown_fn = prev_reactor_shutdown_fn;
 
-	reactor_add_handle_ex_fn = prev_async_ev_add_handle_ex_fn;
-	reactor_remove_handle_fn = prev_async_ev_remove_handle_fn;
+	reactor_object_create_fn = prev_reactor_object_create_fn;
 
-	async_ev_loop_start_fn = prev_async_ev_run_callbacks_fn;
-	reactor_stop_fn = prev_async_ev_loop_stop_fn;
-	reactor_loop_alive_fn = prev_async_ev_loop_alive_fn;
+	reactor_add_handle_ex_fn = prev_reactor_add_handle_ex_fn;
+	reactor_remove_handle_fn = prev_reactor_remove_handle_fn;
 
-	async_ev_loop_set_microtask_handler_fn = prev_async_ev_loop_set_microtask_handler_fn;
-	async_ev_loop_set_next_fiber_handler_fn = prev_async_ev_loop_set_next_fiber_handler_fn;
+	reactor_stop_fn = prev_reactor_loop_stop_fn;
+	reactor_loop_alive_fn = prev_reactor_loop_alive_fn;
 }
 
 void async_libuv_startup(void)

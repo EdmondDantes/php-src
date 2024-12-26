@@ -20,6 +20,21 @@
 #include "zend_types.h"
 #include "notifier.h"
 
+ZEND_API zend_class_entry *async_ce_fiber;
+
+ZEND_API zend_class_entry *async_ce_file;
+ZEND_API zend_class_entry *async_ce_socket;
+ZEND_API zend_class_entry *async_ce_pipe;
+ZEND_API zend_class_entry *async_ce_tty;
+
+ZEND_API zend_class_entry *async_ce_timer;
+
+ZEND_API zend_class_entry *async_ce_signal;
+ZEND_API zend_class_entry *async_ce_process;
+ZEND_API zend_class_entry *async_ce_thread;
+
+ZEND_API zend_class_entry *async_ce_file_system;
+
 reactor_handle_t* async_resource_to_handle(zend_resource *resource, zend_ulong actions);
 reactor_handle_t* async_timeout_new(zend_ulong timeout);
 reactor_handle_t* async_signal_new(zend_long sig_number);

@@ -20,6 +20,7 @@
 #include "notifier.h"
 #include "callback.h"
 #include "notifier_arginfo.h"
+#include "../reactor.h"
 
 #define METHOD(name) PHP_METHOD(Async_Notifier, name)
 #define PROPERTY_CALLBACKS "callbacks"
@@ -118,10 +119,30 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
+/* {{{ async_notifier_object_create */
+zend_object *async_notifier_object_create(zend_class_entry *class_entry)
+{
+	if (UNEXPECTED(reactor_object_create_fn == NULL)) {
+		reactor_notifier_t* object = zend_object_alloc(sizeof(reactor_notifier_t), class_entry);
+		zend_object_std_init(&object->std, class_entry);
+		object_properties_init(&object->std, class_entry);
+
+		object->type = REACTOR_H_UNKNOWN;
+		object->dtor = NULL;
+
+		return &object->std;
+	}
+
+    return (zend_object *) reactor_object_create_fn(class_entry);
+}
+/* }}} */
+
+
 void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_notifier->create_object = async_notifier_object_create;
 }
 
 /**

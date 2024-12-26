@@ -29,7 +29,22 @@ final class FiberHandle extends EvHandle
     public function cancelWith(\Throwable $error): void {}
 }
 
-final class InputOutputHandle extends EvHandle
+final class FileHandle extends EvHandle
+{
+    public function __construct(mixed $handle) {}
+}
+
+final class SocketHandle extends EvHandle
+{
+    public function __construct(mixed $handle) {}
+}
+
+final class PipeHandle extends EvHandle
+{
+    public function __construct(mixed $handle) {}
+}
+
+final class TtyHandle extends EvHandle
 {
     public function __construct(mixed $handle) {}
 }
