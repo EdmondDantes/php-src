@@ -123,14 +123,7 @@ METHOD(notify)
 zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
 	if (UNEXPECTED(reactor_object_create_fn == NULL)) {
-		reactor_notifier_t* object = zend_object_alloc(sizeof(reactor_notifier_t), class_entry);
-		zend_object_std_init(&object->std, class_entry);
-		object_properties_init(&object->std, class_entry);
-
-		object->type = REACTOR_H_UNKNOWN;
-		object->dtor = NULL;
-
-		return &object->std;
+		return (zend_object *) reactor_default_object_create(class_entry);
 	}
 
     return (zend_object *) reactor_object_create_fn(class_entry);

@@ -14,6 +14,9 @@
   +----------------------------------------------------------------------+
 */
 #include "ev_handles.h"
+
+#include <zend_fibers.h>
+
 #include "notifier.h"
 #include "../reactor.h"
 #include "ev_handles_arginfo.h"
@@ -26,9 +29,83 @@
 		} \
 		((reactor_handle_t*)Z_OBJ_P(ZEND_THIS))->ctor((reactor_handle_t*)Z_OBJ_P(ZEND_THIS), ##__VA_ARGS__);
 
+#define GET_FIBER_FROM_HANDLE() ((async_fiber_handle_t*)Z_OBJ_P(ZEND_THIS))->fiber
+#define RETURN_IF_FIBER_INTERNAL_ERROR(fiber) if (UNEXPECTED((fiber) == NULL)) { \
+		async_throw_error("Internal FiberHandle initialization error."); \
+		return; \
+	}
+
 PHP_METHOD(Async_FiberHandle, __construct)
 {
-	CALL_INTERNAL_CTOR();
+	async_throw_error("Fiber handles cannot be created directly");
+}
+
+PHP_METHOD(Async_FiberHandle, isStarted)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	// @see zend_fiber::isStarted
+	RETURN_BOOL(fiber->context.status == ZEND_FIBER_STATUS_RUNNING || fiber->caller != NULL);
+}
+
+PHP_METHOD(Async_FiberHandle, isSuspended)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	// @see zend_fiber::isSuspended
+	RETURN_BOOL(fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED && fiber->caller == NULL);
+}
+
+PHP_METHOD(Async_FiberHandle, isRunning)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	RETURN_BOOL(fiber->context.status == ZEND_FIBER_STATUS_RUNNING || fiber->caller != NULL);
+}
+
+PHP_METHOD(Async_FiberHandle, isTerminated)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	RETURN_BOOL(fiber->context.status == ZEND_FIBER_STATUS_DEAD);
+}
+
+PHP_METHOD(Async_FiberHandle, getContext)
+{
+	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	if (fiber->user_local_storage) {
+		RETURN_ARR(fiber->user_local_storage);
+	} else {
+		ALLOC_HASHTABLE(fiber->user_local_storage);
+		zend_hash_init(fiber->user_local_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
+		RETURN_ARR(fiber->user_local_storage);
+	}
+}
+
+PHP_METHOD(Async_FiberHandle, cancelWith)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	const zend_object *error;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+	Z_PARAM_OBJECT_OF_CLASS(error, zend_ce_throwable)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reactor_cancel_fiber(fiber, error);
 }
 
 PHP_METHOD(Async_EvHandle, __construct)
@@ -103,6 +180,20 @@ PHP_METHOD(Async_FileSystemHandle, __construct)
 	CALL_INTERNAL_CTOR(path, flags);
 }
 
+static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
+{
+	async_fiber_handle_t * object = zend_object_alloc(sizeof(async_fiber_handle_t), class_entry);
+	object->handle.type = REACTOR_H_FIBER;
+	object->handle.ctor = NULL;
+	object->handle.dtor = NULL;
+	object->fiber = NULL;
+
+	zend_object_std_init(&object->handle.std, class_entry);
+	object_properties_init(&object->handle.std, class_entry);
+
+	return &object->handle.std;
+}
+
 void async_register_handlers_ce(void)
 {
 	async_ce_ev_handle = register_class_Async_EvHandle(async_ce_notifier);
@@ -110,6 +201,7 @@ void async_register_handlers_ce(void)
 
 	async_ce_fiber_handle = register_class_Async_FiberHandle(async_ce_notifier);
 	async_ce_fiber_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_fiber_handle->create_object = async_fiber_object_create;
 
 	async_ce_file_handle = register_class_Async_FileHandle(async_ce_ev_handle);
 	async_ce_file_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;

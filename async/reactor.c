@@ -140,10 +140,8 @@ ZEND_API reactor_handle_t* reactor_default_object_create(zend_class_entry *class
 
 	reactor_handle_t * object = zend_object_alloc(sizeof(reactor_handle_t), class_entry);
 	object->type = REACTOR_H_UNKNOWN;
-
-	if (class_entry == async_ce_fiber_handle) {
-		object->type = REACTOR_H_CUSTOM;
-	}
+	object->ctor = NULL;
+	object->dtor = NULL;
 
 	zend_object_std_init(&object->std, class_entry);
 	object_properties_init(&object->std, class_entry);
