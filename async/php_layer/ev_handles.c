@@ -28,7 +28,7 @@
 
 PHP_METHOD(Async_FiberHandle, __construct)
 {
-	async_throw_error("Fiber handle cannot be created directly");
+	CALL_INTERNAL_CTOR();
 }
 
 PHP_METHOD(Async_EvHandle, __construct)
