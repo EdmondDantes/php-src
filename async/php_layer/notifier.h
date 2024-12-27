@@ -35,7 +35,7 @@ typedef enum {
 
 typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
-typedef void (*reactor_handle_method)(reactor_handle_t *handle);
+typedef void (*reactor_handle_method)(reactor_handle_t *handle, ...);
 
 struct _reactor_handle_s {
 	/* PHP std object Async\Notifier */

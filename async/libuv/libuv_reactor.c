@@ -295,63 +295,63 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 	libuv_handle_t *object;
 
-	if (class_entry == async_ce_socket) {
+	if (class_entry == async_ce_socket_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_SOCKET;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
 
-	} else if (class_entry == async_ce_file) {
+	} else if (class_entry == async_ce_file_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_FILE;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
 
-	} else if (class_entry == async_ce_pipe) {
+	} else if (class_entry == async_ce_pipe_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_PIPE;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
 
-	} else if (class_entry == async_ce_tty) {
+	} else if (class_entry == async_ce_tty_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
 		object->handle.type = REACTOR_H_TTY;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
 
-	} else if (class_entry == async_ce_timer) {
+	} else if (class_entry == async_ce_timer_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_timer_t), class_entry);
 		object->handle.type = REACTOR_H_TIMER;
 		object->handle.ctor = libuv_timer_ctor;
 		object->handle.dtor = libuv_timer_dtor;
 
-	} else if (class_entry == async_ce_signal) {
+	} else if (class_entry == async_ce_signal_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_SIGNAL;
 		object->handle.ctor = libuv_signal_ctor;
 		object->handle.dtor = libuv_signal_dtor;
 
-	} else if (class_entry == async_ce_process) {
+	} else if (class_entry == async_ce_process_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_PROCESS;
 		object->handle.ctor = libuv_process_ctor;
 		object->handle.dtor = libuv_process_dtor;
 
-	} else if (class_entry == async_ce_thread) {
+	} else if (class_entry == async_ce_thread_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_thread_cb_t), class_entry);
 		object->handle.type = REACTOR_H_THREAD;
 		object->handle.ctor = libuv_thread_ctor;
 		object->handle.dtor = libuv_thread_dtor;
 
-	} else if (class_entry == async_ce_file_system) {
+	} else if (class_entry == async_ce_file_system_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_fs_event_t), class_entry);
 		object->handle.type = REACTOR_H_FILE_SYSTEM;

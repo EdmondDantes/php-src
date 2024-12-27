@@ -4,14 +4,14 @@
 
 namespace Async;
 
-abstract class EvHandle implements Notifier
+abstract class EvHandle extends Notifier
 {
     public const int READABLE = 1;
     public const int WRITABLE = 2;
     public const int DISCONNECT = 4;
     public const int PRIORITY = 8;
 
-    public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
+    final public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
 }
 
 /**
@@ -19,6 +19,8 @@ abstract class EvHandle implements Notifier
  */
 final class FiberHandle extends Notifier
 {
+    public function __construct() {}
+
     public function isStarted(): bool {}
 
     public function isSuspended(): bool {}

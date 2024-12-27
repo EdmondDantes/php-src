@@ -1,9 +1,12 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: ca9e4142f4adf04492e2788514e91bb4b52bbd70 */
+ * Stub hash: e5d709003b21ca12c44334dfdf19e3066edb3915 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FiberHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_isStarted, 0, 0, _IS_BOOL, 0)
@@ -44,6 +47,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FileSystemHandle___construct, 0, 0, 2
 ZEND_END_ARG_INFO()
 
 ZEND_METHOD(Async_EvHandle, __construct);
+ZEND_METHOD(Async_FiberHandle, __construct);
 ZEND_METHOD(Async_FiberHandle, isStarted);
 ZEND_METHOD(Async_FiberHandle, isSuspended);
 ZEND_METHOD(Async_FiberHandle, isRunning);
@@ -57,11 +61,12 @@ ZEND_METHOD(Async_ProcessHandle, __construct);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
 
 static const zend_function_entry class_Async_EvHandle_methods[] = {
-	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
 static const zend_function_entry class_Async_FiberHandle_methods[] = {
+	ZEND_ME(Async_FiberHandle, __construct, arginfo_class_Async_FiberHandle___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, isStarted, arginfo_class_Async_FiberHandle_isStarted, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, isSuspended, arginfo_class_Async_FiberHandle_isSuspended, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, isRunning, arginfo_class_Async_FiberHandle_isRunning, ZEND_ACC_PUBLIC)
@@ -101,8 +106,7 @@ static zend_class_entry *register_class_Async_EvHandle(zend_class_entry *class_e
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "EvHandle", class_Async_EvHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_ABSTRACT);
-	zend_class_implements(class_entry, 1, class_entry_Async_Notifier);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_ABSTRACT);
 
 	zval const_READABLE_value;
 	ZVAL_LONG(&const_READABLE_value, 1);
