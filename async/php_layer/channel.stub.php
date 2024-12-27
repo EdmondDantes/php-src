@@ -15,11 +15,12 @@ class Channel
 {
     public function __construct(int $capacity = 8, bool $expandable = false) {}
 
-    public function send(mixed $data, int $timeout = 0, Notifier $cancellation = null, bool $waitOnFull = true): void {}
+    public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true):
+    void {}
 
     public function sendAsync(mixed $data): void {}
 
-    public function receive(int $timeout = 0, Notifier $cancellation = null): mixed {}
+    public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed {}
 
     public function receiveAsync(): mixed {}
 

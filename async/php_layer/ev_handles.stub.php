@@ -6,10 +6,10 @@ namespace Async;
 
 abstract class EvHandle implements Notifier
 {
-    const READABLE = 1;
-    const WRITABLE = 2;
-    const DISCONNECT = 4;
-    const PRIORITY = 8;
+    public const int READABLE = 1;
+    public const int WRITABLE = 2;
+    public const int DISCONNECT = 4;
+    public const int PRIORITY = 8;
 
     public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
 }
@@ -73,12 +73,12 @@ final class ProcessHandle extends Notifier
 
 final class FileSystemHandle extends Notifier
 {
-    const EVENT_RENAME = 1;
-    const EVENT_CHANGE = 2;
+    public const int EVENT_RENAME = 1;
+    public const int EVENT_CHANGE = 2;
 
-    const FLAG_NONE = 0;
-    const WATCH_ENTRY = 1;
-    const WATCH_RECURSIVE = 4;
+    public const int FLAG_NONE = 0;
+    public const int WATCH_ENTRY = 1;
+    public const int WATCH_RECURSIVE = 4;
 
     public function __construct(string $filename, int $flags) {}
 }
