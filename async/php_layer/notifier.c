@@ -137,12 +137,27 @@ zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 }
 /* }}} */
 
+static void async_notifier_object_destroy(zend_object *object)
+{
+	reactor_handle_t* handle = (reactor_handle_t *) object;
+
+	if (handle->dtor != NULL) {
+		handle->dtor(handle);
+	}
+}
 
 void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_notifier->create_object = async_notifier_object_create;
+
+	async_ce_notifier->default_object_handlers = &async_notifier_handlers;
+
+	async_notifier_handlers = std_object_handlers;
+	async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
+	//async_notifier_handlers.free_obj = async_notifier_object_free;
+	async_notifier_handlers.clone_obj = NULL;
 }
 
 /**

@@ -6,6 +6,12 @@ namespace Async;
 
 abstract class EvHandle implements Notifier
 {
+    const READABLE = 1;
+    const WRITABLE = 2;
+    const DISCONNECT = 4;
+    const PRIORITY = 8;
+
+    public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
 }
 
 /**
@@ -31,45 +37,48 @@ final class FiberHandle extends EvHandle
 
 final class FileHandle extends EvHandle
 {
-    public function __construct(mixed $handle) {}
 }
 
 final class SocketHandle extends EvHandle
 {
-    public function __construct(mixed $handle) {}
 }
 
 final class PipeHandle extends EvHandle
 {
-    public function __construct(mixed $handle) {}
 }
 
 final class TtyHandle extends EvHandle
 {
-    public function __construct(mixed $handle) {}
 }
 
-final class TimerHandle extends EvHandle
+final class TimerHandle extends Notifier
 {
     public function __construct(int $microseconds) {}
 }
 
-final class SignalHandle extends EvHandle
+final class SignalHandle extends Notifier
 {
     public function __construct(int $sigNumber) {}
 }
 
-final class ThreadHandle extends EvHandle
+final class ThreadHandle extends Notifier
 {
     public function __construct(int $threadId) {}
 }
 
-final class ProcessHandle extends EvHandle
+final class ProcessHandle extends Notifier
 {
     public function __construct(int $processId) {}
 }
 
-final class FileSystemHandle extends EvHandle
+final class FileSystemHandle extends Notifier
 {
-    public function __construct(int $processId) {}
+    const EVENT_RENAME = 1;
+    const EVENT_CHANGE = 2;
+
+    const FLAG_NONE = 0;
+    const WATCH_ENTRY = 1;
+    const WATCH_RECURSIVE = 4;
+
+    public function __construct(string $filename, int $flags) {}
 }
