@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 71d8832a8070a7a411c6e15dfe664909514ab5e2 */
+ * Stub hash: ca9e4142f4adf04492e2788514e91bb4b52bbd70 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
@@ -131,12 +131,12 @@ static zend_class_entry *register_class_Async_EvHandle(zend_class_entry *class_e
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_FiberHandle(zend_class_entry *class_entry_Async_EvHandle)
+static zend_class_entry *register_class_Async_FiberHandle(zend_class_entry *class_entry_Async_Notifier)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FiberHandle", class_Async_FiberHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
 
 	return class_entry;
 }

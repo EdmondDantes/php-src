@@ -17,7 +17,7 @@ abstract class EvHandle implements Notifier
 /**
  * An interface for representing Fiber as Event Handle.
  */
-final class FiberHandle extends EvHandle
+final class FiberHandle extends Notifier
 {
     public function isStarted(): bool {}
 
