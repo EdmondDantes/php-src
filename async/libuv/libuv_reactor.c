@@ -17,6 +17,7 @@
 
 #include <zend_exceptions.h>
 #include <async/reactor.h>
+#include <async/php_layer/zend_common.h>
 #include <ext/spl/spl_exceptions.h>
 
 #include "../async.h"
@@ -102,8 +103,8 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 
 	va_list args;
 	va_start(args, handle);
-	zval *raw_handle = va_arg(args, zval *);
-	zend_long actions = va_arg(args, zend_long);
+	const zval *raw_handle = va_arg(args, zval *);
+	const zend_long actions = va_arg(args, zend_long);
 	va_end(args);
 
 	if (raw_handle == NULL) {
@@ -116,20 +117,53 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
 	}
 
-	if (Z_TYPE_P(raw_handle) == IS_RESOURCE) {
+	php_socket_t socket = 0;
+	php_file_descriptor_t file;
 
+	if (Z_TYPE_P(raw_handle) == IS_RESOURCE) {
+		async_resource_to_fd(Z_RES_P(raw_handle), &socket, &file);
+		IF_THROW_RETURN_VOID;
+	} else if (Z_TYPE_P(raw_handle) == IS_OBJECT) {
+		socket = async_try_extract_socket_object(Z_OBJ_P(raw_handle));
+	} else {
+        zend_throw_exception(
+        	spl_ce_InvalidArgumentException,
+        	"Invalid poll handle. The handle must be a socket or I/O resource.",
+        	0
+        	);
+
+        return;
 	}
 
-	int error = uv_poll_init(poll->uv_handle.loop, poll->uv_handle, fd);
+	if (UNEXPECTED(poll->handle.type == REACTOR_H_SOCKET && socket == 0)) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "Invalid resource for socket descriptor", 0);
+		return;
+    }
+
+	int error = uv_poll_init(poll->uv_handle.loop, &poll->uv_handle, socket ? socket : file);
 
 	if (error < 0) {
         async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(error));
+		return;
+    }
+
+	error = uv_poll_start(&poll->uv_handle, libuv_events_from_php(actions), on_poll_event);
+
+	if (error < 0) {
+        async_throw_poll("Failed to start poll handle: %s", uv_strerror(error));
     }
 }
 
 static void libuv_poll_dtor(reactor_handle_t *handle)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
+
+	const int error = uv_poll_stop(&poll->uv_handle);
+
+	if (error < 0) {
+		zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
+    }
+
 	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
 }
 

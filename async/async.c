@@ -92,7 +92,7 @@ void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, p
 	}
 }
 
-zend_long async_try_extract_socket_object(zend_object * object)
+php_socket_t async_try_extract_socket_object(zend_object * object)
 {
 #ifndef PHP_SOCKETS
 	return 0;
@@ -103,7 +103,7 @@ zend_long async_try_extract_socket_object(zend_object * object)
 	}
 
 	php_socket *socket = socket_from_obj(object);
-	return socket->bsd_socket;
+	return (php_socket_t) socket->bsd_socket;
 }
 
 /**
