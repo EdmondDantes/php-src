@@ -13,7 +13,7 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "reactor.h"
+#include "php_reactor.h"
 #include "php_layer/exceptions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"

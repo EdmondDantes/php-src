@@ -13,13 +13,13 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef LIBUV_EVENT_LOOP_H
-#define LIBUV_EVENT_LOOP_H
+#ifndef ASYNC_LIBUV_REACTOR_H
+#define ASYNC_LIBUV_REACTOR_H
 
 #include "php.h"
 #include "zend_types.h"
 #include "uv.h"
-#include "../async.h"
+#include "../php_async.h"
 #include "../php_layer/notifier.h"
 #include "../php_layer/ev_handles.h"
 
@@ -61,4 +61,4 @@ struct _libuv_thread_cb_s {
 };
 
 
-#endif //LIBUV_EVENT_LOOP_H
+#endif //ASYNC_LIBUV_REACTOR_H

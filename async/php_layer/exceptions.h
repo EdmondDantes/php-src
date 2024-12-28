@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef EXCEPTIONS_H
-#define EXCEPTIONS_H
+#ifndef ASYNC_EXCEPTIONS_H
+#define ASYNC_EXCEPTIONS_H
 
 #include <php.h>
 
@@ -31,4 +31,4 @@ ZEND_API ZEND_COLD zend_object * async_throw_input_output(char *format, ...);
 ZEND_API ZEND_COLD zend_object * async_throw_timeout(char *format, ...);
 ZEND_API ZEND_COLD zend_object * async_throw_poll(char *format, ...);
 
-#endif //EXCEPTIONS_H
+#endif //ASYNC_EXCEPTIONS_H

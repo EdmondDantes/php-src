@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef RESUME_H
-#define RESUME_H
+#ifndef ASYNC_RESUME_H
+#define ASYNC_RESUME_H
 
 #include "notifier.h"
 
@@ -50,4 +50,4 @@ void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, asy
 void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier);
 void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier);
 
-#endif //RESUME_H
+#endif //ASYNC_RESUME_H

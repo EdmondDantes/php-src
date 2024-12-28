@@ -16,10 +16,10 @@
 #ifndef PHP_ASYNC_H
 #define PHP_ASYNC_H
 
-#include "php.h"
+#include <php.h>
 #include <php_network.h>
 #include <ext/standard/proc_open.h>
-#include "scheduler.h"
+#include "php_scheduler.h"
 #include "internal/circular_buffer.h"
 #include "php_layer/resume.h"
 
@@ -82,10 +82,13 @@ ZEND_API async_globals_t* async_globals;
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
 #define IS_ASYNC_OFF (ASYNC_G(is_async) == false)
 
+#define IS_ASYNC_ALLOWED EG(active_fiber) == NULL && IS_ASYNC_ON
+
 void async_module_startup(void);
 void async_module_shutdown(void);
 ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
+int async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout);
 
 /**
  * Finds the state of a given fiber.

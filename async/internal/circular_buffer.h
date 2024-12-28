@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef CIRCULAR_BUFFER_H
-#define CIRCULAR_BUFFER_H
+#ifndef ASYNC_CIRCULAR_BUFFER_H
+#define ASYNC_CIRCULAR_BUFFER_H
 
 #include "php.h"
 #include "allocator.h"
@@ -72,4 +72,4 @@ circular_buffer_t *zval_circular_buffer_new(const size_t count, const allocator_
 zend_result zval_circular_buffer_push(circular_buffer_t *buffer, zval *value, bool should_resize);
 zend_result zval_circular_buffer_pop(circular_buffer_t *buffer, zval *value);
 
-#endif //CIRCULAR_BUFFER_H
+#endif //ASYNC_CIRCULAR_BUFFER_H

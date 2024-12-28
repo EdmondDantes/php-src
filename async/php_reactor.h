@@ -13,12 +13,12 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef EVENT_LOOP_H
-#define EVENT_LOOP_H
+#ifndef PHP_REACTOR_H
+#define PHP_REACTOR_H
 
 #include <php.h>
-#include "async.h"
-#include "scheduler.h"
+#include "php_async.h"
+#include "php_scheduler.h"
 #include <Zend/zend_types.h>
 #include "php_layer/ev_handles.h"
 
@@ -158,4 +158,4 @@ ZEND_API reactor_thread_new_t reactor_thread_new_fn;
 
 ZEND_API reactor_get_os_handle();
 
-#endif //EVENT_LOOP_H
+#endif //PHP_REACTOR_H

@@ -1204,6 +1204,12 @@ PHPAPI void _php_emit_fd_setsize_warning(int max_fd)
 
 PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
 {
+#ifdef PHP_ASYNC
+	if (UNEXPECTED(IS_ASYNC_ALLOWED)) {
+		return async_poll2(ufds, nfds, timeout);
+	}
+#endif
+
 	fd_set rset, wset, eset;
 	php_socket_t max_fd = SOCK_ERR; /* effectively unused on Windows */
 	unsigned int i;

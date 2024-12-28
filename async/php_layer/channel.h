@@ -13,7 +13,7 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef CHANNEL_H
-#define CHANNEL_H
+#ifndef ASYNC_CHANNEL_H
+#define ASYNC_CHANNEL_H
 
-#endif //CHANNEL_H
+#endif //ASYNC_CHANNEL_H

@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef ZEND_COMMON_H
-#define ZEND_COMMON_H
+#ifndef ASYNC_ZEND_COMMON_H
+#define ASYNC_ZEND_COMMON_H
 
 #include "php.h"
 #include "zend_exceptions.h"
@@ -70,4 +70,4 @@ zval* async_new_weak_reference_from(const zval* referent);
  */
 void async_resolve_weak_reference(zval* weak_reference, zval* retval);
 
-#endif //ZEND_COMMON_H
+#endif //ASYNC_ZEND_COMMON_H

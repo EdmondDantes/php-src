@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef HANDLES_H
-#define HANDLES_H
+#ifndef EV_HANDLES_H
+#define EV_HANDLES_H
 
 #include "php.h"
 #include "zend_types.h"
@@ -50,4 +50,4 @@ ZEND_API zend_class_entry *async_ce_file_system_handle;
  */
 void async_register_handlers_ce(void);
 
-#endif //HANDLES_H
+#endif //EV_HANDLES_H

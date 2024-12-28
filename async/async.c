@@ -379,3 +379,8 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 	// Release the reference to the resume object.
 	GC_DELREF(&resume->std);
 }
+
+int async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+{
+
+}

@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef ALLOCATOR_H
-#define ALLOCATOR_H
+#ifndef ASYNC_ALLOCATOR_H
+#define ASYNC_ALLOCATOR_H
 
 #include "php.h"
 
@@ -30,4 +30,4 @@ struct _allocator_s {
 allocator_t zend_std_allocator;
 allocator_t zend_std_persistent_allocator;
 
-#endif //ALLOCATOR_H
+#endif //ASYNC_ALLOCATOR_H

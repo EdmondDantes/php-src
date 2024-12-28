@@ -13,14 +13,14 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef SCHEDULER_H
-#define SCHEDULER_H
+#ifndef PHP_SCHEDULER_H
+#define PHP_SCHEDULER_H
 
 #include "php.h"
 #include "zend_exceptions.h"
 #include "zend_smart_str.h"
 #include "zend_interfaces.h"
-#include "async.h"
+#include "php_async.h"
 
 /**
  * async_run_callbacks_handler_t - Function pointer type for running pending IO-callbacks/timer-callbacks.
@@ -74,4 +74,4 @@ ZEND_API async_ex_globals_fn async_set_ex_globals_handler(async_ex_globals_fn ha
 zend_result async_scheduler_add_handle(const zend_object *handle);
 
 
-#endif //SCHEDULER_H
+#endif //PHP_SCHEDULER_H

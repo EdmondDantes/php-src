@@ -13,13 +13,11 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "scheduler.h"
-
 #include <Zend/zend_fibers.h>
-
+#include "php_scheduler.h"
+#include "php_async.h"
+#include "php_reactor.h"
 #include "internal/zval_circular_buffer.h"
-#include "async.h"
-#include "reactor.h"
 #include "php_layer/exceptions.h"
 
 //
@@ -133,7 +131,7 @@ static void execute_next_fiber(void)
 	ZVAL_UNDEF(&retval);
 
 	if (resume->status == ASYNC_RESUME_SUCCESS) {
-		zend_fiber_resume(resume->fiber, resume->value, &retval);
+		zend_fiber_resume(resume->fiber, resume->result, &retval);
 	} else {
 		zend_fiber_resume_exception(resume->fiber, resume->error, &retval);
 	}

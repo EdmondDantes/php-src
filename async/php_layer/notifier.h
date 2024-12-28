@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef NOTIFIER_H
-#define NOTIFIER_H
+#ifndef ASYNC_NOTIFIER_H
+#define ASYNC_NOTIFIER_H
 
 ZEND_API zend_class_entry *async_ce_notifier;
 
@@ -60,4 +60,4 @@ void async_notifier_add_callback(zend_object* notifier, const zval* callback);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
 void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error);
 
-#endif //NOTIFIER_H
+#endif //ASYNC_NOTIFIER_H
