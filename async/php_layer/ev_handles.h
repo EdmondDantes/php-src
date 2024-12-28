@@ -44,6 +44,10 @@ ZEND_API zend_class_entry *async_ce_thread_handle;
 
 ZEND_API zend_class_entry *async_ce_file_system_handle;
 
+/**
+ * The method registers all classes in the Handles group,
+ * which are responsible for creating handler objects that can be added to the reactor event loop.
+ */
 void async_register_handlers_ce(void);
 
 #endif //HANDLES_H

@@ -119,16 +119,16 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
-/* {{{ async_notifier_object_create */
+/**
+ * The method creates a notifier object marked as CUSTOM.
+ */
 zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
-	if (UNEXPECTED(reactor_object_create_fn == NULL)) {
-		return (zend_object *) reactor_default_object_create(class_entry);
-	}
+	reactor_handle_t * object = reactor_default_object_create(class_entry);
+	object->type = REACTOR_H_CUSTOM;
 
-    return (zend_object *) reactor_object_create_fn(class_entry);
+	return &object->std;
 }
-/* }}} */
 
 static void async_notifier_object_destroy(zend_object *object)
 {
