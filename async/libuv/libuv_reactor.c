@@ -29,6 +29,11 @@
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
 
+static void libuv_close_cb(uv_handle_t *handle)
+{
+	pefree(handle, 1);
+}
+
 static zend_always_inline int libuv_events_from_php(const zend_long events)
 {
 	int internal_events = 0;
@@ -140,14 +145,14 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
     }
 
-	int error = uv_poll_init(poll->uv_handle.loop, &poll->uv_handle, socket ? socket : file);
+	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, socket ? socket : file);
 
 	if (error < 0) {
         async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(error));
 		return;
     }
 
-	error = uv_poll_start(&poll->uv_handle, libuv_events_from_php(actions), on_poll_event);
+	error = uv_poll_start(poll->uv_handle, libuv_events_from_php(actions), on_poll_event);
 
 	if (error < 0) {
         async_throw_poll("Failed to start poll handle: %s", uv_strerror(error));
@@ -158,13 +163,13 @@ static void libuv_poll_dtor(reactor_handle_t *handle)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
 
-	const int error = uv_poll_stop(&poll->uv_handle);
+	const int error = uv_poll_stop(poll->uv_handle);
 
 	if (error < 0) {
 		zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
     }
 
-	uv_close((uv_handle_t *)&poll->uv_handle, NULL);
+	uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
 }
 
 libuv_poll_t *libuv_poll_new()
@@ -172,7 +177,7 @@ libuv_poll_t *libuv_poll_new()
 	libuv_poll_t *poll = pecalloc(1, sizeof(libuv_poll_t), 1);
 	poll->handle.ctor = libuv_poll_ctor;
 	poll->handle.dtor = libuv_poll_dtor;
-	poll->uv_handle.data = poll;
+	poll->uv_handle->data = poll;
 
 	return poll;
 }
@@ -187,7 +192,7 @@ static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type
 
 	poll_handle->handle.type = type;
 
-	int res = uv_poll_init(UVLOOP, &poll_handle->uv_handle, fd);
+	int res = uv_poll_init(UVLOOP, poll_handle->uv_handle, fd);
 
 	if (res < 0) {
 		async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(res));
@@ -195,11 +200,11 @@ static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type
 		return NULL;
 	}
 
-	res = uv_poll_start(&poll_handle->uv_handle, libuv_events_from_php(events), on_poll_event);
+	res = uv_poll_start(poll_handle->uv_handle, libuv_events_from_php(events), on_poll_event);
 
 	if (res < 0) {
 		async_throw_poll("Failed to start poll handle: %s", uv_strerror(res));
-		uv_close((uv_handle_t*)poll_handle, NULL);
+		uv_close((uv_handle_t*)poll_handle, libuv_close_cb);
 		pefree(poll_handle, 1);
 		return NULL;
 	}
@@ -356,6 +361,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 		object->handle.type = REACTOR_H_SOCKET;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
+		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
 	} else if (class_entry == async_ce_file_handle) {
 
@@ -363,6 +369,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 		object->handle.type = REACTOR_H_FILE;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
+		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
 	} else if (class_entry == async_ce_pipe_handle) {
 
@@ -370,6 +377,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 		object->handle.type = REACTOR_H_PIPE;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
+		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
 	} else if (class_entry == async_ce_tty_handle) {
 
@@ -377,11 +385,13 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 		object->handle.type = REACTOR_H_TTY;
 		object->handle.ctor = libuv_poll_ctor;
 		object->handle.dtor = libuv_poll_dtor;
+		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
 	} else if (class_entry == async_ce_timer_handle) {
 
 		object = zend_object_alloc(sizeof(libuv_timer_t), class_entry);
 		object->handle.type = REACTOR_H_TIMER;
+		object->uv_handle = pecalloc(1, sizeof(uv_timer_t), 1);
 		object->handle.ctor = libuv_timer_ctor;
 		object->handle.dtor = libuv_timer_dtor;
 
@@ -389,6 +399,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_SIGNAL;
+		object->uv_handle = pecalloc(1, sizeof(uv_signal_t), 1);
 		object->handle.ctor = libuv_signal_ctor;
 		object->handle.dtor = libuv_signal_dtor;
 
@@ -396,6 +407,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
 		object->handle.type = REACTOR_H_PROCESS;
+		object->uv_handle = pecalloc(1, sizeof(uv_signal_t), 1);
 		object->handle.ctor = libuv_process_ctor;
 		object->handle.dtor = libuv_process_dtor;
 
@@ -403,6 +415,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 		object = zend_object_alloc(sizeof(libuv_thread_cb_t), class_entry);
 		object->handle.type = REACTOR_H_THREAD;
+		object->uv_handle = pecalloc(1, sizeof(uv_async_t), 1);
 		object->handle.ctor = libuv_thread_ctor;
 		object->handle.dtor = libuv_thread_dtor;
 
@@ -410,6 +423,7 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 
 		object = zend_object_alloc(sizeof(libuv_fs_event_t), class_entry);
 		object->handle.type = REACTOR_H_FILE_SYSTEM;
+		object->uv_handle = pecalloc(1, sizeof(uv_fs_event_t), 1);
 		object->handle.ctor = libuv_file_system_ctor;
 		object->handle.dtor = libuv_file_system_dtor;
 
@@ -418,8 +432,8 @@ static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
 	}
 
 	// Link the uv handle to the PHP object.
-	object->uv_handle.data = object;
-	object->uv_handle.loop = UVLOOP;
+	object->uv_handle->data = object;
+	object->uv_handle->loop = UVLOOP;
 
 	zend_object_std_init(&object->handle.std, class_entry);
 	object_properties_init(&object->handle.std, class_entry);

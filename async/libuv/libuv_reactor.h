@@ -32,32 +32,32 @@ typedef struct _libuv_thread_cb_s libuv_thread_cb_t;
 
 struct _libuv_handle_s {
 	reactor_handle_t handle;
-	uv_handle_t uv_handle;
+	uv_handle_t *uv_handle;
 };
 
 struct _libuv_poll_s {
 	reactor_handle_t handle;
-	uv_poll_t uv_handle;
+	uv_poll_t *uv_handle;
 };
 
 struct _libuv_timer_s {
 	reactor_handle_t handle;
-	uv_timer_t uv_handle;
+	uv_timer_t *uv_handle;
 };
 
 struct _libuv_signal_s {
 	reactor_handle_t handle;
-	uv_signal_t uv_handle;
+	uv_signal_t *uv_handle;
 };
 
 struct _libuv_fs_event_s {
 	reactor_handle_t handle;
-	enum uv_fs_event_t uv_handle;
+	uv_fs_event_t *uv_handle;
 };
 
 struct _libuv_thread_cb_s {
 	reactor_handle_t handle;
-	enum uv_async_t uv_handle;
+	uv_async_t *uv_handle;
 };
 
 
