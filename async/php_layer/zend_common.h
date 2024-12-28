@@ -24,7 +24,50 @@
 #define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
 #define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
 
+/**
+ * Creates a new weak reference to the given zval.
+ *
+ * This function attempts to create a weak reference to the specified `referent` by invoking
+ * the `WeakReference::create` method. If the creation function is not yet cached, the function
+ * retrieves and caches the method reference from the `WeakReference` class during the first call.
+ *
+ * @param referent  A constant pointer to the zval that will be referenced weakly.
+ *
+ * @return A pointer to a newly allocated zval containing the weak reference object,
+ *         or NULL if the creation fails.
+ *
+ * @note
+ * - If the `WeakReference::create` method cannot be found, the function triggers a core error
+ *   and halts execution.
+ * - If the invocation of `WeakReference::create` returns `NULL` or an undefined value,
+ *   a warning is issued, and the allocated memory is freed.
+ * - The caller is responsible for managing the returned zval, which must be freed using
+ *   `zval_ptr_dtor()` when no longer needed.
+ * - The function performs dynamic allocation for the return value (`retval`), ensuring
+ *   the resulting object is heap-allocated and safe to return.
+ */
 zval* async_new_weak_reference_from(const zval* referent);
+
+/**
+ * Resolves a weak reference to its underlying object.
+ *
+ * This method attempts to retrieve the object referenced by the weak reference.
+ * If the referenced object has been garbage collected, the method returns NULL.
+ *
+ * @param weak_reference  A pointer to the zval representing the weak reference object.
+ * @param retval          A pointer to a zval that will hold the resolved object.
+ *
+ * @warning
+ * - The `retval` may contain a zval of type `NULL` if the referenced object no longer exists.
+ * - If the result is no longer needed, you must call `zval_ptr_dtor()` to properly free the memory.
+ *
+ * @note
+ * - If the `WeakReference::get` method is not yet cached, it is retrieved from the
+ *   `WeakReference` class during the first call.
+ * - If the method cannot be found, a core error is triggered, terminating execution.
+ * - The function internally calls the `WeakReference::get` method to resolve the reference.
+ * - The `retval` must be initialized and will contain the resulting object or NULL.
+ */
 void async_resolve_weak_reference(zval* weak_reference, zval* retval);
 
 #endif //ZEND_COMMON_H

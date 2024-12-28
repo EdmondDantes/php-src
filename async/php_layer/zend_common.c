@@ -23,7 +23,9 @@ static zend_function* get_fn = NULL;
 zend_always_inline zend_class_entry* async_get_weak_reference_ce()
 {
 	if (UNEXPECTED(weak_ref_ce == NULL)) {
-		weak_ref_ce = zend_lookup_class(ZEND_STRL("WeakReference"));
+		zend_string *cname = zend_string_init(ZEND_STRL("WeakReference"), 0);
+		weak_ref_ce = zend_lookup_class(cname);
+		zend_string_release_ex(cname, 0);
 
 		if (UNEXPECTED(weak_ref_ce == NULL)) {
 			zend_error_noreturn(E_CORE_ERROR, "Couldn't find class WeakReference");
