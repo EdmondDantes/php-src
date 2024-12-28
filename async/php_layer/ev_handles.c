@@ -105,7 +105,7 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 	Z_PARAM_OBJECT_OF_CLASS(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	reactor_cancel_fiber(fiber, error);
+	async_cancel_fiber(fiber, error);
 }
 
 PHP_METHOD(Async_EvHandle, __construct)

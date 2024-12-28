@@ -30,9 +30,6 @@
 
 static zend_object_handlers async_resume_handlers;
 
-void async_resume_fiber(zend_object *resume)
-{
-}
 
 METHOD(__construct)
 {

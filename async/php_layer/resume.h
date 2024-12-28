@@ -19,8 +19,8 @@
 #include "notifier.h"
 
 typedef enum {
-	ASYNC_RESUME_PENDING = 0,
-	ASYNC_RESUME_WAITING = 1,
+	ASYNC_RESUME_NO_STATUS = 0,
+	ASYNC_RESUME_PENDING = 1,
 	ASYNC_RESUME_SUCCESS = 2,
 	ASYNC_RESUME_ERROR = 3,
 } ASYNC_RESUME_STATUS;
@@ -36,8 +36,8 @@ struct _async_resume_s {
 	zend_object std;
 	zend_fiber *fiber;
 	ASYNC_RESUME_STATUS status;
-	zval *value;
-	zval *error;
+	zval *result;
+	zend_object *error;
 	HashTable notifiers;
 };
 

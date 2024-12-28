@@ -126,7 +126,6 @@ typedef reactor_handle_t* (*reactor_thread_new_t)(THREAD_T thread_id, zend_ulong
 
 ZEND_API zend_bool reactor_is_enabled(void);
 ZEND_API void reactor_add_handle(reactor_handle_t *handle);
-ZEND_API void reactor_cancel_fiber(const zend_fiber *fiber, const zend_object *error);
 
 /**
  * Reactor API function pointers.

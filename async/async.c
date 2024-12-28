@@ -133,6 +133,52 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	return state;
 }
 
+void async_resume_fiber(async_resume_t *resume, const zval* result, zend_object* error)
+{
+	if (resume->result != NULL) {
+		ZVAL_PTR_DTOR(resume->result);
+		efree(resume->result);
+		resume->result = NULL;
+	}
+
+	if (resume->error != NULL) {
+		OBJ_RELEASE(resume->error);
+		resume->error = NULL;
+	}
+
+	if (result != NULL) {
+		resume->result = emalloc(sizeof(zval));
+		ZVAL_COPY(resume->result, result);
+	} else if (error != NULL) {
+		resume->error = error;
+		GC_ADDREF(resume->error);
+	}
+
+	resume->error = error;
+
+	if (EXPECTED(resume->status != ASYNC_RESUME_PENDING)) {
+		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
+			async_throw_error("Failed to push the Fiber into the pending queue.");
+			return;
+		}
+
+		resume->status = ASYNC_RESUME_PENDING;
+	}
+}
+
+void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
+{
+	const async_fiber_state_t *state = async_find_fiber_state(fiber);
+
+	if (state == NULL || state->resume == NULL) {
+		async_throw_error("The fiber is not waiting for asynchronous operations and cannot be terminated.");
+		return;
+	}
+
+	async_resume_fiber(state->resume, NULL, error);
+}
+
+
 /**
  * Suspend the current fiber.
  * The method puts the current Fiber into a waiting state for descriptors and events described by the Resume object.
@@ -210,7 +256,7 @@ void async_await(async_resume_t *resume)
 		}
 	ZEND_HASH_FOREACH_END();
 
-	resume->status = ASYNC_RESUME_WAITING;
+	resume->status = ASYNC_RESUME_PENDING;
 
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
 
