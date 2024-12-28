@@ -18,12 +18,17 @@
 
 #include <php_network.h>
 #include <zend_fibers.h>
+
 #include "reactor.h"
 #include "scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"
 #include "php_layer/exceptions.h"
+
+#ifdef PHP_SOCKETS
+#include "ext/sockets/php_sockets.h"
+#endif
 
 /**
  * Async startup function.
@@ -85,6 +90,20 @@ void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, p
 	} else {
 		async_throw_error("Invalid resource type. Expected a stream of STDIO or Socket.");
 	}
+}
+
+zend_long async_try_extract_socket_object(zend_object * object)
+{
+#ifndef PHP_SOCKETS
+	return 0;
+#endif
+
+	if (UNEXPECTED(object->ce != socket_ce)) {
+		return 0;
+	}
+
+	php_socket *socket = socket_from_obj(object);
+	return socket->bsd_socket;
 }
 
 /**

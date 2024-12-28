@@ -85,6 +85,7 @@ ZEND_API async_globals_t* async_globals;
 void async_module_startup(void);
 void async_module_shutdown(void);
 ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
+ZEND_API zend_long async_try_extract_socket_object(zend_object * object);
 
 /**
  * Finds the state of a given fiber.

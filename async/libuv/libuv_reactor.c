@@ -17,6 +17,7 @@
 
 #include <zend_exceptions.h>
 #include <async/reactor.h>
+#include <ext/spl/spl_exceptions.h>
 
 #include "../async.h"
 #include "../scheduler.h"
@@ -95,9 +96,29 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	// TODO: handle error
 }
 
-static void libuv_poll_ctor(reactor_handle_t *handle)
+static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
+
+	va_list args;
+	va_start(args, handle);
+	zval *raw_handle = va_arg(args, zval *);
+	zend_long actions = va_arg(args, zend_long);
+	va_end(args);
+
+	if (raw_handle == NULL) {
+		zend_throw_exception(spl_ce_InvalidArgumentException, "Invalid poll handle", 0);
+		return;
+	}
+
+	if (actions == 0) {
+		zend_throw_exception(spl_ce_InvalidArgumentException, "Invalid poll actions", 0);
+		return;
+	}
+
+	if (Z_TYPE_P(raw_handle) == IS_RESOURCE) {
+
+	}
 
 	int error = uv_poll_init(poll->uv_handle.loop, poll->uv_handle, fd);
 
