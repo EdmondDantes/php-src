@@ -448,6 +448,7 @@ finally:
 
 error:
 	errno = EINTR;
+	result = -1;
 
 	if (EG(exception)) {
 		zend_object *error = EG(exception);
