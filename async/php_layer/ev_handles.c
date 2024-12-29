@@ -24,7 +24,7 @@
 #include "ev_handles.h"
 #include "notifier.h"
 #include "exceptions.h"
-#include "../reactor.h"
+#include "../php_reactor.h"
 #include "ev_handles_arginfo.h"
 
 #define THROW_IF_REACTOR_OFF \

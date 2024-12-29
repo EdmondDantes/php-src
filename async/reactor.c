@@ -166,7 +166,7 @@ reactor_socket_new_t reactor_socket_new_fn = reactor_socket_new;
 reactor_pipe_new_t reactor_pipe_new_fn = reactor_pipe_new;
 reactor_tty_new_t reactor_tty_new_fn = reactor_tty_new;
 
-reactor_timeout_new_t reactor_timeout_new_fn = reactor_timeout_new;
+reactor_timer_new_t reactor_timer_new_fn = reactor_timeout_new;
 reactor_signal_new_t reactor_signal_new_fn = reactor_signal_new;
 reactor_process_new_t reactor_process_new_fn = reactor_process_new;
 reactor_thread_new_t reactor_thread_new_fn = reactor_thread_new;

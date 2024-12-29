@@ -83,10 +83,10 @@ typedef reactor_handle_t* (*reactor_file_new_t)(php_file_descriptor_t fd, zend_u
 typedef reactor_handle_t* (*reactor_socket_new_t)(php_socket_t fd, zend_ulong events);
 
 /**
- * reactor_timeout_new_t - Creates a new timeout event handle.
+ * reactor_timer_new_t - Creates a new timeout event handle.
  * Triggers an event after the specified timeout duration.
  */
-typedef reactor_handle_t* (*reactor_timeout_new_t)(zend_ulong timeout);
+typedef reactor_handle_t* (*reactor_timer_new_t)(zend_ulong timeout);
 
 /**
  * reactor_signal_new_t - Creates a new signal event handle.
@@ -110,7 +110,7 @@ typedef reactor_handle_t* (*reactor_tty_new_t)(php_file_descriptor_t fd, zend_ul
  * reactor_file_system_new_t - Creates a new filesystem event handle.
  * Monitors filesystem descriptor for specified events.
  */
-typedef reactor_handle_t* (*reactor_file_system_new_t)(zend_ulong fd, zend_ulong events);
+typedef reactor_handle_t* (*reactor_file_system_new_t)(const char *path, size_t length, zend_ulong events);
 
 /**
  * reactor_process_new_t - Creates a new process event handle.
@@ -148,7 +148,7 @@ ZEND_API reactor_object_create_t reactor_object_create_fn;
 ZEND_API reactor_handle_from_resource_t reactor_handle_from_resource_fn;
 ZEND_API reactor_file_new_t reactor_file_new_fn;
 ZEND_API reactor_socket_new_t reactor_socket_new_fn;
-ZEND_API reactor_timeout_new_t reactor_timeout_new_fn;
+ZEND_API reactor_timer_new_t reactor_timer_new_fn;
 ZEND_API reactor_signal_new_t reactor_signal_new_fn;
 ZEND_API reactor_pipe_new_t reactor_pipe_new_fn;
 ZEND_API reactor_tty_new_t reactor_tty_new_fn;

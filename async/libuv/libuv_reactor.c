@@ -16,12 +16,12 @@
 #include "libuv_reactor.h"
 
 #include <zend_exceptions.h>
-#include <async/reactor.h>
+#include <async/php_async.h>
+#include <async/php_reactor.h>
+#include <async/php_scheduler.h>
 #include <async/php_layer/zend_common.h>
 #include <ext/spl/spl_exceptions.h>
 
-#include "../async.h"
-#include "../scheduler.h"
 #include "../php_layer/exceptions.h"
 
 #define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
@@ -102,6 +102,28 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	// TODO: handle error
 }
 
+static zend_always_inline void libuv_poll_alloc(libuv_poll_t * poll, const int actions, int handle)
+{
+	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
+
+	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, handle);
+
+	if (error < 0) {
+		async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(error));
+		pefree(poll->uv_handle, 1);
+		poll->uv_handle = NULL;
+		return;
+	}
+
+	error = uv_poll_start(poll->uv_handle, actions, on_poll_event);
+
+	if (error < 0) {
+		async_throw_poll("Failed to start poll handle: %s", uv_strerror(error));
+		pefree(poll->uv_handle, 1);
+		poll->uv_handle = NULL;
+	}
+}
+
 static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 {
 	libuv_poll_t *poll = (libuv_poll_t *)handle;
@@ -145,18 +167,7 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
     }
 
-	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, socket ? socket : file);
-
-	if (error < 0) {
-        async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(error));
-		return;
-    }
-
-	error = uv_poll_start(poll->uv_handle, libuv_events_from_php(actions), on_poll_event);
-
-	if (error < 0) {
-        async_throw_poll("Failed to start poll handle: %s", uv_strerror(error));
-    }
+	libuv_poll_alloc(poll, libuv_events_from_php(actions), socket > 0 ? socket : file);
 }
 
 static void libuv_poll_dtor(reactor_handle_t *handle)
@@ -455,6 +466,192 @@ static reactor_handle_method_t prev_reactor_remove_handle_fn = NULL;
 static reactor_stop_t prev_reactor_loop_stop_fn = NULL;
 static reactor_loop_alive_t prev_reactor_loop_alive_fn = NULL;
 
+static reactor_handle_from_resource_t prev_reactor_handle_from_resource_fn = NULL;
+static reactor_file_new_t prev_reactor_file_new_fn = NULL;
+static reactor_socket_new_t prev_reactor_socket_new_fn = NULL;
+static reactor_pipe_new_t prev_reactor_pipe_new_fn = NULL;
+static reactor_tty_new_t prev_reactor_tty_new_fn = NULL;
+
+static reactor_timer_new_t prev_reactor_timer_new_fn = NULL;
+static reactor_signal_new_t prev_reactor_signal_new_fn = NULL;
+static reactor_process_new_t prev_reactor_process_new_fn = NULL;
+static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
+
+static reactor_file_system_new_t prev_reactor_file_system_new_fn = NULL;
+
+static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zend_ulong actions)
+{
+
+}
+
+static reactor_handle_t* libuv_file_new(const php_file_descriptor_t fd, const zend_ulong events)
+{
+	zval object;
+
+	if (object_init_ex(&object, async_ce_file_handle) == FAILURE) {
+		return NULL;
+	}
+
+	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
+
+	libuv_poll_alloc(poll, (int) events, (int) fd);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&poll->handle.std);
+		return NULL;
+	}
+
+	poll->handle.type = REACTOR_H_FILE;
+
+	return (reactor_handle_t *) poll;
+}
+
+static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_ulong events)
+{
+	zval object;
+
+	//
+	// Create a new object of the class Async\SocketHandle without calling the constructor.
+	//
+	if (object_init_ex(&object, async_ce_socket_handle) == FAILURE) {
+		return NULL;
+	}
+
+	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
+
+	libuv_poll_alloc(poll, (int) events, (int) socket);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&poll->handle.std);
+		return NULL;
+	}
+
+	poll->handle.type = REACTOR_H_SOCKET;
+
+	return (reactor_handle_t *) poll;
+}
+
+static reactor_handle_t* libuv_pipe_new(const php_file_descriptor_t fd, const zend_ulong events)
+{
+	zval object;
+
+	if (object_init_ex(&object, async_ce_pipe_handle) == FAILURE) {
+		return NULL;
+	}
+
+	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
+
+	libuv_poll_alloc(poll, (int) events, (int) fd);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&poll->handle.std);
+		return NULL;
+	}
+
+	poll->handle.type = REACTOR_H_PIPE;
+
+	return (reactor_handle_t *) poll;
+}
+
+static reactor_handle_t* libuv_tty_new(const php_file_descriptor_t fd, const zend_ulong events)
+{
+	zval object;
+
+	if (object_init_ex(&object, async_ce_tty_handle) == FAILURE) {
+		return NULL;
+	}
+
+	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
+
+	libuv_poll_alloc(poll, (int) events, (int) fd);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&poll->handle.std);
+		return NULL;
+	}
+
+	poll->handle.type = REACTOR_H_TTY;
+
+	return (reactor_handle_t *) poll;
+}
+
+static reactor_handle_t* libuv_timer_new(const zend_ulong timeout)
+{
+	zval object;
+	zval params[1];
+
+	ZVAL_LONG(&params[0], timeout);
+
+	if (object_init_with_constructor(&object, async_ce_timer_handle, 1, params, NULL) == FAILURE) {
+		return NULL;
+	}
+
+	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
+static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
+{
+	zval object;
+	zval params[1];
+
+	ZVAL_LONG(&params[0], sig_number);
+
+	if (object_init_with_constructor(&object, async_ce_signal_handle, 1, params, NULL) == FAILURE) {
+		return NULL;
+	}
+
+	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
+static reactor_handle_t* libuv_process_new(const php_process_id_t pid, const zend_ulong events)
+{
+	zval object;
+	zval params[2];
+
+	ZVAL_LONG(&params[0], pid);
+	ZVAL_LONG(&params[0], events);
+
+	if (object_init_with_constructor(&object, async_ce_process_handle, 2, params, NULL) == FAILURE) {
+		return NULL;
+	}
+
+	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
+static reactor_handle_t* libuv_thread_new(const THREAD_T tid, const zend_ulong events)
+{
+	zval object;
+	zval params[2];
+
+	ZVAL_LONG(&params[0], tid);
+	ZVAL_LONG(&params[0], events);
+
+	if (object_init_with_constructor(&object, async_ce_thread_handle, 2, params, NULL) == FAILURE) {
+		return NULL;
+	}
+
+	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
+static reactor_handle_t* libuv_file_system_new(const char *path, const size_t length, const zend_ulong events)
+{
+	zval object;
+	zval params[2];
+
+	zend_string *z_path = zend_string_init(path, length, 0);
+
+	ZVAL_STR(&params[0], z_path);
+	ZVAL_LONG(&params[0], events);
+
+	if (object_init_with_constructor(&object, async_ce_thread_handle, 2, params, NULL) == FAILURE) {
+		zval_dtor(&params[0]);
+		return NULL;
+	}
+
+	zval_dtor(&params[0]);
+	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
 static void setup_handlers(void)
 {
 	async_set_ex_globals_handler(async_ex_globals_handler);
@@ -480,6 +677,36 @@ static void setup_handlers(void)
 
 	prev_reactor_loop_alive_fn = reactor_loop_alive_fn;
 	reactor_loop_alive_fn = libuv_loop_alive;
+
+	prev_reactor_handle_from_resource_fn = reactor_handle_from_resource_fn;
+	reactor_handle_from_resource_fn = libuv_handle_from_resource;
+
+	prev_reactor_file_new_fn = reactor_file_new_fn;
+	reactor_file_new_fn = libuv_file_new;
+
+	prev_reactor_socket_new_fn = reactor_socket_new_fn;
+	reactor_socket_new_fn = libuv_socket_new;
+
+	prev_reactor_pipe_new_fn = reactor_pipe_new_fn;
+	reactor_pipe_new_fn = libuv_pipe_new;
+
+	prev_reactor_tty_new_fn = reactor_tty_new_fn;
+	reactor_tty_new_fn = libuv_tty_new;
+
+	prev_reactor_timer_new_fn = reactor_timer_new_fn;
+	reactor_timer_new_fn = libuv_timer_new;
+
+	prev_reactor_signal_new_fn = reactor_signal_new_fn;
+	reactor_signal_new_fn = libuv_signal_new;
+
+	prev_reactor_process_new_fn = reactor_process_new_fn;
+	reactor_process_new_fn = libuv_process_new;
+
+	prev_reactor_thread_new_fn = reactor_thread_new_fn;
+	reactor_thread_new_fn = libuv_thread_new;
+
+	prev_reactor_file_system_new_fn = reactor_file_system_new_fn;
+	reactor_file_system_new_fn = libuv_file_system_new;
 }
 
 static void restore_handlers(void)
@@ -496,6 +723,18 @@ static void restore_handlers(void)
 
 	reactor_stop_fn = prev_reactor_loop_stop_fn;
 	reactor_loop_alive_fn = prev_reactor_loop_alive_fn;
+
+	reactor_handle_from_resource_fn = prev_reactor_handle_from_resource_fn;
+	reactor_file_new_fn = prev_reactor_file_new_fn;
+	reactor_socket_new_fn = prev_reactor_socket_new_fn;
+	reactor_pipe_new_fn = prev_reactor_pipe_new_fn;
+	reactor_tty_new_fn = prev_reactor_tty_new_fn;
+
+	reactor_timer_new_fn = prev_reactor_timer_new_fn;
+	reactor_signal_new_fn = prev_reactor_signal_new_fn;
+	reactor_process_new_fn = prev_reactor_process_new_fn;
+	reactor_thread_new_fn = prev_reactor_thread_new_fn;
+	reactor_file_system_new_fn = prev_reactor_file_system_new_fn;
 }
 
 void async_libuv_startup(void)
