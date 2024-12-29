@@ -97,16 +97,8 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 		ZVAL_OBJ(&error, exception);
 	}
 
-	zval triggeredEvents;
-	ZVAL_LONG(&triggeredEvents, libuv_events_to_php(events));
-
-	zend_update_property(
-		poll_handle->handle.std.ce,
-		&poll_handle->handle.std,
-		"triggeredEvents",
-		sizeof("triggeredEvents") - 1,
-		&triggeredEvents
-	);
+	zval *triggered_events = &poll_handle->handle.std.properties_table[TRIGGERED_EVENTS_INDEX];
+	ZVAL_LONG(&triggered_events, libuv_events_to_php(events));
 
 	async_notifier_notify(&poll_handle->handle, &php_events, &error);
 

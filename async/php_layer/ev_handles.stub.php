@@ -11,11 +11,9 @@ abstract class EvHandle extends Notifier
     public const int DISCONNECT = 4;
     public const int PRIORITY = 8;
 
-    private int $triggeredEvents = 0;
+    public readonly int $triggeredEvents = 0;
 
     final public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
-
-    final public function getTriggeredEvents(): int {}
 }
 
 /**
@@ -86,9 +84,7 @@ final class FileSystemHandle extends Notifier
     public const int WATCH_ENTRY = 1;
     public const int WATCH_RECURSIVE = 4;
 
-    private int $triggeredEvents = 0;
+    public readonly int $triggeredEvents = 0;
 
     public function __construct(string $filename, int $flags) {}
-
-    public function getTriggeredEvents(): int {}
 }

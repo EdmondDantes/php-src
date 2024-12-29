@@ -20,6 +20,9 @@
 #include "zend_types.h"
 #include "notifier.h"
 
+// After parent property callbacks
+#define TRIGGERED_EVENTS_INDEX 1
+
 typedef struct _async_fiber_handle_s async_fiber_handle_t;
 
 struct _async_fiber_handle_s {
