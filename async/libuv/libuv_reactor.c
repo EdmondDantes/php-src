@@ -97,12 +97,23 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 		ZVAL_OBJ(&error, exception);
 	}
 
+	zval triggeredEvents;
+	ZVAL_LONG(&triggeredEvents, libuv_events_to_php(events));
+
+	zend_update_property(
+		poll_handle->handle.std.ce,
+		&poll_handle->handle.std,
+		"triggeredEvents",
+		sizeof("triggeredEvents") - 1,
+		&triggeredEvents
+	);
+
 	async_notifier_notify(&poll_handle->handle, &php_events, &error);
 
 	// TODO: handle error
 }
 
-static zend_always_inline void libuv_poll_alloc(libuv_poll_t * poll, const int actions, int handle)
+static zend_always_inline void libuv_poll_alloc_and_start(libuv_poll_t * poll, const int actions, const int handle)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
@@ -167,7 +178,7 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
     }
 
-	libuv_poll_alloc(poll, libuv_events_from_php(actions), socket > 0 ? socket : file);
+	libuv_poll_alloc_and_start(poll, libuv_events_from_php(actions), socket > 0 ? socket : file);
 }
 
 static void libuv_poll_dtor(reactor_handle_t *handle)
@@ -183,19 +194,18 @@ static void libuv_poll_dtor(reactor_handle_t *handle)
 	uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
 }
 
-libuv_poll_t *libuv_poll_new()
+libuv_poll_t *libuv_poll_alloc()
 {
-	libuv_poll_t *poll = pecalloc(1, sizeof(libuv_poll_t), 1);
+	libuv_poll_t *poll = ecalloc(1, sizeof(libuv_poll_t));
 	poll->handle.ctor = libuv_poll_ctor;
 	poll->handle.dtor = libuv_poll_dtor;
-	poll->uv_handle->data = poll;
 
 	return poll;
 }
 
 static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
 {
-	libuv_poll_t *poll_handle = libuv_poll_new();
+	libuv_poll_t *poll_handle = libuv_poll_alloc();
 
 	if (poll_handle == NULL) {
 		return NULL;
@@ -494,7 +504,7 @@ static reactor_handle_t* libuv_file_new(const php_file_descriptor_t fd, const ze
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -519,7 +529,7 @@ static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc(poll, (int) events, (int) socket);
+	libuv_poll_alloc_and_start(poll, (int) events, (int) socket);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -541,7 +551,7 @@ static reactor_handle_t* libuv_pipe_new(const php_file_descriptor_t fd, const ze
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -563,7 +573,7 @@ static reactor_handle_t* libuv_tty_new(const php_file_descriptor_t fd, const zen
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);

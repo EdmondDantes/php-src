@@ -1,9 +1,12 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e5d709003b21ca12c44334dfdf19e3066edb3915 */
+ * Stub hash: af9793708b0f8f442ca063b1537b751d5325c9c9 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_EvHandle_getTriggeredEvents, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FiberHandle___construct, 0, 0, 0)
@@ -46,7 +49,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FileSystemHandle___construct, 0, 0, 2
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+#define arginfo_class_Async_FileSystemHandle_getTriggeredEvents arginfo_class_Async_EvHandle_getTriggeredEvents
+
 ZEND_METHOD(Async_EvHandle, __construct);
+ZEND_METHOD(Async_EvHandle, getTriggeredEvents);
 ZEND_METHOD(Async_FiberHandle, __construct);
 ZEND_METHOD(Async_FiberHandle, isStarted);
 ZEND_METHOD(Async_FiberHandle, isSuspended);
@@ -59,9 +65,11 @@ ZEND_METHOD(Async_SignalHandle, __construct);
 ZEND_METHOD(Async_ThreadHandle, __construct);
 ZEND_METHOD(Async_ProcessHandle, __construct);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
+ZEND_METHOD(Async_FileSystemHandle, getTriggeredEvents);
 
 static const zend_function_entry class_Async_EvHandle_methods[] = {
 	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
+	ZEND_ME(Async_EvHandle, getTriggeredEvents, arginfo_class_Async_EvHandle_getTriggeredEvents, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
@@ -98,6 +106,7 @@ static const zend_function_entry class_Async_ProcessHandle_methods[] = {
 
 static const zend_function_entry class_Async_FileSystemHandle_methods[] = {
 	ZEND_ME(Async_FileSystemHandle, __construct, arginfo_class_Async_FileSystemHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FileSystemHandle, getTriggeredEvents, arginfo_class_Async_FileSystemHandle_getTriggeredEvents, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -131,6 +140,12 @@ static zend_class_entry *register_class_Async_EvHandle(zend_class_entry *class_e
 	zend_string *const_PRIORITY_name = zend_string_init_interned("PRIORITY", sizeof("PRIORITY") - 1, 1);
 	zend_declare_typed_class_constant(class_entry, const_PRIORITY_name, &const_PRIORITY_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(const_PRIORITY_name);
+
+	zval property_triggeredEvents_default_value;
+	ZVAL_LONG(&property_triggeredEvents_default_value, 0);
+	zend_string *property_triggeredEvents_name = zend_string_init("triggeredEvents", sizeof("triggeredEvents") - 1, 1);
+	zend_declare_typed_property(class_entry, property_triggeredEvents_name, &property_triggeredEvents_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_triggeredEvents_name);
 
 	return class_entry;
 }
@@ -261,6 +276,12 @@ static zend_class_entry *register_class_Async_FileSystemHandle(zend_class_entry 
 	zend_string *const_WATCH_RECURSIVE_name = zend_string_init_interned("WATCH_RECURSIVE", sizeof("WATCH_RECURSIVE") - 1, 1);
 	zend_declare_typed_class_constant(class_entry, const_WATCH_RECURSIVE_name, &const_WATCH_RECURSIVE_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(const_WATCH_RECURSIVE_name);
+
+	zval property_triggeredEvents_default_value;
+	ZVAL_LONG(&property_triggeredEvents_default_value, 0);
+	zend_string *property_triggeredEvents_name = zend_string_init("triggeredEvents", sizeof("triggeredEvents") - 1, 1);
+	zend_declare_typed_property(class_entry, property_triggeredEvents_name, &property_triggeredEvents_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_triggeredEvents_name);
 
 	return class_entry;
 }

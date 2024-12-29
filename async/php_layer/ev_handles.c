@@ -135,6 +135,19 @@ PHP_METHOD(Async_EvHandle, __construct)
 	CALL_INTERNAL_CTOR(handle, actions);
 }
 
+PHP_METHOD(Async_EvHandle, getTriggeredEvents)
+{
+	zval * result = zend_read_property(
+		Z_OBJ_P(ZEND_THIS)->ce,
+		Z_OBJ_P(ZEND_THIS),
+		"triggeredEvents", sizeof("triggeredEvents") - 1,
+		1,
+		NULL
+	);
+
+	RETURN_ZVAL(result, 1, 0);
+}
+
 PHP_METHOD(Async_TimerHandle, __construct)
 {
 	THROW_IF_REACTOR_OFF;
@@ -202,6 +215,20 @@ PHP_METHOD(Async_FileSystemHandle, __construct)
 
 	CALL_INTERNAL_CTOR(path, flags);
 }
+
+PHP_METHOD(Async_FileSystemHandle, getTriggeredEvents)
+{
+	zval * result = zend_read_property(
+		Z_OBJ_P(ZEND_THIS)->ce,
+		Z_OBJ_P(ZEND_THIS),
+		"triggeredEvents", sizeof("triggeredEvents") - 1,
+		1,
+		NULL
+	);
+
+	RETURN_ZVAL(result, 1, 0);
+}
+
 /**
  * Creates and initializes a new `fiber handle` object.
  *

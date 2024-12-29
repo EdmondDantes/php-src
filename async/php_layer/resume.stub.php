@@ -33,9 +33,23 @@ final class Resume
      */
     public function throw(?\Throwable $error = null): void {}
 
+    /**
+     * Determines if the `Resume` object has been resolved.
+     */
     public function isResolved(): bool {}
 
+    /**
+     * Returns the Notifiers associated with the `Resume` object.
+     */
     public function getNotifiers(): array {}
 
+    /**
+     * Returns the Notifiers that have been triggered.
+     */
+    public function getTriggeredNotifiers(): array {}
+
+    /**
+     * Add a Notifier to the `Resume` object with a callback.
+     */
     public function when(Notifier $notifier, ?callable $callback = null): static {}
 }

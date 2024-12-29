@@ -20,7 +20,7 @@
 #include "notifier.h"
 #include "callback.h"
 #include "notifier_arginfo.h"
-#include "../reactor.h"
+#include "../php_reactor.h"
 
 #define METHOD(name) PHP_METHOD(Async_Notifier, name)
 #define PROPERTY_CALLBACKS "callbacks"
