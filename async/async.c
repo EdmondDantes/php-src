@@ -395,7 +395,6 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		return -1;
 	}
 
-	// Add timer handle if a timeout is specified.
 	if (timeout > 0) {
 		async_resume_when(resume, reactor_timeout_new_fn(timeout * 1000), async_resume_when_callback_cancel);
 	}
@@ -411,8 +410,14 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 	async_await(resume);
 
 	if (EG(exception) != NULL) {
-
+		errno = EINTR;
+		zend_object *error = EG(exception);
+		zend_clear_exception();
+		zend_exception_error(error, E_WARNING);
+		return -1;
 	}
+
+	// TODO: code for calculation how many descriptors are ready
 
 	return 0;
 }
