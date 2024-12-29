@@ -90,3 +90,14 @@ void async_register_resume_ce(void)
 	async_resume_handlers.dtor_obj = async_resume_object_destroy;
 	async_resume_handlers.clone_obj = NULL;
 }
+
+async_resume_t * async_resume_new()
+{
+	zval object;
+
+	if (object_init_ex(&object, async_ce_resume) == FAILURE) {
+		return NULL;
+	}
+
+	return (async_resume_t *) Z_OBJ_P(&object);
+}
