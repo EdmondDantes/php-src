@@ -386,8 +386,14 @@ static zend_always_inline zend_ulong poll2_events_to_async(short events)
 
 }
 
+#define IF_EXCEPTION_GOTO_ERROR \
+    if (UNEXPECTED(EG(exception) != NULL)) { \
+        goto error; \
+    }
+
 int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 {
+	int result = 0;
 	async_resume_t *resume = async_resume_new();
 
 	if(resume == NULL) {
@@ -395,29 +401,59 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		return -1;
 	}
 
+	reactor_handle_t *handle = NULL;
+
 	if (timeout > 0) {
-		async_resume_when(resume, reactor_timeout_new_fn(timeout * 1000), async_resume_when_callback_cancel);
+		handle = reactor_timeout_new_fn(timeout);
+
+		if (EG(exception) || handle == NULL) {
+            goto finally;
+        }
+
+		async_resume_when(resume, handle, async_resume_when_callback_cancel);
+		IF_EXCEPTION_GOTO_ERROR;
+		OBJ_RELEASE(&handle->std);
 	}
 
 	for (unsigned int i = 0; i < nfds; i++) {
-		async_resume_when(
-			resume,
-			reactor_socket_new_fn(ufds[i].fd, poll2_events_to_async(ufds[i].events)),
-			async_resume_when_callback_resolve
-	    );
+		handle = reactor_socket_new_fn(ufds[i].fd, poll2_events_to_async(ufds[i].events));
+
+		if (EG(exception) || handle == NULL) {
+			goto finally;
+		}
+
+		async_resume_when(resume, handle, async_resume_when_callback_resolve);
+
+		IF_EXCEPTION_GOTO_ERROR;
+		OBJ_RELEASE(&handle->std);
 	}
 
 	async_await(resume);
 
-	if (EG(exception) != NULL) {
-		errno = EINTR;
-		zend_object *error = EG(exception);
-		zend_clear_exception();
-		zend_exception_error(error, E_WARNING);
-		return -1;
-	}
+	IF_EXCEPTION_GOTO_ERROR;
 
 	// TODO: code for calculation how many descriptors are ready
 
-	return 0;
+finally:
+
+	if (EXPECTED(resume != NULL)) {
+		OBJ_RELEASE(&resume->std);
+	}
+
+	if (EXPECTED(handle != NULL)) {
+        OBJ_RELEASE(&handle->std);
+    }
+
+	return result;
+
+error:
+	errno = EINTR;
+
+	if (EG(exception)) {
+		zend_object *error = EG(exception);
+		zend_clear_exception();
+		zend_exception_error(error, E_WARNING);
+	}
+
+	goto finally;
 }
