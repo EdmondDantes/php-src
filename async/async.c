@@ -321,7 +321,7 @@ void async_await_resource(
 
 	// Add timer handle if a timeout is specified.
 	if (timeout > 0) {
-		async_resume_when(resume, async_ev_timeout_new_fn(timeout), async_resume_when_callback_cancel);
+		async_resume_when(resume, reactor_timeout_new_fn(timeout), async_resume_when_callback_cancel);
 	}
 
 	// Add cancellation handle if it is specified.
@@ -343,7 +343,7 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 {
 	async_resume_t *resume = async_resume_new();
 
-	async_resume_when(resume, async_ev_signal_new_fn(sig_number), async_resume_when_callback_resolve);
+	async_resume_when(resume, reactor_signal_new_fn(sig_number), async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
 		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
@@ -369,7 +369,7 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 
 	async_resume_t *resume = async_resume_new();
 
-	async_resume_when(resume, async_ev_timeout_new_fn(timeout), async_resume_when_callback_resolve);
+	async_resume_when(resume, reactor_timeout_new_fn(timeout), async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
 		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
