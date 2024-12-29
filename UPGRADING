@@ -57,6 +57,8 @@ PHP 8.5 UPGRADE NOTES
 - SPL:
   . ArrayObject no longer accepts enums, as modifying the $name or $value
     properties can break engine assumptions.
+  . SplFileObject::fwrite's parameter $length is now nullable. The default
+    value changed from 0 to null.
 
 ========================================
 2. New Features
@@ -98,10 +100,9 @@ PHP 8.5 UPGRADE NOTES
 5. Changed Functions
 ========================================
 
-- Zlib:
-  . The "use_include_path" argument for the 
-    gzfile, gzopen and readgzfile functions had been changed
-    from int to boolean.
+- Intl:
+  . IntlDateFormatter::setTimeZone()()/datefmt_set_timezone
+    throws an IntlException on uninitialised classes/clone failures.
 
 - PCNTL:
   . pcntl_exec() now has a formal return type of false.
@@ -122,6 +123,15 @@ PHP 8.5 UPGRADE NOTES
     an invalid file descriptor.
   . posix_fpathconf checks invalid file descriptors and sets
     last_error to EBADF and raises an E_WARNING message.
+
+- Sockets:
+  . socket_create_listen throws a ValueError if the port is
+    lower than 0 or greater than 65535.
+
+- Zlib:
+  . The "use_include_path" argument for the
+    gzfile, gzopen and readgzfile functions had been changed
+    from int to boolean.
 
 ========================================
 6. New Functions
@@ -175,6 +185,11 @@ PHP 8.5 UPGRADE NOTES
 - Sockets:
   . IPPROTO_ICMP/IPPROTO_ICMPV6.
   . TCP_FUNCTION_BLK (FreeBSD only).
+  . TCP_FUNCTION_ALIAS (FreeBSD only).
+  . TCP_REUSPORT_LB_NUMA (FreeBSD only).
+  . TCP_REUSPORT_LB_NUMA_NODOM (FreeBSD only).
+  . TCP_REUSPORT_LB_NUMA_CURDOM (FreeBSD only).
+  . TCP_BBR_ALGORITHM (FreeBSD only).
 
 ========================================
 11. Changes to INI File Handling

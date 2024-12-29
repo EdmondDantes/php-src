@@ -14,6 +14,8 @@ PHP                                                                        NEWS
     Volker Dusch)
   . Use `clock_gettime_nsec_np()` for high resolution timer on macOS
     if available. (timwolla)
+  . Implement GH-15680 (Enhance zend_dump_op_array to properly represent
+    non-printable characters in string literals). (nielsdos, WangYihang)
 
 - Curl:
   . Added curl_multi_get_handles(). (timwolla)
@@ -28,6 +30,8 @@ PHP                                                                        NEWS
 
 - Intl:
   . Bumped ICU requirement to ICU >= 57.1. (cmb)
+  . IntlDateFormatter::setTimeZone()/datefmt_set_timezone() throws an exception
+    with uninitialised classes or clone failure. (David Carlier)
 
 - MySQLnd:
   . Added mysqlnd.collect_memory_statistics to ini quick reference.
@@ -76,6 +80,10 @@ PHP                                                                        NEWS
     (David Carlier)
   . socket_set_option() catches possible overflow with SO_RCVTIMEO/SO_SNDTIMEO
     with timeout setting on windows. (David Carlier)
+  . Added TCP_FUNCTION_ALIAS, TCP_REUSPORT_LB_NUMA, TCP_REUSPORT_LB_NUMA_NODOM,
+    TCP_REUSPORT_LB_CURDOM, TCP_BBR_ALGORITHM constants.
+  . socket_create_listen() throws an exception on invalid port value.
+    (David Carlier)
 
 - Standard:
   . Fixed crypt() tests on musl when using --with-external-libcrypt
@@ -84,6 +92,9 @@ PHP                                                                        NEWS
 - Streams:
   . Fixed bug GH-16889 (stream_select() timeout useless for pipes on Windows).
     (cmb)
+
+- Tests:
+  . Allow to shuffle tests even in non-parallell mode. (dhuang00)
 
 - Windows:
   . Fixed bug GH-10992 (Improper long path support for relative paths). (cmb,
