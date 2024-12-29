@@ -19,6 +19,7 @@
 #include <php_network.h>
 #include <zend_fibers.h>
 
+#include "php_reactor.h"
 #include "reactor.h"
 #include "scheduler.h"
 #include "php_layer/functions.h"
@@ -380,7 +381,38 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 	GC_DELREF(&resume->std);
 }
 
-int async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+static zend_always_inline zend_ulong poll2_events_to_async(short events)
 {
 
+}
+
+int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
+{
+	async_resume_t *resume = async_resume_new();
+
+	if(resume == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	// Add timer handle if a timeout is specified.
+	if (timeout > 0) {
+		async_resume_when(resume, reactor_timeout_new_fn(timeout * 1000), async_resume_when_callback_cancel);
+	}
+
+	for (unsigned int i = 0; i < nfds; i++) {
+		async_resume_when(
+			resume,
+			reactor_socket_new_fn(ufds[i].fd, poll2_events_to_async(ufds[i].events)),
+			async_resume_when_callback_resolve
+	    );
+	}
+
+	async_await(resume);
+
+	if (EG(exception) != NULL) {
+
+	}
+
+	return 0;
 }

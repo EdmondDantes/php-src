@@ -153,4 +153,6 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, const zval* result, zen
  */
 ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
 
+int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
+
 #endif //ASYNC_H
