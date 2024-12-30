@@ -56,15 +56,9 @@ void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, co
 	ZEND_HASH_FOREACH_END();
 }
 
-METHOD(addCallback)
+void async_notifier_add_callback(zend_object* notifier, const zval* callback)
 {
-	zval* callback;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zval* callbacks = GET_PROPERTY_CALLBACKS();
+	zval* callbacks = async_notifier_get_callbacks(notifier);
 	zval *current;
 	zval resolved_callback;
 	ZVAL_UNDEF(&resolved_callback);
@@ -74,11 +68,11 @@ METHOD(addCallback)
 		if (Z_TYPE_P(current) == IS_OBJECT) {
 			async_resolve_weak_reference(current, &resolved_callback);
 
-			bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
+			const bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
 			zval_ptr_dtor(&resolved_callback);
 
 			if (is_the_same) {
-				RETURN_ZVAL(ZEND_THIS, 1, 0);
+				return;
 			}
 		}
 	ZEND_HASH_FOREACH_END();
@@ -86,7 +80,18 @@ METHOD(addCallback)
 	// Add the weak reference to the callbacks array.
 	add_next_index_zval(callbacks, async_new_weak_reference_from(callback));
 	// Link the callback and the notifier together.
-	async_callback_registered(Z_OBJ_P(callback), Z_OBJ_P(ZEND_THIS));
+	async_callback_registered(Z_OBJ_P(callback), notifier);
+}
+
+METHOD(addCallback)
+{
+	zval* callback;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_notifier_add_callback(Z_OBJ_P(ZEND_THIS), callback);
 
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
@@ -160,9 +165,7 @@ void async_register_notifier_ce(void)
  */
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback)
 {
-	const zval* callbacks = zend_read_property(
-		async_ce_notifier, notifier, PROPERTY_CALLBACKS, strlen(PROPERTY_CALLBACKS), 0, NULL
-	);
+	const zval* callbacks = async_notifier_get_callbacks(notifier);
 
 	zval *current;
 	zend_string *key;
