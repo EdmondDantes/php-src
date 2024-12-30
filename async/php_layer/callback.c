@@ -131,16 +131,15 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
  */
 void async_callback_registered(zend_object* callback, const zend_object* notifier)
 {
-    zval* notifiers = async_callback_get_zval_notifiers(callback);
+    const zval* notifiers = async_callback_get_zval_notifiers(callback);
 
 	if (zend_hash_index_find(Z_ARRVAL_P(notifiers), notifier->handle) != NULL) {
         return;
     }
 
-	zval * zval_notifier = emalloc(sizeof(zval));
-	ZVAL_OBJ(zval_notifier, notifier);
-	zend_hash_index_update(Z_ARRVAL_P(notifiers), notifier->handle, zval_notifier);
-	GC_ADDREF(notifier);
+	zval zval_notifier;
+	ZVAL_OBJ(&zval_notifier, notifier);
+	zend_hash_index_update(Z_ARRVAL_P(notifiers), notifier->handle, &zval_notifier);
 }
 
 /**

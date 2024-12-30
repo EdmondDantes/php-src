@@ -122,11 +122,54 @@ async_resume_t * async_resume_new()
 
 void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error)
 {
+	// If the triggered_notifiers array is not initialized, create it.
 	if (resume->triggered_notifiers == NULL) {
 		resume->triggered_notifiers = zend_new_array(8);
 	}
 
+	// Try to find the notifier in the notifiers array.
+	const zval * known_notifier = zend_hash_index_find(&resume->notifiers, notifier->std.handle);
 
+	if (known_notifier == NULL) {
+		zend_error(
+			E_WARNING,
+			"Received notification from an unregistered Notifier object. Class: %s",
+			ZSTR_VAL(notifier->std.ce->name)
+		);
+		return;
+	}
 
+	// The elements of the notifiers array are custom data structures of type async_resume_notifier_t.
+	if (Z_TYPE_P(known_notifier) != IS_PTR) {
+		return;
+	}
 
+	async_resume_notifier_t * resume_notifier = Z_PTR_P(known_notifier);
+
+	zval zval_notifier;
+	ZVAL_OBJ(&zval_notifier, &notifier->std);
+	zend_hash_index_update(resume->triggered_notifiers, notifier->std.handle, &zval_notifier);
+
+	/**
+	 * The callback can be of two types:
+	 * * An internal Zend Engine callback, a pointer to a C function of type `async_resume_when_callback_t`.
+	 * * A `PHP` user-mode callback.
+	 */
+	if (Z_TYPE(resume_notifier->callback) == IS_PTR) {
+
+		const async_resume_when_callback_t resume_callback = (async_resume_when_callback_t) Z_PTR_P(known_notifier);
+		resume_callback(resume, notifier, event, error);
+
+	} else if (zend_is_callable(&resume_notifier->callback, 0, NULL)) {
+
+		zval retval;
+		ZVAL_UNDEF(&retval);
+		zval params[3];
+		ZVAL_OBJ(&params[0], &notifier->std);
+		ZVAL_COPY(&params[1], event);
+		ZVAL_COPY(&params[2], error);
+
+		call_user_function(CG(function_table), NULL, &resume_notifier->callback, &retval, 3, params);
+		zval_ptr_dtor(&retval);
+	}
 }
