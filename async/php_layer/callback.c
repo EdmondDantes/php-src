@@ -129,22 +129,22 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
  * The method links the notifier and the callback together.
  * The method is always called from the notifier when someone attempts to add a callback to the notifier.
  */
-void async_callback_registered(zend_object* callback, const zval* notifier)
+void async_callback_registered(zend_object* callback, const zend_object* notifier)
 {
     zval* notifiers = async_callback_get_zval_notifiers(callback);
 
     zval *current;
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
-		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == Z_OBJ_P(notifier)) {
+		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == notifier) {
 			return;
 		}
 	ZEND_HASH_FOREACH_END();
 
-	add_next_index_zval(notifiers, (zval*) notifier);
-	Z_TRY_ADDREF_P(notifier);
-
-	add_next_index_zval(notifiers, async_new_weak_reference_from(notifier));
+	zval * zval_notifier = emalloc(sizeof(zval));
+	ZVAL_OBJ(zval_notifier, notifier);
+	add_next_index_zval(notifiers, zval_notifier);
+	GC_ADDREF(notifier);
 }
 
 /**

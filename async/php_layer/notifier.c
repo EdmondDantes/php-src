@@ -86,7 +86,7 @@ METHOD(addCallback)
 	// Add the weak reference to the callbacks array.
 	add_next_index_zval(callbacks, async_new_weak_reference_from(callback));
 	// Link the callback and the notifier together.
-	async_callback_registered(Z_OBJ_P(callback), (const zval*) Z_OBJ_P(ZEND_THIS));
+	async_callback_registered(Z_OBJ_P(callback), Z_OBJ_P(ZEND_THIS));
 
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
