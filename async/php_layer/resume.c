@@ -119,3 +119,14 @@ async_resume_t * async_resume_new()
 
 	return (async_resume_t *) Z_OBJ_P(&object);
 }
+
+void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error)
+{
+	if (resume->triggered_notifiers == NULL) {
+		resume->triggered_notifiers = zend_new_array(8);
+	}
+
+
+
+
+}

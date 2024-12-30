@@ -29,60 +29,6 @@
 
 static zend_object_handlers async_notifier_handlers;
 
-void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error)
-{
-	const zval* callbacks = zend_read_property(
-		async_ce_notifier, &notifier->std, PROPERTY_CALLBACKS, strlen(PROPERTY_CALLBACKS), 0, NULL
-	);
-
-	zval *current;
-	zval resolved_callback;
-	ZVAL_UNDEF(&resolved_callback);
-
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
-		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
-			async_resolve_weak_reference(current, &resolved_callback);
-
-			if (Z_TYPE(resolved_callback) == IS_OBJECT) {
-				async_callback_notify(Z_OBJ(resolved_callback), &notifier->std, event, error);
-			}
-
-			zval_ptr_dtor(&resolved_callback);
-
-			IF_THROW_RETURN_VOID;
-		}
-
-	IF_THROW_RETURN_VOID;
-	ZEND_HASH_FOREACH_END();
-}
-
-void async_notifier_add_callback(zend_object* notifier, const zval* callback)
-{
-	zval* callbacks = async_notifier_get_callbacks(notifier);
-	zval *current;
-	zval resolved_callback;
-	ZVAL_UNDEF(&resolved_callback);
-
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
-		// Unreferenced the weak reference and compare the objects.
-		if (Z_TYPE_P(current) == IS_OBJECT) {
-			async_resolve_weak_reference(current, &resolved_callback);
-
-			const bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
-			zval_ptr_dtor(&resolved_callback);
-
-			if (is_the_same) {
-				return;
-			}
-		}
-	ZEND_HASH_FOREACH_END();
-
-	// Add the weak reference to the callbacks array.
-	add_next_index_zval(callbacks, async_new_weak_reference_from(callback));
-	// Link the callback and the notifier together.
-	async_callback_registered(Z_OBJ_P(callback), notifier);
-}
-
 METHOD(addCallback)
 {
 	zval* callback;
@@ -157,6 +103,23 @@ void async_register_notifier_ce(void)
 	async_notifier_handlers.clone_obj = NULL;
 }
 
+void async_notifier_add_callback(zend_object* notifier, const zval* callback)
+{
+	const zval* callbacks = async_notifier_get_callbacks(notifier);
+
+	if (zend_hash_index_find(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle) != NULL) {
+		return;
+	}
+
+	// Add the weak reference to the callbacks array.
+	zend_hash_index_update(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle, async_new_weak_reference_from(callback));
+
+	// Link the callback and the notifier together.
+	if (Z_OBJ_P(callback)->ce != async_ce_resume) {
+		async_callback_registered(Z_OBJ_P(callback), notifier);
+    }
+}
+
 /**
  * The method is used to remove the callback from the notifier.
  *
@@ -165,28 +128,31 @@ void async_register_notifier_ce(void)
  */
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback)
 {
-	const zval* callbacks = async_notifier_get_callbacks(notifier);
+	zend_hash_index_del(Z_ARRVAL_P(async_notifier_get_callbacks(notifier)), Z_OBJ_P(callback)->handle);
+}
+
+void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error)
+{
+	const zval* callbacks = async_notifier_get_callbacks((zend_object *) notifier);
 
 	zval *current;
-	zend_string *key;
-	zend_ulong index;
 	zval resolved_callback;
 	ZVAL_UNDEF(&resolved_callback);
 
-	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(callbacks), index, key, current)
-		if (Z_TYPE_P(current) == IS_OBJECT) {
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
+		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
 			async_resolve_weak_reference(current, &resolved_callback);
 
-			const bool is_the_same = Z_OBJ_P(&resolved_callback) == Z_OBJ_P(callback);
-			zval_ptr_dtor(&resolved_callback);
-
-			if (is_the_same) {
-				if (key) {
-					zend_hash_del(Z_ARRVAL_P(callbacks), key);
-				} else {
-					zend_hash_index_del(Z_ARRVAL_P(callbacks), index);
-				}
+			// Resume object and Callback object use different handlers.
+			if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {
+				async_resume_notify((async_resume_t *) Z_OBJ(resolved_callback), notifier, event, error);
+			} else if (Z_TYPE(resolved_callback) == IS_OBJECT) {
+				async_callback_notify(Z_OBJ(resolved_callback), &notifier->std, event, error);
 			}
+
+			IF_THROW_RETURN_VOID;
 		}
+
+	IF_THROW_RETURN_VOID;
 	ZEND_HASH_FOREACH_END();
 }

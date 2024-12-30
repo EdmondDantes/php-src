@@ -16,11 +16,6 @@ namespace Async;
  */
 final class Resume
 {
-    /**
-     * Internal Callback object for Notifiers.
-     */
-    private ?Callback $callback = null;
-
     private function __construct() {}
 
     /**

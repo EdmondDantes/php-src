@@ -133,17 +133,13 @@ void async_callback_registered(zend_object* callback, const zend_object* notifie
 {
     zval* notifiers = async_callback_get_zval_notifiers(callback);
 
-    zval *current;
-
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(notifiers), current)
-		if (Z_TYPE_P(current) == IS_OBJECT && Z_OBJ_P(current) == notifier) {
-			return;
-		}
-	ZEND_HASH_FOREACH_END();
+	if (zend_hash_index_find(Z_ARRVAL_P(notifiers), notifier->handle) != NULL) {
+        return;
+    }
 
 	zval * zval_notifier = emalloc(sizeof(zval));
 	ZVAL_OBJ(zval_notifier, notifier);
-	add_next_index_zval(notifiers, zval_notifier);
+	zend_hash_index_update(Z_ARRVAL_P(notifiers), notifier->handle, zval_notifier);
 	GC_ADDREF(notifier);
 }
 
