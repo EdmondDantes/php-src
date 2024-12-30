@@ -41,6 +41,11 @@ struct _async_resume_s {
 	HashTable notifiers;
 };
 
+static zend_always_inline zval* async_resume_get_callback(zend_object* resume)
+{
+	return &resume->properties_table[0];
+}
+
 ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);

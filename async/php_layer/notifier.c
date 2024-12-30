@@ -24,8 +24,7 @@
 
 #define METHOD(name) PHP_METHOD(Async_Notifier, name)
 #define PROPERTY_CALLBACKS "callbacks"
-#define GET_PROPERTY_CALLBACKS() zend_read_property(async_ce_notifier, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACKS, \
-		strlen(PROPERTY_CALLBACKS), 0, NULL);
+#define GET_PROPERTY_CALLBACKS() async_notifier_get_callbacks(Z_OBJ_P(ZEND_THIS));
 
 
 static zend_object_handlers async_notifier_handlers;

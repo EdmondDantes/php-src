@@ -24,8 +24,7 @@
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
 #define PROPERTY_CALLBACK "callback"
 #define PROPERTY_FIBER "fiber"
-#define GET_PROPERTY_CALLBACK() zend_read_property(async_ce_notifier, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACK, \
-		strlen(PROPERTY_CALLBACK), 0, NULL);
+#define GET_PROPERTY_CALLBACK() async_resume_get_callback(Z_OBJ_P(ZEND_THIS));
 
 
 static zend_object_handlers async_resume_handlers;
@@ -95,6 +94,7 @@ async_resume_t * async_resume_new()
 {
 	zval object;
 
+	// Create a new object without calling the constructor
 	if (object_init_ex(&object, async_ce_resume) == FAILURE) {
 		return NULL;
 	}

@@ -55,6 +55,16 @@ struct _reactor_handle_s {
 	reactor_handle_method dtor;
 };
 
+static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
+{
+	return &notifier->properties_table[0];
+}
+
+static zend_always_inline HashTable* async_notifier_get_callbacks_hash(const zend_object* notifier)
+{
+	return Z_ARRVAL_P(&notifier->properties_table[0]);
+}
+
 void async_register_notifier_ce(void);
 void async_notifier_add_callback(zend_object* notifier, const zval* callback);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
