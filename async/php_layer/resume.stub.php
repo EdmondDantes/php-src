@@ -16,11 +16,25 @@ namespace Async;
  */
 final class Resume
 {
-    const int RESUME    = 1;
-    const int THROW     = 2;
-    const int CANCEL    = 3;
-
-    private function __construct() {}
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution.
+     * If an error occurs, an exception is thrown.
+     */
+    const int RESOLVE   = 1;
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution with a cancellation exception.
+     * If an error occurs, an exception is thrown.
+     */
+    const int CANCEL    = 2;
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution with a timeout exception.
+     * If an error occurs, an exception is thrown.
+     * This callback can be used only with the `TimerHandle` object.
+     */
+    const int TIMEOUT   = 3;
 
     /**
      * Resumes the fiber with a value.
@@ -49,6 +63,11 @@ final class Resume
 
     /**
      * Add a Notifier to the `Resume` object with a callback.
+     *
+     * Special values RESOLVE, CANCEL, and TIMEOUT indicate predefined behavior:
+     * * RESOLVE – on success, the fiber continues execution; on error – an exception is thrown.
+     * * CANCEL – on success, the fiber resumes with a cancellation exception `CancellationException`.
+     * * TIMEOUT – on success, the fiber resumes execution with a timeout exception `TimeoutException`.
      */
-    public function when(Notifier $notifier, callable|int $callback = self::RESUME): static {}
+    public function when(Notifier $notifier, callable|int $callback = Resume::RESOLVE): static {}
 }

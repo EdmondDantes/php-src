@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e9c2428fbd83a2a50f54989549cafe13eb025d6c */
+ * Stub hash: 01dace9ddc4a53cc4d49b47ad880a4f8652ec114 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Resume___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -22,7 +22,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_when, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_OBJ_INFO(0, notifier, Async\\\116otifier, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, callback, IS_CALLABLE, 1, "null")
+	ZEND_ARG_TYPE_MASK(0, callback, MAY_BE_CALLABLE|MAY_BE_LONG, "Async\\Resume::RESUME")
 ZEND_END_ARG_INFO()
 
 ZEND_METHOD(Async_Resume, __construct);
@@ -51,12 +51,29 @@ static zend_class_entry *register_class_Async_Resume(void)
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Resume", class_Async_Resume_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
 
-	zval property_callback_default_value;
-	ZVAL_NULL(&property_callback_default_value);
-	zend_string *property_callback_name = zend_string_init("callback", sizeof("callback") - 1, 1);
-	zend_string *property_callback_class_Async_Callback = zend_string_init("Async\\Callback", sizeof("Async\\Callback")-1, 1);
-	zend_declare_typed_property(class_entry, property_callback_name, &property_callback_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_callback_class_Async_Callback, 0, MAY_BE_NULL));
-	zend_string_release(property_callback_name);
+	zval const_RESUME_value;
+	ZVAL_LONG(&const_RESUME_value, 1);
+	zend_string *const_RESUME_name = zend_string_init_interned("RESUME", sizeof("RESUME") - 1, 1);
+	zend_declare_typed_class_constant(class_entry, const_RESUME_name, &const_RESUME_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(const_RESUME_name);
+
+	zval const_THROW_value;
+	ZVAL_LONG(&const_THROW_value, 2);
+	zend_string *const_THROW_name = zend_string_init_interned("THROW", sizeof("THROW") - 1, 1);
+	zend_declare_typed_class_constant(class_entry, const_THROW_name, &const_THROW_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(const_THROW_name);
+
+	zval const_CANCEL_value;
+	ZVAL_LONG(&const_CANCEL_value, 3);
+	zend_string *const_CANCEL_name = zend_string_init_interned("CANCEL", sizeof("CANCEL") - 1, 1);
+	zend_declare_typed_class_constant(class_entry, const_CANCEL_name, &const_CANCEL_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(const_CANCEL_name);
+
+	zval const_TIMEOUT_value;
+	ZVAL_LONG(&const_TIMEOUT_value, 4);
+	zend_string *const_TIMEOUT_name = zend_string_init_interned("TIMEOUT", sizeof("TIMEOUT") - 1, 1);
+	zend_declare_typed_class_constant(class_entry, const_TIMEOUT_name, &const_TIMEOUT_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(const_TIMEOUT_name);
 
 	return class_entry;
 }

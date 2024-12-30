@@ -19,6 +19,7 @@
 #include "resume.h"
 #include "notifier.h"
 #include "callback.h"
+#include "ev_handles.h"
 #include "resume_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
@@ -46,6 +47,11 @@ METHOD(getEventDescriptors)
 {
 }
 
+#define RESUME_CALLBACK_RESOLVE 1
+#define RESUME_CALLBACK_THROW 2
+#define RESUME_CALLBACK_CANCEL 3
+#define RESUME_CALLBACK_TIMEOUT 4
+
 METHOD(when)
 {
 	zval *notifier;
@@ -69,19 +75,27 @@ METHOD(when)
 	ZVAL_NULL(&resume_notifier->callback);
 
 	if (Z_TYPE_P(callback) == IS_LONG) {
-		switch (Z_LVAL_P(callback)) {
-		case 1:
-			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_resolve);
-			break;
-		case 2:
-			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_throw);
-            break;
-		case 3:
-			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_cancel);
-			break;
-		default:
-			zend_throw_exception(zend_ce_type_error, "Invalid default callback type. Should be RESUME, THROW or CANCEL", 0);
-			RETURN_THROWS();
+		switch (Z_LVAL_P(callback))
+		{
+			case RESUME_CALLBACK_RESOLVE:
+				ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_resolve);
+				break;
+			case RESUME_CALLBACK_CANCEL:
+				ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_cancel);
+				break;
+			case RESUME_CALLBACK_TIMEOUT:
+
+				if (Z_OBJ_P(notifier)->ce != async_ce_timer_handle) {
+					zend_throw_error(zend_ce_type_error, "Timeout callback can only be used with TimerHandle");
+					RETURN_THROWS();
+				}
+
+				ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_timeout);
+				break;
+
+			default:
+				zend_throw_exception(zend_ce_type_error, "Invalid default callback type. Should be RESUME, THROW, CANCEL, TIMEOUT", 0);
+				RETURN_THROWS();
 		}
 	} else if (zend_is_callable(callback, 0, NULL)) {
 		ZVAL_COPY(&resume_notifier->callback, callback);
