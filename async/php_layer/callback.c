@@ -47,10 +47,7 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	zval * callback = GET_PROPERTY_CALLBACK();
-
-	zval_ptr_dtor(callback);
-	ZVAL_DUP(callback, callable);
+	ZVAL_DUP(GET_PROPERTY_CALLBACK(), callable);
 }
 
 METHOD(disposeCallback)
@@ -122,16 +119,8 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
 	}
 
 	zval * resume_ref = async_new_weak_reference_from(resume);
-
-	zend_update_property(
-		async_ce_callback,
-		callback,
-		PROPERTY_RESUME,
-		strlen(PROPERTY_RESUME),
-		resume_ref
-	);
-
-	zval_ptr_dtor(resume_ref);
+	// transfer ownership to the property resume_current.
+	ZVAL_OBJ(resume_current, resume_ref);
 
 	return SUCCESS;
 }
