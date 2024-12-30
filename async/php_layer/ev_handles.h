@@ -30,6 +30,22 @@ struct _async_fiber_handle_s {
 	zend_fiber *fiber;
 };
 
+/**
+ * Return the triggered events property of the given object.
+ */
+static zend_always_inline zval * async_ev_handle_get_triggered_events(zend_object *object)
+{
+	return &object->properties_table[TRIGGERED_EVENTS_INDEX];
+}
+
+/**
+ * Return the triggered events property of the given object.
+ */
+zend_always_inline zval * async_file_system_get_triggered_events(zend_object *object)
+{
+	return &object->properties_table[TRIGGERED_EVENTS_INDEX];
+}
+
 ZEND_API zend_class_entry *async_ce_ev_handle;
 
 ZEND_API zend_class_entry *async_ce_fiber_handle;

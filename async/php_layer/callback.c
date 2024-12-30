@@ -24,30 +24,15 @@
 #define METHOD(name) PHP_METHOD(Async_Callback, name)
 
 #define PROPERTY_CALLBACK "callback"
-#define GET_PROPERTY_CALLBACK() zend_read_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACK, \
-		strlen(PROPERTY_CALLBACK), 0, NULL);
+#define GET_PROPERTY_CALLBACK() async_callback_get_callback(Z_OBJ_P(ZEND_THIS));
 
 #define PROPERTY_NOTIFIERS "notifiers"
-#define GET_PROPERTY_NOTIFIERS() zend_read_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, \
-		strlen(PROPERTY_NOTIFIERS), 0, NULL);
+#define GET_PROPERTY_NOTIFIERS() async_callback_get_notifiers(Z_OBJ_P(ZEND_THIS));
 
 #define PROPERTY_RESUME "resume"
-#define GET_PROPERTY_RESUME() zend_read_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_RESUME, \
-		strlen(PROPERTY_RESUME), 0, NULL);
+#define GET_PROPERTY_RESUME() async_callback_get_resume(Z_OBJ_P(ZEND_THIS));
 
 static zend_object_handlers async_callback_handlers;
-
-/**
- * This method is used to get the Notifiers array from the Callback object.
- *
- * The method returns a pointer to the HashTable.
- */
-static zend_always_inline HashTable* async_callback_get_notifiers(zend_object* callback)
-{
-	return Z_ARRVAL_P(zend_read_property(
-		async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
-	));
-}
 
 METHOD(__construct)
 {
@@ -69,9 +54,7 @@ METHOD(disposeCallback)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 
-	zval* notifiers = zend_read_property(
-		async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
-	);
+	const zval* notifiers = GET_PROPERTY_NOTIFIERS();
 
 	zval *current;
 
@@ -131,9 +114,7 @@ void async_register_notifier_ce(void)
  */
 zend_result async_callback_bind_resume(zend_object* callback, const zval* resume)
 {
-	const zval* resume_current = zend_read_property(
-		async_ce_callback, callback, PROPERTY_RESUME,strlen(PROPERTY_RESUME), 0, NULL
-	);
+	const zval* resume_current = async_callback_get_resume(callback);
 
 	if (UNEXPECTED(resume_current != NULL && Z_TYPE_P(resume_current) == IS_NULL)) {
 		zend_error(E_WARNING, "Attempt to bind the resume object and Callback twice.");
@@ -161,9 +142,7 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
  */
 void async_callback_registered(zend_object* callback, const zval* notifier)
 {
-    zval* notifiers = zend_read_property(
-        async_ce_callback, callback, PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), 0, NULL
-    );
+    zval* notifiers = async_callback_get_zval_notifiers(callback);
 
     zval *current;
 
@@ -186,9 +165,7 @@ void async_callback_registered(zend_object* callback, const zval* notifier)
  */
 zval* async_callback_get_resume(const zend_object* callback)
 {
-	zval* resume_ref = zend_read_property(
-		async_ce_callback, (zend_object*) callback, PROPERTY_RESUME, strlen(PROPERTY_RESUME), 0, NULL
-	);
+	zval* resume_ref = async_callback_get_resume(callback);
 
 	if (resume_ref == NULL || Z_TYPE_P(resume_ref) == IS_NULL) {
         return NULL;
@@ -215,9 +192,7 @@ zval* async_callback_get_resume(const zend_object* callback)
  */
 void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
 {
-	const zval* callable = zend_read_property(
-		async_ce_callback, callback, PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK), 0, NULL
-	);
+	const zval* callable = async_callback_get_callback(callback);
 
 	if (Z_TYPE_P(callable) == IS_NULL) {
         return;
