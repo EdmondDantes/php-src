@@ -57,15 +57,42 @@ METHOD(when)
 		Z_PARAM_ZVAL(callback)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (Z_TYPE_P(callback) != IS_NULL && !zend_is_callable(callback, 0, NULL)) {
+	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(ZEND_THIS);
+
+	if (zend_hash_index_find(&resume->notifiers, Z_OBJ_P(notifier)->handle) != NULL) {
+		zend_throw_exception(zend_ce_error, "Notifier already registered", 0);
+		RETURN_THROWS();
+	}
+
+	async_resume_notifier_t * resume_notifier = emalloc(sizeof(async_resume_notifier_t));
+	resume_notifier->notifier = (reactor_notifier_t *) Z_OBJ_P(notifier);
+	ZVAL_NULL(&resume_notifier->callback);
+
+	if (Z_TYPE_P(callback) == IS_LONG) {
+		switch (Z_LVAL_P(callback)) {
+		case 1:
+			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_resolve);
+			break;
+		case 2:
+			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_throw);
+            break;
+		case 3:
+			ZVAL_PTR(&resume_notifier->callback, async_resume_when_callback_cancel);
+			break;
+		default:
+			zend_throw_exception(zend_ce_type_error, "Invalid default callback type. Should be RESUME, THROW or CANCEL", 0);
+			RETURN_THROWS();
+		}
+	} else if (zend_is_callable(callback, 0, NULL)) {
+		ZVAL_COPY(&resume_notifier->callback, callback);
+	} else {
 		zend_throw_exception_ex(zend_ce_type_error, 0, "Expected parameter callback to be a valid callable");
 		RETURN_THROWS();
 	}
 
-	zval * property_callback = GET_PROPERTY_CALLBACK();
-
-	zval_ptr_dtor(property_callback);
-	ZVAL_COPY(property_callback, callback);
+	zval zval_notifier;
+	ZVAL_PTR(&zval_notifier, resume_notifier);
+	zend_hash_index_update(&resume->notifiers, Z_OBJ_P(notifier)->handle, &zval_notifier);
 }
 
 static zend_object *async_resume_object_create(zend_class_entry *class_entry)

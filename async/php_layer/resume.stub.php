@@ -16,6 +16,10 @@ namespace Async;
  */
 final class Resume
 {
+    const int RESUME    = 1;
+    const int THROW     = 2;
+    const int CANCEL    = 3;
+
     private function __construct() {}
 
     /**
@@ -46,5 +50,5 @@ final class Resume
     /**
      * Add a Notifier to the `Resume` object with a callback.
      */
-    public function when(Notifier $notifier, ?callable $callback = null): static {}
+    public function when(Notifier $notifier, callable|int $callback = self::RESUME): static {}
 }
