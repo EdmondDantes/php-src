@@ -22,10 +22,6 @@
 #include "resume_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
-#define PROPERTY_CALLBACK "callback"
-#define PROPERTY_FIBER "fiber"
-#define GET_PROPERTY_CALLBACK() async_resume_get_callback(Z_OBJ_P(ZEND_THIS));
-
 
 static zend_object_handlers async_resume_handlers;
 
@@ -72,27 +68,38 @@ METHOD(when)
 	ZVAL_COPY(property_callback, callback);
 }
 
-static zend_object *async_resume_object_create(zend_class_entry *ce)
+static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 {
-	zend_object *object = zend_objects_new(ce);
+	async_resume_t * object = zend_object_alloc(sizeof(reactor_handle_t), class_entry);
 
-	zend_object_std_init(object, ce);
-	object_properties_init(object, ce);
+	zend_object_std_init(&object->std, class_entry);
+	object_properties_init(&object->std, class_entry);
 
-	object->handlers = &async_resume_handlers;
+	object->std.handlers = &async_resume_handlers;
 
 	// Define current Fiber and set it to the property $fiber
 	if (EXPECTED(EG(active_fiber))) {
-		zval fiber_val;
-		ZVAL_OBJ(&fiber_val, &EG(active_fiber)->std);
-		zend_update_property(ce, object, PROPERTY_FIBER, sizeof(PROPERTY_FIBER) - 1, &fiber_val);
+		object->fiber = EG(active_fiber);
+		zend_hash_init(&object->notifiers, 4, NULL, ZVAL_PTR_DTOR, 0);
 	}
 
-	return object;
+	return &object->std;
 }
 
 static void async_resume_object_destroy(zend_object* object)
 {
+}
+
+static void async_resume_object_free(zend_object* object)
+{
+    async_resume_t * resume = (async_resume_t *) object;
+
+    if (resume->triggered_notifiers != NULL) {
+        zend_array_destroy(resume->triggered_notifiers);
+    }
+
+    zend_hash_destroy(&resume->notifiers);
+    zend_object_std_dtor(&resume->std);
 }
 
 void async_register_resume_ce(void)
@@ -105,6 +112,7 @@ void async_register_resume_ce(void)
 
 	async_resume_handlers = std_object_handlers;
 	async_resume_handlers.dtor_obj = async_resume_object_destroy;
+	async_resume_handlers.free_obj = async_resume_object_free;
 	async_resume_handlers.clone_obj = NULL;
 }
 
