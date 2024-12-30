@@ -52,6 +52,24 @@ METHOD(getEventDescriptors)
 
 METHOD(when)
 {
+	zval *notifier;
+	zval *callback = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_OBJECT_OF_CLASS(notifier, async_ce_notifier)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL(callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (Z_TYPE_P(callback) != IS_NULL && !zend_is_callable(callback, 0, NULL)) {
+		zend_throw_exception_ex(zend_ce_type_error, 0, "Expected parameter callback to be a valid callable");
+		RETURN_THROWS();
+	}
+
+	zval * property_callback = GET_PROPERTY_CALLBACK();
+
+	zval_ptr_dtor(property_callback);
+	ZVAL_DUP(property_callback, callback);
 }
 
 static zend_object *async_resume_object_create(zend_class_entry *ce)

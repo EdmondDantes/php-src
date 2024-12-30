@@ -38,7 +38,13 @@ struct _async_resume_s {
 	ASYNC_RESUME_STATUS status;
 	zval *result;
 	zend_object *error;
+	HashTable * triggered_notifiers;
 	HashTable notifiers;
+};
+
+struct _async_callback_notifier_s {
+	reactor_notifier_t *notifier;
+	zval callback;
 };
 
 static zend_always_inline zval* async_resume_get_callback(zend_object* resume)

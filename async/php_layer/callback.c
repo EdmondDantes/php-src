@@ -24,13 +24,13 @@
 #define METHOD(name) PHP_METHOD(Async_Callback, name)
 
 #define PROPERTY_CALLBACK "callback"
-#define GET_PROPERTY_CALLBACK() async_callback_get_callback(Z_OBJ_P(ZEND_THIS));
+#define GET_PROPERTY_CALLBACK() async_callback_get_callback(Z_OBJ_P(ZEND_THIS))
 
 #define PROPERTY_NOTIFIERS "notifiers"
-#define GET_PROPERTY_NOTIFIERS() async_callback_get_notifiers(Z_OBJ_P(ZEND_THIS));
+#define GET_PROPERTY_NOTIFIERS() async_callback_get_notifiers(Z_OBJ_P(ZEND_THIS))
 
 #define PROPERTY_RESUME "resume"
-#define GET_PROPERTY_RESUME() async_callback_get_resume(Z_OBJ_P(ZEND_THIS));
+#define GET_PROPERTY_RESUME() async_callback_get_resume(Z_OBJ_P(ZEND_THIS))
 
 static zend_object_handlers async_callback_handlers;
 
@@ -47,14 +47,17 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	zend_update_property(async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK), callable);
+	zval * callback = GET_PROPERTY_CALLBACK();
+
+	zval_ptr_dtor(callback);
+	ZVAL_DUP(callback, callable);
 }
 
 METHOD(disposeCallback)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 
-	const zval* notifiers = GET_PROPERTY_NOTIFIERS();
+	zval* notifiers = async_callback_get_zval_notifiers(Z_OBJ_P(ZEND_THIS));
 
 	zval *current;
 
@@ -64,14 +67,11 @@ METHOD(disposeCallback)
 		}
 	ZEND_HASH_FOREACH_END();
 
-	zval new_notifiers;
-	array_init(&new_notifiers);
+	// Destroy the notifiers.
+	zval_ptr_dtor(notifiers);
 
-	zend_update_property(
-		async_ce_callback, Z_OBJ_P(ZEND_THIS), PROPERTY_NOTIFIERS, strlen(PROPERTY_NOTIFIERS), &new_notifiers
-    );
-
-	zval_ptr_dtor(&new_notifiers);
+	// And create a new empty array.
+	array_init(notifiers);
 }
 
 /**
@@ -192,19 +192,19 @@ zval* async_callback_get_resume(const zend_object* callback)
  */
 void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
 {
-	const zval* callable = async_callback_get_callback(callback);
+	zval * property_callback = async_callback_get_callback(callback);
 
-	if (Z_TYPE_P(callable) == IS_NULL) {
+	if (Z_TYPE_P(property_callback) == IS_NULL) {
         return;
     }
 
-	if (!zend_is_callable((zval*) callable, 0, NULL)) {
-		zend_update_property_null(async_ce_callback, callback, PROPERTY_CALLBACK, strlen(PROPERTY_CALLBACK));
-
+	if (false == zend_is_callable(property_callback, 0, NULL)) {
 		// Notify the user about the error.
-		zend_string *callable_name = zend_get_callable_name((zval *) callable);
-		php_error_docref(NULL, E_WARNING, "The callable is not callable: %s", ZSTR_VAL(callable_name));
+		zend_string *callable_name = zend_get_callable_name(property_callback);
+		php_error_docref(NULL, E_WARNING, "The property callback is not callable: %s", ZSTR_VAL(callable_name));
 		zend_string_release(callable_name);
+		zval_ptr_dtor(property_callback);
+		ZVAL_NULL(property_callback);
 		return;
 	}
 
@@ -227,9 +227,9 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 	ZVAL_UNDEF(&retval);
 
 	// Call the callable
-	if (call_user_function(EG(function_table), NULL, (zval*) callable, &retval, 3, args) == FAILURE) {
+	if (call_user_function(EG(function_table), NULL, property_callback, &retval, 3, args) == FAILURE) {
 		// Notify the user about the error.
-		zend_string *callable_name = zend_get_callable_name((zval *) callable);
+		zend_string *callable_name = zend_get_callable_name(property_callback);
 		php_error_docref(NULL, E_WARNING, "Failed to call the callable %s", ZSTR_VAL(callable_name));
 		zend_string_release(callable_name);
 	}
