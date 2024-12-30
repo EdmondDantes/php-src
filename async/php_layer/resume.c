@@ -69,7 +69,7 @@ METHOD(when)
 	zval * property_callback = GET_PROPERTY_CALLBACK();
 
 	zval_ptr_dtor(property_callback);
-	ZVAL_DUP(property_callback, callback);
+	ZVAL_COPY(property_callback, callback);
 }
 
 static zend_object *async_resume_object_create(zend_class_entry *ce)
@@ -124,7 +124,7 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, c
 {
 	// If the triggered_notifiers array is not initialized, create it.
 	if (resume->triggered_notifiers == NULL) {
-		resume->triggered_notifiers = zend_new_array(8);
+		resume->triggered_notifiers = zend_new_array(4);
 	}
 
 	// Try to find the notifier in the notifiers array.

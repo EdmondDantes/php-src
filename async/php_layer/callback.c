@@ -47,7 +47,7 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	ZVAL_DUP(GET_PROPERTY_CALLBACK(), callable);
+	ZVAL_COPY(GET_PROPERTY_CALLBACK(), callable);
 }
 
 METHOD(disposeCallback)
