@@ -47,6 +47,11 @@ final class Resume
     public function throw(?\Throwable $error = null): void {}
 
     /**
+     * Determines if the `Resume` object is pending.
+     */
+    public function isPending(): bool {}
+
+    /**
      * Determines if the `Resume` object has been resolved.
      */
     public function isResolved(): bool {}

@@ -64,6 +64,11 @@ METHOD(throw)
 	async_resume_fiber(THIS_RESUME, NULL, error);
 }
 
+METHOD(isPending)
+{
+	RETURN_BOOL(THIS(status) == ASYNC_RESUME_PENDING);
+}
+
 METHOD(isResolved)
 {
 	RETURN_BOOL(THIS(status) == ASYNC_RESUME_SUCCESS || THIS(status) == ASYNC_RESUME_ERROR);
@@ -187,6 +192,17 @@ static void async_resume_object_free(zend_object* object)
     if (resume->triggered_notifiers != NULL) {
         zend_array_release(resume->triggered_notifiers);
     }
+
+	if (resume->error != NULL) {
+		OBJ_RELEASE(resume->error);
+	}
+
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+		zval_ptr_dtor(&resume->result);
+	}
+
+	resume->error = NULL;
+	ZVAL_UNDEF(&resume->result);
 
     zend_hash_destroy(&resume->notifiers);
     zend_object_std_dtor(&resume->std);
