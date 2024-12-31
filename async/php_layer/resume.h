@@ -38,7 +38,7 @@ struct _async_resume_s {
 	zend_object std;
 	zend_fiber *fiber;
 	ASYNC_RESUME_STATUS status;
-	zval *result;
+	zval result;
 	zend_object *error;
 	/* A list of notifier objects (reactor_notifier_t) that occurred during the last iteration of the event loop. */
 	HashTable * triggered_notifiers;

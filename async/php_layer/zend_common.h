@@ -24,6 +24,33 @@
 #define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
 #define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
 
+void zend_always_inline zval_copy(zval * destination, zval * source)
+{
+	if (Z_ISREF_P(source)) {
+		source = Z_REFVAL_P(source);
+	}
+
+	zval_ptr_dtor(destination);
+	ZVAL_COPY_VALUE(destination, source);
+	Z_TRY_ADDREF_P(source);
+}
+
+void zend_always_inline zval_property_copy(zval * property, zval * value)
+{
+	if (EXPECTED(Z_TYPE_P(property) != IS_UNDEF)) {
+		zval_ptr_dtor(property);
+	} else {
+		Z_PROP_FLAG_P(property) &= ~(IS_PROP_UNINIT|IS_PROP_REINITABLE);
+	}
+
+	if (Z_ISREF_P(value)) {
+		value = Z_REFVAL_P(value);
+	}
+
+	ZVAL_COPY_VALUE(property, value);
+	Z_TRY_ADDREF_P(value);
+}
+
 /**
  * Creates a new weak reference to the given zval.
  *

@@ -23,28 +23,56 @@
 #include "resume_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
+#define THIS(field) ((async_resume_t *) Z_OBJ_P(ZEND_THIS))->field
 
 static zend_object_handlers async_resume_handlers;
 
-
-METHOD(__construct)
-{
-}
-
 METHOD(resume)
 {
+	zval *value;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(value)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zval_copy(&THIS(result), value);
 }
 
 METHOD(throw)
 {
+	zend_object *error;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJ_OF_CLASS(error, zend_ce_throwable)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (THIS(error) != NULL) {
+		GC_DELREF(THIS(error));
+	}
+
+	THIS(error) = error;
+	GC_ADDREF(error);
 }
 
 METHOD(isResolved)
 {
+	RETURN_BOOL(THIS(status) == ASYNC_RESUME_SUCCESS || THIS(status) == ASYNC_RESUME_ERROR);
 }
 
 METHOD(getEventDescriptors)
 {
+	GC_REFCOUNT(&THIS(notifiers));
+	RETURN_ARR(&THIS(notifiers));
+}
+
+METHOD(getTriggeredNotifiers)
+{
+	if (THIS(triggered_notifiers) == NULL) {
+		RETURN_EMPTY_ARRAY();
+    }
+
+	GC_REFCOUNT(THIS(triggered_notifiers));
+	RETURN_ARR(THIS(triggered_notifiers));
 }
 
 #define RESUME_CALLBACK_RESOLVE 1
