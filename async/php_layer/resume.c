@@ -159,6 +159,12 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 {
 	async_resume_t * object = zend_object_alloc(sizeof(reactor_handle_t), class_entry);
 
+	object->status = ASYNC_RESUME_NO_STATUS;
+	object->triggered_notifiers = NULL;
+	object->fiber = NULL;
+	object->error = NULL;
+	ZVAL_UNDEF(&object->result);
+
 	zend_object_std_init(&object->std, class_entry);
 	object_properties_init(&object->std, class_entry);
 
@@ -277,4 +283,15 @@ void async_resume_pending(async_resume_t *resume)
         zend_array_release(resume->triggered_notifiers);
         resume->triggered_notifiers = NULL;
     }
+
+	if (resume->error != NULL) {
+        OBJ_RELEASE(resume->error);
+    }
+
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+        zval_ptr_dtor(&resume->result);
+    }
+
+	resume->error = NULL;
+	ZVAL_UNDEF(&resume->result);
 }
