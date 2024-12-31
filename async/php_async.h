@@ -132,7 +132,7 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
  *       - If the fiber is already in a pending state, no additional action is taken.
  *       - If the circular buffer operation fails, an exception is thrown.
  */
-ZEND_API void async_resume_fiber(async_resume_t *resume, const zval* result, zend_object* error);
+ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error);
 
 /**
  * Cancels an asynchronous fiber by resuming it with an error.

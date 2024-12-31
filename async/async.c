@@ -153,36 +153,41 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	return state;
 }
 
-void async_resume_fiber(async_resume_t *resume, const zval* result, zend_object* error)
+void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error)
 {
-	if (resume->result != NULL) {
-		ZVAL_PTR_DTOR(resume->result);
-		efree(resume->result);
-		resume->result = NULL;
+	if (UNEXPECTED(EG(active_fiber) == resume->fiber)) {
+		async_throw_error("Cannot resume the current Fiber.");
+		return;
 	}
+
+	const bool is_pending = resume->status == ASYNC_RESUME_PENDING || resume->status == ASYNC_RESUME_NO_STATUS;
+
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+		ZVAL_PTR_DTOR(&resume->result);
+	}
+
+	ZVAL_UNDEF(&resume->result);
 
 	if (resume->error != NULL) {
 		OBJ_RELEASE(resume->error);
-		resume->error = NULL;
 	}
+
+	resume->error = NULL;
 
 	if (result != NULL) {
-		resume->result = emalloc(sizeof(zval));
-		ZVAL_COPY(resume->result, result);
+		resume->status = ASYNC_RESUME_SUCCESS;
+		zval_copy(&resume->result, result);
 	} else if (error != NULL) {
-		resume->error = error;
+		resume->status = ASYNC_RESUME_ERROR;
 		GC_ADDREF(resume->error);
+		resume->error = error;
 	}
 
-	resume->error = error;
-
-	if (EXPECTED(resume->status != ASYNC_RESUME_PENDING)) {
+	if (EXPECTED(is_pending)) {
 		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
 			async_throw_error("Failed to push the Fiber into the pending queue.");
 			return;
 		}
-
-		resume->status = ASYNC_RESUME_PENDING;
 	}
 }
 

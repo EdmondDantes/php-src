@@ -17,6 +17,9 @@
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
 #include "resume.h"
+
+#include <async/php_async.h>
+
 #include "notifier.h"
 #include "callback.h"
 #include "ev_handles.h"
@@ -24,6 +27,7 @@
 #include "resume_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
+#define THIS_RESUME ((async_resume_t *) Z_OBJ_P(ZEND_THIS))
 #define THIS(field) ((async_resume_t *) Z_OBJ_P(ZEND_THIS))->field
 
 static zend_object_handlers async_resume_handlers;
@@ -41,8 +45,7 @@ METHOD(resume)
 		Z_PARAM_ZVAL(value)
 	ZEND_PARSE_PARAMETERS_END();
 
-	zval_copy(&THIS(result), value);
-	THIS(status) = ASYNC_RESUME_SUCCESS;
+	async_resume_fiber(THIS_RESUME, value, NULL);
 }
 
 METHOD(throw)
@@ -58,13 +61,7 @@ METHOD(throw)
 		Z_PARAM_OBJ_OF_CLASS(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (THIS(error) != NULL) {
-		GC_DELREF(THIS(error));
-	}
-
-	THIS(error) = error;
-	GC_ADDREF(error);
-	THIS(status) = ASYNC_RESUME_ERROR;
+	async_resume_fiber(THIS_RESUME, NULL, error);
 }
 
 METHOD(isResolved)
@@ -188,7 +185,7 @@ static void async_resume_object_free(zend_object* object)
     async_resume_t * resume = (async_resume_t *) object;
 
     if (resume->triggered_notifiers != NULL) {
-        zend_array_destroy(resume->triggered_notifiers);
+        zend_array_release(resume->triggered_notifiers);
     }
 
     zend_hash_destroy(&resume->notifiers);
