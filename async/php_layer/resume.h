@@ -76,5 +76,6 @@ void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier
 void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
 void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
 void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error);
+void async_resume_pending(async_resume_t *resume);
 
 #endif //ASYNC_RESUME_H

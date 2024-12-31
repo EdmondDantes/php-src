@@ -20,6 +20,7 @@
 #include "notifier.h"
 #include "callback.h"
 #include "ev_handles.h"
+#include "exceptions.h"
 #include "resume_arginfo.h"
 
 #define METHOD(name) PHP_METHOD(Async_Resume, name)
@@ -29,6 +30,11 @@ static zend_object_handlers async_resume_handlers;
 
 METHOD(resume)
 {
+	if (THIS(status) != ASYNC_RESUME_PENDING) {
+		async_throw_error("Cannot resume a non-pending operation");
+		return;
+	}
+
 	zval *value;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -36,10 +42,16 @@ METHOD(resume)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zval_copy(&THIS(result), value);
+	THIS(status) = ASYNC_RESUME_SUCCESS;
 }
 
 METHOD(throw)
 {
+	if (THIS(status) != ASYNC_RESUME_PENDING) {
+		async_throw_error("Cannot resume a non-pending operation");
+		return;
+	}
+
 	zend_object *error;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -52,6 +64,7 @@ METHOD(throw)
 
 	THIS(error) = error;
 	GC_ADDREF(error);
+	THIS(status) = ASYNC_RESUME_ERROR;
 }
 
 METHOD(isResolved)
@@ -82,6 +95,11 @@ METHOD(getTriggeredNotifiers)
 
 METHOD(when)
 {
+	if (THIS(status) != ASYNC_RESUME_NO_STATUS) {
+		async_throw_error("You cannot modify the Resume object after it has been used in an await call");
+		return;
+	}
+
 	zval *notifier;
 	zval *callback = NULL;
 
@@ -249,4 +267,14 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, c
 		call_user_function(CG(function_table), NULL, &resume_notifier->callback, &retval, 3, params);
 		zval_ptr_dtor(&retval);
 	}
+}
+
+void async_resume_pending(async_resume_t *resume)
+{
+    resume->status = ASYNC_RESUME_PENDING;
+
+	if (resume->triggered_notifiers != NULL) {
+        zend_array_release(resume->triggered_notifiers);
+        resume->triggered_notifiers = NULL;
+    }
 }
