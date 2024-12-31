@@ -18,6 +18,7 @@
 
 #include <php.h>
 
+ZEND_API zend_class_entry * async_ce_async_exception;
 ZEND_API zend_class_entry * async_ce_cancellation_exception;
 ZEND_API zend_class_entry * async_ce_input_output_exception;
 ZEND_API zend_class_entry * async_ce_timeout_exception;
@@ -28,7 +29,7 @@ zend_object * async_new_exception(zend_class_entry *exception_ce, const char *fo
 ZEND_API ZEND_COLD zend_object * async_throw_error(char *format, ...);
 ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...);
 ZEND_API ZEND_COLD zend_object * async_throw_input_output(char *format, ...);
-ZEND_API ZEND_COLD zend_object * async_throw_timeout(char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_timeout(char *format, const zend_long timeout);
 ZEND_API ZEND_COLD zend_object * async_throw_poll(char *format, ...);
 
 #endif //ASYNC_EXCEPTIONS_H
