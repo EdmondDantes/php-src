@@ -67,12 +67,12 @@ final class SignalHandle extends Notifier
 
 final class ThreadHandle extends Notifier
 {
-    public function __construct(int $threadId) {}
+    public function __construct() {}
 }
 
 final class ProcessHandle extends Notifier
 {
-    public function __construct(int $processId) {}
+    public function __construct() {}
 }
 
 final class FileSystemHandle extends Notifier

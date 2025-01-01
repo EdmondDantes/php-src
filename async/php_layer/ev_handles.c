@@ -163,28 +163,12 @@ PHP_METHOD(Async_SignalHandle, __construct)
 
 PHP_METHOD(Async_ProcessHandle, __construct)
 {
-	THROW_IF_REACTOR_OFF;
-
-	zend_long process;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_LONG(process)
-	ZEND_PARSE_PARAMETERS_END();
-
-	CALL_INTERNAL_CTOR(process);
+	async_throw_error("The object of Async\\ProcessHandle class cannot be instantiated from PHP");
 }
 
 PHP_METHOD(Async_ThreadHandle, __construct)
 {
-	THROW_IF_REACTOR_OFF;
-
-	zend_long thread;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_LONG(thread)
-	ZEND_PARSE_PARAMETERS_END();
-
-	CALL_INTERNAL_CTOR(thread);
+	async_throw_error("The object of Async\\ThreadHandle class cannot be instantiated from PHP");
 }
 
 PHP_METHOD(Async_FileSystemHandle, __construct)
