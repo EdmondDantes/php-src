@@ -302,7 +302,7 @@ static void libuv_signal_ctor(reactor_handle_t *handle, ...)
 
 	signal_handle->uv_handle = pecalloc(1, sizeof(uv_signal_t), 1);
 
-	const int error = uv_signal_init(signal_handle->uv_handle->loop, signal_handle->uv_handle);
+	int error = uv_signal_init(signal_handle->uv_handle->loop, signal_handle->uv_handle);
 
 	if (error < 0) {
         async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
@@ -311,7 +311,7 @@ static void libuv_signal_ctor(reactor_handle_t *handle, ...)
         return;
     }
 
-	error = uv_signal_start(signal_handle->uv_handle, on_signal_event, signal);
+	error = uv_signal_start(signal_handle->uv_handle, on_signal_event, (int)signal);
 
 	if (error < 0) {
         async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
