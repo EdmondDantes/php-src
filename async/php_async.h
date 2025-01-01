@@ -86,6 +86,8 @@ ZEND_API async_globals_t* async_globals;
 
 #define IS_ASYNC_ALLOWED EG(active_fiber) == NULL && IS_ASYNC_ON
 
+BEGIN_EXTERN_C()
+
 void async_module_startup(void);
 void async_module_shutdown(void);
 ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
@@ -223,5 +225,7 @@ ZEND_API void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *erro
  *       reactor structures.
  */
 ZEND_API int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
+
+END_EXTERN_C()
 
 #endif //ASYNC_H

@@ -49,6 +49,8 @@ typedef void (*async_microtasks_handler_t)(void);
  */
 typedef void (*async_exception_handler_t)(void);
 
+BEGIN_EXTERN_C()
+
 /**
  * The method activates the Scheduler in the specified thread.
  * The method can only be called in the main Fiber (i.e., when there is no Fiber) of the thread.
@@ -63,5 +65,6 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_e
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 
+END_EXTERN_C()
 
 #endif //PHP_SCHEDULER_H

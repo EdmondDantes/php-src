@@ -66,6 +66,8 @@ static zend_always_inline zval* async_resume_get_callback(zend_object* resume)
 	return &resume->properties_table[0];
 }
 
+BEGIN_EXTERN_C()
+
 ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);
@@ -77,5 +79,7 @@ void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_
 void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
 void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error);
 void async_resume_pending(async_resume_t *resume);
+
+END_EXTERN_C()
 
 #endif //ASYNC_RESUME_H

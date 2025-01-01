@@ -46,6 +46,8 @@ zend_always_inline zval * async_file_system_get_triggered_events(zend_object *ob
 	return &object->properties_table[TRIGGERED_EVENTS_INDEX];
 }
 
+BEGIN_EXTERN_C()
+
 ZEND_API zend_class_entry *async_ce_ev_handle;
 
 ZEND_API zend_class_entry *async_ce_fiber_handle;
@@ -62,6 +64,8 @@ ZEND_API zend_class_entry *async_ce_process_handle;
 ZEND_API zend_class_entry *async_ce_thread_handle;
 
 ZEND_API zend_class_entry *async_ce_file_system_handle;
+
+END_EXTERN_C()
 
 /**
  * The method registers all classes in the Handles group,

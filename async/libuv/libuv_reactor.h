@@ -23,6 +23,8 @@
 #include "../php_layer/notifier.h"
 #include "../php_layer/ev_handles.h"
 
+BEGIN_EXTERN_C()
+
 typedef struct _libuv_handle_s libuv_handle_t;
 typedef struct _libuv_poll_s libuv_poll_t;
 typedef struct _libuv_timer_s libuv_timer_t;
@@ -65,5 +67,7 @@ struct _libuv_fs_event_s {
 	reactor_handle_t handle;
 	uv_fs_event_t *uv_handle;
 };
+
+END_EXTERN_C()
 
 #endif //ASYNC_LIBUV_REACTOR_H

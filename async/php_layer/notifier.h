@@ -17,6 +17,8 @@
 #ifndef ASYNC_NOTIFIER_H
 #define ASYNC_NOTIFIER_H
 
+BEGIN_EXTERN_C()
+
 ZEND_API zend_class_entry *async_ce_notifier;
 
 typedef enum {
@@ -69,5 +71,7 @@ void async_register_notifier_ce(void);
 void async_notifier_add_callback(zend_object* notifier, const zval* callback);
 void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
 void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error);
+
+END_EXTERN_C()
 
 #endif //ASYNC_NOTIFIER_H
