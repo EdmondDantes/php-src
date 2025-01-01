@@ -32,6 +32,86 @@
 #include "ext/sockets/php_sockets.h"
 #endif
 
+//===============================================================
+#pragma region Startup and Shutdown
+//===============================================================
+
+#ifdef ZTS
+TSRMLS_MAIN_CACHE_DEFINE()
+#else
+ZEND_API async_globals_t* async_globals;
+#endif
+
+static void async_globals_ctor(async_globals_t * globals)
+{
+	globals->is_async = false;
+	globals->in_scheduler_context = false;
+	globals->reactor = NULL;
+	globals->exception_handler = NULL;
+	globals->execute_callbacks_handler = NULL;
+	globals->execute_next_fiber_handler = NULL;
+	globals->execute_microtasks_handler = NULL;
+}
+
+static void async_globals_dtor(async_globals_t * globals)
+{
+
+}
+
+/**
+ * Activate the scheduler context.
+ */
+static void async_globals_startup(void)
+{
+	size_t globals_size = sizeof(async_globals_t);
+
+#ifdef ZTS
+
+	if (async_globals_id != 0) {
+		return;
+	}
+
+	ts_allocate_fast_id(
+		&async_globals_id,
+		&async_globals_offset,
+		globals_size,
+		async_globals_ctor,
+		async_globals_dtor
+	);
+
+	async_globals_t *async_globals = ts_resource(async_globals_id);
+#else
+	if (async_globals != NULL) {
+        return;
+    }
+
+	async_globals = ecalloc(1, globals_size, 1);
+	async_globals_ctor(async_globals);
+#endif
+}
+
+/**
+ * Activate the scheduler context.
+ */
+static void async_globals_shutdown(void)
+{
+#ifdef ZTS
+	if (async_globals_id == 0) {
+        return;
+    }
+
+	ts_free_id(async_globals_id);
+	async_globals_id = 0;
+#else
+	if (async_globals == NULL) {
+        return;
+    }
+
+	async_globals_dtor(async_globals);
+	pefree(async_globals, 1);
+#endif
+}
+
 /**
  * Async startup function.
  */
@@ -40,6 +120,8 @@ void async_module_startup(void)
 	if (async_register_module() == FAILURE) {
 		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
 	}
+
+	async_globals_startup();
 }
 
 /**
@@ -47,7 +129,12 @@ void async_module_startup(void)
  */
 void async_module_shutdown(void)
 {
+	async_globals_shutdown();
 }
+
+//===============================================================
+#pragma endregion
+//===============================================================
 
 /**
  * Copy of zend_fetch_resource2
@@ -383,6 +470,10 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 	GC_DELREF(&resume->std);
 }
 
+//===============================================================
+#pragma region POLL2 EMULATION
+//===============================================================
+
 /**
  * The method stops Fiber execution for a specified time.
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
@@ -560,3 +651,7 @@ error:
 
 	goto finally;
 }
+
+//===============================================================
+#pragma endregion
+//===============================================================

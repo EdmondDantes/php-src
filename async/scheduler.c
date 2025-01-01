@@ -26,21 +26,6 @@
 //
 #define MICROTASK_CYCLE_THRESHOLD_C 4
 
-#ifdef ZTS
-TSRMLS_MAIN_CACHE_DEFINE()
-#else
-ZEND_API async_globals_t* async_globals;
-#endif
-
-static async_ex_globals_fn async_ex_globals_handler = NULL;
-
-ZEND_API async_ex_globals_fn async_set_ex_globals_handler(const async_ex_globals_fn handler)
-{
-	const async_ex_globals_fn old = async_ex_globals_handler;
-	async_ex_globals_handler = handler;
-	return old;
-}
-
 static void invoke_microtask(zval *task)
 {
 	if (Z_TYPE(task) == IS_PTR) {
@@ -131,7 +116,7 @@ static void execute_next_fiber(void)
 	ZVAL_UNDEF(&retval);
 
 	if (resume->status == ASYNC_RESUME_SUCCESS) {
-		zend_fiber_resume(resume->fiber, resume->result, &retval);
+		zend_fiber_resume(resume->fiber, &resume->result, &retval);
 	} else {
 		zend_fiber_resume_exception(resume->fiber, resume->error, &retval);
 	}
@@ -231,18 +216,14 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const a
 /**
  * Async globals destructor.
  */
-static void async_globals_dtor(async_globals_t *async_globals)
+ZEND_API void async_scheduler_dtor(async_globals_t *async_globals)
 {
 	if (!async_globals->is_async) {
-        return;
-    }
+		return;
+	}
 
 	async_globals->is_async = false;
 	async_globals->in_scheduler_context = false;
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), true);
-	}
 
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->pending_fibers);
@@ -252,7 +233,7 @@ static void async_globals_dtor(async_globals_t *async_globals)
 /**
  * Async globals constructor.
  */
-static void async_globals_ctor(async_globals_t *async_globals)
+static void async_scheduler_ctor(async_globals_t *async_globals)
 {
 	if (async_globals->is_async) {
 		return;
@@ -271,76 +252,13 @@ static void async_globals_ctor(async_globals_t *async_globals)
 	async_globals->execute_microtasks_handler = execute_microtasks;
 
 	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
+		async_scheduler_dtor(async_globals);
 		return;
-	}
-
-	if (async_ex_globals_handler != NULL) {
-		async_ex_globals_handler(async_globals, sizeof(async_globals_t), false);
 	}
 
 	if (EG(exception) != NULL) {
-		async_globals_dtor(async_globals);
+		async_scheduler_dtor(async_globals);
 	}
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_scheduler_startup(void)
-{
-	size_t globals_size = sizeof(async_globals_t);
-
-	if (async_ex_globals_handler != NULL) {
-		globals_size += async_ex_globals_handler(NULL, globals_size, false);
-	}
-
-#ifdef ZTS
-
-	if (async_globals_id != 0) {
-		return;
-	}
-
-	ts_allocate_fast_id(
-		&async_globals_id,
-		&async_globals_offset,
-		globals_size,
-		(ts_allocate_ctor) async_globals_ctor,
-		(ts_allocate_dtor) async_globals_dtor
-	);
-
-	async_globals_t *async_globals = ts_resource(async_globals_id);
-	async_globals_ctor(async_globals);
-#else
-	if (async_globals != NULL) {
-        return;
-    }
-
-	async_globals = pecalloc(1, globals_size, 1);
-	async_globals_ctor(async_globals);
-#endif
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_scheduler_shutdown(void)
-{
-#ifdef ZTS
-	if (async_globals_id == 0) {
-        return;
-    }
-
-	ts_free_id(async_globals_id);
-	async_globals_id = 0;
-#else
-	if (async_globals == NULL) {
-        return;
-    }
-
-	async_globals_dtor(async_globals);
-	pefree(async_globals, 1);
-#endif
 }
 
 #define TRY_HANDLE_EXCEPTION() \
@@ -361,7 +279,7 @@ void async_scheduler_run(void)
 		return;
 	}
 
-	async_scheduler_startup();
+	async_scheduler_ctor(ASYNC_GLOBAL);
 
 	/**
 	 * Handlers for the scheduler.
@@ -402,7 +320,7 @@ void async_scheduler_run(void)
 
 	} zend_catch {
 		ASYNC_G(in_scheduler_context) = false;
-		async_scheduler_shutdown();
+		async_scheduler_dtor(ASYNC_GLOBAL);
 		zend_bailout();
 	} zend_end_try();
 }

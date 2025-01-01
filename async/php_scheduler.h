@@ -50,26 +50,16 @@ typedef void (*async_microtasks_handler_t)(void);
 typedef void (*async_exception_handler_t)(void);
 
 /**
- * Async globals Ex-constructor.
- * The method is called in three cases:
- * 1. When it is necessary to return the size of the extended memory.
- * 2. When it is necessary to create and initialize the global Async structure.
- * 3. When the destructor needs to be called.
- */
-typedef size_t (* async_ex_globals_fn)(async_globals_t *async_globals, size_t current_size, zend_bool is_destroy);
-
-/**
  * The method activates the Scheduler in the specified thread.
  * The method can only be called in the main Fiber (i.e., when there is no Fiber) of the thread.
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_run(void);
+ZEND_API void async_scheduler_dtor(async_globals_t *async_globals);
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler);
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
-
-ZEND_API async_ex_globals_fn async_set_ex_globals_handler(async_ex_globals_fn handler);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 

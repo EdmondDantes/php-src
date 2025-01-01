@@ -50,6 +50,8 @@ struct _async_globals_s {
 	circular_buffer_t pending_fibers;
 	/* List of async_fiber_state_t  */
 	HashTable fibers_state;
+	/* Link to the reactor structure */
+	void * reactor;
 	/* Handlers for the scheduler */
 	async_callbacks_handler_t execute_callbacks_handler;
 	async_next_fiber_handler_t execute_next_fiber_handler;
@@ -59,8 +61,6 @@ struct _async_globals_s {
 	/* List of linked handles to fibers */
 	HashTable linked_handles;
 #endif
-	/* Extension of async_fiber_state_t */
-	char extend[];
 };
 
 struct _async_fiber_state_s {
@@ -74,8 +74,10 @@ struct _async_fiber_state_s {
 ZEND_API int async_globals_id = 0;
 ZEND_API size_t async_globals_offset;
 # define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
+# define ASYNC_GLOBAL TSRMG_FAST_BULK(async_globals_id, async_globals_t *)
 #else
 # define ASYNC_G(v) (async_globals->v)
+# define ASYNC_GLOBAL (&async_globals)
 ZEND_API async_globals_t* async_globals;
 #endif
 
@@ -88,6 +90,36 @@ void async_module_startup(void);
 void async_module_shutdown(void);
 ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
+
+/**
+ * @brief Suspends the current fiber and waits for the specified events.
+ *
+ * @param resume  Pointer to an async_resume_t object describing the events to wait for.
+ *                If NULL, a new resume object will be created internally.
+ *
+ * @details This function suspends the execution of the current fiber, placing it into a
+ *          waiting state until the specified descriptors or events trigger a resumption.
+ *          Control is returned to the scheduler until the awaited events complete.
+ *
+ *          If the fiber is not in a valid context (such as outside of a fiber or within the
+ *          scheduler), the function raises an error and returns immediately.
+ *
+ *          If the resume object is not in the ASYNC_RESUME_PENDING state, or is not associated
+ *          with the current fiber, an error is thrown. A fiber state is created if one does not exist.
+ *
+ * @note This function cannot be called from within the scheduler context or from outside of a fiber.
+ *       Attempting to await on an invalid resume object or a mismatched fiber will raise errors.
+ *
+ * @return void   No return value. Errors are signaled through thrown exceptions or error messages.
+ *
+ * @throws Throws errors in the following cases:
+ *         - Awaiting in a non-fiber context.
+ *         - Awaiting in the scheduler context.
+ *         - Resume object is in an invalid state.
+ *         - Resume object is not linked to the active fiber.
+ *         - Failed to create fiber state or resume object.
+ */
+ZEND_API void async_await(async_resume_t *resume);
 
 /**
  * Finds the state of a given fiber.
