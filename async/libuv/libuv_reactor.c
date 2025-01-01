@@ -80,6 +80,11 @@ static zend_always_inline zend_long libuv_events_to_php(const int events)
 	return php_events;
 }
 
+//=============================================================
+#pragma region Poll Handle
+//=============================================================
+
+
 static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
 {
 	libuv_poll_t *poll_handle = handle->data;
@@ -102,51 +107,6 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 
 	async_notifier_notify(&poll_handle->handle, &php_events, &error);
 	IF_EXCEPTION_STOP;
-}
-
-static void on_timer_event(uv_timer_t *handle)
-{
-	libuv_timer_t *timer = handle->data;
-
-	zval error;
-	ZVAL_NULL(&error);
-
-	zval events;
-	ZVAL_NULL(&events);
-
-	async_notifier_notify(&timer->handle, &events, &error);
-	IF_EXCEPTION_STOP;
-}
-
-static void on_signal_event(uv_signal_t *handle, int sig_number)
-{
-    libuv_signal_t *signal = handle->data;
-
-    zval error;
-    ZVAL_NULL(&error);
-
-    zval sig;
-    ZVAL_LONG(&sig, sig_number);
-
-    async_notifier_notify(&signal->handle, &sig, &error);
-    IF_EXCEPTION_STOP;
-}
-
-static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events, int status)
-{
-    libuv_fs_event_t *fs_event = handle->data;
-
-    zval error;
-    ZVAL_NULL(&error);
-
-    zval event;
-    ZVAL_STRING(&event, filename);
-
-    zval php_events;
-    ZVAL_LONG(&php_events, events);
-
-    async_notifier_notify(&fs_event->handle, &event, &error);
-    IF_EXCEPTION_STOP;
 }
 
 static zend_always_inline void libuv_poll_alloc_and_start(libuv_poll_t * poll, const int actions, const int handle)
@@ -230,13 +190,26 @@ static void libuv_poll_dtor(reactor_handle_t *handle)
 	uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
 }
 
-libuv_poll_t *libuv_poll_alloc()
-{
-	libuv_poll_t *poll = ecalloc(1, sizeof(libuv_poll_t));
-	poll->handle.ctor = libuv_poll_ctor;
-	poll->handle.dtor = libuv_poll_dtor;
+//=============================================================
+#pragma endregion
+//=============================================================
 
-	return poll;
+//=============================================================
+#pragma region Timer
+//=============================================================
+
+static void on_timer_event(uv_timer_t *handle)
+{
+	libuv_timer_t *timer = handle->data;
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	zval events;
+	ZVAL_NULL(&events);
+
+	async_notifier_notify(&timer->handle, &events, &error);
+	IF_EXCEPTION_STOP;
 }
 
 static void libuv_timer_ctor(reactor_handle_t *handle, ...)
@@ -286,6 +259,28 @@ static void libuv_timer_dtor(reactor_handle_t *handle)
 	uv_close((uv_handle_t *)timer->uv_handle, libuv_close_cb);
 }
 
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region Signal
+//=============================================================
+
+static void on_signal_event(uv_signal_t *handle, int sig_number)
+{
+	libuv_signal_t *signal = handle->data;
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	zval sig;
+	ZVAL_LONG(&sig, sig_number);
+
+	async_notifier_notify(&signal->handle, &sig, &error);
+	IF_EXCEPTION_STOP;
+}
+
 static void libuv_signal_ctor(reactor_handle_t *handle, ...)
 {
 	libuv_signal_t *signal_handle = (libuv_signal_t *)handle;
@@ -305,53 +300,58 @@ static void libuv_signal_ctor(reactor_handle_t *handle, ...)
 	int error = uv_signal_init(signal_handle->uv_handle->loop, signal_handle->uv_handle);
 
 	if (error < 0) {
-        async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
-        pefree(signal_handle->uv_handle, 1);
-        signal_handle->uv_handle = NULL;
-        return;
-    }
+		async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
+		pefree(signal_handle->uv_handle, 1);
+		signal_handle->uv_handle = NULL;
+		return;
+	}
 
 	error = uv_signal_start(signal_handle->uv_handle, on_signal_event, (int)signal);
 
 	if (error < 0) {
-        async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
-        uv_close((uv_handle_t*)signal_handle->uv_handle, libuv_close_cb);
-        pefree(signal_handle->uv_handle, 1);
-        signal_handle->uv_handle = NULL;
-    }
+		async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
+		uv_close((uv_handle_t*)signal_handle->uv_handle, libuv_close_cb);
+		pefree(signal_handle->uv_handle, 1);
+		signal_handle->uv_handle = NULL;
+	}
 }
 
 static void libuv_signal_dtor(reactor_handle_t *handle)
 {
 	const libuv_signal_t *signal_handle = (libuv_signal_t *)handle;
 
-    const int error = uv_signal_stop(signal_handle->uv_handle);
+	const int error = uv_signal_stop(signal_handle->uv_handle);
 
-    if (error < 0) {
-        zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
-    }
+	if (error < 0) {
+		zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
+	}
 
-    uv_close((uv_handle_t *)signal_handle->uv_handle, libuv_close_cb);
+	uv_close((uv_handle_t *)signal_handle->uv_handle, libuv_close_cb);
 }
 
-static void libuv_process_ctor(reactor_handle_t *handle, ...)
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region File System Events
+//=============================================================
+
+static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events, int status)
 {
+	libuv_fs_event_t *fs_event = handle->data;
 
-}
+	zval error;
+	ZVAL_NULL(&error);
 
-static void libuv_process_dtor(reactor_handle_t *handle)
-{
+	zval event;
+	ZVAL_STRING(&event, filename);
 
-}
+	zval php_events;
+	ZVAL_LONG(&php_events, events);
 
-static void libuv_thread_ctor(reactor_handle_t *handle)
-{
-
-}
-
-static void libuv_thread_dtor(reactor_handle_t *handle)
-{
-
+	async_notifier_notify(&fs_event->handle, &event, &error);
+	IF_EXCEPTION_STOP;
 }
 
 static void libuv_file_system_ctor(reactor_handle_t *handle)
@@ -379,19 +379,19 @@ static void libuv_file_system_ctor(reactor_handle_t *handle)
 	int error = uv_fs_event_init(fs_event->uv_handle->loop, fs_event->uv_handle);
 
 	if (error < 0) {
-        async_throw_error("Failed to initialize file system event handle: %s", uv_strerror(error));
+		async_throw_error("Failed to initialize file system event handle: %s", uv_strerror(error));
 		pefree(fs_event->uv_handle, 1);
-        return;
-    }
+		return;
+	}
 
 	error = uv_fs_event_start(fs_event->uv_handle, on_fs_event, Z_STRVAL_P(path), flags);
 
 	if (error < 0) {
-        async_throw_error("Failed to start file system event handle: %s", uv_strerror(error));
-        uv_close((uv_handle_t*)fs_event->uv_handle, libuv_close_cb);
+		async_throw_error("Failed to start file system event handle: %s", uv_strerror(error));
+		uv_close((uv_handle_t*)fs_event->uv_handle, libuv_close_cb);
 		pefree(fs_event->uv_handle, 1);
 		fs_event->uv_handle = NULL;
-    }
+	}
 }
 
 static void libuv_file_system_dtor(reactor_handle_t *handle)
@@ -400,42 +400,57 @@ static void libuv_file_system_dtor(reactor_handle_t *handle)
 
 	const int error = uv_fs_event_stop(signal_handle->uv_handle);
 
-    if (error < 0) {
-        zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
-    }
+	if (error < 0) {
+		zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
+	}
 
-    uv_close((uv_handle_t *)signal_handle->uv_handle, libuv_close_cb);
+	uv_close((uv_handle_t *)signal_handle->uv_handle, libuv_close_cb);
 }
 
-static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region Process handle
+//=============================================================
+
+
+static void libuv_process_ctor(reactor_handle_t *handle, ...)
 {
-	libuv_poll_t *poll_handle = libuv_poll_alloc();
 
-	if (poll_handle == NULL) {
-		return NULL;
-	}
-
-	poll_handle->handle.type = type;
-
-	int res = uv_poll_init(UVLOOP, poll_handle->uv_handle, fd);
-
-	if (res < 0) {
-		async_throw_poll("Failed to initialize poll handle: %s", uv_strerror(res));
-		pefree(poll_handle, 1);
-		return NULL;
-	}
-
-	res = uv_poll_start(poll_handle->uv_handle, libuv_events_from_php(events), on_poll_event);
-
-	if (res < 0) {
-		async_throw_poll("Failed to start poll handle: %s", uv_strerror(res));
-		uv_close((uv_handle_t*)poll_handle, libuv_close_cb);
-		pefree(poll_handle, 1);
-		return NULL;
-	}
-
-	return poll_handle;
 }
+
+static void libuv_process_dtor(reactor_handle_t *handle)
+{
+
+}
+
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region Thread handle
+//=============================================================
+
+static void libuv_thread_ctor(reactor_handle_t *handle)
+{
+
+}
+
+static void libuv_thread_dtor(reactor_handle_t *handle)
+{
+
+}
+
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region Reactor API
+//=============================================================
 
 static void handle_callbacks(void)
 {
@@ -960,3 +975,7 @@ void async_libuv_shutdown(void)
 {
 	restore_handlers();
 }
+
+//=============================================================
+#pragma endregion
+//=============================================================
