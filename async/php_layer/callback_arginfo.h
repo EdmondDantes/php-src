@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e0c35dc56a3ba10d66ebee2c051c7f9e43d9d8a6 */
+ * Stub hash: d9de1c500d2a1fb1e39f6c442e903c4ca651893b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Callback___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b4eb047500a9d946fc71c5a42156b3664229fe53 */
+ * Stub hash: 388233e96ed50b94efd3685e08eb883d04116882 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
@@ -33,13 +33,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_SignalHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_ThreadHandle___construct, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, threadId, IS_LONG, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Async_ThreadHandle___construct arginfo_class_Async_FiberHandle___construct
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_ProcessHandle___construct, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, processId, IS_LONG, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_FiberHandle___construct
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FileSystemHandle___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
