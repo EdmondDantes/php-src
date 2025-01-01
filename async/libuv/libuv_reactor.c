@@ -23,7 +23,7 @@
 
 #include "../php_layer/exceptions.h"
 
-#define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
+#define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
 static async_microtasks_handler_t microtask_handler = NULL;
@@ -459,12 +459,32 @@ static void handle_callbacks(void)
 
 static void libuv_startup(void)
 {
+	async_globals_t *async_globals = ASYNC_GLOBAL;
 
+	if (async_globals->reactor != NULL) {
+		return;
+	}
+
+	async_globals->reactor = pecalloc(1, sizeof(uv_loop_t), 1);
+	const int result = uv_loop_init(async_globals->reactor);
+
+	if (result != 0) {
+		async_throw_error("Failed to initialize loop: %s", uv_strerror(result));
+		return;
+	}
+
+	uv_loop_set_data(async_globals->reactor, ASYNC_GLOBAL);
 }
 
 static void libuv_shutdown(void)
 {
+	async_globals_t *async_globals = ASYNC_GLOBAL;
 
+	if (EXPECTED(async_globals->reactor != NULL)) {
+		uv_loop_close(async_globals->reactor);
+		pefree(async_globals->reactor, 1);
+		async_globals->reactor = NULL;
+	}
 }
 
 static void libuv_add_handle_ex(reactor_handle_t *handle)
@@ -846,23 +866,22 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 
 static void setup_handlers(void)
 {
-	async_set_ex_globals_handler(async_ex_globals_handler);
 	async_scheduler_set_callbacks_handler(execute_callbacks);
 
 	prev_reactor_startup_fn = reactor_startup_fn;
-	reactor_startup_fn = NULL;
+	reactor_startup_fn = libuv_startup;
 
 	prev_reactor_shutdown_fn = reactor_shutdown_fn;
-	reactor_shutdown_fn = NULL;
+	reactor_shutdown_fn = libuv_shutdown;
 
 	prev_reactor_object_create_fn = reactor_object_create_fn;
 	reactor_object_create_fn = libuv_object_create;
 
 	prev_reactor_add_handle_ex_fn = reactor_add_handle_ex_fn;
-	reactor_add_handle_ex_fn = NULL;
+	reactor_add_handle_ex_fn = libuv_add_handle_ex;
 
 	prev_reactor_remove_handle_fn = reactor_remove_handle_fn;
-	reactor_remove_handle_fn = NULL;
+	reactor_remove_handle_fn = libuv_remove_handle;
 
 	prev_reactor_loop_stop_fn = reactor_stop_fn;
 	reactor_stop_fn = libuv_loop_stop;
@@ -903,8 +922,6 @@ static void setup_handlers(void)
 
 static void restore_handlers(void)
 {
-	async_set_ex_globals_handler(NULL);
-
 	reactor_startup_fn = prev_reactor_startup_fn;
 	reactor_shutdown_fn = prev_reactor_shutdown_fn;
 
