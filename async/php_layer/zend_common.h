@@ -51,6 +51,25 @@ void zend_always_inline zval_property_copy(zval * property, zval * value)
 	Z_TRY_ADDREF_P(value);
 }
 
+void zend_always_inline zend_object_ptr_copy(zend_object * destination, zend_object * source)
+{
+	if (EXPECTED(destination != NULL)) {
+		OBJ_RELEASE(destination);
+	}
+
+	destination = source;
+	GC_ADDREF(source);
+}
+
+void zend_always_inline zend_object_ptr_reset(zend_object * destination)
+{
+	if (EXPECTED(destination != NULL)) {
+		OBJ_RELEASE(destination);
+	}
+
+	destination = NULL;
+}
+
 /**
  * Creates a new weak reference to the given zval.
  *

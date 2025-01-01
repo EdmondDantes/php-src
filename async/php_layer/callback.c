@@ -20,11 +20,15 @@
 #include "callback.h"
 #include "notifier.h"
 #include "callback_arginfo.h"
+#include "../php_async.h"
 
 #define METHOD(name) PHP_METHOD(Async_Callback, name)
 
 #define PROPERTY_CALLBACK "callback"
 #define GET_PROPERTY_CALLBACK() async_callback_get_callback(Z_OBJ_P(ZEND_THIS))
+
+#define PROPERTY_FIBER "fiber"
+#define GET_PROPERTY_FIBER() async_callback_get_fiber(Z_OBJ_P(ZEND_THIS))
 
 #define PROPERTY_NOTIFIERS "notifiers"
 #define GET_PROPERTY_NOTIFIERS() async_callback_get_notifiers(Z_OBJ_P(ZEND_THIS))
@@ -36,6 +40,11 @@ static zend_object_handlers async_callback_handlers;
 
 METHOD(__construct)
 {
+	if (EG(active_fiber) == NULL) {
+		zend_throw_exception_ex(zend_ce_error, 0, "Callbacks can only be created within a Fiber");
+		RETURN_THROWS();
+	}
+
 	zval* callable;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -47,7 +56,8 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	ZVAL_COPY(GET_PROPERTY_CALLBACK(), callable);
+	ZVAL_OBJ_COPY(GET_PROPERTY_FIBER(), EG(active_fiber));
+	zval_property_copy(GET_PROPERTY_CALLBACK(), callable);
 }
 
 METHOD(disposeCallback)
@@ -225,4 +235,12 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 
 	// Cleanup return value
 	zval_ptr_dtor(&retval);
+
+	//
+	// If an exception occurred during the callback execution, we need to transfer it to the Fiber.
+	//
+	if (EG(exception) != NULL) {
+		async_transfer_throw_to_fiber((zend_fiber *) Z_OBJ_P(async_callback_get_fiber(callback)), EG(exception));
+		zend_clear_exception();
+	}
 }

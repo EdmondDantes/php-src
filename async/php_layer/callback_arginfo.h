@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d8e68020978ac6a618b9f88ea820641c476ff658 */
+ * Stub hash: e0c35dc56a3ba10d66ebee2c051c7f9e43d9d8a6 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Callback___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -29,6 +29,13 @@ static zend_class_entry *register_class_Async_Callback(void)
 	zend_string *property_callback_name = zend_string_init("callback", sizeof("callback") - 1, 1);
 	zend_declare_typed_property(class_entry, property_callback_name, &property_callback_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
 	zend_string_release(property_callback_name);
+
+	zval property_fiber_default_value;
+	ZVAL_UNDEF(&property_fiber_default_value);
+	zend_string *property_fiber_name = zend_string_init("fiber", sizeof("fiber") - 1, 1);
+	zend_string *property_fiber_class_Fiber = zend_string_init("Fiber", sizeof("Fiber")-1, 1);
+	zend_declare_typed_property(class_entry, property_fiber_name, &property_fiber_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_fiber_class_Fiber, 0, 0));
+	zend_string_release(property_fiber_name);
 
 	zval property_notifiers_default_value;
 	ZVAL_EMPTY_ARRAY(&property_notifiers_default_value);

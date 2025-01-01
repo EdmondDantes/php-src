@@ -24,6 +24,11 @@ static zend_always_inline zval* async_callback_get_callback(zend_object* callbac
 	return &callback->properties_table[0];
 }
 
+static zend_always_inline zval* async_callback_get_fiber(zend_object* callback)
+{
+	return &callback->properties_table[1];
+}
+
 /**
  * This method is used to get the Notifiers array from the Callback object.
  *
@@ -31,17 +36,17 @@ static zend_always_inline zval* async_callback_get_callback(zend_object* callbac
  */
 static zend_always_inline HashTable* async_callback_get_notifiers(const zend_object* callback)
 {
-	return Z_ARRVAL_P(&callback->properties_table[1]);
+	return Z_ARRVAL_P(&callback->properties_table[2]);
 }
 
 static zend_always_inline zval* async_callback_get_zval_notifiers(zend_object* callback)
 {
-	return &callback->properties_table[1];
+	return &callback->properties_table[2];
 }
 
 static zend_always_inline zval* async_callback_get_resume(zend_object* callback)
 {
-	return &callback->properties_table[2];
+	return &callback->properties_table[3];
 }
 
 

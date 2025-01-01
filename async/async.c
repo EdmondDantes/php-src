@@ -203,6 +203,28 @@ void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
 	async_resume_fiber(state->resume, NULL, error);
 }
 
+void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
+{
+	if (fiber == NULL) {
+		return;
+	}
+
+	// Add fiber state if it does not exist.
+	const async_fiber_state_t *state = async_find_fiber_state(fiber);
+
+	if (state == NULL) {
+		state = async_add_fiber_state(fiber, async_resume_new());
+	}
+
+	// Inherit exception from state-fiber if exists.
+	if (state->resume->error != NULL) {
+		zend_exception_set_previous(error, state->resume->error);
+		zend_object_ptr_reset(state->resume->error);
+	}
+
+	// Move fiber to pending queue with exception.
+	async_resume_fiber(state->resume, NULL, error);
+}
 
 /**
  * Suspend the current fiber.

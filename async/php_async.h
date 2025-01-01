@@ -153,6 +153,20 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_obje
  */
 ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
 
+/**
+ * Transfers an exception to the specified fiber and schedules it for resumption.
+ *
+ * This function ensures that the given fiber has a valid state. If the state does not exist,
+ * it creates a new one and associates it with the fiber. If the fiber's state already has
+ * an existing exception, it is linked as the previous exception to maintain the chain.
+ * Finally, the fiber is moved to the pending queue with the new exception, triggering
+ * its resumption with the error.
+ *
+ * @param fiber  The target fiber to which the exception is transferred.
+ * @param error The exception object to be thrown in the fiber context.
+ */
+ZEND_API void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error);
+
 int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
 
 #endif //ASYNC_H

@@ -14,6 +14,8 @@ class Callback
      */
     private mixed $callback;
 
+    private \Fiber $fiber;
+
     /**
      * @param Notifier[] $notifiers
      */
