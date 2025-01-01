@@ -394,9 +394,17 @@ static void libuv_file_system_ctor(reactor_handle_t *handle)
     }
 }
 
-static void libuv_file_system_dtor(reactor_handle_t *handle, ...)
+static void libuv_file_system_dtor(reactor_handle_t *handle)
 {
+	const libuv_fs_event_t *signal_handle = (libuv_fs_event_t *)handle;
 
+	const int error = uv_fs_event_stop(signal_handle->uv_handle);
+
+    if (error < 0) {
+        zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
+    }
+
+    uv_close((uv_handle_t *)signal_handle->uv_handle, libuv_close_cb);
 }
 
 static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
