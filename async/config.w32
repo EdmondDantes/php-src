@@ -1,20 +1,41 @@
 // vim:ft=javascript
 
-ARG_ENABLE('async', 'Enable true async support in PHP core', 'no');
+ARG_ENABLE('async', 'Enable True Async API', 'no');
+ARG_WITH('libuv', 'Build True Async API with libuv support', 'no');
 
 if (PHP_ASYNC == "yes") {
+    ADD_SOURCES("async", "*.c");
+    ADD_SOURCES("async/internal", "*.c");
+    ADD_SOURCES("async/php_layer", "*.c");
 
-    var PHP_UV = PHP_SDK_VS_DIR + "\\deps";
+    ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
 
-	if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_UV + "\\include")
-		&& CHECK_LIB("libuv.lib", "uv", PHP_UV)) {
+    PHP_INSTALL_HEADERS("async", "php_async.h");
+    PHP_INSTALL_HEADERS("async", "php_reactor.h");
+    PHP_INSTALL_HEADERS("async", "php_scheduler.h");
+    PHP_INSTALL_HEADERS("async/libuv", "libuv_reactor.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "callback.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "channel.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "ev_handles.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "exceptions.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "functions.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "notifier.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "resume.h");
+}
 
-        ADD_SOURCES("async", "network.c");
-        ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
+if (PHP_LIBUV == "yes") {
+    if (PHP_ASYNC != "yes") {
+        ERROR("libuv requires True Async API to be enabled. Use --enable-async");
+    } else {
+        var PHP_UV = PHP_SDK_VS_DIR + "\\deps";
 
-        PHP_INSTALL_HEADERS("async", "async.h");
+        if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_UV + "\\include")
+            && CHECK_LIB("libuv.lib", "uv", PHP_UV)) {
 
-	} else {
-		WARNING("uv not enabled; libraries and/or headers not found");
-	}
+            ADD_SOURCES("async/libuv", "*.c");
+            ADD_FLAG("CFLAGS", "/D PHP_LIBUV");
+        } else {
+            WARNING("libuv not enabled; libraries and/or headers not found");
+        }
+    }
 }
