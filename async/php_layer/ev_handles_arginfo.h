@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 388233e96ed50b94efd3685e08eb883d04116882 */
+ * Stub hash: 32a1dfcb2e70b662a7c7fd6157950f8efb522a8c */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
@@ -102,7 +102,7 @@ static zend_class_entry *register_class_Async_EvHandle(zend_class_entry *class_e
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "EvHandle", class_Async_EvHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_ABSTRACT);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_ABSTRACT|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval const_READABLE_value;
 	ZVAL_LONG(&const_READABLE_value, 1);
@@ -142,7 +142,7 @@ static zend_class_entry *register_class_Async_FiberHandle(zend_class_entry *clas
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FiberHandle", class_Async_FiberHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -152,7 +152,7 @@ static zend_class_entry *register_class_Async_FileHandle(zend_class_entry *class
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FileHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -162,7 +162,7 @@ static zend_class_entry *register_class_Async_SocketHandle(zend_class_entry *cla
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "SocketHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -172,7 +172,7 @@ static zend_class_entry *register_class_Async_PipeHandle(zend_class_entry *class
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "PipeHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -182,7 +182,7 @@ static zend_class_entry *register_class_Async_TtyHandle(zend_class_entry *class_
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "TtyHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -192,7 +192,7 @@ static zend_class_entry *register_class_Async_TimerHandle(zend_class_entry *clas
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "TimerHandle", class_Async_TimerHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -202,7 +202,7 @@ static zend_class_entry *register_class_Async_SignalHandle(zend_class_entry *cla
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "SignalHandle", class_Async_SignalHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -212,7 +212,7 @@ static zend_class_entry *register_class_Async_ThreadHandle(zend_class_entry *cla
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ThreadHandle", class_Async_ThreadHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -222,7 +222,7 @@ static zend_class_entry *register_class_Async_ProcessHandle(zend_class_entry *cl
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ProcessHandle", class_Async_ProcessHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -232,7 +232,7 @@ static zend_class_entry *register_class_Async_FileSystemHandle(zend_class_entry 
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FileSystemHandle", class_Async_FileSystemHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval const_EVENT_RENAME_value;
 	ZVAL_LONG(&const_EVENT_RENAME_value, 1);

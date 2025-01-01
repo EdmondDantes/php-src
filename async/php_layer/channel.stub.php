@@ -9,7 +9,8 @@ class ChannelWasClosed extends \Exception {}
 class ChannelIsFull extends \Exception {}
 
 /**
- *
+ * @strict-properties
+ * @not-serializable
  */
 class Channel
 {

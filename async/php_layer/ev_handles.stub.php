@@ -4,6 +4,10 @@
 
 namespace Async;
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 abstract class EvHandle extends Notifier
 {
     public const int READABLE = 1;
@@ -18,6 +22,9 @@ abstract class EvHandle extends Notifier
 
 /**
  * An interface for representing Fiber as Event Handle.
+ *
+ * @strict-properties
+ * @not-serializable
  */
 final class FiberHandle extends Notifier
 {
@@ -39,42 +46,78 @@ final class FiberHandle extends Notifier
     public function cancelWith(\Throwable $error): void {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class FileHandle extends EvHandle
 {
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class SocketHandle extends EvHandle
 {
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class PipeHandle extends EvHandle
 {
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class TtyHandle extends EvHandle
 {
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class TimerHandle extends Notifier
 {
     public function __construct(int $microseconds) {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class SignalHandle extends Notifier
 {
     public function __construct(int $sigNumber) {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class ThreadHandle extends Notifier
 {
     public function __construct() {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class ProcessHandle extends Notifier
 {
     public function __construct() {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class FileSystemHandle extends Notifier
 {
     public const int EVENT_RENAME = 1;

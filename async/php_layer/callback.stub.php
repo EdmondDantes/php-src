@@ -6,6 +6,9 @@ namespace Async;
 
 /**
  * An event handler capable of handling the occurrence of an event or an error.
+ *
+ * @strict-properties
+ * @not-serializable
  */
 class Callback
 {

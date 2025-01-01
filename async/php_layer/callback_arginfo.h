@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d9de1c500d2a1fb1e39f6c442e903c4ca651893b */
+ * Stub hash: a945a06499ef8147604c7f1e16179b750fbd492c */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Callback___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -22,7 +22,7 @@ static zend_class_entry *register_class_Async_Callback(void)
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Callback", class_Async_Callback_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval property_callback_default_value;
 	ZVAL_UNDEF(&property_callback_default_value);

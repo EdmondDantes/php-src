@@ -13,6 +13,8 @@ namespace Async;
  * A `Resume` object cannot be created outside the current `Fiber`.
  * The `Resume` object can transition to a resolved state only once,
  * after which it must be destroyed.
+ * @strict-properties
+ * @not-serializable
  */
 final class Resume
 {

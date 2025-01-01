@@ -6,6 +6,9 @@ namespace Async;
 
 /**
  * The class that can be used to notify about the occurrence of an event.
+ *
+ * @strict-properties
+ * @not-serializable
  */
 class Notifier
 {

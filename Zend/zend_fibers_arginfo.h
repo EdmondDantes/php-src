@@ -55,10 +55,12 @@ ZEND_METHOD(Fiber, isSuspended);
 ZEND_METHOD(Fiber, isRunning);
 ZEND_METHOD(Fiber, isTerminated);
 ZEND_METHOD(Fiber, getReturn);
+#ifdef PHP_ASYNC
 ZEND_METHOD(Fiber, getContext);
 ZEND_METHOD(Fiber, addShutdownHandler);
 ZEND_METHOD(Fiber, removeShutdownHandler);
 ZEND_METHOD(Fiber, getCurrent);
+#endif
 ZEND_METHOD(Fiber, suspend);
 ZEND_METHOD(FiberError, __construct);
 
