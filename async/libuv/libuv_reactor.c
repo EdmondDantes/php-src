@@ -195,6 +195,56 @@ libuv_poll_t *libuv_poll_alloc()
 	return poll;
 }
 
+static void libuv_timer_ctor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_timer_dtor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_signal_ctor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_signal_dtor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_process_ctor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_process_dtor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_thread_ctor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_thread_dtor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_file_system_ctor(reactor_handle_t *handle, ...)
+{
+
+}
+
+static void libuv_file_system_dtor(reactor_handle_t *handle, ...)
+{
+
+}
+
 static libuv_poll_t* libuv_poll_new(const int fd, const REACTOR_HANDLE_TYPE type, const zend_long events)
 {
 	libuv_poll_t *poll_handle = libuv_poll_alloc();
