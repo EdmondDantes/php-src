@@ -477,51 +477,6 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 
 }
 
-/**
- * The prepare callback is executed immediately before the event loop enters
- * the blocking phase to wait for new I/O events. This allows for the execution
- * of pending tasks or preparations right before the event loop goes idle.
- *
- * @param handle Pointer to the uv_prepare_t handle.
- */
-static void prepare_cb(uv_prepare_t *handle)
-{
-	if (microtask_handler != NULL) {
-		microtask_handler();
-	}
-
-	if (EG(exception) != NULL) {
-        uv_stop(UVLOOP);
-    }
-}
-
-/**
- * The check callback is executed after all I/O callbacks have been invoked
- * but before the next iteration of the event loop and before timers like setImmediate.
- * This allows for tasks to run immediately after I/O processing.
- *
- * @param handle Pointer to the uv_check_t handle.
- */
-static void check_cb(uv_check_t *handle)
-{
-	if (microtask_handler != NULL) {
-		microtask_handler();
-	}
-
-	if (EG(exception) != NULL) {
-		uv_stop(UVLOOP);
-	}
-
-	// Execute the next fiber task if scheduled, after microtasks have been processed.
-	if (next_fiber_handler != NULL) {
-		next_fiber_handler();
-	}
-
-	if (EG(exception) != NULL) {
-		uv_stop(UVLOOP);
-	}
-}
-
 static zend_bool execute_callbacks(const zend_bool no_wait)
 {
 	return uv_run(UVLOOP, no_wait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
@@ -713,6 +668,10 @@ static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zen
 
 }
 
+//=============================================================
+#pragma region Handle API
+//=============================================================
+
 static reactor_handle_t* libuv_file_new(const php_file_descriptor_t fd, const zend_ulong events)
 {
 	zval object;
@@ -880,6 +839,10 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 	zval_dtor(&params[0]);
 	return (reactor_handle_t *) Z_OBJ_P(&object);
 }
+
+//=============================================================
+#pragma endregion
+//=============================================================
 
 static void setup_handlers(void)
 {
