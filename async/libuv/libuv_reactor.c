@@ -105,6 +105,17 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	IF_EXCEPTION_STOP;
 }
 
+static int on_timer_event(uv_timer_t *handle)
+{
+	libuv_timer_t *timer = handle->data;
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	async_notifier_notify(&timer->handle, NULL, &error);
+	IF_EXCEPTION_STOP;
+}
+
 static zend_always_inline void libuv_poll_alloc_and_start(libuv_poll_t * poll, const int actions, const int handle)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
@@ -197,12 +208,49 @@ libuv_poll_t *libuv_poll_alloc()
 
 static void libuv_timer_ctor(reactor_handle_t *handle, ...)
 {
+	libuv_timer_t *timer = (libuv_timer_t *)handle;
 
+	va_list args;
+	va_start(args, handle);
+	const zend_long timeout = va_arg(args, zend_long);
+	va_end(args);
+
+	if (timeout == 0 || timeout < 0) {
+		zend_throw_exception(spl_ce_InvalidArgumentException, "Invalid timeout", 0);
+		return;
+	}
+
+	timer->uv_handle = pecalloc(1, sizeof(uv_timer_t), 1);
+
+	int error = uv_timer_init(timer->uv_handle->loop, timer->uv_handle);
+
+	if (error < 0) {
+		async_throw_poll("Failed to initialize timer handle: %s", uv_strerror(error));
+		pefree(timer->uv_handle, 1);
+		timer->uv_handle = NULL;
+		return;
+	}
+
+	error = uv_timer_start(timer->uv_handle, on_timer_event, timeout, 0);
+
+	if (error < 0) {
+		async_throw_poll("Failed to start timer handle: %s", uv_strerror(error));
+		pefree(timer->uv_handle, 1);
+		timer->uv_handle = NULL;
+	}
 }
 
 static void libuv_timer_dtor(reactor_handle_t *handle, ...)
 {
+	const libuv_timer_t *timer = (libuv_timer_t *)handle;
 
+	const int error = uv_timer_stop(timer->uv_handle);
+
+	if (error < 0) {
+		zend_error(E_WARNING, "Failed to stop timer handle: %s", uv_strerror(error));
+	}
+
+	uv_close((uv_handle_t *)timer->uv_handle, libuv_close_cb);
 }
 
 static void libuv_signal_ctor(reactor_handle_t *handle, ...)
