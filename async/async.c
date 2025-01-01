@@ -487,7 +487,7 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
             goto finally;
         }
 
-		async_resume_when(resume, handle, async_resume_when_callback_cancel);
+		async_resume_when(resume, handle, async_resume_when_callback_timeout);
 		IF_EXCEPTION_GOTO_ERROR;
 		OBJ_RELEASE(&handle->std);
 	}
@@ -548,7 +548,14 @@ error:
 	if (EG(exception)) {
 		zend_object *error = EG(exception);
 		zend_clear_exception();
-		zend_exception_error(error, E_WARNING);
+
+		if (error->ce == async_ce_cancellation_exception) {
+            errno = ECANCELED;
+        } else if (error->ce == async_ce_timeout_exception) {
+            errno = ETIMEDOUT;
+        } else {
+        	zend_exception_error(error, E_WARNING);
+        }
 	}
 
 	goto finally;

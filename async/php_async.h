@@ -88,7 +88,6 @@ void async_module_startup(void);
 void async_module_shutdown(void);
 ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
-int async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout);
 
 /**
  * Finds the state of a given fiber.
@@ -167,6 +166,30 @@ ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
  */
 ZEND_API void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error);
 
-int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
+/**
+ * @brief Asynchronously polls multiple file descriptors.
+ *
+ * @param ufds     Pointer to an array of php_pollfd structures representing the file descriptors to poll.
+ * @param nfds     Number of file descriptors in the ufds array.
+ * @param timeout  Timeout value in milliseconds. A value of 0 returns immediately.
+ *                 A negative value waits indefinitely.
+ *
+ * @return int     On success, returns the number of file descriptors ready for the requested events.
+ *                 On failure, returns -1 and sets errno to one of the following:
+ *                 - ENOMEM: Memory allocation failed.
+ *                 - EINTR: Operation was interrupted by an exception.
+ *                 - ECANCELED: Operation was cancelled.
+ *                 - ETIMEDOUT: Operation timed out.
+ *
+ * @details This function performs asynchronous polling by registering file descriptors and waiting
+ *          for specified events within a timeout period. If a timeout is specified, a timer is
+ *          created and linked to the polling process. For each file descriptor, an event handle
+ *          is generated, and callbacks are attached to resume execution upon completion.
+ *
+ * @note This function relies on the PHP asynchronous reactor system and exception handling
+ *       mechanisms. It assumes the existence of relevant exception classes and internal
+ *       reactor structures.
+ */
+ZEND_API int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
 
 #endif //ASYNC_H
