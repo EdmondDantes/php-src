@@ -286,6 +286,14 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, c
 		call_user_function(CG(function_table), NULL, &resume_notifier->callback, &retval, 3, params);
 		zval_ptr_dtor(&retval);
 	}
+
+	//
+	// Any errors that occur during callback execution cause the Fiber to resume with that error.
+	//
+	if (EG(exception) != NULL) {
+		async_transfer_throw_to_fiber(resume->fiber, EG(exception));
+		zend_clear_exception();
+	}
 }
 
 void async_resume_pending(async_resume_t *resume)

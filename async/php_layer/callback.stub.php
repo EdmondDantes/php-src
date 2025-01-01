@@ -14,6 +14,12 @@ class Callback
      */
     private mixed $callback;
 
+    /**
+     * The fiber in which the callback was created.
+     * It is used in case an exception occurs in the callback,
+     * allowing the exception to be passed to the fiber that
+     * created the callback.
+     */
     private \Fiber $fiber;
 
     /**

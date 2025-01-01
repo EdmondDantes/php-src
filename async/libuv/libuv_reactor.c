@@ -25,6 +25,7 @@
 #include "../php_layer/exceptions.h"
 
 #define UVLOOP ((uv_loop_t *) ASYNC_G(extend))
+#define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
@@ -101,10 +102,7 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	ZVAL_LONG(async_ev_handle_get_triggered_events(&poll_handle->handle.std), long_php_events);
 
 	async_notifier_notify(&poll_handle->handle, &php_events, &error);
-
-
-
-	// TODO: handle error
+	IF_EXCEPTION_STOP;
 }
 
 static zend_always_inline void libuv_poll_alloc_and_start(libuv_poll_t * poll, const int actions, const int handle)
