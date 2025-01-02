@@ -103,7 +103,7 @@ static void async_callback_object_destroy(zend_object* object)
 	zend_object_std_dtor(object);
 }
 
-void async_register_notifier_ce(void)
+void async_register_callback_ce(void)
 {
 	async_ce_callback = register_class_Async_Callback();
 	async_ce_callback->default_object_handlers = &async_callback_handlers;

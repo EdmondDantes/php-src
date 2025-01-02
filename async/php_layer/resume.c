@@ -80,6 +80,12 @@ METHOD(getEventDescriptors)
 	RETURN_ARR(&THIS(notifiers));
 }
 
+METHOD(getNotifiers)
+{
+	GC_REFCOUNT(&THIS(notifiers));
+	RETURN_ARR(&THIS(notifiers));
+}
+
 METHOD(getTriggeredNotifiers)
 {
 	if (THIS(triggered_notifiers) == NULL) {
