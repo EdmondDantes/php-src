@@ -28,11 +28,11 @@ ZEND_API zend_class_entry * async_ce_poll_exception;
 
 void async_register_exceptions_ce(void);
 zend_object * async_new_exception(zend_class_entry *exception_ce, const char *format, ...);
-ZEND_API ZEND_COLD zend_object * async_throw_error(char *format, ...);
-ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...);
-ZEND_API ZEND_COLD zend_object * async_throw_input_output(char *format, ...);
-ZEND_API ZEND_COLD zend_object * async_throw_timeout(char *format, const zend_long timeout);
-ZEND_API ZEND_COLD zend_object * async_throw_poll(char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_error(const char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_cancellation(const char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_input_output(const char *format, ...);
+ZEND_API ZEND_COLD zend_object * async_throw_timeout(const char *format, const zend_long timeout);
+ZEND_API ZEND_COLD zend_object * async_throw_poll(const char *format, ...);
 
 END_EXTERN_C()
 

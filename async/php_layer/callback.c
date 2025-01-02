@@ -56,7 +56,7 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	ZVAL_OBJ_COPY(GET_PROPERTY_FIBER(), EG(active_fiber));
+	ZVAL_OBJ_COPY(GET_PROPERTY_FIBER(), (zend_object *) EG(active_fiber));
 	zval_property_copy(GET_PROPERTY_CALLBACK(), callable);
 }
 
@@ -121,16 +121,14 @@ void async_register_notifier_ce(void)
  */
 zend_result async_callback_bind_resume(zend_object* callback, const zval* resume)
 {
-	const zval* resume_current = async_callback_get_resume(callback);
+	zval* resume_current = async_callback_get_resume(callback);
 
 	if (UNEXPECTED(resume_current != NULL && Z_TYPE_P(resume_current) == IS_NULL)) {
 		zend_error(E_WARNING, "Attempt to bind the resume object and Callback twice.");
 		return FAILURE;
 	}
 
-	zval * resume_ref = async_new_weak_reference_from(resume);
-	// transfer ownership to the property resume_current.
-	ZVAL_OBJ(resume_current, resume_ref);
+	zval_property_move(resume_current, async_new_weak_reference_from(resume));
 
 	return SUCCESS;
 }
@@ -139,7 +137,7 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
  * The method links the notifier and the callback together.
  * The method is always called from the notifier when someone attempts to add a callback to the notifier.
  */
-void async_callback_registered(zend_object* callback, const zend_object* notifier)
+void async_callback_registered(zend_object* callback, zend_object* notifier)
 {
     const zval* notifiers = async_callback_get_zval_notifiers(callback);
 
@@ -157,26 +155,24 @@ void async_callback_registered(zend_object* callback, const zend_object* notifie
  *
  * The method returns a created ZVAL and transfers ownership.
  */
-zval* async_callback_get_resume(const zend_object* callback)
+zend_object * async_callback_resolve_resume(const zend_object* callback)
 {
-	zval* resume_ref = async_callback_get_resume(callback);
+	zval* resume_ref = async_callback_get_resume((zend_object*) callback);
 
 	if (resume_ref == NULL || Z_TYPE_P(resume_ref) == IS_NULL) {
         return NULL;
     }
 
-	zval* retval = emalloc(sizeof(zval));
-	ZVAL_UNDEF(retval);
+	zval retval;
+	ZVAL_UNDEF(&retval);
 
-	async_resolve_weak_reference(resume_ref, retval);
+	async_resolve_weak_reference(resume_ref, &retval);
 
-	if (Z_TYPE_P(retval) == IS_NULL) {
-        zval_ptr_dtor(retval);
-        efree(retval);
+	if (Z_TYPE(retval) == IS_NULL) {
         return NULL;
     }
 
-	return retval;
+	return Z_OBJ(retval);
 }
 
 /**

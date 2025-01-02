@@ -16,12 +16,12 @@
 #ifndef PHP_ASYNC_H
 #define PHP_ASYNC_H
 
-#include <php.h>
-#include <php_network.h>
-#include <ext/standard/proc_open.h>
-#include "php_scheduler.h"
-#include "internal/circular_buffer.h"
-#include "php_layer/resume.h"
+#include "php.h"
+#include "php_network.h"
+#include "ext/standard/proc_open.h"
+#include "async/php_scheduler.h"
+#include "async/internal/circular_buffer.h"
+#include "async/php_layer/resume.h"
 
 #define ASYNC_READABLE 1
 #define ASYNC_WRITABLE 2

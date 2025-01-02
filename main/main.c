@@ -81,7 +81,7 @@
 #include "php_open_temporary_file.h"
 
 #if PHP_ASYNC
-#include "async/async.h"
+#include "async/php_async.h"
 #endif
 
 #include "SAPI.h"

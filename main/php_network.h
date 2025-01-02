@@ -18,9 +18,6 @@
 #define _PHP_NETWORK_H
 
 #include <php.h>
-#ifdef PHP_ASYNC
-#include "async/php_async.h"
-#endif
 
 #ifndef PHP_WIN32
 # undef closesocket
@@ -155,6 +152,10 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout);
 #endif
 
 #define PHP_POLLREADABLE	(POLLIN|POLLERR|POLLHUP)
+
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
 
 #ifndef PHP_USE_POLL_2_EMULATION
 #ifdef PHP_ASYNC

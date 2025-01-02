@@ -57,7 +57,7 @@ zend_object * async_new_exception(zend_class_entry *exception_ce, const char *fo
 	return Z_OBJ(exception);
 }
 
-ZEND_API ZEND_COLD zend_object * async_throw_error(char *format, ...)
+ZEND_API ZEND_COLD zend_object * async_throw_error(const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -69,7 +69,7 @@ ZEND_API ZEND_COLD zend_object * async_throw_error(char *format, ...)
 }
 
 
-ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...)
+ZEND_API ZEND_COLD zend_object * async_throw_cancellation(const char *format, ...)
 {
 	const zend_object *previous_exception = EG(exception);
 
@@ -90,7 +90,7 @@ ZEND_API ZEND_COLD zend_object * async_throw_cancellation(char *format, ...)
 	return obj;
 }
 
-ZEND_API ZEND_COLD zend_object * async_throw_input_output(char *format, ...)
+ZEND_API ZEND_COLD zend_object * async_throw_input_output(const char *format, ...)
 {
 	format = format ? format : "An input/output error occurred.";
 

@@ -17,10 +17,6 @@
 #define PHP_SCHEDULER_H
 
 #include "php.h"
-#include "zend_exceptions.h"
-#include "zend_smart_str.h"
-#include "zend_interfaces.h"
-#include "php_async.h"
 
 /**
  * async_run_callbacks_handler_t - Function pointer type for running pending IO-callbacks/timer-callbacks.
@@ -51,13 +47,15 @@ typedef void (*async_exception_handler_t)(void);
 
 BEGIN_EXTERN_C()
 
+typedef struct _async_globals_s async_globals_t;
+
 /**
  * The method activates the Scheduler in the specified thread.
  * The method can only be called in the main Fiber (i.e., when there is no Fiber) of the thread.
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_run(void);
-ZEND_API void async_scheduler_dtor(async_globals_t *async_globals);
+ZEND_API void async_scheduler_dtor(async_globals_t * async_globals);
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler);
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
