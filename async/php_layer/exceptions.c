@@ -68,7 +68,6 @@ ZEND_API ZEND_COLD zend_object * async_throw_error(const char *format, ...)
 	return obj;
 }
 
-
 ZEND_API ZEND_COLD zend_object * async_throw_cancellation(const char *format, ...)
 {
 	const zend_object *previous_exception = EG(exception);

@@ -45,6 +45,12 @@ void zend_always_inline zval_copy(zval * destination, zval * source)
 	Z_TRY_ADDREF_P(source);
 }
 
+void zend_always_inline zval_null(zval * destination)
+{
+	zval_ptr_dtor(destination);
+	ZVAL_NULL(destination);
+}
+
 void zend_always_inline zval_property_move(zval * property, const zval * value)
 {
 	if (EXPECTED(Z_TYPE_P(property) != IS_UNDEF)) {

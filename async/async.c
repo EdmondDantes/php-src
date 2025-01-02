@@ -263,10 +263,15 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 
 	resume->error = NULL;
 
-	if (result != NULL) {
+	if (EXPECTED(error == NULL)) {
 		resume->status = ASYNC_RESUME_SUCCESS;
-		zval_copy(&resume->result, result);
-	} else if (error != NULL) {
+
+		if (result != NULL) {
+			zval_copy(&resume->result, result);
+		} else {
+			zval_null(&resume->result);
+		}
+	} else {
 		resume->status = ASYNC_RESUME_ERROR;
 		GC_ADDREF(resume->error);
 		resume->error = error;

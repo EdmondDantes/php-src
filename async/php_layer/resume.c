@@ -234,29 +234,62 @@ async_resume_t * async_resume_new()
 	return (async_resume_t *) Z_OBJ_P(&object);
 }
 
-ZEND_API void async_resume_destroy(async_resume_t *resume)
-{
-
-}
-
 ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t *callback)
 {
+	if (UNEXPECTED(callback == NULL)) {
+		zend_error(E_WARNING, "Callback cannot be NULL");
+		return;
+	}
 
+	if (UNEXPECTED(zend_hash_index_find(&resume->notifiers, notifier->std.handle) != NULL)) {
+		zend_error(E_WARNING, "Callback or notifier already registered");
+		return;
+	}
+
+	async_resume_notifier_t * resume_notifier = emalloc(sizeof(async_resume_notifier_t));
+	resume_notifier->notifier = notifier;
+	ZVAL_PTR(&resume_notifier->callback, callback);
+
+	zval zval_notifier;
+	ZVAL_PTR(&zval_notifier, resume_notifier);
+	zend_hash_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
+
+	GC_ADDREF(&notifier->std);
 }
 
-ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error)
+ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error)
 {
-
+	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+	} else {
+		async_resume_fiber(resume, event, NULL);
+	}
 }
 
 ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error)
 {
+	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+	} else {
+		zend_object * exception;
 
+		if (notifier->std.ce == async_ce_timer_handle) {
+			exception = async_new_exception(async_ce_cancellation_exception, "Operation has been cancelled by timeout");
+		} else {
+			exception = async_new_exception(async_ce_cancellation_exception, "Operation has been cancelled");
+		}
+
+		async_resume_fiber(resume, NULL, exception);
+	}
 }
 
 ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error)
 {
-
+	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+	} else {
+		async_resume_fiber(resume, NULL, async_new_exception(async_ce_timeout_exception, "Operation has been cancelled by timeout"));
+	}
 }
 
 void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error)
