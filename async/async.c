@@ -31,6 +31,14 @@
 #include "ext/sockets/php_sockets.h"
 #endif
 
+/* Async global */
+#ifdef ZTS
+ZEND_API int async_globals_id = 0;
+ZEND_API size_t async_globals_offset;
+#else
+ZEND_API async_globals_t* async_globals;
+#endif
+
 //===============================================================
 #pragma region Startup and Shutdown
 //===============================================================

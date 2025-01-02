@@ -70,14 +70,12 @@ struct _async_fiber_state_s {
 
 /* Async global */
 #ifdef ZTS
-ZEND_API int async_globals_id = 0;
-ZEND_API size_t async_globals_offset;
+extern ZEND_API int async_globals_id;
+extern ZEND_API size_t async_globals_offset;
 # define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
 # define ASYNC_GLOBAL TSRMG_FAST_BULK(async_globals_id, async_globals_t *)
 #else
-# define ASYNC_G(v) (async_globals->v)
-# define ASYNC_GLOBAL (&async_globals)
-ZEND_API async_globals_t* async_globals;
+extern ZEND_API async_globals_t* async_globals;
 #endif
 
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
