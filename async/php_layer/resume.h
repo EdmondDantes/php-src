@@ -26,7 +26,7 @@ typedef enum {
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
-typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
+typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error);
 
 typedef struct _async_resume_notifier_s async_resume_notifier_t;
 
