@@ -71,7 +71,7 @@ BEGIN_EXTERN_C()
 ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);
-ZEND_API async_resume_t * async_resume_new();
+ZEND_API async_resume_t * async_resume_new(zend_fiber * fiber);
 ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t *callback);
 ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error);
 ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);

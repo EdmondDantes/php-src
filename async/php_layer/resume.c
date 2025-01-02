@@ -222,7 +222,7 @@ void async_register_resume_ce(void)
 	async_resume_handlers.clone_obj = NULL;
 }
 
-async_resume_t * async_resume_new()
+async_resume_t * async_resume_new(zend_fiber * fiber)
 {
 	zval object;
 
@@ -231,7 +231,13 @@ async_resume_t * async_resume_new()
 		return NULL;
 	}
 
-	return (async_resume_t *) Z_OBJ_P(&object);
+	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(&object);
+
+	if (fiber != NULL) {
+		resume->fiber = fiber;
+	}
+
+	return resume;
 }
 
 ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t *callback)

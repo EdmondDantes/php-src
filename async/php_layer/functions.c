@@ -17,10 +17,80 @@
 #include "zend_common.h"
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
-#include <ext/standard/info.h>
+#include "ext/standard/info.h"
 #include "callback.h"
+#include "ev_handles.h"
 #include "notifier.h"
+#include "../php_async.h"
 #include "functions_arginfo.h"
+
+PHP_FUNCTION(Async_await)
+{
+	zend_object *resume = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS_OR_NULL(resume, async_ce_resume)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_await((async_resume_t *) resume);
+}
+
+PHP_FUNCTION(Async_async)
+{
+	zval * callable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	zval zval_fiber;
+	zval params[1];
+
+	ZVAL_COPY_VALUE(&params[0], callable);
+
+	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
+		return;
+	}
+
+	zval zval_fiber_handle;
+
+	if (object_init_with_constructor(&zval_fiber_handle, async_ce_fiber_handle, 1, params, NULL) == FAILURE) {
+		zval_ptr_dtor(&zval_fiber);
+		return;
+	}
+
+	async_fiber_handle_t *fiber_handle = (async_fiber_handle_t *) Z_OBJ_P(&zval_fiber_handle);
+
+	fiber_handle->fiber = (zend_fiber *) Z_OBJ_P(&zval_fiber);
+
+	async_resume_t * resume = async_resume_new((zend_fiber *)Z_OBJ(zval_fiber));
+
+	async_resume_fiber(resume, NULL, NULL);
+
+	// Resume GC counter = 1 after this operation
+	OBJ_RELEASE(&resume->std);
+	RETURN_OBJ(&fiber_handle->handle.std);
+}
+
+PHP_FUNCTION(Async_defer)
+{
+
+}
+
+PHP_FUNCTION(Async_delay)
+{
+
+}
+
+PHP_FUNCTION(Async_repeat)
+{
+
+}
+
+PHP_FUNCTION(Async_onSignal)
+{
+
+}
 
 
 PHP_MINFO_FUNCTION(async_info) {

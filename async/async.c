@@ -281,6 +281,8 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
 			async_throw_error("Failed to push the Fiber into the pending queue.");
 			return;
+		} else {
+			GC_ADDREF(&resume->std);
 		}
 	}
 }
@@ -307,7 +309,7 @@ void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
 	const async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
-		state = async_add_fiber_state(fiber, async_resume_new());
+		state = async_add_fiber_state(fiber, async_resume_new(fiber));
 	}
 
 	// Inherit exception from state-fiber if exists.
@@ -347,7 +349,7 @@ void async_await(async_resume_t *resume)
 
 	if (resume == NULL) {
 		is_owned_resume = true;
-		resume = async_resume_new();
+		resume = async_resume_new(NULL);
 	}
 
 	if (resume == NULL) {
@@ -433,7 +435,7 @@ void async_await_resource(
 		return;
 	}
 
-	async_resume_t *resume = async_resume_new();
+	async_resume_t *resume = async_resume_new(NULL);
 
 	if(resume == NULL) {
 		async_throw_error("Failed to create a new Resume object");
@@ -462,7 +464,7 @@ void async_await_resource(
  */
 void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancellation)
 {
-	async_resume_t *resume = async_resume_new();
+	async_resume_t *resume = async_resume_new(NULL);
 
 	async_resume_when(resume, reactor_signal_new_fn(sig_number), async_resume_when_callback_resolve);
 
@@ -492,7 +494,7 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 		return;
 	}
 
-	async_resume_t *resume = async_resume_new();
+	async_resume_t *resume = async_resume_new(NULL);
 
 	async_resume_when(resume, reactor_timer_new_fn(timeout), async_resume_when_callback_resolve);
 
@@ -568,7 +570,7 @@ static zend_always_inline short async_events_to_poll2(const zend_ulong events)
 int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 {
 	int result = 0;
-	async_resume_t *resume = async_resume_new();
+	async_resume_t *resume = async_resume_new(NULL);
 
 	if(resume == NULL) {
 		errno = ENOMEM;

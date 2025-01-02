@@ -20,9 +20,10 @@
 /// which can be overridden through extensions
 ///
 
-#include <zend_fibers.h>
+#include "zend_fibers.h"
 #include "ev_handles.h"
 #include "notifier.h"
+#include "zend_exceptions.h"
 #include "exceptions.h"
 #include "../php_reactor.h"
 #include "ev_handles_arginfo.h"
