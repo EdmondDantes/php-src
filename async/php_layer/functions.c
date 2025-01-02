@@ -19,7 +19,9 @@
 #include "zend_fibers.h"
 #include "ext/standard/info.h"
 #include "callback.h"
+#include "channel.h"
 #include "ev_handles.h"
+#include "exceptions.h"
 #include "notifier.h"
 #include "../php_async.h"
 #include "functions_arginfo.h"
@@ -92,6 +94,22 @@ PHP_FUNCTION(Async_onSignal)
 
 }
 
+ZEND_MINIT_FUNCTION(async)
+{
+	async_register_callback_ce();
+	async_register_notifier_ce();
+	async_register_handlers_ce();
+	async_register_resume_ce();
+	async_register_exceptions_ce();
+	async_register_channel_ce();
+
+	return SUCCESS;
+}
+
+ZEND_MSHUTDOWN_FUNCTION(async)
+{
+	return SUCCESS;
+}
 
 PHP_MINFO_FUNCTION(async_info) {
 	php_info_print_table_start();
@@ -105,11 +123,11 @@ static zend_module_entry async_module = { /* {{{ */
 	STANDARD_MODULE_HEADER,
 	"PHP True Asynchrony",
 	ext_functions,
+	ZEND_MINIT(async),
+	ZEND_MSHUTDOWN(async),
 	NULL,
 	NULL,
-	NULL,
-	NULL,
-	NULL,
+	PHP_MINFO(async_info),
 	PHP_ASYNC_VERSION,
 	STANDARD_MODULE_PROPERTIES
 };

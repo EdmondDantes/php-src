@@ -16,4 +16,6 @@
 #ifndef ASYNC_CHANNEL_H
 #define ASYNC_CHANNEL_H
 
+void async_register_channel_ce(void);
+
 #endif //ASYNC_CHANNEL_H
