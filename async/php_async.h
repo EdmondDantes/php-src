@@ -18,7 +18,6 @@
 
 #include "php.h"
 #include "php_network.h"
-#include "ext/standard/proc_open.h"
 #include "async/php_scheduler.h"
 #include "async/internal/circular_buffer.h"
 #include "async/php_layer/resume.h"
@@ -86,11 +85,22 @@ ZEND_API async_globals_t* async_globals;
 
 #define IS_ASYNC_ALLOWED EG(active_fiber) == NULL && IS_ASYNC_ON
 
+//
+// Definitions compatibles with proc_open()
+//
+#ifdef PHP_WIN32
+typedef HANDLE async_file_descriptor_t;
+typedef DWORD async_process_id_t;
+#else
+typedef int async_file_descriptor_t;
+typedef pid_t async_process_id_t;
+#endif
+
 BEGIN_EXTERN_C()
 
 void async_module_startup(void);
 void async_module_shutdown(void);
-ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file);
+ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
 
 /**

@@ -681,6 +681,9 @@ static reactor_signal_new_t prev_reactor_signal_new_fn = NULL;
 static reactor_process_new_t prev_reactor_process_new_fn = NULL;
 static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
 
+static reactor_extract_os_socket_handle_t prev_reactor_extract_os_socket_handle_fn = NULL;
+static reactor_extract_os_file_handle_t prev_reactor_extract_os_file_handle_fn = NULL;
+
 static reactor_file_system_new_t prev_reactor_file_system_new_fn = NULL;
 
 static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zend_ulong actions)
@@ -692,7 +695,7 @@ static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zen
 #pragma region Handle API
 //=============================================================
 
-static reactor_handle_t* libuv_file_new(const php_file_descriptor_t fd, const zend_ulong events)
+static reactor_handle_t* libuv_file_new(const async_file_descriptor_t fd, const zend_ulong events)
 {
 	zval object;
 
@@ -739,7 +742,7 @@ static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_
 	return (reactor_handle_t *) poll;
 }
 
-static reactor_handle_t* libuv_pipe_new(const php_file_descriptor_t fd, const zend_ulong events)
+static reactor_handle_t* libuv_pipe_new(const async_file_descriptor_t fd, const zend_ulong events)
 {
 	zval object;
 
@@ -761,7 +764,7 @@ static reactor_handle_t* libuv_pipe_new(const php_file_descriptor_t fd, const ze
 	return (reactor_handle_t *) poll;
 }
 
-static reactor_handle_t* libuv_tty_new(const php_file_descriptor_t fd, const zend_ulong events)
+static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t fd, const zend_ulong events)
 {
 	zval object;
 
@@ -811,7 +814,7 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 	return (reactor_handle_t *) Z_OBJ_P(&object);
 }
 
-static reactor_handle_t* libuv_process_new(const php_process_id_t pid, const zend_ulong events)
+static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const zend_ulong events)
 {
 	zval object;
 	zval params[2];
@@ -839,6 +842,28 @@ static reactor_handle_t* libuv_thread_new(const THREAD_T tid, const zend_ulong e
 	}
 
 	return (reactor_handle_t *) Z_OBJ_P(&object);
+}
+
+static php_socket_t libuv_extract_os_socket_handle(reactor_handle_t *handle)
+{
+	if (handle->type != REACTOR_H_SOCKET) {
+		return -1;
+	}
+
+	return ((libuv_poll_t *) handle)->uv_handle->socket;
+}
+
+static async_file_descriptor_t libuv_extract_os_file_handle(reactor_handle_t *handle)
+{
+	if (handle->type != REACTOR_H_FILE) {
+		return NULL;
+	}
+
+	uv_os_fd_t fd;
+
+	uv_fileno((uv_handle_t *) ((libuv_poll_t *) handle)->uv_handle, &fd);
+
+	return (HANDLE)_get_osfhandle((int) fd);
 }
 
 static reactor_handle_t* libuv_file_system_new(const char *path, const size_t length, const zend_ulong events)
@@ -915,6 +940,12 @@ static void setup_handlers(void)
 
 	prev_reactor_thread_new_fn = reactor_thread_new_fn;
 	reactor_thread_new_fn = libuv_thread_new;
+
+	prev_reactor_extract_os_socket_handle_fn = reactor_extract_os_socket_handle_fn;
+	reactor_extract_os_socket_handle_fn = libuv_extract_os_socket_handle;
+
+	prev_reactor_extract_os_file_handle_fn = reactor_extract_os_file_handle_fn;
+	reactor_extract_os_file_handle_fn = libuv_extract_os_file_handle;
 
 	prev_reactor_file_system_new_fn = reactor_file_system_new_fn;
 	reactor_file_system_new_fn = libuv_file_system_new;

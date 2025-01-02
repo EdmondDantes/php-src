@@ -22,7 +22,6 @@
 #include "php_reactor.h"
 #include "php_reactor.h"
 #include "php_scheduler.h"
-#include "libuv/libuv_reactor.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"
@@ -151,7 +150,7 @@ static zend_always_inline php_stream * resource_to_stream(const zend_resource *r
 	return NULL;
 }
 
-void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, php_file_descriptor_t *file)
+void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file)
 {
 	const php_stream *stream = resource_to_stream(resource);
 
@@ -608,7 +607,7 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_ev_handle)) {
 			result++;
 
-			const php_socket_t socket = ((libuv_poll_t *) Z_OBJ_P(notifier))->uv_handle->socket;
+			const php_socket_t socket = reactor_extract_os_socket_handle_fn((reactor_handle_t *)Z_OBJ_P(notifier));
 
 			// Fine the same socket in the ufds array
 			for (unsigned int i = 0; i < nfds; i++) {

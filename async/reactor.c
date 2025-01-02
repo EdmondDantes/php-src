@@ -71,7 +71,7 @@ static reactor_handle_t* reactor_handle_from_resource(zend_resource *resource, z
 	return NULL;
 }
 
-static reactor_handle_t* reactor_file_new(php_file_descriptor_t fd, zend_ulong events)
+static reactor_handle_t* reactor_file_new(async_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method file_new not implemented");
 	return NULL;
@@ -95,25 +95,25 @@ static reactor_handle_t* reactor_signal_new(zend_long sig_number)
 	return NULL;
 }
 
-static reactor_handle_t* reactor_pipe_new(php_file_descriptor_t fd, zend_ulong events)
+static reactor_handle_t* reactor_pipe_new(async_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method pipe_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_tty_new(php_file_descriptor_t fd, zend_ulong events)
+static reactor_handle_t* reactor_tty_new(async_file_descriptor_t fd, zend_ulong events)
 {
 	async_throw_error("Reactor API method tty_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_file_system_new(zend_ulong fd, zend_ulong events)
+static reactor_handle_t* reactor_file_system_new(const char *path, size_t length, zend_ulong events)
 {
 	async_throw_error("Reactor API method file_system_new not implemented");
 	return NULL;
 }
 
-static reactor_handle_t* reactor_process_new(php_process_id_t pid, zend_ulong events)
+static reactor_handle_t* reactor_process_new(async_process_id_t pid, zend_ulong events)
 {
 	async_throw_error("Reactor API method process_new not implemented");
 	return NULL;
@@ -122,6 +122,18 @@ static reactor_handle_t* reactor_process_new(php_process_id_t pid, zend_ulong ev
 static reactor_handle_t* reactor_thread_new(THREAD_T tread_id, zend_ulong events)
 {
 	async_throw_error("Reactor API method thread_new not implemented");
+	return NULL;
+}
+
+static php_socket_t reactor_extract_os_socket_handle(reactor_handle_t *handle)
+{
+	async_throw_error("Reactor API method extract_os_socket_handle not implemented");
+	return -1;
+}
+
+static async_file_descriptor_t reactor_extract_os_file_handle(reactor_handle_t *handle)
+{
+	async_throw_error("Reactor API method extract_os_file_handle not implemented");
 	return NULL;
 }
 
@@ -170,5 +182,8 @@ reactor_timer_new_t reactor_timer_new_fn = reactor_timeout_new;
 reactor_signal_new_t reactor_signal_new_fn = reactor_signal_new;
 reactor_process_new_t reactor_process_new_fn = reactor_process_new;
 reactor_thread_new_t reactor_thread_new_fn = reactor_thread_new;
+
+reactor_extract_os_socket_handle_t reactor_extract_os_socket_handle_fn = reactor_extract_os_socket_handle;
+reactor_extract_os_file_handle_t reactor_extract_os_file_handle_fn = reactor_extract_os_file_handle;
 
 reactor_file_system_new_t reactor_file_system_new_fn = reactor_file_system_new;
