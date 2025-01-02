@@ -18,7 +18,7 @@
 
 #include "php.h"
 #include "zend_types.h"
-#include "uv.h"
+#include <libuv/uv.h>
 #include "../php_async.h"
 #include "../php_layer/notifier.h"
 #include "../php_layer/ev_handles.h"

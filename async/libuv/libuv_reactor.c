@@ -109,11 +109,24 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	IF_EXCEPTION_STOP;
 }
 
-static zend_always_inline void libuv_poll_alloc_and_start(libuv_poll_t * poll, const int actions, const int handle)
+static zend_always_inline void libuv_poll_alloc_and_start(
+		libuv_poll_t * poll, const int actions, const php_socket_t socket, const async_file_descriptor_t file
+	)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
-	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, handle);
+#ifdef PHP_WIN32
+	if (file != NULL) {
+		async_throw_error("File descriptor polling is not supported on Windows");
+		pefree(poll->uv_handle, 1);
+		poll->uv_handle = NULL;
+		return;
+	}
+
+	int error = uv_poll_init_socket(poll->uv_handle->loop, poll->uv_handle, socket);
+#else
+	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, socket ? socket : file);
+#endif
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize poll handle: %s", uv_strerror(error));
@@ -152,7 +165,7 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 	}
 
 	php_socket_t socket = 0;
-	php_file_descriptor_t file;
+	async_file_descriptor_t file;
 
 	if (Z_TYPE_P(raw_handle) == IS_RESOURCE) {
 		async_resource_to_fd(Z_RES_P(raw_handle), &socket, &file);
@@ -174,7 +187,7 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
     }
 
-	libuv_poll_alloc_and_start(poll, libuv_events_from_php(actions), socket > 0 ? socket : file);
+	libuv_poll_alloc_and_start(poll, libuv_events_from_php(actions), socket, file);
 }
 
 static void libuv_poll_dtor(reactor_handle_t *handle)
@@ -354,7 +367,7 @@ static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events,
 	IF_EXCEPTION_STOP;
 }
 
-static void libuv_file_system_ctor(reactor_handle_t *handle)
+static void libuv_file_system_ctor(reactor_handle_t *handle, ...)
 {
 	libuv_fs_event_t *fs_event = (libuv_fs_event_t *)handle;
 
@@ -705,7 +718,7 @@ static reactor_handle_t* libuv_file_new(const async_file_descriptor_t fd, const 
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -730,7 +743,7 @@ static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc_and_start(poll, (int) events, (int) socket);
+	libuv_poll_alloc_and_start(poll, (int) events, socket, NULL);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -752,7 +765,7 @@ static reactor_handle_t* libuv_pipe_new(const async_file_descriptor_t fd, const 
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);
@@ -774,7 +787,7 @@ static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t fd, const z
 
 	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
 
-	libuv_poll_alloc_and_start(poll, (int) events, (int) fd);
+	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&poll->handle.std);

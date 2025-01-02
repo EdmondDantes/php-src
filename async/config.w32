@@ -27,15 +27,16 @@ if (PHP_LIBUV == "yes") {
     if (PHP_ASYNC != "yes") {
         ERROR("libuv requires True Async API to be enabled. Use --enable-async");
     } else {
-        var PHP_UV = PHP_SDK_VS_DIR + "\\deps";
-
-        if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_UV + "\\include")
-            && CHECK_LIB("libuv.lib", "uv", PHP_UV)) {
+        if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_PHP_BUILD + "\\include")
+            && CHECK_LIB("libuv.lib", "uv", PHP_PHP_BUILD)) {
 
             ADD_SOURCES("async/libuv", "*.c");
             ADD_FLAG("CFLAGS", "/D PHP_LIBUV");
         } else {
-            WARNING("libuv not enabled; libraries and/or headers not found");
+            ERROR("Libuv components are not found. The search was performed in the directory: '" + PHP_PHP_BUILD +
+                  "'.\nTo compile PHP TRUE ASYNC with LibUV:\n" +
+                  "1. Copy files from 'libuv\\include' to '" + PHP_PHP_BUILD + "\\include\\libuv\\'\n" +
+                  "2. Build libuv.lib and copy it to '" + PHP_PHP_BUILD + "\\lib\\'");
         }
     }
 }
