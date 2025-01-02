@@ -405,7 +405,6 @@ static ZEND_NORETURN void zend_fiber_trampoline(boost_context_data data)
 static void zend_throw_composite_exception(const HashTable *exception_stack)
 {
     const char *header 	= "Multiple exceptions occurred during Fiber shutdown:\n";
-    const size_t header_len = strlen(header);
 
     char message[4096] 	= {0};
     size_t message_len 	= 0;
