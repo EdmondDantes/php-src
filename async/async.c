@@ -33,21 +33,15 @@
 
 /* Async global */
 #ifdef ZTS
-ZEND_API int async_globals_id = 0;
-ZEND_API size_t async_globals_offset;
+int async_globals_id = 0;
+size_t async_globals_offset;
 #else
-ZEND_API async_globals_t* async_globals;
+async_globals_t* async_globals;
 #endif
 
 //===============================================================
 #pragma region Startup and Shutdown
 //===============================================================
-
-#ifdef ZTS
-TSRMLS_MAIN_CACHE_DEFINE()
-#else
-ZEND_API async_globals_t* async_globals;
-#endif
 
 static void async_globals_ctor(async_globals_t * globals)
 {
@@ -160,7 +154,7 @@ static zend_always_inline php_stream * resource_to_stream(const zend_resource *r
 
 void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file)
 {
-	const php_stream *stream = resource_to_stream(resource);
+	php_stream *stream = resource_to_stream(resource);
 
 	if (stream == NULL) {
 		async_throw_error("Invalid resource type. Expected a stream of STDIO or Socket.");
@@ -169,7 +163,7 @@ void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, a
 
 	if (php_stream_is(stream, PHP_STREAM_IS_SOCKET)) {
 
-		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, socket, false) == FAILURE) {
+		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, &socket, false) == FAILURE) {
 			async_throw_error("Failed to cast the stream to a socket descriptor.");
 		}
 
@@ -192,14 +186,14 @@ php_socket_t async_try_extract_socket_object(zend_object * object)
 {
 #ifndef PHP_SOCKETS
 	return 0;
-#endif
-
+#else
 	if (UNEXPECTED(object->ce != socket_ce)) {
 		return 0;
 	}
 
 	php_socket *socket = socket_from_obj(object);
 	return (php_socket_t) socket->bsd_socket;
+#endif
 }
 
 /**

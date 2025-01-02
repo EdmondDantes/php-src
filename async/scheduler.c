@@ -16,7 +16,6 @@
 #include <Zend/zend_fibers.h>
 #include "php_scheduler.h"
 #include "php_async.h"
-#include "php_reactor.h"
 #include "internal/zval_circular_buffer.h"
 #include "php_layer/exceptions.h"
 
@@ -28,9 +27,9 @@
 
 static void invoke_microtask(zval *task)
 {
-	if (Z_TYPE(task) == IS_PTR) {
+	if (Z_TYPE_P(task) == IS_PTR) {
 		// Call the function directly
-		((void (*)(void)) Z_PTR(*task))();
+		((void (*)(void)) Z_PTR_P(task))();
 	} else if (zend_is_callable(task, 0, NULL)) {
 		zval retval;
 		ZVAL_UNDEF(&retval);
@@ -92,9 +91,10 @@ static void execute_microtasks(void)
 	);
 }
 
-static void handle_callbacks(void)
+static zend_bool handle_callbacks(zend_bool no_wait)
 {
 	async_throw_error("Event Loop API method handle_callbacks not implemented");
+	return false;
 }
 
 static void execute_next_fiber(void)
@@ -118,7 +118,9 @@ static void execute_next_fiber(void)
 	if (resume->status == ASYNC_RESUME_SUCCESS) {
 		zend_fiber_resume(resume->fiber, &resume->result, &retval);
 	} else {
-		zend_fiber_resume_exception(resume->fiber, resume->error, &retval);
+		zval zval_error;
+		ZVAL_OBJ(&zval_error, resume->error);
+		zend_fiber_resume_exception(resume->fiber, &zval_error, &retval);
 	}
 
 	GC_DELREF(&resume->std);
@@ -130,7 +132,7 @@ static zend_always_inline void put_fiber_to_pending(const async_resume_t *resume
 	circular_buffer_push(&ASYNC_G(pending_fibers), resume, true);
 }
 
-static void validate_fiber_status(const zend_fiber *fiber, const zend_ulong index)
+static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 {
 	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
 		// TODO: create resume object
@@ -185,7 +187,7 @@ static zend_bool check_deadlocks(void)
 }
 
 
-ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(const async_callbacks_handler_t handler)
+ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler)
 {
     const async_callbacks_handler_t prev = ASYNC_G(execute_callbacks_handler);
     ASYNC_G(execute_callbacks_handler) = handler ? handler : handle_callbacks;
