@@ -99,7 +99,7 @@ zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const
 	return SUCCESS;
 }
 
-zend_always_inline void circular_buffer_dtor(const circular_buffer_t *buffer)
+void circular_buffer_dtor(const circular_buffer_t *buffer)
 {
 	(buffer->allocator->m_free)(buffer->start);
 }
