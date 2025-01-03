@@ -27,6 +27,11 @@
 #include "php_layer/ev_handles.h"
 #include "php_layer/exceptions.h"
 
+#ifdef PHP_LIBUV
+#include "libuv/libuv_reactor.h"
+#endif
+
+
 #ifdef PHP_SOCKETS
 #include "ext/sockets/php_sockets.h"
 #endif
@@ -123,6 +128,10 @@ void async_module_startup(void)
 	}
 
 	async_globals_startup();
+
+#ifdef PHP_LIBUV
+	async_libuv_startup();
+#endif
 }
 
 /**
@@ -130,6 +139,10 @@ void async_module_startup(void)
  */
 void async_module_shutdown(void)
 {
+#ifdef PHP_LIBUV
+	async_libuv_shutdown();
+#endif
+
 	async_globals_shutdown();
 }
 

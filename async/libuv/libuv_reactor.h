@@ -25,6 +25,9 @@
 
 BEGIN_EXTERN_C()
 
+void async_libuv_startup(void);
+void async_libuv_shutdown(void);
+
 typedef struct _libuv_handle_s libuv_handle_t;
 typedef struct _libuv_poll_s libuv_poll_t;
 typedef struct _libuv_timer_s libuv_timer_t;
