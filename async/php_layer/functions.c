@@ -14,6 +14,9 @@
   +----------------------------------------------------------------------+
 */
 #include "functions.h"
+
+#include <async/php_reactor.h>
+
 #include "zend_common.h"
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
@@ -56,14 +59,14 @@ PHP_FUNCTION(Async_async)
 	ZVAL_COPY_VALUE(&params[0], callable);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
-		return;
+		RETURN_THROWS();
 	}
 
 	zval zval_fiber_handle;
 
 	if (object_init_with_constructor(&zval_fiber_handle, async_ce_fiber_handle, 1, params, NULL) == FAILURE) {
 		zval_ptr_dtor(&zval_fiber);
-		return;
+		RETURN_THROWS();
 	}
 
 	async_fiber_handle_t *fiber_handle = (async_fiber_handle_t *) Z_OBJ_P(&zval_fiber_handle);
@@ -81,12 +84,74 @@ PHP_FUNCTION(Async_async)
 
 PHP_FUNCTION(Async_defer)
 {
+	if (UNEXPECTED(IS_ASYNC_OFF)) {
+		async_throw_error("Cannot defer execution outside of an async context");
+		RETURN_THROWS();
+	}
 
+	zval * callable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_scheduler_add_microtask(callable);
 }
 
 PHP_FUNCTION(Async_delay)
 {
+	if (UNEXPECTED(IS_ASYNC_OFF)) {
+		async_throw_error("Cannot delay execution outside of an async context");
+		RETURN_THROWS();
+	}
 
+	zend_long timeout;
+	zval * callable;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_LONG(timeout);
+		Z_PARAM_ZVAL(callable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (timeout < 0) {
+		async_throw_error("The timeout value must be greater than or equal to 0");
+		RETURN_THROWS();
+	}
+
+	zval callback;
+	bool is_callback_owned = false;
+
+	if (Z_TYPE_P(callable) != IS_OBJECT || Z_OBJ_P(callable)->ce != async_ce_callback) {
+		is_callback_owned = true;
+		zval params[1];
+		ZVAL_COPY_VALUE(&params[0], callable);
+
+		if (object_init_with_constructor(&callback, async_ce_callback, 1, params, NULL) == FAILURE) {
+			RETURN_THROWS();
+		}
+	} else {
+		ZVAL_COPY_VALUE(&callback, callable);
+	}
+
+	reactor_handle_t * handle = reactor_timer_new_fn(timeout);
+
+	if (handle == NULL) {
+		if (is_callback_owned) {
+			zval_ptr_dtor(&callback);
+		}
+
+		RETURN_THROWS();
+	}
+
+	async_notifier_add_callback(&handle->std, &callback);
+
+	if (EG(exception) != NULL) {
+		if (is_callback_owned) {
+			zval_ptr_dtor(&callback);
+		}
+
+		RETURN_THROWS();
+	}
 }
 
 PHP_FUNCTION(Async_repeat)

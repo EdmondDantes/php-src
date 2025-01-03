@@ -31,7 +31,7 @@ static void invoke_microtask(zval *task)
 	if (Z_TYPE_P(task) == IS_PTR) {
 		// Call the function directly
 		((void (*)(void)) Z_PTR_P(task))();
-	} else if (zend_is_callable(task, 0, NULL)) {
+	} else {
 		zval retval;
 		ZVAL_UNDEF(&retval);
 		call_user_function(CG(function_table), NULL, task, &retval, 0, NULL);
@@ -214,6 +214,16 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const a
 	const async_exception_handler_t prev = ASYNC_G(exception_handler);
 	ASYNC_G(exception_handler) = handler;
 	return prev;
+}
+
+ZEND_API void async_scheduler_add_microtask(zval *microtask)
+{
+	if (EXPECTED(Z_TYPE_P(microtask) == IS_PTR || zend_is_callable(microtask, 0, NULL))) {
+		zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), microtask);
+		return;
+	}
+
+	async_throw_error("Invalid microtask type: should be a callable or a internal pointer to a function");
 }
 
 /**

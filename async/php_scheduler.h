@@ -60,6 +60,7 @@ ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_c
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
+ZEND_API void async_scheduler_add_microtask(zval *microtask);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 
