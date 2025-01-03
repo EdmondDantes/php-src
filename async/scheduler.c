@@ -16,6 +16,7 @@
 #include <Zend/zend_fibers.h>
 #include "php_scheduler.h"
 #include "php_async.h"
+#include "php_reactor.h"
 #include "internal/zval_circular_buffer.h"
 #include "php_layer/exceptions.h"
 
@@ -274,10 +275,15 @@ static void async_scheduler_ctor(async_globals_t *async_globals)
 /**
  * The main loop of the scheduler.
  */
-void async_scheduler_run(void)
+void async_scheduler_launch(void)
 {
 	if (EG(active_fiber) != NULL) {
 		async_throw_error("The scheduler cannot be started from a Fiber");
+		return;
+	}
+
+	if (false == reactor_is_enabled()) {
+		async_throw_error("The scheduler cannot be started without the Reactor");
 		return;
 	}
 

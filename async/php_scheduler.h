@@ -54,7 +54,7 @@ typedef struct _async_globals_s async_globals_t;
  * The method can only be called in the main Fiber (i.e., when there is no Fiber) of the thread.
  * The method does not return control while the event loop is active.
  */
-ZEND_API void async_scheduler_run(void);
+ZEND_API void async_scheduler_launch(void);
 ZEND_API void async_scheduler_dtor(async_globals_t * async_globals);
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler);
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);

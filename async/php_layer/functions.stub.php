@@ -5,6 +5,12 @@
 namespace Async;
 
 /**
+ * Starts the Scheduler to manage Fibers.
+ * The Scheduler can only start in the main execution thread. Attempting to start it from a Fiber results in an error.
+ */
+function launchScheduler(): void {}
+
+/**
  * Suspends the execution of a Fiber until the Resume object is resolved.
  * If the Resume object is destructed for any reason, it automatically resumes the Fiber.
  */

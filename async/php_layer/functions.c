@@ -26,6 +26,11 @@
 #include "../php_async.h"
 #include "functions_arginfo.h"
 
+PHP_FUNCTION(Async_launchScheduler)
+{
+	async_scheduler_launch();
+}
+
 PHP_FUNCTION(Async_await)
 {
 	zend_object *resume = NULL;
