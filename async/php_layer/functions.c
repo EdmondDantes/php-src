@@ -252,7 +252,23 @@ PHP_MINFO_FUNCTION(async_info) {
 	php_info_print_table_end();
 }
 
-static zend_module_entry async_module = { /* {{{ */
+/* {{{ PHP_GINIT_FUNCTION */
+static PHP_GINIT_FUNCTION(async)
+{
+#if defined(COMPILE_DL_JSON) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+	async_globals->is_async = false;
+	async_globals->in_scheduler_context = false;
+	async_globals->reactor = NULL;
+	async_globals->exception_handler = NULL;
+	async_globals->execute_callbacks_handler = NULL;
+	async_globals->execute_next_fiber_handler = NULL;
+	async_globals->execute_microtasks_handler = NULL;
+}
+/* }}} */
+
+static zend_module_entry async_module_entry = { /* {{{ */
 	STANDARD_MODULE_HEADER,
 	"PHP True Asynchrony",
 	ext_functions,
@@ -262,7 +278,11 @@ static zend_module_entry async_module = { /* {{{ */
 	NULL,
 	PHP_MINFO(async_info),
 	PHP_ASYNC_VERSION,
-	STANDARD_MODULE_PROPERTIES
+	PHP_MODULE_GLOBALS(async),
+	PHP_GINIT(async),
+	NULL,
+	NULL,
+	STANDARD_MODULE_PROPERTIES_EX
 };
 /* }}} */
 
@@ -271,13 +291,13 @@ zend_result async_register_module(void) /* {{{ */
 {
 	zend_module_entry *module;
 
-	EG(current_module) = module = zend_register_module_ex(&async_module, MODULE_PERSISTENT);
+	EG(current_module) = module = zend_register_module_ex(&async_module_entry, MODULE_PERSISTENT);
 
 	if (UNEXPECTED(module == NULL)) {
 		return FAILURE;
 	}
 
-	ZEND_ASSERT(module->module_number == 0);
+	ZEND_ASSERT(module->module_number != 0);
 
 	return SUCCESS;
 }

@@ -30,15 +30,7 @@
 /**
  * Global asynchronous context.
  */
-typedef struct _async_globals_s async_globals_t;
-/**
- * Fiber state structure.
- * The structure describes the relationship between Fiber and the resume state.
- * The resume state can be NULL, in which case the Fiber is considered active.
-*/
-typedef struct _async_fiber_state_s async_fiber_state_t;
-
-struct _async_globals_s {
+ZEND_BEGIN_MODULE_GLOBALS(async)
 	/* Equal TRUE if the asynchronous context is enabled */
 	bool is_async;
 	/* Equal TRUE if the scheduler is running */
@@ -60,7 +52,14 @@ struct _async_globals_s {
 	/* List of linked handles to fibers */
 	HashTable linked_handles;
 #endif
-};
+ZEND_END_MODULE_GLOBALS(async)
+
+/**
+ * Fiber state structure.
+ * The structure describes the relationship between Fiber and the resume state.
+ * The resume state can be NULL, in which case the Fiber is considered active.
+*/
+typedef struct _async_fiber_state_s async_fiber_state_t;
 
 struct _async_fiber_state_s {
 	zend_fiber *fiber;
@@ -69,14 +68,9 @@ struct _async_fiber_state_s {
 };
 
 /* Async global */
-#ifdef ZTS
-extern ZEND_API int async_globals_id;
-extern ZEND_API size_t async_globals_offset;
-# define ASYNC_G(v) ZEND_TSRMG_FAST(async_globals_id, async_globals_t *, v)
-# define ASYNC_GLOBAL TSRMG_FAST_BULK(async_globals_id, async_globals_t *)
-#else
-extern ZEND_API async_globals_t* async_globals;
-#endif
+ZEND_EXTERN_MODULE_GLOBALS(async)
+#define ASYNC_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(async, v)
+#define ASYNC_GLOBAL ZEND_MODULE_GLOBALS_BULK(async)
 
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
 #define IS_ASYNC_OFF (ASYNC_G(is_async) == false)

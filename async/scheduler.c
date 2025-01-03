@@ -229,7 +229,7 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 /**
  * Async globals destructor.
  */
-ZEND_API void async_scheduler_dtor(async_globals_t *async_globals)
+ZEND_API void async_scheduler_dtor(zend_async_globals *async_globals)
 {
 	if (!async_globals->is_async) {
 		return;
@@ -246,7 +246,7 @@ ZEND_API void async_scheduler_dtor(async_globals_t *async_globals)
 /**
  * Async globals constructor.
  */
-static void async_scheduler_ctor(async_globals_t *async_globals)
+static void async_scheduler_ctor(zend_async_globals *async_globals)
 {
 	if (async_globals->is_async) {
 		return;

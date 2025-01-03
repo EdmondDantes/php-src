@@ -38,86 +38,14 @@
 
 /* Async global */
 #ifdef ZTS
-int async_globals_id = 0;
-size_t async_globals_offset;
+ZEND_DECLARE_MODULE_GLOBALS(async)
 #else
-async_globals_t* async_globals;
+async_globals* async_globals;
 #endif
 
 //===============================================================
 #pragma region Startup and Shutdown
 //===============================================================
-
-static void async_globals_ctor(async_globals_t * globals)
-{
-	globals->is_async = false;
-	globals->in_scheduler_context = false;
-	globals->reactor = NULL;
-	globals->exception_handler = NULL;
-	globals->execute_callbacks_handler = NULL;
-	globals->execute_next_fiber_handler = NULL;
-	globals->execute_microtasks_handler = NULL;
-}
-
-static void async_globals_dtor(async_globals_t * globals)
-{
-
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_globals_startup(void)
-{
-	size_t globals_size = sizeof(async_globals_t);
-
-#ifdef ZTS
-
-	if (async_globals_id != 0) {
-		return;
-	}
-
-	ts_allocate_fast_id(
-		&async_globals_id,
-		&async_globals_offset,
-		globals_size,
-		async_globals_ctor,
-		async_globals_dtor
-	);
-
-	async_globals_t *async_globals = ts_resource(async_globals_id);
-#else
-	if (async_globals != NULL) {
-        return;
-    }
-
-	async_globals = ecalloc(1, globals_size, 1);
-	async_globals_ctor(async_globals);
-#endif
-}
-
-/**
- * Activate the scheduler context.
- */
-static void async_globals_shutdown(void)
-{
-#ifdef ZTS
-	if (async_globals_id == 0) {
-        return;
-    }
-
-	ts_free_id(async_globals_id);
-	async_globals_id = 0;
-#else
-	if (async_globals == NULL) {
-        return;
-    }
-
-	async_globals_dtor(async_globals);
-	pefree(async_globals, 1);
-#endif
-}
-
 /**
  * Async startup function.
  */
@@ -126,8 +54,6 @@ void async_module_startup(void)
 	if (async_register_module() == FAILURE) {
 		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
 	}
-
-	async_globals_startup();
 
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_startup();
@@ -142,8 +68,6 @@ void async_module_shutdown(void)
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_shutdown();
 #endif
-
-	async_globals_shutdown();
 }
 
 //===============================================================
