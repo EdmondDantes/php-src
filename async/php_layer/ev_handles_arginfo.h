@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 32a1dfcb2e70b662a7c7fd6157950f8efb522a8c */
+ * Stub hash: 8fccbfbb5765ed90b795b05d20e70b799a89b0dc */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
@@ -27,6 +27,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_TimerHandle___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, microseconds, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, isPeriodic, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_SignalHandle___construct, 0, 0, 1)
@@ -38,7 +39,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_FiberHandle___construct
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FileSystemHandle___construct, 0, 0, 2)
-	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
@@ -194,6 +195,18 @@ static zend_class_entry *register_class_Async_TimerHandle(zend_class_entry *clas
 	INIT_NS_CLASS_ENTRY(ce, "Async", "TimerHandle", class_Async_TimerHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
+	zval property_microseconds_default_value;
+	ZVAL_LONG(&property_microseconds_default_value, 0);
+	zend_string *property_microseconds_name = zend_string_init("microseconds", sizeof("microseconds") - 1, 1);
+	zend_declare_typed_property(class_entry, property_microseconds_name, &property_microseconds_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_microseconds_name);
+
+	zval property_isPeriodic_default_value;
+	ZVAL_FALSE(&property_isPeriodic_default_value);
+	zend_string *property_isPeriodic_name = zend_string_init("isPeriodic", sizeof("isPeriodic") - 1, 1);
+	zend_declare_typed_property(class_entry, property_isPeriodic_name, &property_isPeriodic_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
+	zend_string_release(property_isPeriodic_name);
+
 	return class_entry;
 }
 
@@ -203,6 +216,12 @@ static zend_class_entry *register_class_Async_SignalHandle(zend_class_entry *cla
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "SignalHandle", class_Async_SignalHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+
+	zval property_sigNumber_default_value;
+	ZVAL_LONG(&property_sigNumber_default_value, 0);
+	zend_string *property_sigNumber_name = zend_string_init("sigNumber", sizeof("sigNumber") - 1, 1);
+	zend_declare_typed_property(class_entry, property_sigNumber_name, &property_sigNumber_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_sigNumber_name);
 
 	return class_entry;
 }
@@ -269,6 +288,16 @@ static zend_class_entry *register_class_Async_FileSystemHandle(zend_class_entry 
 	zend_string *property_triggeredEvents_name = zend_string_init("triggeredEvents", sizeof("triggeredEvents") - 1, 1);
 	zend_declare_typed_property(class_entry, property_triggeredEvents_name, &property_triggeredEvents_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_triggeredEvents_name);
+
+	zval property_path_default_value;
+	ZVAL_EMPTY_STRING(&property_path_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_PATH), &property_path_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+
+	zval property_flags_default_value;
+	ZVAL_LONG(&property_flags_default_value, 0);
+	zend_string *property_flags_name = zend_string_init("flags", sizeof("flags") - 1, 1);
+	zend_declare_typed_property(class_entry, property_flags_name, &property_flags_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_flags_name);
 
 	return class_entry;
 }
