@@ -16,6 +16,7 @@
 #include "functions.h"
 
 #include <async/php_reactor.h>
+#include <async/libuv/libuv_reactor.h>
 
 #include "zend_common.h"
 #include "zend_smart_str.h"
@@ -231,11 +232,18 @@ ZEND_MINIT_FUNCTION(async)
 	async_register_exceptions_ce();
 	async_register_channel_ce();
 
+#ifdef PHP_ASYNC_LIBUV
+	async_libuv_startup();
+#endif
+
 	return SUCCESS;
 }
 
 ZEND_MSHUTDOWN_FUNCTION(async)
 {
+#ifdef PHP_ASYNC_LIBUV
+	async_libuv_shutdown();
+#endif
 	return SUCCESS;
 }
 

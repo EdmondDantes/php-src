@@ -54,10 +54,6 @@ void async_module_startup(void)
 	if (async_register_module() == FAILURE) {
 		zend_error(E_CORE_WARNING, "Failed to register the 'True Asynchrony' module.");
 	}
-
-#ifdef PHP_ASYNC_LIBUV
-	async_libuv_startup();
-#endif
 }
 
 /**
@@ -65,9 +61,6 @@ void async_module_startup(void)
  */
 void async_module_shutdown(void)
 {
-#ifdef PHP_ASYNC_LIBUV
-	async_libuv_shutdown();
-#endif
 }
 
 //===============================================================
