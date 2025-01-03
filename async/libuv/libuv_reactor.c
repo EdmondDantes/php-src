@@ -878,7 +878,8 @@ static async_file_descriptor_t libuv_extract_os_file_handle(reactor_handle_t *ha
 
 	uv_fileno((uv_handle_t *) ((libuv_poll_t *) handle)->uv_handle, &fd);
 
-	return (HANDLE)_get_osfhandle((int) fd);
+	// TODO: Need to test this
+	return fd;
 }
 
 static reactor_handle_t* libuv_file_system_new(const char *path, const size_t length, const zend_ulong events)

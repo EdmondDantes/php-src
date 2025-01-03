@@ -246,7 +246,7 @@ async_resume_t * async_resume_new(zend_fiber * fiber)
 	return resume;
 }
 
-ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t *callback)
+ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t callback)
 {
 	if (UNEXPECTED(callback == NULL)) {
 		zend_error(E_WARNING, "Callback cannot be NULL");
@@ -269,7 +269,7 @@ ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *noti
 	GC_ADDREF(&notifier->std);
 }
 
-ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error)
+ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
 {
 	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -278,7 +278,7 @@ ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor
 	}
 }
 
-ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error)
+ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -295,7 +295,7 @@ ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_
 	}
 }
 
-ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error)
+ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -304,7 +304,7 @@ ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor
 	}
 }
 
-void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error)
+void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, zval* event, zval* error)
 {
 	// If the triggered_notifiers array is not initialized, create it.
 	if (resume->triggered_notifiers == NULL) {
@@ -341,7 +341,7 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, c
 	 */
 	if (Z_TYPE(resume_notifier->callback) == IS_PTR) {
 
-		const async_resume_when_callback_t resume_callback = (async_resume_when_callback_t) Z_PTR_P(known_notifier);
+		const async_resume_when_callback_t resume_callback = Z_PTR_P(known_notifier);
 		resume_callback(resume, notifier, event, error);
 
 	} else if (zend_is_callable(&resume_notifier->callback, 0, NULL)) {

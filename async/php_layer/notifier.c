@@ -103,7 +103,7 @@ void async_register_notifier_ce(void)
 	async_notifier_handlers.clone_obj = NULL;
 }
 
-void async_notifier_add_callback(zend_object* notifier, const zval* callback)
+void async_notifier_add_callback(zend_object* notifier, zval* callback)
 {
 	const zval* callbacks = async_notifier_get_callbacks(notifier);
 
@@ -126,12 +126,12 @@ void async_notifier_add_callback(zend_object* notifier, const zval* callback)
  * @param notifier The notifier object.
  * @param callback The callback object.
  */
-void async_notifier_remove_callback(zend_object* notifier, const zval* callback)
+void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 {
 	zend_hash_index_del(Z_ARRVAL_P(async_notifier_get_callbacks(notifier)), Z_OBJ_P(callback)->handle);
 }
 
-void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error)
+void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error)
 {
 	const zval* callbacks = async_notifier_get_callbacks(&notifier->std);
 

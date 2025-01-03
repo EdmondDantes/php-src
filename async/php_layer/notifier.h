@@ -68,9 +68,9 @@ static zend_always_inline HashTable* async_notifier_get_callbacks_hash(const zen
 }
 
 void async_register_notifier_ce(void);
-void async_notifier_add_callback(zend_object* notifier, const zval* callback);
-void async_notifier_remove_callback(zend_object* notifier, const zval* callback);
-void async_notifier_notify(reactor_notifier_t * notifier, const zval * event, const zval * error);
+void async_notifier_add_callback(zend_object* notifier, zval* callback);
+void async_notifier_remove_callback(zend_object* notifier, zval* callback);
+void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error);
 
 END_EXTERN_C()
 

@@ -26,7 +26,7 @@ typedef enum {
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
-typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error);
+typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
 
 typedef struct _async_resume_notifier_s async_resume_notifier_t;
 
@@ -72,11 +72,11 @@ ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);
 ZEND_API async_resume_t * async_resume_new(zend_fiber * fiber);
-ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t *callback);
-ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, const zval* error);
-ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
-ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, const zval* event, const zval* error);
-ZEND_API void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, const zval* event, const zval* error);
+ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t callback);
+ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+ZEND_API void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, zval* event, zval* error);
 ZEND_API void async_resume_pending(async_resume_t *resume);
 
 END_EXTERN_C()

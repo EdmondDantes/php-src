@@ -36,13 +36,13 @@ PHP_FUNCTION(Async_launchScheduler)
 
 PHP_FUNCTION(Async_await)
 {
-	zend_object *resume = NULL;
+	zval *resume = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_OBJECT_OF_CLASS_OR_NULL(resume, async_ce_resume)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_await((async_resume_t *) resume);
+	async_await(ZVAL_IS_NULL(resume) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
 }
 
 PHP_FUNCTION(Async_async)

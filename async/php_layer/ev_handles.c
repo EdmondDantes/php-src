@@ -112,13 +112,13 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 
 	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
 
-	zend_object *error;
+	zval *error;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
 	Z_PARAM_OBJECT_OF_CLASS(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_cancel_fiber(fiber, error);
+	async_cancel_fiber(fiber, Z_OBJ_P(error));
 }
 
 PHP_METHOD(Async_EvHandle, __construct)
