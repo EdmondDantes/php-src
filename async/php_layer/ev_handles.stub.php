@@ -84,7 +84,11 @@ final class TtyHandle extends EvHandle
  */
 final class TimerHandle extends Notifier
 {
-    public function __construct(int $microseconds) {}
+    public readonly int $microseconds = 0;
+
+    public readonly bool $isPeriodic = false;
+
+    public function __construct(int $microseconds, bool $isPeriodic = false) {}
 }
 
 /**
@@ -93,6 +97,8 @@ final class TimerHandle extends Notifier
  */
 final class SignalHandle extends Notifier
 {
+    public readonly int $sigNumber = 0;
+
     public function __construct(int $sigNumber) {}
 }
 
@@ -129,5 +135,9 @@ final class FileSystemHandle extends Notifier
 
     public readonly int $triggeredEvents = 0;
 
-    public function __construct(string $filename, int $flags) {}
+    public readonly string $path = '';
+
+    public readonly int $flags = 0;
+
+    public function __construct(string $path, int $flags) {}
 }

@@ -444,7 +444,7 @@ void async_await_resource(
 
 	// Add timer handle if a timeout is specified.
 	if (timeout > 0) {
-		async_resume_when(resume, reactor_timer_new_fn(timeout), async_resume_when_callback_cancel);
+		async_resume_when(resume, reactor_timer_new_fn(timeout, false), async_resume_when_callback_cancel);
 	}
 
 	// Add cancellation handle if it is specified.
@@ -496,7 +496,7 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 
 	async_resume_t *resume = async_resume_new(NULL);
 
-	async_resume_when(resume, reactor_timer_new_fn(timeout), async_resume_when_callback_resolve);
+	async_resume_when(resume, reactor_timer_new_fn(timeout, false), async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
 		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
@@ -580,7 +580,7 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 	reactor_handle_t *handle = NULL;
 
 	if (timeout > 0) {
-		handle = reactor_timer_new_fn(timeout);
+		handle = reactor_timer_new_fn(timeout, false);
 
 		if (EG(exception) || handle == NULL) {
             goto finally;

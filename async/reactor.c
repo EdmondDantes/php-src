@@ -83,7 +83,7 @@ static reactor_handle_t* reactor_socket_new(php_socket_t fd, zend_ulong events)
 	return NULL;
 }
 
-static reactor_handle_t* reactor_timeout_new(zend_ulong timeout)
+static reactor_handle_t* reactor_timeout_new(zend_ulong timeout, zend_ulong is_period)
 {
 	async_throw_error("Reactor API method timeout_new not implemented");
 	return NULL;

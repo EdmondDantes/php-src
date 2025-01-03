@@ -232,6 +232,7 @@ static void libuv_timer_ctor(reactor_handle_t *handle, ...)
 	va_list args;
 	va_start(args, handle);
 	const zend_long timeout = va_arg(args, zend_long);
+	const zend_bool is_periodic = va_arg(args, zend_bool);
 	va_end(args);
 
 	if (timeout == 0 || timeout < 0) {
@@ -250,7 +251,7 @@ static void libuv_timer_ctor(reactor_handle_t *handle, ...)
 		return;
 	}
 
-	error = uv_timer_start(timer->uv_handle, on_timer_event, timeout, 0);
+	error = uv_timer_start(timer->uv_handle, on_timer_event, timeout, is_periodic ? timeout : 0);
 
 	if (error < 0) {
 		async_throw_error("Failed to start timer handle: %s", uv_strerror(error));
@@ -799,14 +800,15 @@ static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t fd, const z
 	return (reactor_handle_t *) poll;
 }
 
-static reactor_handle_t* libuv_timer_new(const zend_ulong timeout)
+static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const zend_bool is_periodic)
 {
 	zval object;
-	zval params[1];
+	zval params[2];
 
 	ZVAL_LONG(&params[0], timeout);
+	ZVAL_BOOL(&params[1], is_periodic);
 
-	if (object_init_with_constructor(&object, async_ce_timer_handle, 1, params, NULL) == FAILURE) {
+	if (object_init_with_constructor(&object, async_ce_timer_handle, 2, params, NULL) == FAILURE) {
 		return NULL;
 	}
 

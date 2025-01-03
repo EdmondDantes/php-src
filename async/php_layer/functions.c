@@ -133,7 +133,7 @@ PHP_FUNCTION(Async_delay)
 		ZVAL_COPY_VALUE(&callback, callable);
 	}
 
-	reactor_handle_t * handle = reactor_timer_new_fn(timeout);
+	reactor_handle_t * handle = reactor_timer_new_fn(timeout, false);
 
 	if (handle == NULL) {
 		if (is_callback_owned) {
@@ -145,18 +145,69 @@ PHP_FUNCTION(Async_delay)
 
 	async_notifier_add_callback(&handle->std, &callback);
 
-	if (EG(exception) != NULL) {
-		if (is_callback_owned) {
-			zval_ptr_dtor(&callback);
-		}
+	if (is_callback_owned) {
+		zval_ptr_dtor(&callback);
+	}
 
+	if (EG(exception) != NULL) {
 		RETURN_THROWS();
 	}
 }
 
 PHP_FUNCTION(Async_repeat)
 {
+	if (UNEXPECTED(IS_ASYNC_OFF)) {
+		async_throw_error("Cannot repeat execution outside of an async context");
+		RETURN_THROWS();
+	}
 
+	zend_long timeout;
+	zval * callable;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_LONG(timeout);
+		Z_PARAM_ZVAL(callable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (timeout < 0) {
+		async_throw_error("The timeout value must be greater than or equal to 0");
+		RETURN_THROWS();
+	}
+
+	zval callback;
+	bool is_callback_owned = false;
+
+	if (Z_TYPE_P(callable) != IS_OBJECT || Z_OBJ_P(callable)->ce != async_ce_callback) {
+		is_callback_owned = true;
+		zval params[1];
+		ZVAL_COPY_VALUE(&params[0], callable);
+
+		if (object_init_with_constructor(&callback, async_ce_callback, 1, params, NULL) == FAILURE) {
+			RETURN_THROWS();
+		}
+	} else {
+		ZVAL_COPY_VALUE(&callback, callable);
+	}
+
+	reactor_handle_t * handle = reactor_timer_new_fn(timeout, true);
+
+	if (handle == NULL) {
+		if (is_callback_owned) {
+			zval_ptr_dtor(&callback);
+		}
+
+		RETURN_THROWS();
+	}
+
+	async_notifier_add_callback(&handle->std, &callback);
+
+	if (is_callback_owned) {
+		zval_ptr_dtor(&callback);
+	}
+
+	if (EG(exception) != NULL) {
+		RETURN_THROWS();
+	}
 }
 
 PHP_FUNCTION(Async_onSignal)

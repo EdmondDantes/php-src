@@ -86,7 +86,7 @@ typedef reactor_handle_t* (*reactor_socket_new_t)(php_socket_t fd, zend_ulong ev
  * reactor_timer_new_t - Creates a new timeout event handle.
  * Triggers an event after the specified timeout duration.
  */
-typedef reactor_handle_t* (*reactor_timer_new_t)(zend_ulong timeout);
+typedef reactor_handle_t* (*reactor_timer_new_t)(zend_ulong timeout, zend_bool is_periodic);
 
 /**
  * reactor_signal_new_t - Creates a new signal event handle.

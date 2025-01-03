@@ -27,6 +27,7 @@
 #include "exceptions.h"
 #include "../php_reactor.h"
 #include "ev_handles_arginfo.h"
+#include "zend_common.h"
 
 #define THROW_IF_REACTOR_OFF \
 	if (UNEXPECTED(reactor_object_create_fn == NULL)) { \
@@ -141,12 +142,18 @@ PHP_METHOD(Async_TimerHandle, __construct)
 	THROW_IF_REACTOR_OFF;
 
 	zend_long microseconds;
+	zend_bool is_periodic = false;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	ZEND_PARSE_PARAMETERS_START(1, 2)
 		Z_PARAM_LONG(microseconds)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL(is_periodic)
 	ZEND_PARSE_PARAMETERS_END();
 
-	CALL_INTERNAL_CTOR(microseconds);
+	ZVAL_LONG(async_timer_get_microseconds(Z_OBJ_P(ZEND_THIS)), microseconds);
+	ZVAL_BOOL(async_timer_get_is_periodic(Z_OBJ_P(ZEND_THIS)), is_periodic);
+
+	CALL_INTERNAL_CTOR(microseconds, is_periodic);
 }
 
 PHP_METHOD(Async_SignalHandle, __construct)
@@ -158,6 +165,8 @@ PHP_METHOD(Async_SignalHandle, __construct)
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_LONG(sig_number)
 	ZEND_PARSE_PARAMETERS_END();
+
+	ZVAL_LONG(async_signal_get_number(Z_OBJ_P(ZEND_THIS)), sig_number);
 
 	CALL_INTERNAL_CTOR(sig_number);
 }
@@ -184,6 +193,8 @@ PHP_METHOD(Async_FileSystemHandle, __construct)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
+
+	// TODO: validate path and save to read-only properties
 
 	CALL_INTERNAL_CTOR(path, flags);
 }

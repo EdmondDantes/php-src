@@ -38,12 +38,37 @@ static zend_always_inline zval * async_ev_handle_get_triggered_events(zend_objec
 	return &object->properties_table[TRIGGERED_EVENTS_INDEX];
 }
 
+static zend_always_inline zval * async_timer_get_microseconds(zend_object *object)
+{
+	return &object->properties_table[1];
+}
+
+static zend_always_inline zval * async_timer_get_is_periodic(zend_object *object)
+{
+	return &object->properties_table[2];
+}
+
+static zend_always_inline zval * async_signal_get_number(zend_object *object)
+{
+	return &object->properties_table[1];
+}
+
 /**
  * Return the triggered events property of the given object.
  */
-zend_always_inline zval * async_file_system_get_triggered_events(zend_object *object)
+static zend_always_inline zval * async_file_system_get_triggered_events(zend_object *object)
 {
 	return &object->properties_table[TRIGGERED_EVENTS_INDEX];
+}
+
+static zend_always_inline zval * async_file_system_get_path(zend_object *object)
+{
+	return &object->properties_table[TRIGGERED_EVENTS_INDEX + 1];
+}
+
+static zend_always_inline zval * async_file_system_get_flags(zend_object *object)
+{
+	return &object->properties_table[TRIGGERED_EVENTS_INDEX + 2];
 }
 
 BEGIN_EXTERN_C()
