@@ -44,7 +44,12 @@ PHP_FUNCTION(Async_await)
 		Z_PARAM_OBJECT_OF_CLASS_OR_NULL(resume, async_ce_resume)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_await(ZVAL_IS_NULL(resume) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
+	if (UNEXPECTED(IS_ASYNC_OFF && resume != NULL)) {
+		async_throw_error("Cannot await a resume object outside of an async context");
+		RETURN_THROWS();
+	}
+
+	async_await((resume == NULL || ZVAL_IS_NULL(resume)) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
 }
 
 PHP_FUNCTION(Async_async)

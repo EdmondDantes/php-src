@@ -5,7 +5,7 @@ Testing the await() function
 
 Async\await();
 
-echo "Done\n";
+echo "Success\n";
 ?>
 --EXPECTF--
-XXX
+Success
