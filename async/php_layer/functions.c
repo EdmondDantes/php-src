@@ -243,6 +243,11 @@ PHP_MINFO_FUNCTION(async_info) {
 	php_info_print_table_header(2, "Module", "True Asynchrony");
 	php_info_print_table_row(2, "Version", PHP_ASYNC_VERSION);
 	php_info_print_table_row(2, "Support", "Enabled");
+#ifdef PHP_ASYNC_LIBUV
+	php_info_print_table_row(2, "LibUv Reactor", "Enabled");
+#else
+	php_info_print_table_row(2, "LibUv Reactor", "Disabled");
+#endif
 	php_info_print_table_end();
 }
 

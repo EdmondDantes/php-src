@@ -1,7 +1,7 @@
 // vim:ft=javascript
 
 ARG_ENABLE('async', 'Enable True Async API', 'no');
-ARG_WITH('libuv', 'Build True Async API with libuv support', 'no');
+ARG_WITH('async_libuv', 'Build True Async API with libuv support', 'no');
 
 if (PHP_ASYNC == "yes") {
     ADD_SOURCES("async", "*.c");
@@ -23,7 +23,7 @@ if (PHP_ASYNC == "yes") {
     PHP_INSTALL_HEADERS("async/php_layer", "resume.h");
 }
 
-if (PHP_LIBUV == "yes") {
+if (PHP_ASYNC_LIBUV == "yes") {
     if (PHP_ASYNC != "yes") {
         ERROR("libuv requires True Async API to be enabled. Use --enable-async");
     } else {
@@ -31,7 +31,7 @@ if (PHP_LIBUV == "yes") {
             && CHECK_LIB("libuv.lib", "libuv")) {
 
             ADD_SOURCES("async/libuv", "*.c");
-            ADD_FLAG("CFLAGS", "/D PHP_LIBUV");
+            ADD_FLAG("CFLAGS", "/D PHP_ASYNC_LIBUV");
             ADD_FLAG("LIBS", "libuv.lib Dbghelp.lib Userenv.lib");
         } else {
             ERROR("Libuv components are not found. The search was performed in the directory: '" + PHP_PHP_BUILD +
