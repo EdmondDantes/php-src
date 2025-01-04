@@ -21,8 +21,7 @@
 #include <async/php_async.h>
 
 #include "notifier.h"
-#include "callback.h"
-#include "ev_handles.h"
+#include "reactor_handles.h"
 #include "exceptions.h"
 #include "resume_arginfo.h"
 

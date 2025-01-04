@@ -20,7 +20,7 @@
 #include "php_async.h"
 #include "php_scheduler.h"
 #include <Zend/zend_types.h>
-#include "php_layer/ev_handles.h"
+#include "php_layer/reactor_handles.h"
 
 /**
  * reactor_startup_t - Function pointer type for initializing the event system.

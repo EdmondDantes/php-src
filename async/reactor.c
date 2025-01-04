@@ -16,7 +16,7 @@
 #include "php_reactor.h"
 #include "php_layer/exceptions.h"
 #include "php_layer/notifier.h"
-#include "php_layer/ev_handles.h"
+#include "php_layer/reactor_handles.h"
 #include "php_layer/zend_common.h"
 
 void reactor_startup(void)
