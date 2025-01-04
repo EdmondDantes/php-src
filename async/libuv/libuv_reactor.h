@@ -21,7 +21,7 @@
 #include <libuv/uv.h>
 #include "../php_async.h"
 #include "../php_layer/notifier.h"
-#include "../php_layer/ev_handles.h"
+#include "../php_layer/reactor_handles.h"
 
 BEGIN_EXTERN_C()
 

@@ -109,23 +109,21 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	IF_EXCEPTION_STOP;
 }
 
-static zend_always_inline void libuv_poll_alloc_and_start(
-		libuv_poll_t * poll, const int actions, const php_socket_t socket, const async_file_descriptor_t file
-	)
+static zend_always_inline void libuv_poll_init(libuv_poll_t * poll, const int actions)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
 #ifdef PHP_WIN32
-	if (file != NULL) {
+	if (poll->std.ce == async_ce_file_handle) {
 		async_throw_error("File descriptor polling is not supported on Windows");
 		pefree(poll->uv_handle, 1);
 		poll->uv_handle = NULL;
 		return;
 	}
 
-	int error = uv_poll_init_socket(poll->uv_handle->loop, poll->uv_handle, socket);
+	int error = uv_poll_init_socket(poll->uv_handle->loop, poll->uv_handle, poll->poll.socket);
 #else
-	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, socket ? socket : file);
+	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, poll->poll.file);
 #endif
 
 	if (error < 0) {
@@ -187,7 +185,7 @@ static void libuv_poll_ctor(reactor_handle_t *handle, ...)
 		return;
     }
 
-	libuv_poll_alloc_and_start(poll, libuv_events_from_php(actions), socket, file);
+	libuv_poll_init(poll, libuv_events_from_php(actions), socket, file);
 }
 
 static void libuv_poll_dtor(reactor_handle_t *handle)
@@ -606,91 +604,53 @@ static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zen
 
 }
 
-static reactor_handle_t* libuv_file_new(const async_file_descriptor_t fd, const zend_ulong events)
+static zend_always_inline libuv_poll_t * libuv_poll_new(
+	zend_class_entry * class_entry,
+	const async_file_descriptor_t file,
+	const php_socket_t socket,
+	const zend_ulong events
+	)
 {
-	libuv_poll_t * object = zend_object_internal_create(sizeof(libuv_poll_t), async_ce_file_handle);
+	libuv_poll_t * object = zend_object_internal_create(sizeof(libuv_poll_t), class_entry);
 
-	if (object == NULL) {
+	if (UNEXPECTED(object == NULL)) {
         return NULL;
     }
 
-	libuv_poll_alloc_and_start(object, (int) events, 0, fd);
+	if (file) {
+		object->poll.file = file;
+	} else {
+        object->poll.socket = socket;
+    }
+
+	libuv_poll_init(object, (int) events);
 
 	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&object->handle.std);
+		OBJ_RELEASE(&object->std);
 		return NULL;
 	}
 
-	return (reactor_handle_t *) object;
+	return object;
+}
+
+static reactor_handle_t* libuv_file_new(const async_file_descriptor_t file, const zend_ulong events)
+{
+	return (reactor_handle_t *) libuv_poll_new(async_ce_file_handle, file, 0, events);
 }
 
 static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_ulong events)
 {
-	zval object;
-
-	//
-	// Create a new object of the class Async\SocketHandle without calling the constructor.
-	//
-	if (object_init_ex(&object, async_ce_socket_handle) == FAILURE) {
-		return NULL;
-	}
-
-	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
-
-	libuv_poll_alloc_and_start(poll, (int) events, socket, NULL);
-
-	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&poll->handle.std);
-		return NULL;
-	}
-
-	poll->handle.type = REACTOR_H_SOCKET;
-
-	return (reactor_handle_t *) poll;
+	return (reactor_handle_t *) libuv_poll_new(async_ce_socket_handle, 0, socket, events);
 }
 
-static reactor_handle_t* libuv_pipe_new(const async_file_descriptor_t fd, const zend_ulong events)
+static reactor_handle_t* libuv_pipe_new(const async_file_descriptor_t file, const zend_ulong events)
 {
-	zval object;
-
-	if (object_init_ex(&object, async_ce_pipe_handle) == FAILURE) {
-		return NULL;
-	}
-
-	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
-
-	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
-
-	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&poll->handle.std);
-		return NULL;
-	}
-
-	poll->handle.type = REACTOR_H_PIPE;
-
-	return (reactor_handle_t *) poll;
+	return (reactor_handle_t *) libuv_poll_new(async_ce_pipe_handle, file, 0, events);
 }
 
-static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t fd, const zend_ulong events)
+static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t file, const zend_ulong events)
 {
-	zval object;
-
-	if (object_init_ex(&object, async_ce_tty_handle) == FAILURE) {
-		return NULL;
-	}
-
-	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
-
-	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
-
-	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&poll->handle.std);
-		return NULL;
-	}
-
-	poll->handle.type = REACTOR_H_TTY;
-
-	return (reactor_handle_t *) poll;
+	return (reactor_handle_t *) libuv_poll_new(async_ce_tty_handle, file, 0, events);
 }
 
 static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const zend_bool is_periodic)
