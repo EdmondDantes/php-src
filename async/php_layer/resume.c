@@ -182,6 +182,7 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 
 	// Define current Fiber and set it to the property $fiber
 	if (EXPECTED(EG(active_fiber))) {
+		// NOTE: NO GC_ADDREF here
 		object->fiber = EG(active_fiber);
 	}
 
@@ -192,26 +193,30 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 
 static void async_resume_object_destroy(zend_object* object)
 {
-}
+	async_resume_t * resume = (async_resume_t *) object;
 
-static void async_resume_object_free(zend_object* object)
-{
-    async_resume_t * resume = (async_resume_t *) object;
-
-    if (resume->triggered_notifiers != NULL) {
-        zend_array_release(resume->triggered_notifiers);
-    }
-
-	if (resume->error != NULL) {
-		OBJ_RELEASE(resume->error);
-	}
+	resume->fiber = NULL;
 
 	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
 		zval_ptr_dtor(&GET_RESUME_RESULT(resume));
 	}
 
-	resume->error = NULL;
 	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
+
+	if (resume->triggered_notifiers != NULL) {
+		zend_array_release(resume->triggered_notifiers);
+	}
+
+	if (resume->error != NULL) {
+		OBJ_RELEASE(resume->error);
+	}
+
+	resume->error = NULL;
+}
+
+static void async_resume_object_free(zend_object* object)
+{
+    async_resume_t * resume = (async_resume_t *) object;
 
     zend_hash_destroy(&resume->notifiers);
     zend_object_std_dtor(&resume->std);
