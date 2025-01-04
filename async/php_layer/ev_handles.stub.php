@@ -17,7 +17,7 @@ abstract class EvHandle extends Notifier
 
     public readonly int $triggeredEvents = 0;
 
-    final public function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
+    final private function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
 }
 
 /**
@@ -52,6 +52,7 @@ final class FiberHandle extends Notifier
  */
 final class FileHandle extends EvHandle
 {
+    public static function fromResource(mixed $fd): FileHandle {}
 }
 
 /**
@@ -60,6 +61,8 @@ final class FileHandle extends EvHandle
  */
 final class SocketHandle extends EvHandle
 {
+    public static function fromStream(mixed $stream): FileHandle {}
+    public static function fromSocket(mixed $socket): FileHandle {}
 }
 
 /**
@@ -68,6 +71,7 @@ final class SocketHandle extends EvHandle
  */
 final class PipeHandle extends EvHandle
 {
+    public static function open(string $path, string $mode): PipeHandle {}
 }
 
 /**
@@ -76,6 +80,7 @@ final class PipeHandle extends EvHandle
  */
 final class TtyHandle extends EvHandle
 {
+    public static function open(string $path, string $mode): TtyHandle {}
 }
 
 /**
@@ -88,7 +93,9 @@ final class TimerHandle extends Notifier
 
     public readonly bool $isPeriodic = false;
 
-    public function __construct(int $microseconds, bool $isPeriodic = false) {}
+    public static function newTimeout(int $microseconds): TimerHandle {}
+
+    public static function newInterval(int $microseconds): TimerHandle {}
 }
 
 /**
@@ -99,7 +106,7 @@ final class SignalHandle extends Notifier
 {
     public readonly int $sigNumber = 0;
 
-    public function __construct(int $sigNumber) {}
+    public static function new(int $sigNumber): SignalHandle {}
 }
 
 /**
@@ -108,7 +115,7 @@ final class SignalHandle extends Notifier
  */
 final class ThreadHandle extends Notifier
 {
-    public function __construct() {}
+    private function __construct() {}
 }
 
 /**
@@ -117,7 +124,8 @@ final class ThreadHandle extends Notifier
  */
 final class ProcessHandle extends Notifier
 {
-    public function __construct() {}
+    public static function fromResource(mixed $process): ProcessHandle {}
+    private function __construct() {}
 }
 
 /**
@@ -139,5 +147,6 @@ final class FileSystemHandle extends Notifier
 
     public readonly int $flags = 0;
 
-    public function __construct(string $path, int $flags) {}
+    public static function fromPath(string $path, int $flags): FileSystemHandle {}
+    private function __construct() {}
 }

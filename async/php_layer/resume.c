@@ -165,7 +165,7 @@ METHOD(when)
 
 static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 {
-	async_resume_t * object = zend_custom_object_alloc(sizeof(async_resume_t), class_entry);
+	async_resume_t * object = zend_object_alloc_ex(sizeof(async_resume_t), class_entry);
 
 	object->status = ASYNC_RESUME_NO_STATUS;
 	object->triggered_notifiers = NULL;

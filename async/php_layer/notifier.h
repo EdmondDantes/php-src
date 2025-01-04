@@ -43,18 +43,18 @@ typedef void (*reactor_handle_method)(reactor_handle_t *handle, ...);
 struct _reactor_handle_s {
 	/* PHP std object Async\Notifier */
 	zend_object std;
-	/**
-	 * The type of handler that is hidden behind the Notify object.
-	 */
-	REACTOR_HANDLE_TYPE type;
-	/**
-	 * The method is called immediately after the constructor to complete the initialization of internal data structures.
-	 */
-	reactor_handle_method ctor;
-	/**
-	 * A method that is called when the notifier must be destroyed to remove the handler from the event loop.
-	 */
-	reactor_handle_method dtor;
+	union
+	{
+		struct
+		{
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			/**
+			 * PHP array of callbacks.
+			 * point to the std.properties_table[0]
+			 */
+			zval callbacks;
+		};
+	};
 };
 
 static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)

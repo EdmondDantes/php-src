@@ -18,7 +18,7 @@ namespace Async;
  */
 final class Resume
 {
-    public readonly mixed $result = null;
+    private mixed $result = null;
 
     /**
      * Predefined callback-behavior for the `Resume` object

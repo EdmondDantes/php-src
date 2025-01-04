@@ -75,18 +75,11 @@ METHOD(notify)
 zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
 	reactor_handle_t * object = reactor_default_object_create(class_entry);
-	object->type = REACTOR_H_CUSTOM;
-
 	return &object->std;
 }
 
 static void async_notifier_object_destroy(zend_object *object)
 {
-	reactor_handle_t* handle = (reactor_handle_t *) object;
-
-	if (handle->dtor != NULL) {
-		handle->dtor(handle);
-	}
 }
 
 void async_register_notifier_ce(void)

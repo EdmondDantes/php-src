@@ -17,6 +17,8 @@
 #ifndef ASYNC_ZEND_COMMON_H
 #define ASYNC_ZEND_COMMON_H
 
+#include <mswsockdef.h>
+
 #include "php.h"
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"
@@ -101,7 +103,22 @@ void zend_always_inline zend_object_ptr_reset(zend_object * destination)
 	destination = NULL;
 }
 
-static zend_always_inline void *zend_custom_object_alloc(const size_t obj_size, zend_class_entry *ce) {
+/**
+ * Allocates memory for a new object instance.
+ * The difference from the standard zend_object_alloc function
+ * is that this function is intended for custom structures where zend_object starts the structure.
+ * Therefore, the entire data structure is zeroed out, not just part of it.
+ *
+ * This function allocates memory for a new object instance of the specified size.
+ * The function initializes the memory block with zero bytes and returns a pointer to the allocated memory.
+ *
+ * @param obj_size  The size of the object instance to allocate.
+ * @param ce        The class entry of the object instance.
+ *
+ * @return A pointer to the allocated memory block.
+ */
+static zend_always_inline void *zend_object_alloc_ex(const size_t obj_size, zend_class_entry *ce) {
+	ZEND_ASSERT(zend_object_properties_size(ce) < 0);
 	const size_t size = obj_size + zend_object_properties_size(ce);
 	void *obj = emalloc(size);
 	memset(obj, 0, size);
