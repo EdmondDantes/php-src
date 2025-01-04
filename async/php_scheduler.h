@@ -47,7 +47,7 @@ typedef void (*async_exception_handler_t)(void);
 
 BEGIN_EXTERN_C()
 
-typedef struct _async_globals_s async_globals_t;
+typedef struct _zend_async_globals zend_async_globals;
 
 /**
  * The method activates the Scheduler in the specified thread.
@@ -55,7 +55,7 @@ typedef struct _async_globals_s async_globals_t;
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_launch(void);
-ZEND_API void async_scheduler_dtor(async_globals_t * async_globals);
+ZEND_API void async_scheduler_dtor(zend_async_globals * async_globals);
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler);
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
