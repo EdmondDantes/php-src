@@ -101,6 +101,13 @@ void zend_always_inline zend_object_ptr_reset(zend_object * destination)
 	destination = NULL;
 }
 
+static zend_always_inline void *zend_custom_object_alloc(const size_t obj_size, zend_class_entry *ce) {
+	const size_t size = obj_size + zend_object_properties_size(ce);
+	void *obj = emalloc(size);
+	memset(obj, 0, size);
+	return obj;
+}
+
 /**
  * Creates a new weak reference to the given zval.
  *
