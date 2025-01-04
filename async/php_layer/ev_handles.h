@@ -16,6 +16,8 @@
 #ifndef EV_HANDLES_H
 #define EV_HANDLES_H
 
+#include <php_network.h>
+
 #include "php.h"
 #include "zend_types.h"
 #include "notifier.h"
@@ -23,12 +25,85 @@
 // After parent property callbacks
 #define TRIGGERED_EVENTS_INDEX 1
 
-typedef struct _async_fiber_handle_s async_fiber_handle_t;
+/**
+ * Data structure for describing FIBER objects, which are represented in PHP as the FiberHandle class.
+ */
+typedef struct _reactor_fiber_handle_s reactor_fiber_handle_t;
 
-struct _async_fiber_handle_s {
+/**
+ * Data structure for describing POLL objects, which are represented in PHP as the PollHandle class.
+ * The separation of file/socket descriptors is due to implementation specifics for Win32 and does not apply to UNIX.
+ */
+typedef struct _reactor_poll_s reactor_poll_t;
+
+/**
+ * Data structure for describing TIMER objects, which are represented in PHP as the TimerHandle class.
+ */
+typedef struct _reactor_timer_s reactor_timer_t;
+
+/**
+ * Data structure for describing SIGNAL objects, which are represented in PHP as the SignalHandle class.
+ */
+typedef struct _reactor_signal_s reactor_signal_t;
+
+/**
+ * Data structure for describing PROCESS objects, which are represented in PHP as the ProcessHandle class.
+ */
+typedef struct _reactor_process_s reactor_process_t;
+
+/**
+ * Data structure for describing THREAD objects, which are represented in PHP as the ThreadHandle class.
+ */
+typedef struct _reactor_thread_s reactor_thread_t;
+
+/**
+ * Data structure for describing FILE SYSTEM objects, which are represented in PHP as the FileSystemHandle class.
+ */
+typedef struct _reactor_file_system_s reactor_file_system_t;
+
+struct _reactor_fiber_handle_s {
 	reactor_handle_t handle;
 	zend_fiber *fiber;
 };
+
+struct _reactor_poll_s {
+	reactor_handle_t handle;
+	zval triggered_events;
+	union {
+		async_file_descriptor_t file;
+		php_socket_t socket;
+	};
+};
+
+struct _reactor_timer_s {
+	reactor_handle_t handle;
+	zval microseconds;
+	zval is_periodic;
+};
+
+struct _reactor_signal_s {
+	reactor_handle_t handle;
+	zval number;
+};
+
+struct _reactor_process_s {
+	reactor_handle_t handle;
+	zval pid;
+	zval exit_code;
+};
+
+struct _reactor_thread_s {
+	reactor_handle_t handle;
+	zval tid;
+};
+
+struct _reactor_file_system_s {
+	reactor_handle_t handle;
+	zval triggered_events;
+	zval path;
+	zval flags;
+};
+
 
 /**
  * Return the triggered events property of the given object.
@@ -73,7 +148,7 @@ static zend_always_inline zval * async_file_system_get_flags(zend_object *object
 
 BEGIN_EXTERN_C()
 
-ZEND_API zend_class_entry *async_ce_ev_handle;
+ZEND_API zend_class_entry *async_ce_poll_handle;
 
 ZEND_API zend_class_entry *async_ce_fiber_handle;
 

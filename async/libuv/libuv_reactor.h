@@ -37,37 +37,71 @@ typedef struct _libuv_thread_s libuv_thread_t;
 typedef struct _libuv_fs_event_s libuv_fs_event_t;
 
 struct _libuv_handle_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+	};
 	uv_handle_t *uv_handle;
 };
 
 struct _libuv_poll_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_poll_t poll;
+	};
 	uv_poll_t *uv_handle;
 };
 
 struct _libuv_timer_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_timer_t timer;
+	};
 	uv_timer_t *uv_handle;
 };
 
 struct _libuv_signal_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_signal_t signal;
+	};
 	uv_signal_t *uv_handle;
 };
 
 struct _libuv_process_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_process_t process;
+	};
 	uv_process_t *uv_handle;
 };
 
 struct _libuv_thread_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_thread_t thread;
+	};
 	uv_thread_t *uv_handle;
 };
 
 struct _libuv_fs_event_s {
-	reactor_handle_t handle;
+	union
+	{
+		zend_object std;
+		reactor_handle_t handle;
+		reactor_file_system_t fs_event;
+	};
 	uv_fs_event_t *uv_handle;
 };
 

@@ -76,7 +76,7 @@ PHP_FUNCTION(Async_async)
 		RETURN_THROWS();
 	}
 
-	async_fiber_handle_t *fiber_handle = (async_fiber_handle_t *) Z_OBJ_P(&zval_fiber_handle);
+	reactor_fiber_handle_t *fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(&zval_fiber_handle);
 
 	fiber_handle->fiber = (zend_fiber *) Z_OBJ_P(&zval_fiber);
 

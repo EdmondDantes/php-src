@@ -117,12 +117,23 @@ void zend_always_inline zend_object_ptr_reset(zend_object * destination)
  *
  * @return A pointer to the allocated memory block.
  */
-static zend_always_inline void *zend_object_alloc_ex(const size_t obj_size, zend_class_entry *ce) {
+static zend_always_inline void *zend_object_alloc_ex(const size_t obj_size, zend_class_entry *ce)
+{
 	ZEND_ASSERT(zend_object_properties_size(ce) < 0);
 	const size_t size = obj_size + zend_object_properties_size(ce);
 	void *obj = emalloc(size);
 	memset(obj, 0, size);
 	return obj;
+}
+
+static zend_always_inline zend_object* zend_object_internal_create(const size_t obj_size, zend_class_entry *class_entry)
+{
+	zend_object * object = zend_object_alloc_ex(obj_size, class_entry);
+
+	zend_object_std_init(object, class_entry);
+	object_properties_init(object, class_entry);
+
+	return object;
 }
 
 /**

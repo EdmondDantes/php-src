@@ -1,10 +1,10 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 84140c85bc6a61e9804d68ee505f2bcb21e673a2 */
+ * Stub hash: 1e0bdccbe0e3518b88e3af5418c8bc0b60ff0982 */
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_FiberHandle___construct arginfo_class_Async_EvHandle___construct
+#define arginfo_class_Async_FiberHandle___construct arginfo_class_Async_PollHandle___construct
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_isStarted, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -47,18 +47,18 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_SignalHandle_new, 0, 
 	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_ThreadHandle___construct arginfo_class_Async_EvHandle___construct
+#define arginfo_class_Async_ThreadHandle___construct arginfo_class_Async_PollHandle___construct
 
-#define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_EvHandle___construct
+#define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_PollHandle___construct
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileSystemHandle_fromPath, 0, 2, Async\\FileSystemHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_FileSystemHandle___construct arginfo_class_Async_EvHandle___construct
+#define arginfo_class_Async_FileSystemHandle___construct arginfo_class_Async_PollHandle___construct
 
-ZEND_METHOD(Async_EvHandle, __construct);
+ZEND_METHOD(Async_PollHandle, __construct);
 ZEND_METHOD(Async_FiberHandle, __construct);
 ZEND_METHOD(Async_FiberHandle, isStarted);
 ZEND_METHOD(Async_FiberHandle, isSuspended);
@@ -77,8 +77,8 @@ ZEND_METHOD(Async_ProcessHandle, __construct);
 ZEND_METHOD(Async_FileSystemHandle, fromPath);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
 
-static const zend_function_entry class_Async_EvHandle_methods[] = {
-	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
+static const zend_function_entry class_Async_PollHandle_methods[] = {
+	ZEND_ME(Async_PollHandle, __construct, arginfo_class_Async_PollHandle___construct, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
@@ -131,11 +131,11 @@ static const zend_function_entry class_Async_FileSystemHandle_methods[] = {
 	ZEND_FE_END
 };
 
-static zend_class_entry *register_class_Async_EvHandle(zend_class_entry *class_entry_Async_Notifier)
+static zend_class_entry *register_class_Async_PollHandle(zend_class_entry *class_entry_Async_Notifier)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "Async", "EvHandle", class_Async_EvHandle_methods);
+	INIT_NS_CLASS_ENTRY(ce, "Async", "PollHandle", class_Async_PollHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_ABSTRACT|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval const_READABLE_value;
@@ -181,42 +181,42 @@ static zend_class_entry *register_class_Async_FiberHandle(zend_class_entry *clas
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_FileHandle(zend_class_entry *class_entry_Async_EvHandle)
+static zend_class_entry *register_class_Async_FileHandle(zend_class_entry *class_entry_Async_PollHandle)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FileHandle", class_Async_FileHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_PollHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_SocketHandle(zend_class_entry *class_entry_Async_EvHandle)
+static zend_class_entry *register_class_Async_SocketHandle(zend_class_entry *class_entry_Async_PollHandle)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "SocketHandle", class_Async_SocketHandle_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_PollHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_PipeHandle(zend_class_entry *class_entry_Async_EvHandle)
+static zend_class_entry *register_class_Async_PipeHandle(zend_class_entry *class_entry_Async_PollHandle)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "PipeHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_PollHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_TtyHandle(zend_class_entry *class_entry_Async_EvHandle)
+static zend_class_entry *register_class_Async_TtyHandle(zend_class_entry *class_entry_Async_PollHandle)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "TtyHandle", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_PollHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -266,6 +266,12 @@ static zend_class_entry *register_class_Async_ThreadHandle(zend_class_entry *cla
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ThreadHandle", class_Async_ThreadHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
+	zval property_tid_default_value;
+	ZVAL_LONG(&property_tid_default_value, 0);
+	zend_string *property_tid_name = zend_string_init("tid", sizeof("tid") - 1, 1);
+	zend_declare_typed_property(class_entry, property_tid_name, &property_tid_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
+	zend_string_release(property_tid_name);
+
 	return class_entry;
 }
 
@@ -275,6 +281,18 @@ static zend_class_entry *register_class_Async_ProcessHandle(zend_class_entry *cl
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ProcessHandle", class_Async_ProcessHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+
+	zval property_pid_default_value;
+	ZVAL_NULL(&property_pid_default_value);
+	zend_string *property_pid_name = zend_string_init("pid", sizeof("pid") - 1, 1);
+	zend_declare_typed_property(class_entry, property_pid_name, &property_pid_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
+	zend_string_release(property_pid_name);
+
+	zval property_exitCode_default_value;
+	ZVAL_NULL(&property_exitCode_default_value);
+	zend_string *property_exitCode_name = zend_string_init("exitCode", sizeof("exitCode") - 1, 1);
+	zend_declare_typed_property(class_entry, property_exitCode_name, &property_exitCode_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
+	zend_string_release(property_exitCode_name);
 
 	return class_entry;
 }

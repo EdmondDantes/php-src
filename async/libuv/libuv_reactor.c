@@ -569,114 +569,15 @@ static size_t async_ex_globals_handler(const async_globals_t* async_globals, siz
 	return 0;
 }
 
-static reactor_handle_t* libuv_object_create(zend_class_entry *class_entry)
-{
-	// This is function call from zend_API.c
-	// ZEND_API zend_result object_and_properties_init(zval *arg, zend_class_entry *class_type, HashTable *properties)
-	// => _object_and_properties_init
-	//
-	// This function is responsible for:
-	// * Allocating memory
-	// * Initializing properties
-	//
-	// It is inherited by all child objects. Therefore, you must take this into account!
-	//
-
-	libuv_handle_t *object;
-
-	if (class_entry == async_ce_socket_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
-		object->handle.type = REACTOR_H_SOCKET;
-		object->handle.ctor = libuv_poll_ctor;
-		object->handle.dtor = libuv_poll_dtor;
-		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
-
-	} else if (class_entry == async_ce_file_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
-		object->handle.type = REACTOR_H_FILE;
-		object->handle.ctor = libuv_poll_ctor;
-		object->handle.dtor = libuv_poll_dtor;
-		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
-
-	} else if (class_entry == async_ce_pipe_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
-		object->handle.type = REACTOR_H_PIPE;
-		object->handle.ctor = libuv_poll_ctor;
-		object->handle.dtor = libuv_poll_dtor;
-		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
-
-	} else if (class_entry == async_ce_tty_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_poll_t), class_entry);
-		object->handle.type = REACTOR_H_TTY;
-		object->handle.ctor = libuv_poll_ctor;
-		object->handle.dtor = libuv_poll_dtor;
-		object->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
-
-	} else if (class_entry == async_ce_timer_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_timer_t), class_entry);
-		object->handle.type = REACTOR_H_TIMER;
-		object->uv_handle = pecalloc(1, sizeof(uv_timer_t), 1);
-		object->handle.ctor = libuv_timer_ctor;
-		object->handle.dtor = libuv_timer_dtor;
-
-	} else if (class_entry == async_ce_signal_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_signal_t), class_entry);
-		object->handle.type = REACTOR_H_SIGNAL;
-		object->uv_handle = pecalloc(1, sizeof(uv_signal_t), 1);
-		object->handle.ctor = libuv_signal_ctor;
-		object->handle.dtor = libuv_signal_dtor;
-
-	} else if (class_entry == async_ce_process_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_process_t), class_entry);
-		object->handle.type = REACTOR_H_PROCESS;
-		object->uv_handle = pecalloc(1, sizeof(libuv_process_t), 1);
-		object->handle.ctor = libuv_process_ctor;
-		object->handle.dtor = libuv_process_dtor;
-
-	} else if (class_entry == async_ce_thread_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_thread_t), class_entry);
-		object->handle.type = REACTOR_H_THREAD;
-		object->uv_handle = pecalloc(1, sizeof(libuv_thread_t), 1);
-		object->handle.ctor = libuv_thread_ctor;
-		object->handle.dtor = libuv_thread_dtor;
-
-	} else if (class_entry == async_ce_file_system_handle) {
-
-		object = zend_object_alloc(sizeof(libuv_fs_event_t), class_entry);
-		object->handle.type = REACTOR_H_FILE_SYSTEM;
-		object->uv_handle = pecalloc(1, sizeof(uv_fs_event_t), 1);
-		object->handle.ctor = libuv_file_system_ctor;
-		object->handle.dtor = libuv_file_system_dtor;
-
-	} else {
-		return reactor_default_object_create(class_entry);
-	}
-
-	// Link the uv handle to the PHP object.
-	object->uv_handle->data = object;
-	object->uv_handle->loop = UVLOOP;
-
-	zend_object_std_init(&object->handle.std, class_entry);
-	object_properties_init(&object->handle.std, class_entry);
-
-	return &object->handle;
-}
+//=============================================================
+#pragma region Handle API
+//=============================================================
 
 /**
  * Previous handlers.
  */
 static reactor_startup_t prev_reactor_startup_fn = NULL;
 static reactor_shutdown_t prev_reactor_shutdown_fn = NULL;
-
-static reactor_object_create_t prev_reactor_object_create_fn = NULL;
 
 static reactor_handle_method_t prev_reactor_add_handle_ex_fn = NULL;
 static reactor_handle_method_t prev_reactor_remove_handle_fn = NULL;
@@ -700,35 +601,27 @@ static reactor_extract_os_file_handle_t prev_reactor_extract_os_file_handle_fn =
 
 static reactor_file_system_new_t prev_reactor_file_system_new_fn = NULL;
 
-static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zend_ulong actions)
+static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zend_ulong actions, REACTOR_HANDLE_TYPE expected_type)
 {
 
 }
 
-//=============================================================
-#pragma region Handle API
-//=============================================================
-
 static reactor_handle_t* libuv_file_new(const async_file_descriptor_t fd, const zend_ulong events)
 {
-	zval object;
+	libuv_poll_t * object = zend_object_internal_create(sizeof(libuv_poll_t), async_ce_file_handle);
 
-	if (object_init_ex(&object, async_ce_file_handle) == FAILURE) {
-		return NULL;
-	}
+	if (object == NULL) {
+        return NULL;
+    }
 
-	libuv_poll_t * poll = (libuv_poll_t *) Z_OBJ_P(&object);
-
-	libuv_poll_alloc_and_start(poll, (int) events, 0, fd);
+	libuv_poll_alloc_and_start(object, (int) events, 0, fd);
 
 	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&poll->handle.std);
+		OBJ_RELEASE(&object->handle.std);
 		return NULL;
 	}
 
-	poll->handle.type = REACTOR_H_FILE;
-
-	return (reactor_handle_t *) poll;
+	return (reactor_handle_t *) object;
 }
 
 static reactor_handle_t* libuv_socket_new(const php_socket_t socket, const zend_ulong events)
@@ -915,9 +808,6 @@ static void setup_handlers(void)
 	prev_reactor_shutdown_fn = reactor_shutdown_fn;
 	reactor_shutdown_fn = libuv_shutdown;
 
-	prev_reactor_object_create_fn = reactor_object_create_fn;
-	reactor_object_create_fn = libuv_object_create;
-
 	prev_reactor_add_handle_ex_fn = reactor_add_handle_ex_fn;
 	reactor_add_handle_ex_fn = libuv_add_handle_ex;
 
@@ -971,8 +861,6 @@ static void restore_handlers(void)
 {
 	reactor_startup_fn = prev_reactor_startup_fn;
 	reactor_shutdown_fn = prev_reactor_shutdown_fn;
-
-	reactor_object_create_fn = prev_reactor_object_create_fn;
 
 	reactor_add_handle_ex_fn = prev_reactor_add_handle_ex_fn;
 	reactor_remove_handle_fn = prev_reactor_remove_handle_fn;

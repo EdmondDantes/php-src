@@ -35,14 +35,7 @@
 		return; \
 	}
 
-#define CALL_INTERNAL_CTOR(...) \
-		if (UNEXPECTED(((reactor_handle_t*)Z_OBJ_P(ZEND_THIS))->ctor == NULL)) { \
-			async_throw_error("Failed to create event handle, class does not have a internal constructor"); \
-			return; \
-		} \
-		((reactor_handle_t*)Z_OBJ_P(ZEND_THIS))->ctor((reactor_handle_t*)Z_OBJ_P(ZEND_THIS), ##__VA_ARGS__);
-
-#define GET_FIBER_FROM_HANDLE() ((async_fiber_handle_t*)Z_OBJ_P(ZEND_THIS))->fiber
+#define GET_FIBER_FROM_HANDLE() ((reactor_fiber_handle_t*)Z_OBJ_P(ZEND_THIS))->fiber
 #define RETURN_IF_FIBER_INTERNAL_ERROR(fiber) if (UNEXPECTED((fiber) == NULL)) { \
 		async_throw_error("Internal FiberHandle initialization error."); \
 		return; \
@@ -290,7 +283,7 @@ PHP_METHOD(Async_FileSystemHandle, fromPath)
 /**
  * Creates and initializes a new `fiber handle` object.
  *
- * This function allocates memory for a new `async_fiber_handle_t` object and initializes
+ * This function allocates memory for a new `reactor_fiber_handle_t` object and initializes
  * its base `zend_object` structure. The fiber handle type is set to `REACTOR_H_FIBER`,
  * and the constructor and destructor pointers are initialized to NULL.
  * Standard object initialization routines are called to ensure the object is properly
@@ -311,10 +304,7 @@ PHP_METHOD(Async_FileSystemHandle, fromPath)
  */
 static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
 {
-	async_fiber_handle_t * object = zend_object_alloc(sizeof(async_fiber_handle_t), class_entry);
-	object->handle.type = REACTOR_H_FIBER;
-	object->handle.ctor = NULL;
-	object->handle.dtor = NULL;
+	reactor_fiber_handle_t * object = zend_object_alloc_ex(sizeof(reactor_fiber_handle_t), class_entry);
 	object->fiber = NULL;
 
 	zend_object_std_init(&object->handle.std, class_entry);
@@ -323,94 +313,57 @@ static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
 	return &object->handle.std;
 }
 
-/**
- * Creates a new reactor object through a Reactor API.
- *
- * The `Reactor API` handler must correctly allocate memory for a data structure
- * that is compatible with the `reactor_handle_t` type (i.e., it must extend the specified type).
- * If the `Reactor API` is not defined,
- * calling the constructor will result in an exception indicating that the API is not available.
- * However, this function successfully allocates memory
- * because the Zend Engine mechanism does not allow exceptions to be thrown at this stage.
- *
- * @param class_entry A pointer to the zend_class_entry representing the reactor class.
- *
- * @return A pointer to the newly created zend_object that represents the reactor.
- *
- * @note
- * - If `reactor_object_create_fn` is not defined, the function calls `reactor_default_object_create()`,
- *   which handles the default object instantiation.
- */
-static zend_object* reactor_object_create(zend_class_entry *class_entry)
-{
-	if (UNEXPECTED(reactor_object_create_fn == NULL)) {
-		return (zend_object *) reactor_default_object_create(class_entry);
-	}
-
-	return (zend_object *) reactor_object_create_fn(class_entry);
-}
-
-static void reactor_object_destroy(zend_object *object)
-{
-	reactor_handle_t* handle = (reactor_handle_t *) object;
-
-	if (handle->dtor != NULL) {
-		handle->dtor(handle);
-	}
-}
-
 static zend_object_handlers reactor_object_handlers;
 
 void async_register_handlers_ce(void)
 {
 	// Create common handlers for reactor classes
 	reactor_object_handlers = std_object_handlers;
-	reactor_object_handlers.dtor_obj = reactor_object_destroy;
 	reactor_object_handlers.clone_obj = NULL;
 
-	async_ce_ev_handle = register_class_Async_EvHandle(async_ce_notifier);
-	async_ce_ev_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_ev_handle->create_object = reactor_object_create;
-	async_ce_ev_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_poll_handle = register_class_Async_PollHandle(async_ce_notifier);
+	async_ce_poll_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_poll_handle->create_object = NULL;
+	async_ce_poll_handle->default_object_handlers = &reactor_object_handlers;
 
 	async_ce_fiber_handle = register_class_Async_FiberHandle(async_ce_notifier);
 	async_ce_fiber_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_fiber_handle->create_object = async_fiber_object_create;
 
-	async_ce_file_handle = register_class_Async_FileHandle(async_ce_ev_handle);
+	async_ce_file_handle = register_class_Async_FileHandle(async_ce_poll_handle);
 	async_ce_file_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
-	async_ce_socket_handle = register_class_Async_SocketHandle(async_ce_ev_handle);
+	async_ce_socket_handle = register_class_Async_SocketHandle(async_ce_poll_handle);
 	async_ce_socket_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
-	async_ce_pipe_handle = register_class_Async_PipeHandle(async_ce_ev_handle);
+	async_ce_pipe_handle = register_class_Async_PipeHandle(async_ce_poll_handle);
 	async_ce_pipe_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
-	async_ce_tty_handle = register_class_Async_TtyHandle(async_ce_ev_handle);
+	async_ce_tty_handle = register_class_Async_TtyHandle(async_ce_poll_handle);
 	async_ce_tty_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
 	async_ce_timer_handle = register_class_Async_TimerHandle(async_ce_notifier);
 	async_ce_timer_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_timer_handle->create_object = reactor_object_create;
+	async_ce_timer_handle->create_object = NULL;
 	async_ce_timer_handle->default_object_handlers = &reactor_object_handlers;
 
 	async_ce_signal_handle = register_class_Async_SignalHandle(async_ce_notifier);
 	async_ce_signal_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_signal_handle->create_object = reactor_object_create;
+	async_ce_signal_handle->create_object = NULL;
 	async_ce_signal_handle->default_object_handlers = &reactor_object_handlers;
 
 	async_ce_process_handle = register_class_Async_ProcessHandle(async_ce_notifier);
 	async_ce_process_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_process_handle->create_object = reactor_object_create;
+	async_ce_process_handle->create_object = NULL;
 	async_ce_process_handle->default_object_handlers = &reactor_object_handlers;
 
 	async_ce_thread_handle = register_class_Async_ThreadHandle(async_ce_notifier);
 	async_ce_thread_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_thread_handle->create_object = reactor_object_create;
+	async_ce_thread_handle->create_object = NULL;
 	async_ce_thread_handle->default_object_handlers = &reactor_object_handlers;
 
 	async_ce_file_system_handle = register_class_Async_FileSystemHandle(async_ce_notifier);
 	async_ce_file_system_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_file_system_handle->create_object = reactor_object_create;
+	async_ce_file_system_handle->create_object = NULL;
 	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers;
 }

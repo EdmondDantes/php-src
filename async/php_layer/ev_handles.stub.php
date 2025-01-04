@@ -8,7 +8,7 @@ namespace Async;
  * @strict-properties
  * @not-serializable
  */
-abstract class EvHandle extends Notifier
+abstract class PollHandle extends Notifier
 {
     public const int READABLE = 1;
     public const int WRITABLE = 2;
@@ -50,7 +50,7 @@ final class FiberHandle extends Notifier
  * @strict-properties
  * @not-serializable
  */
-final class FileHandle extends EvHandle
+final class FileHandle extends PollHandle
 {
     public static function fromResource(mixed $fd, int $actions = self::READABLE | self::WRITABLE): FileHandle {}
 }
@@ -59,7 +59,7 @@ final class FileHandle extends EvHandle
  * @strict-properties
  * @not-serializable
  */
-final class SocketHandle extends EvHandle
+final class SocketHandle extends PollHandle
 {
     public static function fromResource(mixed $resource, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
     public static function fromSocket(mixed $socket, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
@@ -69,7 +69,7 @@ final class SocketHandle extends EvHandle
  * @strict-properties
  * @not-serializable
  */
-final class PipeHandle extends EvHandle
+final class PipeHandle extends PollHandle
 {
     //public static function open(string $path, string $mode): PipeHandle {}
 }
@@ -78,7 +78,7 @@ final class PipeHandle extends EvHandle
  * @strict-properties
  * @not-serializable
  */
-final class TtyHandle extends EvHandle
+final class TtyHandle extends PollHandle
 {
     //public static function open(string $path, string $mode): TtyHandle {}
 }
@@ -115,6 +115,8 @@ final class SignalHandle extends Notifier
  */
 final class ThreadHandle extends Notifier
 {
+    public readonly int|null $tid = 0;
+
     private function __construct() {}
 }
 
@@ -124,6 +126,9 @@ final class ThreadHandle extends Notifier
  */
 final class ProcessHandle extends Notifier
 {
+    public readonly int|null $pid = null;
+    public readonly int|null $exitCode = null;
+
     private function __construct() {}
 }
 

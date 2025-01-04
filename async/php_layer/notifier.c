@@ -69,29 +69,16 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
-/**
- * The method creates a notifier object marked as CUSTOM.
- */
-zend_object *async_notifier_object_create(zend_class_entry *class_entry)
-{
-	reactor_handle_t * object = reactor_default_object_create(class_entry);
-	return &object->std;
-}
-
-static void async_notifier_object_destroy(zend_object *object)
-{
-}
-
 void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_notifier->create_object = async_notifier_object_create;
+	async_ce_notifier->create_object = NULL;
 
 	async_ce_notifier->default_object_handlers = &async_notifier_handlers;
 
 	async_notifier_handlers = std_object_handlers;
-	async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
+	//async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
 	//async_notifier_handlers.free_obj = async_notifier_object_free;
 	async_notifier_handlers.clone_obj = NULL;
 }

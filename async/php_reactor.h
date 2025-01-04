@@ -59,12 +59,6 @@ typedef zend_bool (*reactor_loop_alive_t)(void);
 typedef void (*reactor_handle_method_t)(reactor_handle_t *handle);
 
 /**
- * reactor_object_new_t - Creates a new event handle object.
- * Allocates memory for a new event handle object of the specified class.
- */
-typedef reactor_handle_t* (*reactor_object_create_t)(zend_class_entry *class_entry);
-
-/**
  * reactor_handle_from_resource_t - Creates an event handle from a resource.
  * Converts a zend_resource to an event handle with specified actions.
  */
@@ -141,12 +135,6 @@ BEGIN_EXTERN_C()
 ZEND_API zend_bool reactor_is_enabled(void);
 ZEND_API void reactor_add_handle(reactor_handle_t *handle);
 
-/**
- * Reactor API function pointers.
- */
-
-ZEND_API reactor_handle_t* reactor_default_object_create(zend_class_entry *class_entry);
-
 ZEND_API reactor_stop_t reactor_stop_fn;
 ZEND_API reactor_loop_alive_t reactor_loop_alive_fn;
 
@@ -156,8 +144,6 @@ ZEND_API reactor_shutdown_t reactor_shutdown_fn;
 
 ZEND_API reactor_handle_method_t reactor_add_handle_ex_fn;
 ZEND_API reactor_handle_method_t reactor_remove_handle_fn;
-
-ZEND_API reactor_object_create_t reactor_object_create_fn;
 
 ZEND_API reactor_handle_from_resource_t reactor_handle_from_resource_fn;
 ZEND_API reactor_file_new_t reactor_file_new_fn;

@@ -543,7 +543,7 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 
 	// calculation how many descriptors are ready
 	ZEND_HASH_FOREACH_VAL(resume->triggered_notifiers, notifier) {
-		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_ev_handle)) {
+		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_poll_handle)) {
 			result++;
 
 			const php_socket_t socket = reactor_extract_os_socket_handle_fn((reactor_handle_t *)Z_OBJ_P(notifier));

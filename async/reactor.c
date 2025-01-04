@@ -17,6 +17,7 @@
 #include "php_layer/exceptions.h"
 #include "php_layer/notifier.h"
 #include "php_layer/ev_handles.h"
+#include "php_layer/zend_common.h"
 
 void reactor_startup(void)
 {
@@ -137,30 +138,6 @@ static async_file_descriptor_t reactor_extract_os_file_handle(reactor_handle_t *
 	return NULL;
 }
 
-ZEND_API reactor_handle_t* reactor_default_object_create(zend_class_entry *class_entry)
-{
-	// This is function call from zend_API.c
-	// ZEND_API zend_result object_and_properties_init(zval *arg, zend_class_entry *class_type, HashTable *properties)
-	// => _object_and_properties_init
-	//
-	// This function is responsible for:
-	// * Allocating memory
-	// * Initializing properties
-	//
-	// It is inherited by all child objects. Therefore, you must take this into account!
-	//
-
-	reactor_handle_t * object = zend_object_alloc(sizeof(reactor_handle_t), class_entry);
-	object->type = REACTOR_H_UNKNOWN;
-	object->ctor = NULL;
-	object->dtor = NULL;
-
-	zend_object_std_init(&object->std, class_entry);
-	object_properties_init(&object->std, class_entry);
-
-	return object;
-}
-
 reactor_startup_t reactor_startup_fn = reactor_startup;
 reactor_shutdown_t reactor_shutdown_fn = reactor_shutdown;
 
@@ -169,8 +146,6 @@ reactor_handle_method_t reactor_remove_handle_fn = reactor_handle_method_no;
 
 reactor_stop_t reactor_stop_fn = NULL;
 reactor_loop_alive_t reactor_loop_alive_fn = NULL;
-
-reactor_object_create_t reactor_object_create_fn = reactor_default_object_create;
 
 reactor_handle_from_resource_t reactor_handle_from_resource_fn = reactor_handle_from_resource;
 reactor_file_new_t reactor_file_new_fn = reactor_file_new;
