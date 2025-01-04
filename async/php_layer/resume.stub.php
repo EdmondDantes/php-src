@@ -18,6 +18,8 @@ namespace Async;
  */
 final class Resume
 {
+    public readonly mixed $result = null;
+
     /**
      * Predefined callback-behavior for the `Resume` object
      * when the event is triggered, fiber resumes execution.

@@ -181,11 +181,11 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 
 	const bool is_pending = resume->status == ASYNC_RESUME_PENDING || resume->status == ASYNC_RESUME_NO_STATUS;
 
-	if (Z_TYPE(resume->result) != IS_UNDEF) {
-		ZVAL_PTR_DTOR(&resume->result);
+	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
+		ZVAL_PTR_DTOR(&GET_RESUME_RESULT(resume));
 	}
 
-	ZVAL_UNDEF(&resume->result);
+	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
 
 	if (resume->error != NULL) {
 		OBJ_RELEASE(resume->error);
@@ -197,9 +197,9 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		resume->status = ASYNC_RESUME_SUCCESS;
 
 		if (result != NULL) {
-			zval_copy(&resume->result, result);
+			zval_copy(&GET_RESUME_RESULT(resume), result);
 		} else {
-			zval_null(&resume->result);
+			zval_null(&GET_RESUME_RESULT(resume));
 		}
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;

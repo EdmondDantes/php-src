@@ -171,7 +171,7 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 	object->triggered_notifiers = NULL;
 	object->fiber = NULL;
 	object->error = NULL;
-	ZVAL_UNDEF(&object->result);
+	ZVAL_UNDEF(&GET_RESUME_RESULT(object));
 
 	zend_object_std_init(&object->std, class_entry);
 	object_properties_init(&object->std, class_entry);
@@ -203,12 +203,12 @@ static void async_resume_object_free(zend_object* object)
 		OBJ_RELEASE(resume->error);
 	}
 
-	if (Z_TYPE(resume->result) != IS_UNDEF) {
-		zval_ptr_dtor(&resume->result);
+	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
+		zval_ptr_dtor(&GET_RESUME_RESULT(resume));
 	}
 
 	resume->error = NULL;
-	ZVAL_UNDEF(&resume->result);
+	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
 
     zend_hash_destroy(&resume->notifiers);
     zend_object_std_dtor(&resume->std);
@@ -379,10 +379,10 @@ void async_resume_pending(async_resume_t *resume)
         OBJ_RELEASE(resume->error);
     }
 
-	if (Z_TYPE(resume->result) != IS_UNDEF) {
-        zval_ptr_dtor(&resume->result);
+	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
+        zval_ptr_dtor(&GET_RESUME_RESULT(resume));
     }
 
 	resume->error = NULL;
-	ZVAL_UNDEF(&resume->result);
+	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
 }

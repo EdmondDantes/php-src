@@ -30,15 +30,21 @@ typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_not
 
 typedef struct _async_resume_notifier_s async_resume_notifier_t;
 
+// Return the result of the resume object.
+#define GET_RESUME_RESULT(resume_ptr) (resume_ptr->std.properties_table[0])
+
 /**
- * Object structure.
+ * async_resume_t structure.
+ *
+ * @note Note: The structure of this object is BASED on the knowledge that the result property
+ * is located in the property[1] slot!
+ * If you change the number of properties in the Resume object, you must update this structure!
  */
 struct _async_resume_s {
 	/* PHP object handle. */
 	zend_object std;
 	zend_fiber *fiber;
 	ASYNC_RESUME_STATUS status;
-	zval result;
 	zend_object *error;
 	/* A list of notifier objects (reactor_notifier_t) that occurred during the last iteration of the event loop. */
 	HashTable * triggered_notifiers;
