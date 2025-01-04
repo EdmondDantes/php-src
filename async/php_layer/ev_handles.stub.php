@@ -17,7 +17,7 @@ abstract class EvHandle extends Notifier
 
     public readonly int $triggeredEvents = 0;
 
-    final private function __construct(mixed $handle, int $actions = self::READABLE | self::WRITABLE) {}
+    final private function __construct() {}
 }
 
 /**
@@ -52,7 +52,7 @@ final class FiberHandle extends Notifier
  */
 final class FileHandle extends EvHandle
 {
-    public static function fromResource(mixed $fd): FileHandle {}
+    public static function fromResource(mixed $fd, int $actions = self::READABLE | self::WRITABLE): FileHandle {}
 }
 
 /**
@@ -61,8 +61,8 @@ final class FileHandle extends EvHandle
  */
 final class SocketHandle extends EvHandle
 {
-    public static function fromStream(mixed $stream): FileHandle {}
-    public static function fromSocket(mixed $socket): FileHandle {}
+    public static function fromResource(mixed $resource, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
+    public static function fromSocket(mixed $socket, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
 }
 
 /**
@@ -71,7 +71,7 @@ final class SocketHandle extends EvHandle
  */
 final class PipeHandle extends EvHandle
 {
-    public static function open(string $path, string $mode): PipeHandle {}
+    //public static function open(string $path, string $mode): PipeHandle {}
 }
 
 /**
@@ -80,7 +80,7 @@ final class PipeHandle extends EvHandle
  */
 final class TtyHandle extends EvHandle
 {
-    public static function open(string $path, string $mode): TtyHandle {}
+    //public static function open(string $path, string $mode): TtyHandle {}
 }
 
 /**
@@ -124,7 +124,6 @@ final class ThreadHandle extends Notifier
  */
 final class ProcessHandle extends Notifier
 {
-    public static function fromResource(mixed $process): ProcessHandle {}
     private function __construct() {}
 }
 

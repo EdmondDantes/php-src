@@ -68,7 +68,7 @@ typedef reactor_handle_t* (*reactor_object_create_t)(zend_class_entry *class_ent
  * reactor_handle_from_resource_t - Creates an event handle from a resource.
  * Converts a zend_resource to an event handle with specified actions.
  */
-typedef reactor_handle_t* (*reactor_handle_from_resource_t)(zend_resource *resource, zend_ulong actions);
+typedef reactor_handle_t* (*reactor_handle_from_resource_t)(zend_resource *resource, zend_ulong actions, REACTOR_HANDLE_TYPE expected_type);
 
 /**
  * reactor_file_new_t - Creates a new file event handle.

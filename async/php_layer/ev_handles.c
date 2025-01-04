@@ -121,42 +121,118 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 	async_cancel_fiber(fiber, Z_OBJ_P(error));
 }
 
-PHP_METHOD(Async_EvHandle, __construct)
+PHP_METHOD(Async_EvHandle, __construct) {}
+
+PHP_METHOD(Async_FileHandle, fromResource)
 {
 	THROW_IF_REACTOR_OFF;
 
-	zval *handle;
-	zend_long actions = 0;
+	zval *zval_handle;
+	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
-		Z_PARAM_ZVAL(handle)
+		Z_PARAM_RESOURCE(zval_handle)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(actions)
 	ZEND_PARSE_PARAMETERS_END();
 
-	CALL_INTERNAL_CTOR(handle, actions);
+	reactor_handle_t * handle = reactor_handle_from_resource_fn(Z_RES_P(zval_handle), actions, REACTOR_H_FILE);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
 }
 
-PHP_METHOD(Async_TimerHandle, __construct)
+PHP_METHOD(Async_SocketHandle, fromResource)
+{
+	THROW_IF_REACTOR_OFF;
+
+	zval *zval_handle;
+	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_RESOURCE(zval_handle)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(actions)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reactor_handle_t * handle = reactor_handle_from_resource_fn(Z_RES_P(zval_handle), actions, REACTOR_H_SOCKET);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
+}
+
+PHP_METHOD(Async_SocketHandle, fromSocket)
+{
+	THROW_IF_REACTOR_OFF;
+
+	zval *zval_handle;
+	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_OBJECT(zval_handle)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(actions)
+	ZEND_PARSE_PARAMETERS_END();
+
+	// TODO: integration with Socket LIB
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	//RETURN_OBJ(&handle->std);
+}
+
+
+PHP_METHOD(Async_TimerHandle, __construct) {}
+
+PHP_METHOD(Async_TimerHandle, newTimeout)
 {
 	THROW_IF_REACTOR_OFF;
 
 	zend_long microseconds;
-	zend_bool is_periodic = false;
 
-	ZEND_PARSE_PARAMETERS_START(1, 2)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_LONG(microseconds)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_BOOL(is_periodic)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_LONG(async_timer_get_microseconds(Z_OBJ_P(ZEND_THIS)), microseconds);
-	ZVAL_BOOL(async_timer_get_is_periodic(Z_OBJ_P(ZEND_THIS)), is_periodic);
+	reactor_handle_t * handle = reactor_timer_new_fn(microseconds, false);
 
-	CALL_INTERNAL_CTOR(microseconds, is_periodic);
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
 }
 
-PHP_METHOD(Async_SignalHandle, __construct)
+PHP_METHOD(Async_TimerHandle, newInterval)
+{
+	THROW_IF_REACTOR_OFF;
+
+	zend_long microseconds;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_LONG(microseconds)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reactor_handle_t * handle = reactor_timer_new_fn(microseconds, true);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
+}
+
+PHP_METHOD(Async_SignalHandle, __construct) {}
+
+PHP_METHOD(Async_SignalHandle, new)
 {
 	THROW_IF_REACTOR_OFF;
 
@@ -166,9 +242,13 @@ PHP_METHOD(Async_SignalHandle, __construct)
 		Z_PARAM_LONG(sig_number)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_LONG(async_signal_get_number(Z_OBJ_P(ZEND_THIS)), sig_number);
+	reactor_handle_t * handle = reactor_signal_new_fn(sig_number);
 
-	CALL_INTERNAL_CTOR(sig_number);
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
 }
 
 PHP_METHOD(Async_ProcessHandle, __construct)
@@ -183,6 +263,10 @@ PHP_METHOD(Async_ThreadHandle, __construct)
 
 PHP_METHOD(Async_FileSystemHandle, __construct)
 {
+}
+
+PHP_METHOD(Async_FileSystemHandle, fromPath)
+{
 	THROW_IF_REACTOR_OFF;
 
 	zval *path;
@@ -194,9 +278,13 @@ PHP_METHOD(Async_FileSystemHandle, __construct)
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
-	// TODO: validate path and save to read-only properties
+	reactor_handle_t * handle = reactor_file_system_new_fn(Z_STRVAL_P(path), Z_STRLEN_P(path), flags);
 
-	CALL_INTERNAL_CTOR(path, flags);
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&handle->std);
 }
 
 /**

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b47d08526ad5cbbc0bdc4cf294b308caeb952fed */
+ * Stub hash: be87e70caad2af7d5241936bf6cfa48a347d73fe */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_MIXED, 0, "null")
@@ -71,7 +71,7 @@ static zend_class_entry *register_class_Async_Resume(void)
 	zval property_result_default_value;
 	ZVAL_NULL(&property_result_default_value);
 	zend_string *property_result_name = zend_string_init("result", sizeof("result") - 1, 1);
-	zend_declare_typed_property(class_entry, property_result_name, &property_result_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_declare_typed_property(class_entry, property_result_name, &property_result_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
 	zend_string_release(property_result_name);
 
 	return class_entry;

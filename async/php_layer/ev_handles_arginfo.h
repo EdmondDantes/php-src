@@ -1,13 +1,10 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 8fccbfbb5765ed90b795b05d20e70b799a89b0dc */
+ * Stub hash: 84140c85bc6a61e9804d68ee505f2bcb21e673a2 */
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, handle, IS_MIXED, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_EvHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FiberHandle___construct, 0, 0, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Async_FiberHandle___construct arginfo_class_Async_EvHandle___construct
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_isStarted, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -25,23 +22,41 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_cancelWi
 	ZEND_ARG_OBJ_INFO(0, error, Throwable, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_TimerHandle___construct, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, microseconds, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, isPeriodic, _IS_BOOL, 0, "false")
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileHandle_fromResource, 0, 1, Async\\FileHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, fd, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_SignalHandle___construct, 0, 0, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_SocketHandle_fromResource, 0, 1, Async\\SocketHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, resource, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_SocketHandle_fromSocket, 0, 1, Async\\SocketHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, socket, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, actions, IS_LONG, 0, "self::READABLE | self::WRITABLE")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_TimerHandle_newTimeout, 0, 1, Async\\TimerHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, microseconds, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Async_TimerHandle_newInterval arginfo_class_Async_TimerHandle_newTimeout
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_SignalHandle_new, 0, 1, Async\\SignalHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_ThreadHandle___construct arginfo_class_Async_FiberHandle___construct
+#define arginfo_class_Async_ThreadHandle___construct arginfo_class_Async_EvHandle___construct
 
-#define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_FiberHandle___construct
+#define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_EvHandle___construct
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FileSystemHandle___construct, 0, 0, 2)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileSystemHandle_fromPath, 0, 2, Async\\FileSystemHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
+
+#define arginfo_class_Async_FileSystemHandle___construct arginfo_class_Async_EvHandle___construct
 
 ZEND_METHOD(Async_EvHandle, __construct);
 ZEND_METHOD(Async_FiberHandle, __construct);
@@ -51,14 +66,19 @@ ZEND_METHOD(Async_FiberHandle, isRunning);
 ZEND_METHOD(Async_FiberHandle, isTerminated);
 ZEND_METHOD(Async_FiberHandle, getContext);
 ZEND_METHOD(Async_FiberHandle, cancelWith);
-ZEND_METHOD(Async_TimerHandle, __construct);
-ZEND_METHOD(Async_SignalHandle, __construct);
+ZEND_METHOD(Async_FileHandle, fromResource);
+ZEND_METHOD(Async_SocketHandle, fromResource);
+ZEND_METHOD(Async_SocketHandle, fromSocket);
+ZEND_METHOD(Async_TimerHandle, newTimeout);
+ZEND_METHOD(Async_TimerHandle, newInterval);
+ZEND_METHOD(Async_SignalHandle, new);
 ZEND_METHOD(Async_ThreadHandle, __construct);
 ZEND_METHOD(Async_ProcessHandle, __construct);
+ZEND_METHOD(Async_FileSystemHandle, fromPath);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
 
 static const zend_function_entry class_Async_EvHandle_methods[] = {
-	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
+	ZEND_ME(Async_EvHandle, __construct, arginfo_class_Async_EvHandle___construct, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
@@ -73,28 +93,41 @@ static const zend_function_entry class_Async_FiberHandle_methods[] = {
 	ZEND_FE_END
 };
 
+static const zend_function_entry class_Async_FileHandle_methods[] = {
+	ZEND_ME(Async_FileHandle, fromResource, arginfo_class_Async_FileHandle_fromResource, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_Async_SocketHandle_methods[] = {
+	ZEND_ME(Async_SocketHandle, fromResource, arginfo_class_Async_SocketHandle_fromResource, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_SocketHandle, fromSocket, arginfo_class_Async_SocketHandle_fromSocket, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_FE_END
+};
+
 static const zend_function_entry class_Async_TimerHandle_methods[] = {
-	ZEND_ME(Async_TimerHandle, __construct, arginfo_class_Async_TimerHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_TimerHandle, newTimeout, arginfo_class_Async_TimerHandle_newTimeout, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_TimerHandle, newInterval, arginfo_class_Async_TimerHandle_newInterval, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
 
 static const zend_function_entry class_Async_SignalHandle_methods[] = {
-	ZEND_ME(Async_SignalHandle, __construct, arginfo_class_Async_SignalHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_SignalHandle, new, arginfo_class_Async_SignalHandle_new, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
 
 static const zend_function_entry class_Async_ThreadHandle_methods[] = {
-	ZEND_ME(Async_ThreadHandle, __construct, arginfo_class_Async_ThreadHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_ThreadHandle, __construct, arginfo_class_Async_ThreadHandle___construct, ZEND_ACC_PRIVATE)
 	ZEND_FE_END
 };
 
 static const zend_function_entry class_Async_ProcessHandle_methods[] = {
-	ZEND_ME(Async_ProcessHandle, __construct, arginfo_class_Async_ProcessHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_ProcessHandle, __construct, arginfo_class_Async_ProcessHandle___construct, ZEND_ACC_PRIVATE)
 	ZEND_FE_END
 };
 
 static const zend_function_entry class_Async_FileSystemHandle_methods[] = {
-	ZEND_ME(Async_FileSystemHandle, __construct, arginfo_class_Async_FileSystemHandle___construct, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FileSystemHandle, fromPath, arginfo_class_Async_FileSystemHandle_fromPath, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_FileSystemHandle, __construct, arginfo_class_Async_FileSystemHandle___construct, ZEND_ACC_PRIVATE)
 	ZEND_FE_END
 };
 
@@ -152,7 +185,7 @@ static zend_class_entry *register_class_Async_FileHandle(zend_class_entry *class
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "Async", "FileHandle", NULL);
+	INIT_NS_CLASS_ENTRY(ce, "Async", "FileHandle", class_Async_FileHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
@@ -162,7 +195,7 @@ static zend_class_entry *register_class_Async_SocketHandle(zend_class_entry *cla
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "Async", "SocketHandle", NULL);
+	INIT_NS_CLASS_ENTRY(ce, "Async", "SocketHandle", class_Async_SocketHandle_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_EvHandle, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
