@@ -171,18 +171,21 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 	object->triggered_notifiers = NULL;
 	object->fiber = NULL;
 	object->error = NULL;
-	ZVAL_UNDEF(&GET_RESUME_RESULT(object));
 
 	zend_object_std_init(&object->std, class_entry);
 	object_properties_init(&object->std, class_entry);
+
+	// Set the result property to undefined after the object is created.
+	ZVAL_UNDEF(&GET_RESUME_RESULT(object));
 
 	object->std.handlers = &async_resume_handlers;
 
 	// Define current Fiber and set it to the property $fiber
 	if (EXPECTED(EG(active_fiber))) {
 		object->fiber = EG(active_fiber);
-		zend_hash_init(&object->notifiers, 4, NULL, ZVAL_PTR_DTOR, 0);
 	}
+
+	zend_hash_init(&object->notifiers, 2, NULL, ZVAL_PTR_DTOR, 0);
 
 	return &object->std;
 }
