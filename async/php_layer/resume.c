@@ -164,6 +164,7 @@ METHOD(when)
 
 static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 {
+	// Allocate memory for the object and initialize it with zero bytes.
 	DEFINE_ZEND_RAW_OBJECT(async_resume_t, object, class_entry);
 
 	object->status = ASYNC_RESUME_NO_STATUS;
