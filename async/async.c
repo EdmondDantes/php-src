@@ -541,12 +541,12 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_poll_handle)) {
 			result++;
 
-			const php_socket_t socket = reactor_extract_os_socket_handle_fn((reactor_handle_t *)Z_OBJ_P(notifier));
+			const reactor_poll_t *poll = (reactor_poll_t *)Z_OBJ_P(notifier);
 
 			// Fine the same socket in the ufds array
 			for (unsigned int i = 0; i < nfds; i++) {
-				if (ufds[i].fd == socket) {
-					ufds[i].revents = async_events_to_poll2(Z_LVAL_P(async_ev_handle_get_triggered_events(Z_OBJ_P(notifier))));
+				if (ufds[i].fd == poll->socket) {
+					ufds[i].revents = async_events_to_poll2(Z_LVAL(poll->triggered_events));
 					break;
 				}
 			}
