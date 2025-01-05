@@ -267,7 +267,7 @@ PHP_MINFO_FUNCTION(async_info) {
 /* {{{ PHP_GINIT_FUNCTION */
 static PHP_GINIT_FUNCTION(async)
 {
-#if defined(COMPILE_DL_JSON) && defined(ZTS)
+#if defined(COMPILE_DL_ASYNC) && defined(ZTS)
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 	async_globals->is_async = false;

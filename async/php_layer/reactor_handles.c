@@ -26,11 +26,11 @@
 #include "zend_exceptions.h"
 #include "exceptions.h"
 #include "../php_reactor.h"
-#include "ev_handles_arginfo.h"
+#include "reactor_handles_arginfo.h"
 #include "zend_common.h"
 
 #define THROW_IF_REACTOR_OFF \
-	if (UNEXPECTED(reactor_object_create_fn == NULL)) { \
+	if (UNEXPECTED(reactor_is_enabled == false)) { \
 		async_throw_error("Failed to create event handle, no Reactor API implementation available"); \
 		return; \
 	}
@@ -114,7 +114,7 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 	async_cancel_fiber(fiber, Z_OBJ_P(error));
 }
 
-PHP_METHOD(Async_EvHandle, __construct) {}
+PHP_METHOD(Async_PollHandle, __construct) {}
 
 PHP_METHOD(Async_FileHandle, fromResource)
 {
@@ -181,7 +181,6 @@ PHP_METHOD(Async_SocketHandle, fromSocket)
 
 	//RETURN_OBJ(&handle->std);
 }
-
 
 PHP_METHOD(Async_TimerHandle, __construct) {}
 

@@ -353,7 +353,7 @@ void async_await_resource(
 	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, reactor_notifier_t * cancellation
 )
 {
-	const reactor_handle_t *handle = reactor_handle_from_resource_fn(resource, actions);
+	const reactor_handle_t *handle = reactor_handle_from_resource_fn(resource, actions, 0);
 
 	if (handle == NULL) {
 		async_throw_error("I can't create an event handle from the resource.");

@@ -560,7 +560,7 @@ static reactor_handle_t* libuv_thread_new(const THREAD_T tid, const zend_ulong e
 
 static void libuv_startup(void)
 {
-	async_globals_t *async_globals = ASYNC_GLOBAL;
+	zend_async_globals *async_globals = ASYNC_GLOBAL;
 
 	if (async_globals->reactor != NULL) {
 		return;
@@ -579,7 +579,7 @@ static void libuv_startup(void)
 
 static void libuv_shutdown(void)
 {
-	async_globals_t *async_globals = ASYNC_GLOBAL;
+	zend_async_globals *async_globals = ASYNC_GLOBAL;
 
 	if (EXPECTED(async_globals->reactor != NULL)) {
 		uv_loop_close(async_globals->reactor);

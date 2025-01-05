@@ -17,8 +17,6 @@
 #ifndef ASYNC_ZEND_COMMON_H
 #define ASYNC_ZEND_COMMON_H
 
-#include <mswsockdef.h>
-
 #include "php.h"
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"

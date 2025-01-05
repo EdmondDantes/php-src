@@ -125,7 +125,6 @@ ZEND_API void reactor_add_handle(reactor_handle_t *handle);
 ZEND_API reactor_stop_t reactor_stop_fn;
 ZEND_API reactor_loop_alive_t reactor_loop_alive_fn;
 
-ZEND_API reactor_startup_t reactor_global_ctor_fn;
 ZEND_API reactor_startup_t reactor_startup_fn;
 ZEND_API reactor_shutdown_t reactor_shutdown_fn;
 
