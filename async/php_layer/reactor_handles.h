@@ -73,6 +73,7 @@ struct _reactor_poll_s {
 		async_file_descriptor_t file;
 		php_socket_t socket;
 	};
+	int events;
 };
 
 struct _reactor_timer_s {

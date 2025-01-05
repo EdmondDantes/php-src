@@ -13,12 +13,11 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "functions.h"
+#include "module_entry.h"
 
-#include <async/php_reactor.h>
-#include <async/libuv/libuv_reactor.h>
+#include "async/php_reactor.h"
+#include "async/libuv/libuv_reactor.h"
 
-#include "zend_common.h"
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
 #include "ext/standard/info.h"
@@ -28,7 +27,7 @@
 #include "exceptions.h"
 #include "notifier.h"
 #include "../php_async.h"
-#include "functions_arginfo.h"
+#include "module_entry_arginfo.h"
 
 PHP_FUNCTION(Async_launchScheduler)
 {

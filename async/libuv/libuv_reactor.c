@@ -229,7 +229,7 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 	IF_EXCEPTION_STOP;
 }
 
-static zend_always_inline void libuv_poll_init(libuv_poll_t * poll, const int actions)
+static zend_always_inline void libuv_poll_init(libuv_poll_t * poll)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
 
@@ -253,7 +253,7 @@ static zend_always_inline void libuv_poll_init(libuv_poll_t * poll, const int ac
 		return;
 	}
 
-	error = uv_poll_start(poll->uv_handle, actions, on_poll_event);
+	error = uv_poll_start(poll->uv_handle, poll->poll.events, on_poll_event);
 
 	// Link the handle to the loop.
 	poll->uv_handle->data = poll;
@@ -284,7 +284,9 @@ static zend_always_inline libuv_poll_t * libuv_poll_new(
 		object->poll.socket = socket;
 	}
 
-	libuv_poll_init(object, (int) events);
+	object->poll.events = (int) events;
+
+	libuv_poll_init(object);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&object->std);

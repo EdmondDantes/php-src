@@ -16,10 +16,9 @@
 #ifndef PHP_REACTOR_H
 #define PHP_REACTOR_H
 
-#include <php.h>
+#include "php.h"
 #include "php_async.h"
-#include "php_scheduler.h"
-#include <Zend/zend_types.h>
+#include "Zend/zend_types.h"
 #include "php_layer/reactor_handles.h"
 
 /**

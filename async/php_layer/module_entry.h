@@ -13,8 +13,8 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef ASYNC_FUNCTIONS_H
-#define ASYNC_FUNCTIONS_H
+#ifndef ASYNC_MODULE_ENTRY_H
+#define ASYNC_MODULE_ENTRY_H
 
 #include "zend_common.h"
 
@@ -22,4 +22,4 @@
 
 zend_result async_register_module(void);
 
-#endif //ASYNC_FUNCTIONS_H
+#endif //ASYNC_MODULE_ENTRY_H

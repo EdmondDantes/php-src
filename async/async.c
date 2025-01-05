@@ -21,7 +21,7 @@
 
 #include "php_reactor.h"
 #include "php_scheduler.h"
-#include "php_layer/functions.h"
+#include "php_layer/module_entry.h"
 #include "php_layer/notifier.h"
 #include "php_layer/reactor_handles.h"
 #include "php_layer/exceptions.h"
