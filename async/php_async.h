@@ -92,7 +92,7 @@ BEGIN_EXTERN_C()
 
 void async_module_startup(void);
 void async_module_shutdown(void);
-ZEND_API void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file);
+ZEND_API void async_resource_cast(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
 
 /**

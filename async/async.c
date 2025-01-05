@@ -20,7 +20,6 @@
 #include <zend_fibers.h>
 
 #include "php_reactor.h"
-#include "php_reactor.h"
 #include "php_scheduler.h"
 #include "php_layer/functions.h"
 #include "php_layer/notifier.h"
@@ -82,33 +81,29 @@ static zend_always_inline php_stream * resource_to_stream(const zend_resource *r
 	return NULL;
 }
 
-void async_resource_to_fd(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file)
+void async_resource_cast(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file)
 {
+	socket = NULL;
+	file = NULL;
+
 	php_stream *stream = resource_to_stream(resource);
 
 	if (stream == NULL) {
-		async_throw_error("Invalid resource type. Expected a stream of STDIO or Socket.");
 		return;
 	}
 
 	if (php_stream_is(stream, PHP_STREAM_IS_SOCKET)) {
 
 		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, &socket, false) == FAILURE) {
-			async_throw_error("Failed to cast the stream to a socket descriptor.");
+			socket = NULL;
+			return;
 		}
 
 	} else if (php_stream_is(stream, PHP_STREAM_IS_STDIO)) {
-
-#ifdef PHP_WIN32
-		async_throw_error("Not supported async file operation for Windows");
-		return;
-#else
-		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, file, false) == FAILURE) {
-			async_throw_error("Failed to cast the stream to a file descriptor.");
+		if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, file, false) == FAILURE) {
+			file = NULL;
+			return;
 		}
-#endif
-	} else {
-		async_throw_error("Invalid resource type. Expected a stream of STDIO or Socket.");
 	}
 }
 

@@ -164,9 +164,46 @@ static void libuv_object_destroy(zend_object *object)
     }
 }
 
-static reactor_handle_t* libuv_handle_from_resource(zend_resource *resource, zend_ulong actions, REACTOR_HANDLE_TYPE expected_type)
-{
+static zend_always_inline libuv_poll_t * libuv_poll_new(
+	zend_class_entry * class_entry,
+	async_file_descriptor_t file,
+	php_socket_t socket,
+	zend_ulong events
+	);
 
+static reactor_handle_t* libuv_handle_from_resource(const zend_resource *resource, const zend_ulong actions, const REACTOR_HANDLE_TYPE expected_type)
+{
+	php_socket_t socket;
+	async_file_descriptor_t file;
+
+	async_resource_cast(resource, &socket, &file);
+
+	if (socket == 0 && file == NULL) {
+        async_throw_error("Expected a file descriptor or socket resource");
+        return NULL;
+    }
+
+	if (expected_type == REACTOR_H_FILE && file == NULL) {
+		async_throw_error("Expected a file descriptor resource");
+		return NULL;
+	} else if (expected_type == REACTOR_H_SOCKET && socket == 0) {
+        async_throw_error("Expected a socket resource");
+		return NULL;
+    }
+
+	// TODO: Support Win32 for async file operations
+#ifdef PHP_WIN32
+	if (file != NULL) {
+		async_throw_error("Not supported async file operation for Windows");
+		return NULL;
+	}
+#endif
+
+	if (file != NULL) {
+        return (reactor_handle_t *) libuv_poll_new(async_ce_file_handle, file, 0, actions);
+    } else {
+	    return (reactor_handle_t *) libuv_poll_new(async_ce_socket_handle, 0, socket, actions);
+    }
 }
 
 //=============================================================
