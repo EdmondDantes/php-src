@@ -28,6 +28,7 @@
 
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
+static zend_object_handlers libuv_object_handlers;
 
 static void libuv_close_cb(uv_handle_t *handle)
 {
@@ -200,6 +201,90 @@ static void libuv_poll_dtor(reactor_handle_t *handle)
 
 	uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
 }
+
+static void libuv_object_destroy(zend_object *object)
+{
+	if (object->ce == async_ce_file_handle
+		|| object->ce == async_ce_socket_handle
+		|| object->ce == async_ce_pipe_handle
+		|| object->ce == async_ce_tty_handle) {
+
+		libuv_poll_t *poll = (libuv_poll_t *)object;
+
+		if (poll->uv_handle == NULL) {
+            return;
+        }
+
+		const int error = uv_poll_stop(poll->uv_handle);
+
+		if (error < 0) {
+			zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
+		}
+
+		uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
+
+		poll->uv_handle = NULL;
+    } else if (object->ce == async_ce_timer_handle) {
+
+    	libuv_timer_t *timer = (libuv_timer_t *)object;
+
+    	if (timer->uv_handle == NULL) {
+    		return;
+    	}
+
+		const int error = uv_timer_stop(timer->uv_handle);
+
+		if (error < 0) {
+			zend_error(E_WARNING, "Failed to stop timer handle: %s", uv_strerror(error));
+		}
+
+		uv_close((uv_handle_t *)timer->uv_handle, libuv_close_cb);
+
+		timer->uv_handle = NULL;
+
+    } else if (object->ce == async_ce_signal_handle) {
+
+		libuv_signal_t *signal = (libuv_signal_t *)object;
+
+        if (signal->uv_handle == NULL) {
+        	return;
+        }
+
+		const int error = uv_signal_stop(signal->uv_handle);
+
+        if (error < 0) {
+            zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
+        }
+
+    	uv_close((uv_handle_t *)signal->uv_handle, libuv_close_cb);
+
+    	signal->uv_handle = NULL;
+
+    } else if (object->ce == async_ce_file_system_handle) {
+
+		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
+
+        if (fs_event->uv_handle == NULL) {
+        	return;
+        }
+
+		const int error = uv_fs_event_stop(fs_event->uv_handle);
+
+		if (error < 0) {
+            zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
+        }
+
+    	uv_close((uv_handle_t *)fs_event->uv_handle, libuv_close_cb);
+
+    	fs_event->uv_handle = NULL;
+
+    } else if (object->ce == async_ce_process_handle) {
+
+    } else if (object->ce == async_ce_thread_handle) {
+
+    }
+}
+
 
 //=============================================================
 #pragma endregion
@@ -630,6 +715,8 @@ static zend_always_inline libuv_poll_t * libuv_poll_new(
 		return NULL;
 	}
 
+	object->std.handlers = &libuv_object_handlers;
+
 	return object;
 }
 
@@ -844,6 +931,9 @@ static void restore_handlers(void)
 void async_libuv_startup(void)
 {
 	setup_handlers();
+
+	libuv_object_handlers = *async_ce_notifier->default_object_handlers;
+	libuv_object_handlers.dtor_obj = libuv_object_destroy;
 }
 
 void async_libuv_shutdown(void)
