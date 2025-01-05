@@ -26,6 +26,8 @@
 #define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
 #define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
 
+#define DEFINE_VAR(type, var) type *var = (type *) emalloc(sizeof(type));
+
 void zend_always_inline zval_move(zval * destination, const zval * source)
 {
 	if (Z_ISREF_P(source)) {
@@ -126,6 +128,8 @@ static zend_always_inline void *zend_object_alloc_ex(const size_t obj_size, zend
 	return obj;
 }
 
+#define DEFINE_ZEND_RAW_OBJECT(type, var, class_entry) type *var = (type *) zend_object_alloc_ex(sizeof(type), class_entry)
+
 static zend_always_inline zend_object* zend_object_internal_create(const size_t obj_size, zend_class_entry *class_entry)
 {
 	zend_object * object = zend_object_alloc_ex(obj_size, class_entry);
@@ -135,6 +139,8 @@ static zend_always_inline zend_object* zend_object_internal_create(const size_t 
 
 	return object;
 }
+
+#define DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry) type *var = (type *) zend_object_internal_create(sizeof(type), class_entry)
 
 /**
  * Creates a new weak reference to the given zval.

@@ -101,22 +101,10 @@ typedef reactor_handle_t* (*reactor_pipe_new_t)(async_file_descriptor_t fd, zend
 typedef reactor_handle_t* (*reactor_tty_new_t)(async_file_descriptor_t fd, zend_ulong events);
 
 /**
- * reactor_extract_os_socket_handle_t - Extracts the OS socket handle from an event handle.
- * Retrieves the underlying OS socket handle from the event handle.
- */
-typedef php_socket_t (* reactor_extract_os_socket_handle_t)(reactor_handle_t *handle);
-
-/**
- * reactor_extract_os_file_handle_t - Extracts the OS file handle from an event handle.
- * Retrieves the underlying OS file handle from the event handle.
- */
-typedef async_file_descriptor_t (* reactor_extract_os_file_handle_t)(reactor_handle_t *handle);
-
-/**
  * reactor_file_system_new_t - Creates a new filesystem event handle.
  * Monitors filesystem descriptor for specified events.
  */
-typedef reactor_handle_t* (*reactor_file_system_new_t)(const char *path, size_t length, zend_ulong events);
+typedef reactor_handle_t* (*reactor_file_system_new_t)(const char *path, size_t length, zend_ulong flags);
 
 /**
  * reactor_process_new_t - Creates a new process event handle.
@@ -152,8 +140,6 @@ ZEND_API reactor_timer_new_t reactor_timer_new_fn;
 ZEND_API reactor_signal_new_t reactor_signal_new_fn;
 ZEND_API reactor_pipe_new_t reactor_pipe_new_fn;
 ZEND_API reactor_tty_new_t reactor_tty_new_fn;
-ZEND_API reactor_extract_os_socket_handle_t reactor_extract_os_socket_handle_fn;
-ZEND_API reactor_extract_os_file_handle_t reactor_extract_os_file_handle_fn;
 ZEND_API reactor_file_system_new_t reactor_file_system_new_fn;
 ZEND_API reactor_process_new_t reactor_process_new_fn;
 ZEND_API reactor_thread_new_t reactor_thread_new_fn;
