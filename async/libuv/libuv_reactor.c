@@ -211,11 +211,7 @@ static reactor_handle_t* libuv_handle_from_resource(const zend_resource *resourc
 //=============================================================
 static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
 {
-	libuv_poll_t *poll_handle = handle->data;
-	zval php_events;
-	const zend_long long_php_events = libuv_events_to_php(events);
-	ZVAL_LONG(&php_events, long_php_events);
-
+	libuv_poll_t *poll = handle->data;
 	zval error;
 	ZVAL_NULL(&error);
 
@@ -227,9 +223,9 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 		ZVAL_OBJ(&error, exception);
 	}
 
-	ZVAL_LONG(async_ev_handle_get_triggered_events(&poll_handle->handle.std), long_php_events);
+	ZVAL_LONG(&poll->poll.triggered_events, libuv_events_to_php(events));
 
-	async_notifier_notify(&poll_handle->handle, &php_events, &error);
+	async_notifier_notify(&poll->handle, &poll->poll.triggered_events, &error);
 	IF_EXCEPTION_STOP;
 }
 
