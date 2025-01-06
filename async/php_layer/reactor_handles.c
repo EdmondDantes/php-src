@@ -406,3 +406,21 @@ void async_register_handlers_ce(void)
 	async_ce_file_system_handle->create_object = NULL;
 	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers;
 }
+
+reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
+{
+	if (fiber == NULL) {
+		fiber = EG(active_fiber);
+	}
+
+	if (fiber == NULL) {
+		return NULL;
+	}
+
+	DEFINE_ZEND_INTERNAL_OBJECT(reactor_fiber_handle_t, handle, async_ce_fiber_handle);
+
+	handle->fiber = fiber;
+	GC_ADDREF(&fiber->std);
+
+	return handle;
+}

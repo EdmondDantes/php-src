@@ -68,23 +68,17 @@ PHP_FUNCTION(Async_async)
 		RETURN_THROWS();
 	}
 
-	zval zval_fiber_handle;
+	reactor_fiber_handle_t *fiber_handle = async_fiber_handle_new((zend_fiber *) Z_OBJ(zval_fiber));
 
-	if (object_init_with_constructor(&zval_fiber_handle, async_ce_fiber_handle, 1, params, NULL) == FAILURE) {
+	if (fiber_handle == NULL) {
 		zval_ptr_dtor(&zval_fiber);
 		RETURN_THROWS();
 	}
 
-	reactor_fiber_handle_t *fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(&zval_fiber_handle);
+	zval_ptr_dtor(&zval_fiber);
 
-	fiber_handle->fiber = (zend_fiber *) Z_OBJ_P(&zval_fiber);
+	async_start_fiber(fiber_handle->fiber);
 
-	async_resume_t * resume = async_resume_new((zend_fiber *)Z_OBJ(zval_fiber));
-
-	async_resume_fiber(resume, NULL, NULL);
-
-	// Resume GC counter = 1 after this operation
-	OBJ_RELEASE(&resume->std);
 	RETURN_OBJ(&fiber_handle->handle.std);
 }
 

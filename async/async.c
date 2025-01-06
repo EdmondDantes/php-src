@@ -18,6 +18,7 @@
 
 #include <php_network.h>
 #include <zend_fibers.h>
+#include <zlib.h>
 
 #include "php_reactor.h"
 #include "php_scheduler.h"
@@ -225,6 +226,39 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	return state;
 }
 
+void async_start_fiber(zend_fiber * fiber)
+{
+	async_resume_t * resume = async_resume_new(fiber);
+
+	if (resume == NULL) {
+		return;
+	}
+
+	async_fiber_state_t *state = async_find_fiber_state(fiber);
+
+	if (state == NULL) {
+		async_add_fiber_state(resume->fiber, resume);
+	} else {
+
+		if (state->resume != NULL) {
+			state->resume->status = ASYNC_RESUME_NO_STATUS;
+			OBJ_RELEASE(&state->resume->std);
+		}
+
+		state->resume = resume;
+	}
+
+	resume->status = ASYNC_RESUME_SUCCESS;
+	ZVAL_NULL(&resume->result);
+
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
+		async_throw_error("Failed to push the Fiber into the pending queue.");
+		return;
+	} else {
+		GC_ADDREF(&resume->std);
+	}
+}
+
 void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error)
 {
 	if (UNEXPECTED(EG(active_fiber) == resume->fiber)) {
@@ -234,11 +268,11 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 
 	const bool is_pending = resume->status == ASYNC_RESUME_PENDING || resume->status == ASYNC_RESUME_NO_STATUS;
 
-	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
-		ZVAL_PTR_DTOR(&GET_RESUME_RESULT(resume));
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+		ZVAL_PTR_DTOR(&resume->result);
 	}
 
-	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
+	ZVAL_UNDEF(&resume->result);
 
 	if (resume->error != NULL) {
 		OBJ_RELEASE(resume->error);
@@ -250,14 +284,20 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		resume->status = ASYNC_RESUME_SUCCESS;
 
 		if (result != NULL) {
-			zval_copy(&GET_RESUME_RESULT(resume), result);
+			zval_copy(&resume->result, result);
 		} else {
-			zval_null(&GET_RESUME_RESULT(resume));
+			zval_null(&resume->result);
 		}
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;
 		GC_ADDREF(resume->error);
 		resume->error = error;
+	}
+
+	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
+
+	if (state == NULL) {
+		async_add_fiber_state(resume->fiber, resume);
 	}
 
 	if (EXPECTED(is_pending)) {

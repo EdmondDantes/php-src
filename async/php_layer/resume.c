@@ -212,7 +212,7 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 	object_properties_init(&object->std, class_entry);
 
 	// Set the result property to undefined after the object is created.
-	ZVAL_UNDEF(&GET_RESUME_RESULT(object));
+	ZVAL_UNDEF(&object->result);
 
 	object->std.handlers = &async_resume_handlers;
 
@@ -233,11 +233,11 @@ static void async_resume_object_destroy(zend_object* object)
 
 	resume->fiber = NULL;
 
-	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
-		zval_ptr_dtor(&GET_RESUME_RESULT(resume));
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+		zval_ptr_dtor(&resume->result);
 	}
 
-	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
+	ZVAL_UNDEF(&resume->result);
 
 	if (resume->triggered_notifiers != NULL) {
 		zend_array_release(resume->triggered_notifiers);
@@ -428,10 +428,10 @@ void async_resume_pending(async_resume_t *resume)
         OBJ_RELEASE(resume->error);
     }
 
-	if (Z_TYPE(GET_RESUME_RESULT(resume)) != IS_UNDEF) {
-        zval_ptr_dtor(&GET_RESUME_RESULT(resume));
+	if (Z_TYPE(resume->result) != IS_UNDEF) {
+        zval_ptr_dtor(&resume->result);
     }
 
 	resume->error = NULL;
-	ZVAL_UNDEF(&GET_RESUME_RESULT(resume));
+	ZVAL_UNDEF(&resume->result);
 }

@@ -117,7 +117,7 @@ static void execute_next_fiber(void)
 	ZVAL_UNDEF(&retval);
 
 	if (resume->status == ASYNC_RESUME_SUCCESS) {
-		zend_fiber_resume(resume->fiber, &GET_RESUME_RESULT(resume), &retval);
+		zend_fiber_resume(resume->fiber, &resume->result, &retval);
 	} else {
 		zval zval_error;
 		ZVAL_OBJ(&zval_error, resume->error);

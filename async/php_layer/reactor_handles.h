@@ -149,6 +149,8 @@ static zend_always_inline zval * async_file_system_get_flags(zend_object *object
 
 BEGIN_EXTERN_C()
 
+reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber);
+
 ZEND_API zend_class_entry *async_ce_poll_handle;
 
 ZEND_API zend_class_entry *async_ce_fiber_handle;

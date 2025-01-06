@@ -150,6 +150,23 @@ ZEND_API void async_await(async_resume_t *resume);
 ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
 
 /**
+ * @brief Starts an asynchronous fiber and schedules it for execution.
+ *
+ * This function initializes and starts the provided zend_fiber, ensuring that it
+ * is properly managed within the fiber system. If the fiber state is already present,
+ * the existing resume handle is released and replaced by a new one. The fiber is
+ * then added to the pending queue for execution.
+ *
+ * @param fiber A pointer to the zend_fiber that needs to be started asynchronously.
+ *
+ * @note If memory allocation for the resume handle fails, the function returns early without starting the fiber.
+ * @note If pushing the fiber to the pending queue fails, an error is thrown, and the fiber is not executed.
+ *
+ * @throws Throws an error if the fiber cannot be added to the pending queue.
+ */
+ZEND_API void async_start_fiber(zend_fiber * fiber);
+
+/**
  * Resumes an asynchronous fiber by enqueuing it into the pending queue.
  *
  * This function manages the result or error associated with the fiber resume operation.
