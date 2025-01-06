@@ -1,5 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1cec96bf5cb20f752143e84b82695ae3af94ba55 */
+ * Stub hash: 286b94d304625fba5a6fa2ab3ec08a70c1dbc34d */
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Resume___construct, 0, 0, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_MIXED, 0, "null")
@@ -28,6 +31,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Resume_removeNotifie
 	ZEND_ARG_OBJ_INFO(0, notifier, Async\\\116otifier, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_METHOD(Async_Resume, __construct);
 ZEND_METHOD(Async_Resume, resume);
 ZEND_METHOD(Async_Resume, throw);
 ZEND_METHOD(Async_Resume, isPending);
@@ -38,6 +42,7 @@ ZEND_METHOD(Async_Resume, when);
 ZEND_METHOD(Async_Resume, removeNotifier);
 
 static const zend_function_entry class_Async_Resume_methods[] = {
+	ZEND_ME(Async_Resume, __construct, arginfo_class_Async_Resume___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, resume, arginfo_class_Async_Resume_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, throw, arginfo_class_Async_Resume_throw, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Resume, isPending, arginfo_class_Async_Resume_isPending, ZEND_ACC_PUBLIC)
