@@ -303,13 +303,46 @@ void async_await(async_resume_t *resume)
         }
 	}
 
-	if (state->resume != NULL) {
-		async_throw_error("Attempt to stop a Fiber that already has a Resume object.");
-		goto finally;
+	if (UNEXPECTED(state->resume != NULL && state->resume != resume)) {
+
+		//
+		// If there are two different Resume objects, and one of them is about to replace the other,
+		// then for the Resume object that is leaving the waiting slot,
+		// all notifiers are removed from the event loop.
+		//
+		zval *notifier;
+
+		ZEND_HASH_FOREACH_VAL(&state->resume->notifiers, notifier)
+			if (Z_TYPE_P(notifier) == IS_OBJECT) {
+				reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(notifier));
+
+				if (UNEXPECTED(EG(exception) != NULL)) {
+					zend_exception_save();
+				}
+			}
+		ZEND_HASH_FOREACH_END();
+
+		zend_exception_restore();
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			goto finally;
+		}
 	}
 
-	GC_ADDREF(&resume->std);
-	state->resume = resume;
+	if (state->resume != resume) {
+		OBJ_RELEASE(&state->resume->std);
+		GC_ADDREF(&resume->std);
+		state->resume = resume;
+	}
+
+	//
+	// Add all notifiers to the event loop.
+	// The operation of adding a handle to the event loop is idempotent,
+	// so there is no need to worry about the handle being listened to twice.
+	// If the Resume object has already been used
+	// for waiting on events, but someone added new handles to it or removed old ones,
+	// this loop will add new handles to the event loop.
+	//
 
 	zval *notifier;
 
