@@ -58,6 +58,12 @@ typedef zend_bool (*reactor_loop_alive_t)(void);
 typedef void (*reactor_handle_method_t)(reactor_handle_t *handle);
 
 /**
+ * reactor_is_listening_method_t - Function pointer type for checking if a handle is listening.
+ * This function returns whether the handle is currently listening for events.
+ */
+typedef bool (*reactor_is_listening_method_t)(reactor_handle_t *handle);
+
+/**
  * reactor_handle_from_resource_t - Creates an event handle from a resource.
  * Converts a zend_resource to an event handle with specified actions.
  */
@@ -130,6 +136,7 @@ ZEND_API reactor_shutdown_t reactor_shutdown_fn;
 
 ZEND_API reactor_handle_method_t reactor_add_handle_ex_fn;
 ZEND_API reactor_handle_method_t reactor_remove_handle_fn;
+ZEND_API reactor_is_listening_method_t reactor_is_listening_fn;
 
 ZEND_API reactor_handle_from_resource_t reactor_handle_from_resource_fn;
 ZEND_API reactor_file_new_t reactor_file_new_fn;

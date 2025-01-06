@@ -607,6 +607,25 @@ static void libuv_remove_handle(reactor_handle_t *handle)
     }
 }
 
+static bool libuv_is_listening(reactor_handle_t *handle)
+{
+	const zend_object *object = &handle->std;
+
+	if (object->ce == async_ce_file_handle
+		|| object->ce == async_ce_socket_handle
+		|| object->ce == async_ce_pipe_handle
+		|| object->ce == async_ce_tty_handle)
+	{
+		return ((libuv_poll_t *) handle)->is_listening;
+	} else if (object->ce == async_ce_signal_handle) {
+		return ((libuv_signal_t *) handle)->is_listening;
+	} else if (object->ce == async_ce_file_system_handle) {
+		return ((libuv_fs_event_t *) handle)->is_listening;
+	}
+
+	return false;
+}
+
 static void libuv_object_destroy(zend_object *object)
 {
 	libuv_handle_t * handle = (libuv_handle_t *) object;
@@ -686,6 +705,7 @@ static reactor_shutdown_t prev_reactor_shutdown_fn = NULL;
 
 static reactor_handle_method_t prev_reactor_add_handle_ex_fn = NULL;
 static reactor_handle_method_t prev_reactor_remove_handle_fn = NULL;
+static reactor_is_listening_method_t prev_reactor_is_listening_fn = NULL;
 
 static reactor_stop_t prev_reactor_loop_stop_fn = NULL;
 static reactor_loop_alive_t prev_reactor_loop_alive_fn = NULL;
@@ -729,6 +749,9 @@ static void setup_handlers(void)
 	prev_reactor_remove_handle_fn = reactor_remove_handle_fn;
 	reactor_remove_handle_fn = libuv_remove_handle;
 
+	prev_reactor_is_listening_fn = reactor_is_listening_fn;
+	reactor_is_listening_fn = libuv_is_listening;
+
 	prev_reactor_handle_from_resource_fn = reactor_handle_from_resource_fn;
 	reactor_handle_from_resource_fn = libuv_handle_from_resource;
 
@@ -767,6 +790,7 @@ static void restore_handlers(void)
 
 	reactor_add_handle_ex_fn = prev_reactor_add_handle_ex_fn;
 	reactor_remove_handle_fn = prev_reactor_remove_handle_fn;
+	reactor_is_listening_fn = prev_reactor_is_listening_fn;
 
 	reactor_stop_fn = prev_reactor_loop_stop_fn;
 	reactor_loop_alive_fn = prev_reactor_loop_alive_fn;

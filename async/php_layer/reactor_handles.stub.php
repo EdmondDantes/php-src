@@ -18,6 +18,16 @@ abstract class PollHandle extends Notifier
     public readonly int $triggeredEvents = 0;
 
     final private function __construct() {}
+
+    /**
+     * Return TRUE if the handle is listening for events in the reactor.
+     */
+    final public function isListening(): bool {}
+
+    /**
+     * Stop listening for events on the handle.
+     */
+    final public function stop(): void {}
 }
 
 /**
@@ -96,6 +106,10 @@ final class TimerHandle extends Notifier
     public static function newTimeout(int $microseconds): TimerHandle {}
 
     public static function newInterval(int $microseconds): TimerHandle {}
+
+    public function isListening(): bool {}
+
+    public function stop(): void {}
 }
 
 /**
@@ -107,6 +121,10 @@ final class SignalHandle extends Notifier
     public readonly int $sigNumber = 0;
 
     public static function new(int $sigNumber): SignalHandle {}
+
+    public function isListening(): bool {}
+
+    public function stop(): void {}
 }
 
 /**
@@ -152,5 +170,10 @@ final class FileSystemHandle extends Notifier
     public readonly int $flags = 0;
 
     public static function fromPath(string $path, int $flags): FileSystemHandle {}
+
     private function __construct() {}
+
+    public function isListening(): bool {}
+
+    public function stop(): void {}
 }

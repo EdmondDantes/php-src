@@ -116,6 +116,16 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 
 PHP_METHOD(Async_PollHandle, __construct) {}
 
+PHP_METHOD(Async_PollHandle, isListening)
+{
+	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+}
+
+PHP_METHOD(Async_PollHandle, stop)
+{
+	reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS));
+}
+
 PHP_METHOD(Async_FileHandle, fromResource)
 {
 	THROW_IF_REACTOR_OFF;
@@ -184,6 +194,16 @@ PHP_METHOD(Async_SocketHandle, fromSocket)
 
 PHP_METHOD(Async_TimerHandle, __construct) {}
 
+PHP_METHOD(Async_TimerHandle, isListening)
+{
+	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+}
+
+PHP_METHOD(Async_TimerHandle, stop)
+{
+	reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS));
+}
+
 PHP_METHOD(Async_TimerHandle, newTimeout)
 {
 	THROW_IF_REACTOR_OFF;
@@ -224,6 +244,16 @@ PHP_METHOD(Async_TimerHandle, newInterval)
 
 PHP_METHOD(Async_SignalHandle, __construct) {}
 
+PHP_METHOD(Async_SignalHandle, isListening)
+{
+	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+}
+
+PHP_METHOD(Async_SignalHandle, stop)
+{
+	reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS));
+}
+
 PHP_METHOD(Async_SignalHandle, new)
 {
 	THROW_IF_REACTOR_OFF;
@@ -255,6 +285,16 @@ PHP_METHOD(Async_ThreadHandle, __construct)
 
 PHP_METHOD(Async_FileSystemHandle, __construct)
 {
+}
+
+PHP_METHOD(Async_FileSystemHandle, isListening)
+{
+	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+}
+
+PHP_METHOD(Async_FileSystemHandle, stop)
+{
+	reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS));
 }
 
 PHP_METHOD(Async_FileSystemHandle, fromPath)
