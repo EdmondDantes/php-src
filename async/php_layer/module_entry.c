@@ -84,8 +84,8 @@ PHP_FUNCTION(Async_async)
 
 PHP_FUNCTION(Async_defer)
 {
-	if (UNEXPECTED(IS_ASYNC_OFF)) {
-		async_throw_error("Cannot defer execution outside of an async context");
+	if (UNEXPECTED(false == reactor_is_enabled())) {
+		async_throw_error("The operation is not available without an active reactor");
 		RETURN_THROWS();
 	}
 
@@ -100,8 +100,8 @@ PHP_FUNCTION(Async_defer)
 
 PHP_FUNCTION(Async_delay)
 {
-	if (UNEXPECTED(IS_ASYNC_OFF)) {
-		async_throw_error("Cannot delay execution outside of an async context");
+	if (UNEXPECTED(false == reactor_is_enabled())) {
+		async_throw_error("The operation is not available without an active reactor");
 		RETURN_THROWS();
 	}
 
@@ -156,8 +156,8 @@ PHP_FUNCTION(Async_delay)
 
 PHP_FUNCTION(Async_repeat)
 {
-	if (UNEXPECTED(IS_ASYNC_OFF)) {
-		async_throw_error("Cannot repeat execution outside of an async context");
+	if (UNEXPECTED(false == reactor_is_enabled())) {
+		async_throw_error("The operation is not available without an active reactor");
 		RETURN_THROWS();
 	}
 
@@ -192,8 +192,8 @@ PHP_FUNCTION(Async_repeat)
 
 PHP_FUNCTION(Async_onSignal)
 {
-	if (UNEXPECTED(IS_ASYNC_OFF)) {
-		async_throw_error("Cannot listen for signals outside of an async context");
+	if (UNEXPECTED(false == reactor_is_enabled())) {
+		async_throw_error("The operation is not available without an active reactor");
 		RETURN_THROWS();
 	}
 
