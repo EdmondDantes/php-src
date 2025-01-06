@@ -125,6 +125,16 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 #pragma endregion
 //===============================================================
 
+zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume)
+{
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
+		async_throw_error("Failed to push the Fiber into the pending queue.");
+	} else {
+		GC_ADDREF(&resume->std);
+		GC_ADDREF(&resume->fiber->std);
+	}
+}
+
 /**
  * Copy of zend_fetch_resource2
  *
@@ -262,11 +272,7 @@ void async_start_fiber(zend_fiber * fiber)
 	resume->status = ASYNC_RESUME_SUCCESS;
 	ZVAL_NULL(&resume->result);
 
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
-		async_throw_error("Failed to push the Fiber into the pending queue.");
-	} else {
-		GC_ADDREF(&resume->std);
-	}
+	async_push_fiber_to_pending(resume);
 }
 
 void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error)
@@ -310,14 +316,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		async_add_fiber_state(resume->fiber, resume);
 	}
 
-	if (EXPECTED(is_pending)) {
-		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
-			async_throw_error("Failed to push the Fiber into the pending queue.");
-			return;
-		} else {
-			GC_ADDREF(&resume->std);
-		}
-	}
+	async_push_fiber_to_pending(resume);
 }
 
 void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)

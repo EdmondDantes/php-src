@@ -136,20 +136,28 @@ static void execute_next_fiber(void)
 		}
 	}
 
+	OBJ_RELEASE(&resume->fiber->std);
+	resume->fiber = NULL;
+
 	OBJ_RELEASE(&resume->std);
 	zval_ptr_dtor(&retval);
 }
 
-static zend_always_inline void put_fiber_to_pending(const async_resume_t *resume)
+zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume)
 {
-	circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true);
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
+		async_throw_error("Failed to push the Fiber into the pending queue.");
+	} else {
+		GC_ADDREF(&resume->std);
+		GC_ADDREF(&resume->fiber->std);
+	}
 }
 
 static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 {
 	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
 		// TODO: create resume object
-		put_fiber_to_pending(NULL);
+		async_push_fiber_to_pending(NULL);
 	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
 		// Just remove the fiber from the list
 		OBJ_RELEASE(&fiber->std);
@@ -165,7 +173,7 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 static void analyze_resume_waiting(const async_resume_t *resume)
 {
     if (resume->status == ASYNC_RESUME_PENDING) {
-        put_fiber_to_pending(resume);
+        async_push_fiber_to_pending(resume);
     }
 }
 
