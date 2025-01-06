@@ -226,54 +226,6 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 	async_throw_error("Invalid microtask type: should be a callable or a internal pointer to a function");
 }
 
-/**
- * Async globals destructor.
- */
-ZEND_API void async_scheduler_dtor(zend_async_globals *async_globals)
-{
-	if (!async_globals->is_async) {
-		return;
-	}
-
-	async_globals->is_async = false;
-	async_globals->in_scheduler_context = false;
-
-	circular_buffer_dtor(&async_globals->microtasks);
-	circular_buffer_dtor(&async_globals->pending_fibers);
-	zend_hash_destroy(&async_globals->fibers_state);
-}
-
-/**
- * Async globals constructor.
- */
-static void async_scheduler_ctor(zend_async_globals *async_globals)
-{
-	if (async_globals->is_async) {
-		return;
-	}
-
-	async_globals->is_async = true;
-	async_globals->in_scheduler_context = false;
-
-	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
-	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
-
-	async_globals->execute_callbacks_handler = NULL;
-	async_globals->exception_handler = NULL;
-	async_globals->execute_next_fiber_handler = execute_next_fiber;
-	async_globals->execute_microtasks_handler = execute_microtasks;
-
-	if (EG(exception) != NULL) {
-		async_scheduler_dtor(async_globals);
-		return;
-	}
-
-	if (EG(exception) != NULL) {
-		async_scheduler_dtor(async_globals);
-	}
-}
-
 #define TRY_HANDLE_EXCEPTION() \
 	if (EG(exception) != NULL && handle_exception_handler != NULL) { \
 		handle_exception_handler(); \
@@ -297,7 +249,8 @@ void async_scheduler_launch(void)
 		return;
 	}
 
-	async_scheduler_ctor(ASYNC_GLOBAL);
+	ASYNC_G(is_async) = true;
+	reactor_startup_fn();
 
 	/**
 	 * Handlers for the scheduler.
@@ -338,7 +291,12 @@ void async_scheduler_launch(void)
 
 	} zend_catch {
 		ASYNC_G(in_scheduler_context) = false;
-		async_scheduler_dtor(ASYNC_GLOBAL);
+		ASYNC_G(is_async) = false;
+		reactor_shutdown_fn();
 		zend_bailout();
 	} zend_end_try();
+
+	ASYNC_G(in_scheduler_context) = false;
+	ASYNC_G(is_async) = false;
+	reactor_shutdown_fn();
 }

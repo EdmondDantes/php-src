@@ -55,7 +55,6 @@ typedef struct _zend_async_globals zend_async_globals;
  * The method does not return control while the event loop is active.
  */
 ZEND_API void async_scheduler_launch(void);
-ZEND_API void async_scheduler_dtor(zend_async_globals * async_globals);
 ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler);
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);

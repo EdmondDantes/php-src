@@ -277,8 +277,16 @@ static PHP_GINIT_FUNCTION(async)
 	async_globals->execute_callbacks_handler = NULL;
 	async_globals->execute_next_fiber_handler = NULL;
 	async_globals->execute_microtasks_handler = NULL;
+
+	async_globals_ctor(async_globals);
 }
 /* }}} */
+
+/* {{{ PHP_GSHUTDOWN_FUNCTION */
+static PHP_GSHUTDOWN_FUNCTION(async)
+{
+	async_globals_dtor(async_globals);
+}
 
 static zend_module_entry async_module_entry = { /* {{{ */
 	STANDARD_MODULE_HEADER,
@@ -292,7 +300,7 @@ static zend_module_entry async_module_entry = { /* {{{ */
 	PHP_ASYNC_VERSION,
 	PHP_MODULE_GLOBALS(async),
 	PHP_GINIT(async),
-	NULL,
+	PHP_GSHUTDOWN(async),
 	NULL,
 	STANDARD_MODULE_PROPERTIES_EX
 };
