@@ -251,9 +251,8 @@ void async_start_fiber(zend_fiber * fiber)
 	resume->status = ASYNC_RESUME_SUCCESS;
 	ZVAL_NULL(&resume->result);
 
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
 		async_throw_error("Failed to push the Fiber into the pending queue.");
-		return;
 	} else {
 		GC_ADDREF(&resume->std);
 	}
@@ -301,7 +300,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	}
 
 	if (EXPECTED(is_pending)) {
-		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), resume, true) == FAILURE)) {
+		if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
 			async_throw_error("Failed to push the Fiber into the pending queue.");
 			return;
 		} else {

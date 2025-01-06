@@ -130,7 +130,7 @@ static void execute_next_fiber(void)
 
 static zend_always_inline void put_fiber_to_pending(const async_resume_t *resume)
 {
-	circular_buffer_push(&ASYNC_G(pending_fibers), resume, true);
+	circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true);
 }
 
 static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
