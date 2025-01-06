@@ -41,6 +41,11 @@ final class Resume
     const int TIMEOUT   = 3;
 
     /**
+     * Creates a new `Resume` object.
+     */
+    public function __construct() {}
+
+    /**
      * Resumes the fiber with a value.
      */
     public function resume(mixed $value = null): void {}

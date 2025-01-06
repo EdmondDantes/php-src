@@ -31,6 +31,17 @@
 
 static zend_object_handlers async_resume_handlers;
 
+METHOD(__construct)
+{
+	if (EG(active_fiber) == NULL) {
+		async_throw_error("Resume objects can only be created within a Fiber");
+		RETURN_THROWS();
+	}
+
+	THIS(status) = ASYNC_RESUME_NO_STATUS;
+	THIS(fiber) = EG(active_fiber);
+}
+
 METHOD(resume)
 {
 	if (THIS(status) != ASYNC_RESUME_PENDING) {
@@ -215,12 +226,6 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 	ZVAL_UNDEF(&object->result);
 
 	object->std.handlers = &async_resume_handlers;
-
-	// Define current Fiber and set it to the property $fiber
-	if (EXPECTED(EG(active_fiber))) {
-		// NOTE: NO GC_ADDREF here
-		object->fiber = EG(active_fiber);
-	}
 
 	zend_hash_init(&object->notifiers, 2, NULL, async_resume_notifier_dtor, 0);
 
