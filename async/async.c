@@ -62,6 +62,23 @@ void async_module_shutdown(void)
 {
 }
 
+void async_fiber_shutdown_callback(zend_fiber *fiber)
+{
+	async_fiber_state_t *state = async_find_fiber_state(fiber);
+
+	if (state == NULL || state->resume == NULL) {
+		return;
+	}
+
+	state->resume->status = ASYNC_RESUME_NO_STATUS;
+	OBJ_RELEASE(&state->resume->std);
+	state->resume = NULL;
+
+	if (zend_hash_index_del(&ASYNC_G(fibers_state), fiber->std.handle) == FAILURE) {
+		zend_error(E_WARNING, "Failed to remove the fiber state from the hash table.");
+	}
+}
+
 //===============================================================
 #pragma endregion
 //===============================================================
@@ -304,33 +321,11 @@ void async_await(async_resume_t *resume)
 	}
 
 	if (UNEXPECTED(state->resume != NULL && state->resume != resume)) {
-
-		//
-		// If there are two different Resume objects, and one of them is about to replace the other,
-		// then for the Resume object that is leaving the waiting slot,
-		// all notifiers are removed from the event loop.
-		//
-		zval *notifier;
-
-		ZEND_HASH_FOREACH_VAL(&state->resume->notifiers, notifier)
-			if (Z_TYPE_P(notifier) == IS_OBJECT) {
-				reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(notifier));
-
-				if (UNEXPECTED(EG(exception) != NULL)) {
-					zend_exception_save();
-				}
-			}
-		ZEND_HASH_FOREACH_END();
-
-		zend_exception_restore();
-
-		if (UNEXPECTED(EG(exception) != NULL)) {
-			goto finally;
-		}
-	}
-
-	if (state->resume != resume) {
+		state->resume->status = ASYNC_RESUME_NO_STATUS;
 		OBJ_RELEASE(&state->resume->std);
+		GC_ADDREF(&resume->std);
+		state->resume = resume;
+	} else if (state->resume == NULL) {
 		GC_ADDREF(&resume->std);
 		state->resume = resume;
 	}

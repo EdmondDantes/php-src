@@ -33,6 +33,10 @@
 
 #include "zend_fibers.h"
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 #include "php.h"
 
 #include "zend_fibers_arginfo.h"
@@ -768,6 +772,11 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		// PHP ASYNC FIBER FEATURES
 		//
 #ifdef PHP_ASYNC
+
+		if (IS_ASYNC_ON) {
+			async_fiber_shutdown_callback(fiber);
+		}
+
         // Call shutdown handlers.
 		if(fiber->shutdown_handlers) {
 			zend_fiber_invoke_shutdown_handlers(fiber);

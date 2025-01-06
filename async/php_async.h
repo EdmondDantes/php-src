@@ -92,6 +92,7 @@ BEGIN_EXTERN_C()
 
 void async_module_startup(void);
 void async_module_shutdown(void);
+void async_fiber_shutdown_callback(zend_fiber *fiber);
 ZEND_API void async_resource_cast(const zend_resource *resource, php_socket_t *socket, async_file_descriptor_t *file);
 ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
 
