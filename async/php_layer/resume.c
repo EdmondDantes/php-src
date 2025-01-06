@@ -160,6 +160,42 @@ METHOD(when)
 	zval zval_notifier;
 	ZVAL_PTR(&zval_notifier, resume_notifier);
 	zend_hash_index_update(&resume->notifiers, Z_OBJ_P(notifier)->handle, &zval_notifier);
+
+	GC_ADDREF(Z_OBJ_P(notifier));
+
+	zval z_callback;
+	ZVAL_PTR(&z_callback, Z_OBJ_P(ZEND_THIS));
+
+	async_notifier_add_callback(Z_OBJ_P(notifier), &z_callback);
+}
+
+METHOD(removeNotifier)
+{
+	zval *notifier;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS(notifier, async_ce_notifier)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(ZEND_THIS);
+
+	async_resume_notifier_t * resume_notifier = zend_hash_index_find_ptr(&resume->notifiers, Z_OBJ_P(notifier)->handle);
+
+	if (resume_notifier == NULL) {
+		return;
+	}
+
+	zend_hash_index_del(&resume->notifiers, Z_OBJ_P(notifier)->handle);
+	async_notifier_remove_callback(Z_OBJ_P(notifier), ZEND_THIS);
+}
+
+static void async_resume_notifier_dtor(zval *item)
+{
+	async_resume_notifier_t * resume_notifier = Z_PTR_P(item);
+
+	zval_ptr_dtor(&resume_notifier->callback);
+	OBJ_RELEASE(&resume_notifier->notifier->std);
+	efree(resume_notifier);
 }
 
 static zend_object *async_resume_object_create(zend_class_entry *class_entry)
@@ -186,7 +222,7 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 		object->fiber = EG(active_fiber);
 	}
 
-	zend_hash_init(&object->notifiers, 2, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&object->notifiers, 2, NULL, async_resume_notifier_dtor, 0);
 
 	return &object->std;
 }
@@ -275,6 +311,11 @@ ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *noti
 	zend_hash_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
 
 	GC_ADDREF(&notifier->std);
+
+	zval z_callback;
+	ZVAL_PTR(&z_callback, resume);
+
+	async_notifier_add_callback(&notifier->std, &z_callback);
 }
 
 ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)

@@ -79,4 +79,9 @@ final class Resume
      * * TIMEOUT – on success, the fiber resumes execution with a timeout exception `TimeoutException`.
      */
     public function when(Notifier $notifier, callable|int $callback = Resume::RESOLVE): static {}
+
+    /**
+     * Removes a Notifier from the `Resume` object.
+     */
+    public function removeNotifier(Notifier $notifier): static {}
 }
