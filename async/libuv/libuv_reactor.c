@@ -15,6 +15,7 @@
 */
 #include "libuv_reactor.h"
 
+#include <time.h>
 #include <zend_exceptions.h>
 #include <async/php_async.h>
 #include <async/php_reactor.h>
@@ -79,89 +80,6 @@ static zend_always_inline zend_long libuv_events_to_php(const int events)
 	}
 
 	return php_events;
-}
-
-static void libuv_object_destroy(zend_object *object)
-{
-	if (object->ce == async_ce_file_handle
-		|| object->ce == async_ce_socket_handle
-		|| object->ce == async_ce_pipe_handle
-		|| object->ce == async_ce_tty_handle) {
-
-		libuv_poll_t *poll = (libuv_poll_t *)object;
-
-		if (poll->uv_handle == NULL) {
-            return;
-        }
-
-		const int error = uv_poll_stop(poll->uv_handle);
-
-		if (error < 0) {
-			zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
-		}
-
-		uv_close((uv_handle_t *)poll->uv_handle, libuv_close_cb);
-
-		poll->uv_handle = NULL;
-    } else if (object->ce == async_ce_timer_handle) {
-
-    	libuv_timer_t *timer = (libuv_timer_t *)object;
-
-    	if (timer->uv_handle == NULL) {
-    		return;
-    	}
-
-		const int error = uv_timer_stop(timer->uv_handle);
-
-		if (error < 0) {
-			zend_error(E_WARNING, "Failed to stop timer handle: %s", uv_strerror(error));
-		}
-
-		uv_close((uv_handle_t *)timer->uv_handle, libuv_close_cb);
-
-		timer->uv_handle = NULL;
-
-    } else if (object->ce == async_ce_signal_handle) {
-
-		libuv_signal_t *signal = (libuv_signal_t *)object;
-
-        if (signal->uv_handle == NULL) {
-        	return;
-        }
-
-		const int error = uv_signal_stop(signal->uv_handle);
-
-        if (error < 0) {
-            zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
-        }
-
-    	uv_close((uv_handle_t *)signal->uv_handle, libuv_close_cb);
-
-    	signal->uv_handle = NULL;
-
-    } else if (object->ce == async_ce_file_system_handle) {
-
-		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
-
-        if (fs_event->uv_handle == NULL) {
-        	return;
-        }
-
-		const int error = uv_fs_event_stop(fs_event->uv_handle);
-
-		if (error < 0) {
-            zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
-        }
-
-    	uv_close((uv_handle_t *)fs_event->uv_handle, libuv_close_cb);
-
-    	fs_event->uv_handle = NULL;
-
-    } else if (object->ce == async_ce_process_handle) {
-
-    } else if (object->ce == async_ce_thread_handle) {
-
-    }
 }
 
 static zend_always_inline libuv_poll_t * libuv_poll_new(
@@ -232,6 +150,7 @@ static void on_poll_event(const uv_poll_t* handle, const int status, const int e
 static zend_always_inline void libuv_poll_init(libuv_poll_t * poll)
 {
 	poll->uv_handle = pecalloc(1, sizeof(uv_poll_t), 1);
+	poll->is_listening = false;
 
 #ifdef PHP_WIN32
 	if (poll->std.ce == async_ce_file_handle) {
@@ -253,16 +172,8 @@ static zend_always_inline void libuv_poll_init(libuv_poll_t * poll)
 		return;
 	}
 
-	error = uv_poll_start(poll->uv_handle, poll->poll.events, on_poll_event);
-
 	// Link the handle to the loop.
 	poll->uv_handle->data = poll;
-
-	if (error < 0) {
-		async_throw_error("Failed to start poll handle: %s", uv_strerror(error));
-		pefree(poll->uv_handle, 1);
-		poll->uv_handle = NULL;
-	}
 }
 
 static zend_always_inline libuv_poll_t * libuv_poll_new(
@@ -354,6 +265,7 @@ static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_boo
 	}
 
 	object->uv_handle = pecalloc(1, sizeof(uv_timer_t), 1);
+	object->is_listening = false;
 
 	if (UNEXPECTED(object->uv_handle == NULL)) {
 		OBJ_RELEASE(&object->std);
@@ -365,15 +277,6 @@ static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_boo
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize timer handle: %s", uv_strerror(error));
-		pefree(object->uv_handle, 1);
-		OBJ_RELEASE(&object->std);
-		return NULL;
-	}
-
-	error = uv_timer_start(object->uv_handle, on_timer_event, timeout, is_periodic ? timeout : 0);
-
-	if (error < 0) {
-		async_throw_error("Failed to start timer handle: %s", uv_strerror(error));
 		pefree(object->uv_handle, 1);
 		OBJ_RELEASE(&object->std);
 		return NULL;
@@ -423,6 +326,7 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 	}
 
 	object->uv_handle = pecalloc(1, sizeof(uv_signal_t), 1);
+	object->is_listening = false;
 
 	if (UNEXPECTED(object->uv_handle == NULL)) {
 		OBJ_RELEASE(&object->std);
@@ -434,15 +338,6 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
-		pefree(object->uv_handle, 1);
-		OBJ_RELEASE(&object->std);
-		return NULL;
-	}
-
-	error = uv_signal_start(object->uv_handle, on_signal_event, (int)sig_number);
-
-	if (error < 0) {
-		async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
 		pefree(object->uv_handle, 1);
 		OBJ_RELEASE(&object->std);
 		return NULL;
@@ -492,6 +387,7 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 	}
 
 	object->uv_handle = pecalloc(1, sizeof(uv_fs_event_t), 1);
+	object->is_listening = false;
 
 	if (UNEXPECTED(object->uv_handle == NULL)) {
 		OBJ_RELEASE(&object->std);
@@ -503,16 +399,6 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize file system event handle: %s", uv_strerror(error));
-		pefree(object->uv_handle, 1);
-		OBJ_RELEASE(&object->std);
-		return NULL;
-	}
-
-	error = uv_fs_event_start(object->uv_handle, on_fs_event, path, flags);
-
-	if (error < 0) {
-		async_throw_error("Failed to start file system event handle: %s", uv_strerror(error));
-		uv_close((uv_handle_t *) object->uv_handle, libuv_close_cb);
 		pefree(object->uv_handle, 1);
 		OBJ_RELEASE(&object->std);
 		return NULL;
@@ -548,6 +434,191 @@ static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const z
 static reactor_handle_t* libuv_thread_new(const THREAD_T tid, const zend_ulong events)
 {
 	return NULL;
+}
+
+//=============================================================
+#pragma endregion
+//=============================================================
+
+//=============================================================
+#pragma region Handle add/remove/destroy API
+//=============================================================
+
+static void libuv_add_handle(reactor_handle_t *handle)
+{
+	zend_object * object = &handle->std;
+
+	if (object->ce == async_ce_file_handle
+		|| object->ce == async_ce_socket_handle
+		|| object->ce == async_ce_pipe_handle
+		|| object->ce == async_ce_tty_handle) {
+
+		libuv_poll_t *poll = (libuv_poll_t *)object;
+
+		if (poll->uv_handle == NULL || poll->is_listening == true) {
+            return;
+        }
+
+		int error = uv_poll_start(poll->uv_handle, poll->poll.events, on_poll_event);
+
+		if (error < 0) {
+			async_throw_error("Failed to start poll handle: %s", uv_strerror(error));
+		}
+
+		poll->is_listening = true;
+
+    } else if (object->ce == async_ce_timer_handle) {
+
+    	libuv_timer_t *timer = (libuv_timer_t *)object;
+
+    	if (timer->uv_handle == NULL || timer->is_listening == true) {
+    		return;
+    	}
+
+    	int error = uv_timer_start(
+    		timer->uv_handle,
+    		on_timer_event,
+    		Z_LVAL(timer->timer.microseconds),
+    		Z_TYPE(timer->timer.is_periodic) == IS_TRUE ? Z_LVAL(timer->timer.microseconds) : 0
+		);
+
+    	if (error < 0) {
+    		async_throw_error("Failed to start timer handle: %s", uv_strerror(error));
+    	}
+
+    	timer->is_listening = true;
+
+    } else if (object->ce == async_ce_signal_handle) {
+
+		libuv_signal_t *signal = (libuv_signal_t *)object;
+
+        if (signal->uv_handle == NULL || signal->is_listening == true) {
+        	return;
+        }
+
+    	int error = uv_signal_start(signal->uv_handle, on_signal_event, (int) Z_LVAL(signal->signal.number));
+
+    	if (error < 0) {
+    		async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
+    	}
+
+    	signal->is_listening = true;
+
+    } else if (object->ce == async_ce_file_system_handle) {
+
+		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
+
+        if (fs_event->uv_handle == NULL || fs_event->is_listening == true) {
+        	return;
+        }
+
+    	int error = uv_fs_event_start(
+    		fs_event->uv_handle, on_fs_event, Z_STRVAL(fs_event->fs_event.path), Z_LVAL(fs_event->fs_event.flags)
+		);
+
+    	if (error < 0) {
+    		async_throw_error("Failed to start file system event handle: %s", uv_strerror(error));
+    	}
+
+    	fs_event->is_listening = true;
+
+    } else if (object->ce == async_ce_process_handle) {
+
+    } else if (object->ce == async_ce_thread_handle) {
+
+    }
+}
+
+static void libuv_remove_handle(reactor_handle_t *handle)
+{
+	zend_object *object = &handle->std;
+
+	if (object->ce == async_ce_file_handle
+		|| object->ce == async_ce_socket_handle
+		|| object->ce == async_ce_pipe_handle
+		|| object->ce == async_ce_tty_handle) {
+
+		libuv_poll_t *poll = (libuv_poll_t *)object;
+
+		if (poll->uv_handle == NULL || poll->is_listening == false) {
+            return;
+        }
+
+		const int error = uv_poll_stop(poll->uv_handle);
+
+		if (error < 0) {
+			zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
+		}
+
+		poll->is_listening = false;
+
+    } else if (object->ce == async_ce_timer_handle) {
+
+    	libuv_timer_t *timer = (libuv_timer_t *)object;
+
+    	if (timer->uv_handle == NULL || timer->is_listening == false) {
+    		return;
+    	}
+
+		const int error = uv_timer_stop(timer->uv_handle);
+
+		if (error < 0) {
+			zend_error(E_WARNING, "Failed to stop timer handle: %s", uv_strerror(error));
+		}
+
+    	timer->is_listening = false;
+
+    } else if (object->ce == async_ce_signal_handle) {
+
+		libuv_signal_t *signal = (libuv_signal_t *)object;
+
+        if (signal->uv_handle == NULL || signal->is_listening == false) {
+        	return;
+        }
+
+		const int error = uv_signal_stop(signal->uv_handle);
+
+        if (error < 0) {
+            zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
+        }
+
+    	signal->is_listening = false;
+
+    } else if (object->ce == async_ce_file_system_handle) {
+
+		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
+
+        if (fs_event->uv_handle == NULL || fs_event->is_listening == false) {
+        	return;
+        }
+
+		const int error = uv_fs_event_stop(fs_event->uv_handle);
+
+		if (error < 0) {
+            zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
+        }
+
+    	fs_event->is_listening = false;
+
+    } else if (object->ce == async_ce_process_handle) {
+
+    } else if (object->ce == async_ce_thread_handle) {
+
+    }
+}
+
+static void libuv_object_destroy(zend_object *object)
+{
+	libuv_handle_t * handle = (libuv_handle_t *) object;
+
+	if (handle->uv_handle == NULL) {
+		return;
+	}
+
+	libuv_remove_handle(&handle->handle);
+
+	uv_close(handle->uv_handle, libuv_close_cb);
+	handle->uv_handle = NULL;
 }
 
 //=============================================================
@@ -651,6 +722,12 @@ static void setup_handlers(void)
 
 	prev_reactor_loop_alive_fn = reactor_loop_alive_fn;
 	reactor_loop_alive_fn = libuv_loop_alive;
+
+	prev_reactor_add_handle_ex_fn = reactor_add_handle_ex_fn;
+	reactor_add_handle_ex_fn = libuv_add_handle;
+
+	prev_reactor_remove_handle_fn = reactor_remove_handle_fn;
+	reactor_remove_handle_fn = libuv_remove_handle;
 
 	prev_reactor_handle_from_resource_fn = reactor_handle_from_resource_fn;
 	reactor_handle_from_resource_fn = libuv_handle_from_resource;

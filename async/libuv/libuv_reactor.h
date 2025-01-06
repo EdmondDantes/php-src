@@ -53,6 +53,7 @@ struct _libuv_poll_s {
 		reactor_poll_t poll;
 	};
 	uv_poll_t *uv_handle;
+	bool is_listening;
 };
 
 struct _libuv_timer_s {
@@ -63,6 +64,7 @@ struct _libuv_timer_s {
 		reactor_timer_t timer;
 	};
 	uv_timer_t *uv_handle;
+	bool is_listening;
 };
 
 struct _libuv_signal_s {
@@ -73,6 +75,7 @@ struct _libuv_signal_s {
 		reactor_signal_t signal;
 	};
 	uv_signal_t *uv_handle;
+	bool is_listening;
 };
 
 struct _libuv_process_s {
@@ -103,6 +106,7 @@ struct _libuv_fs_event_s {
 		reactor_file_system_t fs_event;
 	};
 	uv_fs_event_t *uv_handle;
+	bool is_listening;
 };
 
 END_EXTERN_C()
