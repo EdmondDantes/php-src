@@ -257,8 +257,8 @@ void async_scheduler_launch(void)
 	 * This functions pointer will be set to the actual functions.
 	 */
 	const async_callbacks_handler_t execute_callbacks_handler = ASYNC_G(execute_callbacks_handler);
-	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler);
-	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler);
+	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler) ? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
+	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ? ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
 	const async_exception_handler_t handle_exception_handler = ASYNC_G(exception_handler);
 
 	zend_try
