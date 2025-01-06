@@ -116,12 +116,24 @@ static void execute_next_fiber(void)
 	zval retval;
 	ZVAL_UNDEF(&retval);
 
-	if (resume->status == ASYNC_RESUME_SUCCESS) {
-		zend_fiber_resume(resume->fiber, &resume->result, &retval);
+	if (EXPECTED(resume->status == ASYNC_RESUME_SUCCESS)) {
+
+		if (UNEXPECTED(resume->fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
+			zend_fiber_start(resume->fiber, &retval);
+		} else {
+			zend_fiber_resume(resume->fiber, &resume->result, &retval);
+		}
+
 	} else {
-		zval zval_error;
-		ZVAL_OBJ(&zval_error, resume->error);
-		zend_fiber_resume_exception(resume->fiber, &zval_error, &retval);
+
+		if (UNEXPECTED(resume->fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
+			zend_error(E_WARNING, "Attempt to resume with error a fiber that has not been started");
+			zend_fiber_start(resume->fiber, &retval);
+		} else {
+			zval zval_error;
+			ZVAL_OBJ(&zval_error, resume->error);
+			zend_fiber_resume_exception(resume->fiber, &zval_error, &retval);
+		}
 	}
 
 	GC_DELREF(&resume->std);
