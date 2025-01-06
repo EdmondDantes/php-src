@@ -118,7 +118,7 @@ PHP_METHOD(Async_PollHandle, __construct) {}
 
 PHP_METHOD(Async_PollHandle, isListening)
 {
-	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+	RETURN_BOOL(reactor_is_listening_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS)));
 }
 
 PHP_METHOD(Async_PollHandle, stop)
@@ -196,7 +196,7 @@ PHP_METHOD(Async_TimerHandle, __construct) {}
 
 PHP_METHOD(Async_TimerHandle, isListening)
 {
-	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+	RETURN_BOOL(reactor_is_listening_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS)));
 }
 
 PHP_METHOD(Async_TimerHandle, stop)
@@ -246,7 +246,7 @@ PHP_METHOD(Async_SignalHandle, __construct) {}
 
 PHP_METHOD(Async_SignalHandle, isListening)
 {
-	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+	RETURN_BOOL(reactor_is_listening_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS)));
 }
 
 PHP_METHOD(Async_SignalHandle, stop)
@@ -289,7 +289,7 @@ PHP_METHOD(Async_FileSystemHandle, __construct)
 
 PHP_METHOD(Async_FileSystemHandle, isListening)
 {
-	RETURN_BOOL(reactor_is_listening_fn(Z_OBJ_P(ZEND_THIS)));
+	RETURN_BOOL(reactor_is_listening_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS)));
 }
 
 PHP_METHOD(Async_FileSystemHandle, stop)
@@ -352,7 +352,19 @@ static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
 	return &object->handle.std;
 }
 
+static void reactor_fiber_handle_destroy(zend_object* object)
+{
+	reactor_fiber_handle_t * handle = (reactor_fiber_handle_t *) object;
+
+	if (handle->fiber != NULL) {
+		OBJ_RELEASE(&handle->fiber->std);
+	}
+
+	handle->fiber = NULL;
+}
+
 static zend_object_handlers reactor_object_handlers;
+static zend_object_handlers reactor_fiber_handle_handlers;
 
 void async_register_handlers_ce(void)
 {
@@ -365,9 +377,14 @@ void async_register_handlers_ce(void)
 	async_ce_poll_handle->create_object = NULL;
 	async_ce_poll_handle->default_object_handlers = &reactor_object_handlers;
 
+	reactor_fiber_handle_handlers = std_object_handlers;
+	reactor_fiber_handle_handlers.clone_obj = NULL;
+	reactor_fiber_handle_handlers.dtor_obj = reactor_fiber_handle_destroy;
+
 	async_ce_fiber_handle = register_class_Async_FiberHandle(async_ce_notifier);
 	async_ce_fiber_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_fiber_handle->create_object = async_fiber_object_create;
+	async_ce_fiber_handle->default_object_handlers = &reactor_fiber_handle_handlers;
 
 	async_ce_file_handle = register_class_Async_FileHandle(async_ce_poll_handle);
 	async_ce_file_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;

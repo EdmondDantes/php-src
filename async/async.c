@@ -200,6 +200,24 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber)
 	return resume;
 }
 
+/**
+ * @brief Creates and registers a new fiber state associated with a given fiber and resume object.
+ *
+ * This function allocates and initializes an async_fiber_state_t structure, linking it to the specified
+ * zend_fiber and async_resume_t. The state is then stored in the global fibers state table.
+ *
+ * @param fiber A pointer to the zend_fiber to associate with the newly created state.
+ * @param resume A pointer to the async_resume_t that manages the resumption logic for the fiber.
+ *
+ * @return A pointer to the newly allocated async_fiber_state_t structure, or NULL if memory allocation fails.
+ *
+ * @note The Fiber State structure does not increment the reference count of the Fiber or Resume object,
+ * as their lifecycle is managed through an internal mechanism. The fiber must notify the Async State
+ * upon its destruction to ensure proper cleanup.
+ *
+ * @warning The function assumes the fiber is valid and has a handle. If the fiber is destroyed without
+ * notifying the Async State, it may lead to undefined behavior.
+ */
 static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_resume_t *resume)
 {
 	async_fiber_state_t * state = pecalloc(1, sizeof(async_fiber_state_t), 1);
@@ -210,13 +228,6 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 
 	state->fiber = fiber;
 	state->resume = resume;
-
-	// Add reference to the fiber object and the resume object.
-	GC_ADDREF(&fiber->std);
-
-	if (resume != NULL) {
-        GC_ADDREF(&resume->std);
-    }
 
 	zval zv;
 	ZVAL_PTR(&zv, state);

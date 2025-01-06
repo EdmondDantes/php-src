@@ -136,7 +136,7 @@ static void execute_next_fiber(void)
 		}
 	}
 
-	GC_DELREF(&resume->std);
+	OBJ_RELEASE(&resume->std);
 	zval_ptr_dtor(&retval);
 }
 
@@ -152,7 +152,7 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 		put_fiber_to_pending(NULL);
 	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
 		// Just remove the fiber from the list
-		GC_DELREF(&fiber->std);
+		OBJ_RELEASE(&fiber->std);
 		zend_hash_index_del(&ASYNC_G(fibers_state), index);
 	} else {
 		async_throw_error(

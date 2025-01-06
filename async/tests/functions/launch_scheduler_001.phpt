@@ -1,5 +1,5 @@
 --TEST--
-launchScheduler empty start
+launchScheduler with async function
 --FILE--
 <?php
 

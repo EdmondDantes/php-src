@@ -236,6 +236,13 @@ static void async_resume_object_destroy(zend_object* object)
 {
 	async_resume_t * resume = (async_resume_t *) object;
 
+	async_fiber_state_t * state = async_find_fiber_state(resume->fiber);
+
+	// Remove the self-reference from the fiber state.
+	if (state != NULL && state->resume == resume) {
+		state->resume = NULL;
+	}
+
 	resume->fiber = NULL;
 
 	if (Z_TYPE(resume->result) != IS_UNDEF) {
