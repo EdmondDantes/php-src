@@ -41,6 +41,8 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	circular_buffer_t pending_fibers;
 	/* List of async_fiber_state_t  */
 	HashTable fibers_state;
+	/* List of deferred callbacks */
+	HashTable defer_callbacks;
 	/* Link to the reactor structure */
 	void * reactor;
 	/* Handlers for the scheduler */

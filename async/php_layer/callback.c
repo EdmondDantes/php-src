@@ -178,6 +178,11 @@ zend_object * async_callback_resolve_resume(const zend_object* callback)
 	return Z_OBJ(retval);
 }
 
+#define DESTROY_DEFER_CALLBACK if (defer_callback != NULL) { \
+	zend_hash_index_del(&ASYNC_G(defer_callbacks), callback->handle); \
+	zval_ptr_dtor(defer_callback); \
+}
+
 /**
  * The method is used to notify the callback about the event.
  *
@@ -185,9 +190,12 @@ zend_object * async_callback_resolve_resume(const zend_object* callback)
  */
 void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
 {
+	zval * defer_callback = zend_hash_index_find(&ASYNC_G(defer_callbacks), callback->handle);
+
 	zval * property_callback = async_callback_get_callback(callback);
 
 	if (Z_TYPE_P(property_callback) == IS_NULL) {
+		DESTROY_DEFER_CALLBACK
         return;
     }
 
@@ -198,6 +206,7 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 		zend_string_release(callable_name);
 		zval_ptr_dtor(property_callback);
 		ZVAL_NULL(property_callback);
+		DESTROY_DEFER_CALLBACK
 		return;
 	}
 
@@ -245,4 +254,6 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 		async_transfer_throw_to_fiber((zend_fiber *) Z_OBJ_P(async_callback_get_fiber(callback)), EG(exception));
 		zend_clear_exception();
 	}
+
+	DESTROY_DEFER_CALLBACK
 }

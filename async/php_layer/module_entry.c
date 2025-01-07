@@ -144,11 +144,14 @@ PHP_FUNCTION(Async_delay)
 
 	async_notifier_add_callback(&handle->std, &callback);
 
-	OBJ_RELEASE(&handle->std);
-
 	if (is_callback_owned) {
-		zval_ptr_dtor(&callback);
+		if (UNEXPECTED(zend_hash_index_update(&ASYNC_G(defer_callbacks), Z_OBJ(callback)->handle, &callback) == NULL)) {
+			async_throw_error("Failed to store the callback");
+			RETURN_THROWS();
+		}
 	}
+
+	OBJ_RELEASE(&handle->std);
 
 	if (EG(exception) != NULL) {
 		RETURN_THROWS();
