@@ -29,6 +29,11 @@
 #include "../php_async.h"
 #include "module_entry_arginfo.h"
 
+#define THROW_IF_REACTOR_DISABLED if (UNEXPECTED(false == reactor_is_enabled())) {			\
+		async_throw_error("The operation is not available without an enabled reactor");	\
+		RETURN_THROWS();																\
+	}
+
 PHP_FUNCTION(Async_launchScheduler)
 {
 	async_scheduler_launch();
@@ -84,10 +89,7 @@ PHP_FUNCTION(Async_async)
 
 PHP_FUNCTION(Async_defer)
 {
-	if (UNEXPECTED(false == reactor_is_enabled())) {
-		async_throw_error("The operation is not available without an active reactor");
-		RETURN_THROWS();
-	}
+	THROW_IF_REACTOR_DISABLED
 
 	zval * callable;
 
@@ -100,10 +102,7 @@ PHP_FUNCTION(Async_defer)
 
 PHP_FUNCTION(Async_delay)
 {
-	if (UNEXPECTED(false == reactor_is_enabled())) {
-		async_throw_error("The operation is not available without an active reactor");
-		RETURN_THROWS();
-	}
+	THROW_IF_REACTOR_DISABLED
 
 	zend_long timeout;
 	zval * callable;
@@ -156,10 +155,7 @@ PHP_FUNCTION(Async_delay)
 
 PHP_FUNCTION(Async_repeat)
 {
-	if (UNEXPECTED(false == reactor_is_enabled())) {
-		async_throw_error("The operation is not available without an active reactor");
-		RETURN_THROWS();
-	}
+	THROW_IF_REACTOR_DISABLED
 
 	zend_long timeout;
 	zend_object * callback;
@@ -192,10 +188,7 @@ PHP_FUNCTION(Async_repeat)
 
 PHP_FUNCTION(Async_onSignal)
 {
-	if (UNEXPECTED(false == reactor_is_enabled())) {
-		async_throw_error("The operation is not available without an active reactor");
-		RETURN_THROWS();
-	}
+	THROW_IF_REACTOR_DISABLED
 
 	zend_long signal;
 	zend_object * callback;

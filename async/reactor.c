@@ -56,6 +56,11 @@ void reactor_add_handle(reactor_handle_t *handle)
 	reactor_add_handle_ex_fn(handle);
 }
 
+static zend_bool reactor_is_active_no(reactor_handle_t *handle)
+{
+	return false;
+}
+
 static void reactor_handle_method_no(reactor_handle_t *handle)
 {
 	async_throw_error("Reactor API method handle_method not implemented");
@@ -135,6 +140,7 @@ static reactor_handle_t* reactor_thread_new(THREAD_T tread_id, zend_ulong events
 reactor_startup_t reactor_startup_fn = reactor_startup;
 reactor_shutdown_t reactor_shutdown_fn = reactor_shutdown;
 
+reactor_is_active_method_t reactor_is_active_fn = reactor_is_active_no;
 reactor_handle_method_t reactor_add_handle_ex_fn = reactor_handle_method_no;
 reactor_handle_method_t reactor_remove_handle_fn = reactor_handle_method_no;
 reactor_is_listening_method_t reactor_is_listening_fn = reactor_is_listening_no;

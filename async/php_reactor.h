@@ -52,6 +52,12 @@ typedef void (*reactor_stop_t)(void);
 typedef zend_bool (*reactor_loop_alive_t)(void);
 
 /**
+ * reactor_is_active_method_t - Function pointer type for checking if the event loop is active.
+ * This function returns whether the event loop is currently running.
+ */
+typedef zend_bool (*reactor_is_active_method_t)(void);
+
+/**
  * reactor_handle_method_t - Function pointer type for operating on an event handle.
  * This function performs an action on the specified handle.
  */
@@ -134,6 +140,7 @@ ZEND_API reactor_loop_alive_t reactor_loop_alive_fn;
 ZEND_API reactor_startup_t reactor_startup_fn;
 ZEND_API reactor_shutdown_t reactor_shutdown_fn;
 
+ZEND_API reactor_is_active_method_t reactor_is_active_fn;
 ZEND_API reactor_handle_method_t reactor_add_handle_ex_fn;
 ZEND_API reactor_handle_method_t reactor_remove_handle_fn;
 ZEND_API reactor_is_listening_method_t reactor_is_listening_fn;

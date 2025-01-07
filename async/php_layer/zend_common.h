@@ -140,6 +140,12 @@ static zend_always_inline zend_object* zend_object_internal_create(const size_t 
 
 #define DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry) type *var = (type *) zend_object_internal_create(sizeof(type), class_entry)
 
+zend_always_inline void zend_property_array_index_update(HashTable *ht, zend_ulong h, zval *pData)
+{
+	SEPARATE_ARRAY(ht);
+	zend_hash_index_update(ht, h, pData);
+}
+
 /**
  * Creates a new weak reference to the given zval.
  *

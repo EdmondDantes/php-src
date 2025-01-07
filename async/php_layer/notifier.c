@@ -92,7 +92,7 @@ void async_notifier_add_callback(zend_object* notifier, zval* callback)
 	}
 
 	// Add the weak reference to the callbacks array.
-	zend_hash_index_update(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle, async_new_weak_reference_from(callback));
+	zend_property_array_index_update(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle, async_new_weak_reference_from(callback));
 
 	// Link the callback and the notifier together.
 	if (Z_OBJ_P(callback)->ce != async_ce_resume) {

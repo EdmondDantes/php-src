@@ -27,10 +27,14 @@
 #define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
-#define THROW_IF_REACTOR_IS_NOT_RUNNING if (UNEXPECTED(UVLOOP == NULL)) {				\
-		async_throw_error("Reactor is not running");									\
-		return NULL;																	\
-		}
+void libuv_startup(void);
+
+#define STARTUP_REACTOR_IF_NEED if (UNEXPECTED(UVLOOP == NULL)) {						\
+		libuv_startup();																\
+		if(UNEXPECTED(EG(exception) != NULL)) {											\
+			return NULL;																\
+		}																				\
+    }
 
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
@@ -258,7 +262,7 @@ static void on_timer_event(uv_timer_t *handle)
 
 static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_bool is_periodic)
 {
-	THROW_IF_REACTOR_IS_NOT_RUNNING
+	STARTUP_REACTOR_IF_NEED
 
 	if (timeout < 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid timeout", 0);
@@ -321,7 +325,7 @@ static void on_signal_event(uv_signal_t *handle, int sig_number)
 
 static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 {
-	THROW_IF_REACTOR_IS_NOT_RUNNING
+	STARTUP_REACTOR_IF_NEED
 
 	if (sig_number < 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid signal number", 0);
@@ -384,7 +388,7 @@ static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events,
 
 static reactor_handle_t* libuv_file_system_new(const char *path, const size_t length, const zend_ulong flags)
 {
-	THROW_IF_REACTOR_IS_NOT_RUNNING
+	STARTUP_REACTOR_IF_NEED
 
 	if (length == 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid path", 0);
@@ -714,6 +718,7 @@ static zend_bool libuv_loop_alive(void)
 static reactor_startup_t prev_reactor_startup_fn = NULL;
 static reactor_shutdown_t prev_reactor_shutdown_fn = NULL;
 
+static reactor_is_active_method_t prev_reactor_is_active_fn = NULL;
 static reactor_handle_method_t prev_reactor_add_handle_ex_fn = NULL;
 static reactor_handle_method_t prev_reactor_remove_handle_fn = NULL;
 static reactor_is_listening_method_t prev_reactor_is_listening_fn = NULL;
@@ -753,6 +758,9 @@ static void setup_handlers(void)
 
 	prev_reactor_loop_alive_fn = reactor_loop_alive_fn;
 	reactor_loop_alive_fn = libuv_loop_alive;
+
+	prev_reactor_is_active_fn = reactor_is_active_fn;
+	reactor_is_active_fn = libuv_loop_alive;
 
 	prev_reactor_add_handle_ex_fn = reactor_add_handle_ex_fn;
 	reactor_add_handle_ex_fn = libuv_add_handle;
@@ -799,6 +807,7 @@ static void restore_handlers(void)
 	reactor_startup_fn = prev_reactor_startup_fn;
 	reactor_shutdown_fn = prev_reactor_shutdown_fn;
 
+	reactor_is_active_fn = prev_reactor_is_active_fn;
 	reactor_add_handle_ex_fn = prev_reactor_add_handle_ex_fn;
 	reactor_remove_handle_fn = prev_reactor_remove_handle_fn;
 	reactor_is_listening_fn = prev_reactor_is_listening_fn;

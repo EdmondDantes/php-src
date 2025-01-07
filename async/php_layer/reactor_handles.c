@@ -29,7 +29,7 @@
 #include "reactor_handles_arginfo.h"
 #include "zend_common.h"
 
-#define THROW_IF_REACTOR_OFF \
+#define THROW_IF_REACTOR_DISABLED \
 	if (UNEXPECTED(reactor_is_enabled == false)) { \
 		async_throw_error("Failed to create event handle, no Reactor API implementation available"); \
 		return; \
@@ -128,7 +128,7 @@ PHP_METHOD(Async_PollHandle, stop)
 
 PHP_METHOD(Async_FileHandle, fromResource)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zval *zval_handle;
 	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
@@ -150,7 +150,7 @@ PHP_METHOD(Async_FileHandle, fromResource)
 
 PHP_METHOD(Async_SocketHandle, fromResource)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zval *zval_handle;
 	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
@@ -172,7 +172,7 @@ PHP_METHOD(Async_SocketHandle, fromResource)
 
 PHP_METHOD(Async_SocketHandle, fromSocket)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zval *zval_handle;
 	zend_long actions = ASYNC_READABLE | ASYNC_WRITABLE;
@@ -206,7 +206,7 @@ PHP_METHOD(Async_TimerHandle, stop)
 
 PHP_METHOD(Async_TimerHandle, newTimeout)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zend_long microseconds;
 
@@ -225,7 +225,7 @@ PHP_METHOD(Async_TimerHandle, newTimeout)
 
 PHP_METHOD(Async_TimerHandle, newInterval)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zend_long microseconds;
 
@@ -256,7 +256,7 @@ PHP_METHOD(Async_SignalHandle, stop)
 
 PHP_METHOD(Async_SignalHandle, new)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zend_long sig_number;
 
@@ -299,7 +299,7 @@ PHP_METHOD(Async_FileSystemHandle, stop)
 
 PHP_METHOD(Async_FileSystemHandle, fromPath)
 {
-	THROW_IF_REACTOR_OFF;
+	THROW_IF_REACTOR_DISABLED;
 
 	zval *path;
 	zend_long flags = 0;

@@ -143,7 +143,7 @@ void async_callback_registered(zend_object* callback, zend_object* notifier)
 
 	zval zval_notifier;
 	ZVAL_OBJ(&zval_notifier, notifier);
-	zend_hash_index_update(Z_ARRVAL_P(notifiers), notifier->handle, &zval_notifier);
+	zend_property_array_index_update(Z_ARRVAL_P(notifiers), notifier->handle, &zval_notifier);
 }
 
 /**
