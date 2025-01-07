@@ -97,8 +97,6 @@ static void async_callback_object_destroy(zend_object* object)
 			async_notifier_remove_callback(Z_OBJ_P(current), &current_object);
         }
 	ZEND_HASH_FOREACH_END();
-
-	zend_object_std_dtor(object);
 }
 
 void async_register_callback_ce(void)
