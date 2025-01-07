@@ -56,7 +56,7 @@ void reactor_add_handle(reactor_handle_t *handle)
 	reactor_add_handle_ex_fn(handle);
 }
 
-static zend_bool reactor_is_active_no(reactor_handle_t *handle)
+static zend_bool reactor_is_active_no(void)
 {
 	return false;
 }
@@ -66,7 +66,7 @@ static void reactor_handle_method_no(reactor_handle_t *handle)
 	async_throw_error("Reactor API method handle_method not implemented");
 }
 
-static bool reactor_is_listening_no(const zend_object *handle)
+static zend_bool reactor_is_listening_no(const reactor_handle_t *handle)
 {
 	zend_error(E_WARNING, "Reactor API method is_listening not implemented");
 	return false;
@@ -77,7 +77,7 @@ ZEND_API zend_bool reactor_is_enabled(void)
 	return reactor_startup_fn != reactor_startup;
 }
 
-static reactor_handle_t* reactor_handle_from_resource(zend_resource *resource, zend_ulong actions)
+static reactor_handle_t* reactor_handle_from_resource(zend_resource *resource, zend_ulong actions, REACTOR_HANDLE_TYPE expected_type)
 {
 	async_throw_error("Reactor API method handle_from_resource not implemented");
 	return NULL;

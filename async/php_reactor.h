@@ -67,7 +67,7 @@ typedef void (*reactor_handle_method_t)(reactor_handle_t *handle);
  * reactor_is_listening_method_t - Function pointer type for checking if a handle is listening.
  * This function returns whether the handle is currently listening for events.
  */
-typedef bool (*reactor_is_listening_method_t)(reactor_handle_t *handle);
+typedef zend_bool (*reactor_is_listening_method_t)(reactor_handle_t *handle);
 
 /**
  * reactor_handle_from_resource_t - Creates an event handle from a resource.

@@ -170,7 +170,7 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 	}
 }
 
-static void analyze_resume_waiting(const async_resume_t *resume)
+static void analyze_resume_waiting(async_resume_t *resume)
 {
     if (resume->status == ASYNC_RESUME_PENDING) {
         async_push_fiber_to_pending(resume);
@@ -313,10 +313,12 @@ void async_scheduler_launch(void)
 		ASYNC_G(in_scheduler_context) = false;
 		ASYNC_G(is_async) = false;
 		reactor_shutdown_fn();
+		zend_hash_clean(&ASYNC_G(defer_callbacks));
 		zend_bailout();
 	} zend_end_try();
 
 	ASYNC_G(in_scheduler_context) = false;
 	ASYNC_G(is_async) = false;
+	zend_hash_clean(&ASYNC_G(defer_callbacks));
 	reactor_shutdown_fn();
 }
