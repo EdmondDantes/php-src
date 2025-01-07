@@ -124,7 +124,7 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
 		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
-			async_resolve_weak_reference(current, &resolved_callback);
+			zend_resolve_weak_reference(current, &resolved_callback);
 
 			// Resume object and Callback object use different handlers.
 			if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {

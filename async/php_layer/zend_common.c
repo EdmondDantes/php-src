@@ -64,7 +64,7 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval)
  * @warning The method may return a ZVAL with the type NULL!
  * @warning You must call the dtor if the result is no longer needed!
  */
-void async_resolve_weak_reference(zval* weak_reference, zval* retval)
+void zend_resolve_weak_reference(zval* weak_reference, zval* retval)
 {
 	if (!get_fn) {
 
@@ -76,5 +76,5 @@ void async_resolve_weak_reference(zval* weak_reference, zval* retval)
 		}
 	}
 
-	zend_call_known_function(get_fn, Z_OBJ_P(weak_reference), weak_ref_ce, retval, 1, weak_reference, NULL);
+	zend_call_known_function(get_fn, Z_OBJ_P(weak_reference), weak_ref_ce, retval, 0, NULL, NULL);
 }

@@ -156,6 +156,8 @@ PHP_FUNCTION(Async_delay)
 	if (EG(exception) != NULL) {
 		RETURN_THROWS();
 	}
+
+	reactor_add_handle(handle);
 }
 
 PHP_FUNCTION(Async_repeat)

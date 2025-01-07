@@ -192,6 +192,6 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval);
  * - The function internally calls the `WeakReference::get` method to resolve the reference.
  * - The `retval` must be initialized and will contain the resulting object or NULL.
  */
-void async_resolve_weak_reference(zval* weak_reference, zval* retval);
+void zend_resolve_weak_reference(zval* weak_reference, zval* retval);
 
 #endif //ASYNC_ZEND_COMMON_H

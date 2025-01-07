@@ -169,7 +169,7 @@ zend_object * async_callback_resolve_resume(const zend_object* callback)
 	zval retval;
 	ZVAL_UNDEF(&retval);
 
-	async_resolve_weak_reference(resume_ref, &retval);
+	zend_resolve_weak_reference(resume_ref, &retval);
 
 	if (Z_TYPE(retval) == IS_NULL) {
         return NULL;
