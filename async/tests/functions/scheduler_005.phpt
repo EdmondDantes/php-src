@@ -7,7 +7,7 @@ Async\defer(function() {
     echo "defer 1\n";
 });
 
-Async\delay(1000, function() {
+Async\delay(2, function() {
     echo "timeout 1\n";
 });
 
