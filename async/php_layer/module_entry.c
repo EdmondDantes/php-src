@@ -144,6 +144,8 @@ PHP_FUNCTION(Async_delay)
 
 	async_notifier_add_callback(&handle->std, &callback);
 
+	OBJ_RELEASE(&handle->std);
+
 	if (is_callback_owned) {
 		zval_ptr_dtor(&callback);
 	}

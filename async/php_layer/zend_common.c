@@ -35,7 +35,7 @@ zend_always_inline zend_class_entry* async_get_weak_reference_ce()
 	return weak_ref_ce;
 }
 
-zval* async_new_weak_reference_from(const zval* referent)
+void zend_new_weak_reference_from(const zval* referent, zval * retval)
 {
 	if (!create_fn) {
 
@@ -47,18 +47,13 @@ zval* async_new_weak_reference_from(const zval* referent)
 		}
 	}
 
-	zval* retval = emalloc(sizeof(zval));
 	ZVAL_UNDEF(retval);
 
 	zend_call_known_function(create_fn, NULL, weak_ref_ce, retval, 1, (zval*) referent, NULL);
 
 	if (UNEXPECTED(Z_TYPE_P(retval) == IS_NULL || Z_ISUNDEF_P(retval))) {
 		zend_error(E_WARNING, "Failed to invoke WeakReference::create");
-		efree(retval);
-		return NULL;
 	}
-
-	return retval;
 }
 
 /**

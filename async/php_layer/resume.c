@@ -170,7 +170,7 @@ METHOD(when)
 
 	zval zval_notifier;
 	ZVAL_PTR(&zval_notifier, resume_notifier);
-	zend_property_array_index_update(&resume->notifiers, Z_OBJ_P(notifier)->handle, &zval_notifier);
+	zend_hash_index_update(&resume->notifiers, Z_OBJ_P(notifier)->handle, &zval_notifier);
 
 	GC_ADDREF(Z_OBJ_P(notifier));
 
@@ -322,7 +322,7 @@ ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *noti
 
 	zval zval_notifier;
 	ZVAL_PTR(&zval_notifier, resume_notifier);
-	zend_property_array_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
+	zend_hash_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
 
 	GC_ADDREF(&notifier->std);
 
@@ -395,7 +395,10 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, z
 
 	zval zval_notifier;
 	ZVAL_OBJ(&zval_notifier, &notifier->std);
-	zend_property_array_index_update(resume->triggered_notifiers, notifier->std.handle, &zval_notifier);
+
+	if (EXPECTED(zend_hash_index_update(resume->triggered_notifiers, notifier->std.handle, &zval_notifier) != NULL)) {
+		Z_TRY_ADDREF_P(&zval_notifier);
+	}
 
 	/**
 	 * The callback can be of two types:

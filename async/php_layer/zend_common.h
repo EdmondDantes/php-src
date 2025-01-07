@@ -140,10 +140,13 @@ static zend_always_inline zend_object* zend_object_internal_create(const size_t 
 
 #define DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry) type *var = (type *) zend_object_internal_create(sizeof(type), class_entry)
 
-zend_always_inline void zend_property_array_index_update(HashTable *ht, zend_ulong h, zval *pData)
+zend_always_inline void zend_property_array_index_update(zval *property, zend_ulong h, zval *pData)
 {
-	SEPARATE_ARRAY(ht);
-	zend_hash_index_update(ht, h, pData);
+	SEPARATE_ARRAY(property);
+
+	if (EXPECTED(zend_hash_index_update(Z_ARRVAL_P(property), h, pData) != NULL)) {
+		Z_TRY_ADDREF_P(pData);
+	}
 }
 
 /**
@@ -154,6 +157,7 @@ zend_always_inline void zend_property_array_index_update(HashTable *ht, zend_ulo
  * retrieves and caches the method reference from the `WeakReference` class during the first call.
  *
  * @param referent  A constant pointer to the zval that will be referenced weakly.
+ * @param retval    A pointer to a zval that will hold the weak reference object.
  *
  * @return A pointer to a newly allocated zval containing the weak reference object,
  *         or NULL if the creation fails.
@@ -165,10 +169,8 @@ zend_always_inline void zend_property_array_index_update(HashTable *ht, zend_ulo
  *   a warning is issued, and the allocated memory is freed.
  * - The caller is responsible for managing the returned zval, which must be freed using
  *   `zval_ptr_dtor()` when no longer needed.
- * - The function performs dynamic allocation for the return value (`retval`), ensuring
- *   the resulting object is heap-allocated and safe to return.
  */
-zval* async_new_weak_reference_from(const zval* referent);
+void zend_new_weak_reference_from(const zval* referent, zval * retval);
 
 /**
  * Resolves a weak reference to its underlying object.

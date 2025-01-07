@@ -124,7 +124,14 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
 		return FAILURE;
 	}
 
-	zval_property_move(resume_current, async_new_weak_reference_from(resume));
+	zval weak_reference;
+	zend_new_weak_reference_from(resume, &weak_reference);
+
+	if (UNEXPECTED(Z_TYPE(weak_reference) == IS_UNDEF)) {
+		return FAILURE;
+	}
+
+	zval_property_move(resume_current, &weak_reference);
 
 	return SUCCESS;
 }
@@ -135,7 +142,7 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
  */
 void async_callback_registered(zend_object* callback, zend_object* notifier)
 {
-    const zval* notifiers = async_callback_get_zval_notifiers(callback);
+    zval* notifiers = async_callback_get_zval_notifiers(callback);
 
 	if (zend_hash_index_find(Z_ARRVAL_P(notifiers), notifier->handle) != NULL) {
         return;
@@ -143,7 +150,7 @@ void async_callback_registered(zend_object* callback, zend_object* notifier)
 
 	zval zval_notifier;
 	ZVAL_OBJ(&zval_notifier, notifier);
-	zend_property_array_index_update(Z_ARRVAL_P(notifiers), notifier->handle, &zval_notifier);
+	zend_property_array_index_update(notifiers, notifier->handle, &zval_notifier);
 }
 
 /**
