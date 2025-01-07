@@ -1,5 +1,5 @@
 --TEST--
-launchScheduler with async function
+Scheduler with async function
 --FILE--
 <?php
 

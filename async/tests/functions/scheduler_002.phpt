@@ -1,5 +1,5 @@
 --TEST--
-launchScheduler empty start
+Scheduler empty start
 --FILE--
 <?php
 

@@ -27,6 +27,11 @@
 #define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
+#define THROW_IF_REACTOR_IS_NOT_RUNNING if (UNEXPECTED(UVLOOP == NULL)) {				\
+		async_throw_error("Reactor is not running");									\
+		return NULL;																	\
+		}
+
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
 static zend_object_handlers libuv_object_handlers;
@@ -253,6 +258,8 @@ static void on_timer_event(uv_timer_t *handle)
 
 static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_bool is_periodic)
 {
+	THROW_IF_REACTOR_IS_NOT_RUNNING
+
 	if (timeout < 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid timeout", 0);
 		return NULL;
@@ -273,7 +280,7 @@ static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_boo
 		return NULL;
 	}
 
-	int error = uv_timer_init(object->uv_handle->loop, object->uv_handle);
+	int error = uv_timer_init(UVLOOP, object->uv_handle);
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize timer handle: %s", uv_strerror(error));
@@ -314,6 +321,8 @@ static void on_signal_event(uv_signal_t *handle, int sig_number)
 
 static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 {
+	THROW_IF_REACTOR_IS_NOT_RUNNING
+
 	if (sig_number < 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid signal number", 0);
 		return NULL;
@@ -334,7 +343,7 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 		return NULL;
 	}
 
-	int error = uv_signal_init(object->uv_handle->loop, object->uv_handle);
+	int error = uv_signal_init(UVLOOP, object->uv_handle);
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
@@ -375,6 +384,8 @@ static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events,
 
 static reactor_handle_t* libuv_file_system_new(const char *path, const size_t length, const zend_ulong flags)
 {
+	THROW_IF_REACTOR_IS_NOT_RUNNING
+
 	if (length == 0) {
 		zend_throw_exception(zend_ce_type_error, "Invalid path", 0);
 		return NULL;
@@ -395,7 +406,7 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 		return NULL;
 	}
 
-	int error = uv_fs_event_init(object->uv_handle->loop, object->uv_handle);
+	int error = uv_fs_event_init(UVLOOP, object->uv_handle);
 
 	if (error < 0) {
 		async_throw_error("Failed to initialize file system event handle: %s", uv_strerror(error));

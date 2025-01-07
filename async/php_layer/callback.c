@@ -40,11 +40,6 @@ static zend_object_handlers async_callback_handlers;
 
 METHOD(__construct)
 {
-	if (EG(active_fiber) == NULL) {
-		zend_throw_exception_ex(zend_ce_error, 0, "Callbacks can only be created within a Fiber");
-		RETURN_THROWS();
-	}
-
 	zval* callable;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -56,7 +51,10 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	ZVAL_OBJ_COPY(GET_PROPERTY_FIBER(), (zend_object *) EG(active_fiber));
+	if (EXPECTED(EG(active_fiber) != NULL)) {
+		ZVAL_OBJ_COPY(GET_PROPERTY_FIBER(), (zend_object *) EG(active_fiber));
+	}
+
 	zval_property_copy(GET_PROPERTY_CALLBACK(), callable);
 }
 
@@ -234,8 +232,11 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 
 	//
 	// If an exception occurred during the callback execution, we need to transfer it to the Fiber.
+	// (if callback is executed within the Fiber)
 	//
-	if (EG(exception) != NULL) {
+	zval * fiber = async_callback_get_fiber(callback);
+
+	if (UNEXPECTED(EG(exception) != NULL && Z_TYPE_P(fiber) == IS_OBJECT)) {
 		async_transfer_throw_to_fiber((zend_fiber *) Z_OBJ_P(async_callback_get_fiber(callback)), EG(exception));
 		zend_clear_exception();
 	}
