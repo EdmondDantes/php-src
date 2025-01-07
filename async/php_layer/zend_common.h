@@ -191,6 +191,7 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval);
  * - If the method cannot be found, a core error is triggered, terminating execution.
  * - The function internally calls the `WeakReference::get` method to resolve the reference.
  * - The `retval` must be initialized and will contain the resulting object or NULL.
+ * - You must call `zval_ptr_dtor()` to decrement the reference count of the returned object.
  */
 void zend_resolve_weak_reference(zval* weak_reference, zval* retval);
 
