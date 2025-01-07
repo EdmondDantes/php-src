@@ -210,6 +210,8 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_obje
  */
 ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
 
+ZEND_API void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation);
+
 /**
  * Transfers an exception to the specified fiber and schedules it for resumption.
  *

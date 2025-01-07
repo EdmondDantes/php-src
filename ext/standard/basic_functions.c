@@ -121,6 +121,10 @@ PHPAPI php_basic_globals basic_globals;
 # include <sanitizer/msan_interface.h>
 #endif
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 typedef struct _user_tick_function_entry {
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
@@ -1131,6 +1135,13 @@ PHP_FUNCTION(sleep)
 		RETURN_THROWS();
 	}
 
+#ifdef PHP_ASYNC
+    if (IS_ASYNC_ON) {
+        async_await_timeout((unsigned int) num * 1000, NULL);
+        RETURN_LONG(0);
+    }
+#endif
+
 	RETURN_LONG(php_sleep((unsigned int)num));
 }
 /* }}} */
@@ -1148,6 +1159,13 @@ PHP_FUNCTION(usleep)
 		zend_argument_value_error(1, "must be greater than or equal to 0");
 		RETURN_THROWS();
 	}
+
+#ifdef PHP_ASYNC
+    if (IS_ASYNC_ON) {
+        async_await_timeout((unsigned int) num, NULL);
+        RETURN_LONG(0);
+    }
+#endif
 
 #ifdef HAVE_USLEEP
 	usleep((unsigned int)num);
