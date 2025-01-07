@@ -705,6 +705,10 @@ static void libuv_loop_stop(void)
 
 static zend_bool libuv_loop_alive(void)
 {
+	if (UVLOOP == NULL) {
+		return false;
+	}
+
     return uv_loop_alive(UVLOOP);
 }
 

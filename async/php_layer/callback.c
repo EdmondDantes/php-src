@@ -190,7 +190,11 @@ zend_object * async_callback_resolve_resume(const zend_object* callback)
  */
 void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
 {
-	zval * defer_callback = zend_hash_index_find(&ASYNC_G(defer_callbacks), callback->handle);
+	zval * defer_callback = NULL;
+
+	if (HT_IS_INITIALIZED(&ASYNC_G(defer_callbacks))) {
+		defer_callback = zend_hash_index_find(&ASYNC_G(defer_callbacks), callback->handle);
+	}
 
 	zval * property_callback = async_callback_get_callback(callback);
 

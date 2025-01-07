@@ -307,7 +307,7 @@ void async_scheduler_launch(void)
 				break;
 			}
 
-		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0);
+		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0 || reactor_loop_alive_fn());
 
 	} zend_catch {
 		ASYNC_G(in_scheduler_context) = false;
