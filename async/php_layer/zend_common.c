@@ -78,3 +78,17 @@ void zend_resolve_weak_reference(zval* weak_reference, zval* retval)
 
 	zend_call_known_function(get_fn, Z_OBJ_P(weak_reference), weak_ref_ce, retval, 0, NULL, NULL);
 }
+
+zif_handler zend_hook_php_function(const char *name, const size_t len, zif_handler new_function)
+{
+	zend_function *original = zend_hash_str_find_ptr(CG(function_table), name, len);
+
+	if (original == NULL) {
+		return NULL;
+	}
+
+	zif_handler original_handler = original->internal_function.handler;
+	original->internal_function.handler = new_function;
+
+	return original_handler;
+}

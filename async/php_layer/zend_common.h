@@ -195,4 +195,6 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval);
  */
 void zend_resolve_weak_reference(zval* weak_reference, zval* retval);
 
+zif_handler zend_hook_php_function(const char *name, const size_t len, zif_handler new_function);
+
 #endif //ASYNC_ZEND_COMMON_H
