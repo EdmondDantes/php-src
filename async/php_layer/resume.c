@@ -288,6 +288,15 @@ void async_register_resume_ce(void)
 
 async_resume_t * async_resume_new(zend_fiber * fiber)
 {
+	if (fiber == NULL) {
+		fiber = EG(active_fiber);
+	}
+
+	if (UNEXPECTED(fiber) == NULL) {
+		zend_error(E_CORE_WARNING, "Cannot create a new Resume object outside of a Fiber");
+		return NULL;
+	}
+
 	zval object;
 
 	// Create a new object without calling the constructor
@@ -296,23 +305,35 @@ async_resume_t * async_resume_new(zend_fiber * fiber)
 	}
 
 	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(&object);
-
-	if (fiber != NULL) {
-		resume->fiber = fiber;
-	}
+	resume->fiber = fiber;
 
 	return resume;
 }
 
-ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *notifier, async_resume_when_callback_t callback)
+ZEND_API void async_resume_when(
+		async_resume_t				*resume,
+		reactor_notifier_t			*notifier,
+		const bool					trans_notifier,
+		const async_resume_when_callback_t callback
+	)
 {
 	if (UNEXPECTED(callback == NULL)) {
 		zend_error(E_WARNING, "Callback cannot be NULL");
+
+		if (trans_notifier) {
+			OBJ_RELEASE(&notifier->std);
+		}
+
 		return;
 	}
 
 	if (UNEXPECTED(zend_hash_index_find(&resume->notifiers, notifier->std.handle) != NULL)) {
 		zend_error(E_WARNING, "Callback or notifier already registered");
+
+		if (trans_notifier) {
+			OBJ_RELEASE(&notifier->std);
+		}
+
 		return;
 	}
 
@@ -324,12 +345,22 @@ ZEND_API void async_resume_when(async_resume_t *resume, reactor_notifier_t *noti
 	ZVAL_PTR(&zval_notifier, resume_notifier);
 	zend_hash_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
 
-	GC_ADDREF(&notifier->std);
+	if (false == trans_notifier) {
+		GC_ADDREF(&notifier->std);
+	}
 
 	zval z_callback;
-	ZVAL_PTR(&z_callback, resume);
+	ZVAL_OBJ(&z_callback, &resume->std);
 
 	async_notifier_add_callback(&notifier->std, &z_callback);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		zend_hash_index_del(&resume->notifiers, notifier->std.handle);
+
+		if (trans_notifier) {
+			OBJ_RELEASE(&notifier->std);
+		}
+	}
 }
 
 ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)

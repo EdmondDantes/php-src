@@ -87,6 +87,9 @@ void async_notifier_add_callback(zend_object* notifier, zval* callback)
 {
 	zval* callbacks = async_notifier_get_callbacks(notifier);
 
+	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
+		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
+
 	if (zend_hash_index_find(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle) != NULL) {
 		return;
 	}
@@ -111,6 +114,9 @@ void async_notifier_add_callback(zend_object* notifier, zval* callback)
  */
 void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 {
+	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
+		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
+
 	HashTable * callbacks = Z_ARRVAL_P(async_notifier_get_callbacks(notifier));
 
 	if (EXPECTED(HT_IS_INITIALIZED(callbacks))) {

@@ -127,12 +127,15 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 #pragma endregion
 //===============================================================
 
-zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume)
+zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume, const bool transfer_resume)
 {
 	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
 		async_throw_error("Failed to push the Fiber into the pending queue.");
 	} else {
-		GC_ADDREF(&resume->std);
+		if (false == transfer_resume) {
+			GC_ADDREF(&resume->std);
+		}
+
 		GC_ADDREF(&resume->fiber->std);
 	}
 }
@@ -274,7 +277,7 @@ void async_start_fiber(zend_fiber * fiber)
 	resume->status = ASYNC_RESUME_SUCCESS;
 	ZVAL_NULL(&resume->result);
 
-	async_push_fiber_to_pending(resume);
+	async_push_fiber_to_pending(resume, true);
 }
 
 void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error)
@@ -318,7 +321,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		async_add_fiber_state(resume->fiber, resume);
 	}
 
-	async_push_fiber_to_pending(resume);
+	async_push_fiber_to_pending(resume, false);
 }
 
 void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
@@ -391,8 +394,8 @@ void async_await(async_resume_t *resume)
 		goto finally;
 	}
 
-	if (resume->status != ASYNC_RESUME_PENDING) {
-		async_throw_error("Attempt to use a Resume object that is not in the ASYNC_RESUME_PENDING state.");
+	if (resume->status != ASYNC_RESUME_NO_STATUS) {
+		async_throw_error("Attempt to use a Resume object that is not in the ASYNC_RESUME_NO_STATUS state.");
 		goto finally;
     }
 
@@ -489,12 +492,12 @@ void async_await_resource(
 
 	// Add timer handle if a timeout is specified.
 	if (timeout > 0) {
-		async_resume_when(resume, reactor_timer_new_fn(timeout, false), async_resume_when_callback_cancel);
+		async_resume_when(resume, reactor_timer_new_fn(timeout, false), true, async_resume_when_callback_cancel);
 	}
 
 	// Add cancellation handle if it is specified.
 	if (cancellation != NULL) {
-        async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+        async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
     }
 
 	async_await(resume);
@@ -511,10 +514,10 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 {
 	async_resume_t *resume = async_resume_new(NULL);
 
-	async_resume_when(resume, reactor_signal_new_fn(sig_number), async_resume_when_callback_resolve);
+	async_resume_when(resume, reactor_signal_new_fn(sig_number), true, async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
-		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+		async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
 	}
 
 	async_await(resume);
@@ -541,16 +544,16 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 
 	async_resume_t *resume = async_resume_new(NULL);
 
-	async_resume_when(resume, reactor_timer_new_fn(timeout, false), async_resume_when_callback_resolve);
+	async_resume_when(resume, reactor_timer_new_fn(timeout, false), true, async_resume_when_callback_resolve);
 
 	if (cancellation != NULL) {
-		async_resume_when(resume, cancellation, async_resume_when_callback_cancel);
+		async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
 	}
 
 	async_await(resume);
 
 	// Release the reference to the resume object.
-	GC_DELREF(&resume->std);
+	OBJ_RELEASE(&resume->std);
 }
 
 static zend_always_inline zend_ulong poll2_events_to_async(const short events)
@@ -622,31 +625,25 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		return -1;
 	}
 
-	reactor_handle_t *handle = NULL;
-
 	if (timeout > 0) {
-		handle = reactor_timer_new_fn(timeout, false);
-
-		if (EG(exception) || handle == NULL) {
-            goto finally;
-        }
-
-		async_resume_when(resume, handle, async_resume_when_callback_timeout);
+		async_resume_when(
+			resume,
+			reactor_timer_new_fn(timeout, false),
+			true,
+			async_resume_when_callback_timeout
+		);
 		IF_EXCEPTION_GOTO_ERROR;
-		OBJ_RELEASE(&handle->std);
 	}
 
 	for (unsigned int i = 0; i < nfds; i++) {
-		handle = reactor_socket_new_fn(ufds[i].fd, poll2_events_to_async(ufds[i].events));
-
-		if (EG(exception) || handle == NULL) {
-			goto finally;
-		}
-
-		async_resume_when(resume, handle, async_resume_when_callback_resolve);
+		async_resume_when(
+			resume,
+			reactor_socket_new_fn(ufds[i].fd, poll2_events_to_async(ufds[i].events)),
+			true,
+			async_resume_when_callback_resolve
+		);
 
 		IF_EXCEPTION_GOTO_ERROR;
-		OBJ_RELEASE(&handle->std);
 	}
 
 	async_await(resume);
@@ -678,10 +675,6 @@ finally:
 	if (EXPECTED(resume != NULL)) {
 		OBJ_RELEASE(&resume->std);
 	}
-
-	if (EXPECTED(handle != NULL)) {
-        OBJ_RELEASE(&handle->std);
-    }
 
 	return result;
 
