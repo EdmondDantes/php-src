@@ -429,9 +429,12 @@ void async_await(async_resume_t *resume)
 	zval *notifier;
 
 	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
-		if (Z_TYPE_P(notifier) == IS_OBJECT) {
 
-			reactor_add_handle((reactor_handle_t *) Z_OBJ_P(notifier));
+		ZEND_ASSERT(Z_TYPE_P(notifier) == IS_PTR && "Invalid notifier in the resume->notifiers");
+
+		if (EXPECTED(Z_TYPE_P(notifier) == IS_PTR)) {
+
+			reactor_add_handle(((async_resume_notifier_t *) Z_PTR_P(notifier))->notifier);
 
 			if (EG(exception) != NULL) {
 				goto finally;

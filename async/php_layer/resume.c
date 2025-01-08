@@ -438,7 +438,7 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, z
 	 */
 	if (Z_TYPE(resume_notifier->callback) == IS_PTR) {
 
-		const async_resume_when_callback_t resume_callback = Z_PTR_P(known_notifier);
+		const async_resume_when_callback_t resume_callback = Z_PTR(resume_notifier->callback);
 		resume_callback(resume, notifier, event, error);
 
 	} else if (zend_is_callable(&resume_notifier->callback, 0, NULL)) {
