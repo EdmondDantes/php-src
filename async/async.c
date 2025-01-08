@@ -389,17 +389,17 @@ void async_await(async_resume_t *resume)
 		resume = async_resume_new(NULL);
 	}
 
-	if (resume == NULL) {
+	if (UNEXPECTED(resume == NULL)) {
 		async_throw_error("Failed to create a new Resume object");
 		goto finally;
 	}
 
-	if (resume->status != ASYNC_RESUME_NO_STATUS) {
+	if (UNEXPECTED(resume->status != ASYNC_RESUME_NO_STATUS)) {
 		async_throw_error("Attempt to use a Resume object that is not in the ASYNC_RESUME_NO_STATUS state.");
 		goto finally;
     }
 
-	if (resume->fiber != EG(active_fiber)) {
+	if (UNEXPECTED(resume->fiber != EG(active_fiber))) {
 		async_throw_error("Attempt to use a Resume object that is not associated with the current Fiber.");
 	    goto finally;
     }
@@ -409,21 +409,13 @@ void async_await(async_resume_t *resume)
 	if (state == NULL) {
 		state = async_add_fiber_state(resume->fiber, NULL);
 
-		if (state == NULL) {
+		if (UNEXPECTED(state == NULL)) {
 			async_throw_error("Failed to create Fiber state");
 			goto finally;
         }
 	}
 
-	if (UNEXPECTED(state->resume != NULL && state->resume != resume)) {
-		state->resume->status = ASYNC_RESUME_NO_STATUS;
-		OBJ_RELEASE(&state->resume->std);
-		GC_ADDREF(&resume->std);
-		state->resume = resume;
-	} else if (state->resume == NULL) {
-		GC_ADDREF(&resume->std);
-		state->resume = resume;
-	}
+	state->resume = resume;
 
 	//
 	// Add all notifiers to the event loop.
