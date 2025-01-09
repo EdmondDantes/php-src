@@ -1205,7 +1205,7 @@ PHPAPI void _php_emit_fd_setsize_warning(int max_fd)
 PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
 {
 #ifdef PHP_ASYNC
-	if (UNEXPECTED(IS_ASYNC_ALLOWED)) {
+	if (UNEXPECTED(IN_ASYNC_CONTEXT)) {
 		return async_poll2(ufds, nfds, timeout);
 	}
 #endif

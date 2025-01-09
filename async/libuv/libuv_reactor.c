@@ -169,9 +169,9 @@ static zend_always_inline void libuv_poll_init(libuv_poll_t * poll)
 		return;
 	}
 
-	int error = uv_poll_init_socket(poll->uv_handle->loop, poll->uv_handle, poll->poll.socket);
+	int error = uv_poll_init_socket(UVLOOP, poll->uv_handle, poll->poll.socket);
 #else
-	int error = uv_poll_init(poll->uv_handle->loop, poll->uv_handle, poll->poll.file);
+	int error = uv_poll_init(UVLOOP, poll->uv_handle, poll->poll.file);
 #endif
 
 	if (error < 0) {
@@ -474,7 +474,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
             return;
         }
 
-		int error = uv_poll_start(poll->uv_handle, poll->poll.events, on_poll_event);
+		const int error = uv_poll_start(poll->uv_handle, poll->poll.events, on_poll_event);
 
 		if (error < 0) {
 			async_throw_error("Failed to start poll handle: %s", uv_strerror(error));
@@ -490,7 +490,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
     		return;
     	}
 
-    	int error = uv_timer_start(
+    	const int error = uv_timer_start(
     		timer->uv_handle,
     		on_timer_event,
     		Z_LVAL(timer->timer.microseconds),
@@ -511,7 +511,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
         	return;
         }
 
-    	int error = uv_signal_start(signal->uv_handle, on_signal_event, (int) Z_LVAL(signal->signal.number));
+    	const int error = uv_signal_start(signal->uv_handle, on_signal_event, (int) Z_LVAL(signal->signal.number));
 
     	if (error < 0) {
     		async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
@@ -527,7 +527,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
         	return;
         }
 
-    	int error = uv_fs_event_start(
+    	const int error = uv_fs_event_start(
     		fs_event->uv_handle, on_fs_event, Z_STRVAL(fs_event->fs_event.path), Z_LVAL(fs_event->fs_event.flags)
 		);
 

@@ -79,7 +79,7 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
 #define IS_ASYNC_OFF (ASYNC_G(is_async) == false)
 
-#define IS_ASYNC_ALLOWED EG(active_fiber) == NULL && IS_ASYNC_ON
+#define IN_ASYNC_CONTEXT EG(active_fiber) != NULL && IS_ASYNC_ON
 
 //
 // Definitions compatibles with proc_open()

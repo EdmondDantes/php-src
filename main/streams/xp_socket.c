@@ -19,6 +19,10 @@
 #include "streams/php_streams_int.h"
 #include "php_network.h"
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 #if defined(PHP_WIN32) || defined(__riscos__)
 # undef AF_UNIX
 #endif
@@ -69,6 +73,17 @@ static ssize_t php_sockop_write(php_stream *stream, const char *buf, size_t coun
 	else
 		ptimeout = &sock->timeout;
 
+#if defined(PHP_ASYNC) && defined(PHP_WIN32)
+	if (IN_ASYNC_CONTEXT && sock->is_blocked) {
+		//
+		// Only for Windows, we need to set the socket to non-blocking mode
+		// to make it work with async I/O.
+		//
+		u_long mode = true;
+		ioctlsocket(sock->socket, FIONBIO, &mode);
+	}
+#endif
+
 retry:
 	didwrite = send(sock->socket, buf, XP_SOCK_BUF_SIZE(count), (sock->is_blocked && ptimeout) ? MSG_DONTWAIT : 0);
 
@@ -116,6 +131,16 @@ retry:
 	if (didwrite > 0) {
 		php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
 	}
+
+#if defined(PHP_ASYNC) && defined(PHP_WIN32)
+	if (IN_ASYNC_CONTEXT && sock->is_blocked) {
+		//
+		// Only for Windows, we need to set the socket back to blocking mode after all the I/O.
+		//
+		u_long mode = false;
+		ioctlsocket(sock->socket, FIONBIO, &mode);
+	}
+#endif
 
 	return didwrite;
 }
