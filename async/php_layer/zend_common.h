@@ -140,12 +140,16 @@ zend_always_inline zend_object* zend_object_internal_create(const size_t obj_siz
 
 #define DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry) type *var = (type *) zend_object_internal_create(sizeof(type), class_entry)
 
-zend_always_inline void zend_property_array_index_update(zval *property, zend_ulong h, zval *pData)
+zend_always_inline void zend_property_array_index_update(zval *property, zend_ulong h, zval *pData, const bool is_transfer_data)
 {
 	SEPARATE_ARRAY(property);
 
 	if (EXPECTED(zend_hash_index_update(Z_ARRVAL_P(property), h, pData) != NULL)) {
-		Z_TRY_ADDREF_P(pData);
+		if (false == is_transfer_data) {
+			Z_TRY_ADDREF_P(pData);
+		}
+	} else if (is_transfer_data) {
+		zval_ptr_dtor(pData);
 	}
 }
 

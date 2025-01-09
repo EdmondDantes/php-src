@@ -80,8 +80,8 @@ PHP_FUNCTION(Async_async)
 		RETURN_THROWS();
 	}
 
-	zval_ptr_dtor(&zval_fiber);
-
+	// Transfer fiber ownership to the scheduler
+	// (no need to release the fiber handle in this case)
 	async_start_fiber(fiber_handle->fiber);
 
 	RETURN_OBJ(&fiber_handle->handle.std);

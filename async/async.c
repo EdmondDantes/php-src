@@ -110,12 +110,11 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 {
 	async_fiber_state_t *state = async_find_fiber_state(fiber);
 
-	if (state == NULL || state->resume == NULL) {
+	if (state == NULL) {
 		return;
 	}
 
-	state->resume->status = ASYNC_RESUME_NO_STATUS;
-	OBJ_RELEASE(&state->resume->std);
+	ZEND_ASSERT(state->resume == NULL && "Fiber state must not have a resume object.");
 	state->resume = NULL;
 
 	if (zend_hash_index_del(&ASYNC_G(fibers_state), fiber->std.handle) == FAILURE) {
@@ -260,19 +259,12 @@ void async_start_fiber(zend_fiber * fiber)
 	async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
-		async_add_fiber_state(resume->fiber, resume, true);
-	} else {
-
-		if (state->resume != NULL) {
-			state->resume->status = ASYNC_RESUME_NO_STATUS;
-			OBJ_RELEASE(&state->resume->std);
-		}
-
-		state->resume = resume;
+		state = async_add_fiber_state(resume->fiber, NULL, true);
 	}
 
 	resume->status = ASYNC_RESUME_SUCCESS;
 	ZVAL_NULL(&resume->result);
+	state->resume = resume;
 
 	async_push_fiber_to_deferred_resume(resume, true);
 }
@@ -316,6 +308,8 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 
 	if (state == NULL) {
 		async_add_fiber_state(resume->fiber, resume, false);
+	} else {
+		state->resume = resume;
 	}
 
 	async_push_fiber_to_deferred_resume(resume, false);
@@ -343,6 +337,7 @@ void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
 	const async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
+		// TODO: async_resume_new???
 		state = async_add_fiber_state(fiber, async_resume_new(fiber), false);
 	}
 
@@ -411,8 +406,6 @@ void async_await(async_resume_t *resume)
 			goto finally;
         }
 	}
-
-	state->resume = resume;
 
 	//
 	// Add all notifiers to the event loop.

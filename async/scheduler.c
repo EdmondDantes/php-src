@@ -115,10 +115,18 @@ static void execute_next_fiber(void)
 	zval retval;
 	ZVAL_UNDEF(&retval);
 
+	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
+	ZEND_ASSERT(state != NULL && "Fiber state not found but required");
+
+	if (EXPECTED(state != NULL)) {
+		state->resume = NULL;
+	}
+
 	// After the fiber is resumed, the resume object is no longer needed.
 	// So we need to release the reference to the object before resuming the fiber.
 	// Copy the resume object status and fiber to local variables.
 	ASYNC_RESUME_STATUS status = resume->status;
+	resume->status = ASYNC_RESUME_NO_STATUS;
 	zend_fiber *fiber = resume->fiber;
 	zval result = resume->result;
 	ZVAL_UNDEF(&resume->result);
