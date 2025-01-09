@@ -100,12 +100,11 @@ static zend_bool handle_callbacks(zend_bool no_wait)
 
 static void execute_next_fiber(void)
 {
-	if (circular_buffer_is_empty(&ASYNC_G(pending_fibers))) {
-        return;
-    }
+	async_resume_t *resume = async_next_deferred_resume();
 
-	async_resume_t *resume;
-	circular_buffer_pop(&ASYNC_G(pending_fibers), &resume);
+	if (resume == NULL) {
+		return;
+	}
 
 	if (resume->status == ASYNC_RESUME_PENDING) {
 		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
@@ -116,53 +115,57 @@ static void execute_next_fiber(void)
 	zval retval;
 	ZVAL_UNDEF(&retval);
 
-	if (EXPECTED(resume->status == ASYNC_RESUME_SUCCESS)) {
+	// After the fiber is resumed, the resume object is no longer needed.
+	// So we need to release the reference to the object before resuming the fiber.
+	// Copy the resume object status and fiber to local variables.
+	ASYNC_RESUME_STATUS status = resume->status;
+	zend_fiber *fiber = resume->fiber;
+	zval result = resume->result;
+	ZVAL_UNDEF(&resume->result);
 
-		if (UNEXPECTED(resume->fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
-			zend_fiber_start(resume->fiber, &retval);
+	zend_object * error = resume->error;
+	resume->error = NULL;
+
+	OBJ_RELEASE(&resume->std);
+
+	if (EXPECTED(status == ASYNC_RESUME_SUCCESS)) {
+
+		if (UNEXPECTED(fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
+			zend_fiber_start(fiber, &retval);
 		} else {
-			zend_fiber_resume(resume->fiber, &resume->result, &retval);
+			zend_fiber_resume(fiber, &result, &retval);
 		}
 
 	} else {
 
-		if (UNEXPECTED(resume->fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
+		if (UNEXPECTED(fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
 			zend_error(E_WARNING, "Attempt to resume with error a fiber that has not been started");
-			zend_fiber_start(resume->fiber, &retval);
+			zend_fiber_start(fiber, &retval);
 		} else {
 			zval zval_error;
-			ZVAL_OBJ(&zval_error, resume->error);
-			zend_fiber_resume_exception(resume->fiber, &zval_error, &retval);
+			ZVAL_OBJ(&zval_error, error);
+			zend_fiber_resume_exception(fiber, &zval_error, &retval);
 		}
 	}
 
 	// Free fiber if it is completed
-	if (resume->fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
-		OBJ_RELEASE(&resume->fiber->std);
+	if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
+		OBJ_RELEASE(&fiber->std);
 	}
 
-	OBJ_RELEASE(&resume->std);
+	if (error != NULL) {
+		OBJ_RELEASE(error);
+	}
+
+	zval_ptr_dtor(&result);
 	zval_ptr_dtor(&retval);
-}
-
-zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume, bool transfer_resume)
-{
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
-		async_throw_error("Failed to push the Fiber into the pending queue.");
-	} else {
-		if (false == transfer_resume) {
-			GC_ADDREF(&resume->std);
-		}
-
-		GC_ADDREF(&resume->fiber->std);
-	}
 }
 
 static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 {
 	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
 		// TODO: create resume object
-		async_push_fiber_to_pending(NULL, true);
+		async_push_fiber_to_deferred_resume(NULL, true);
 	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
 		// Just remove the fiber from the list
 		OBJ_RELEASE(&fiber->std);
@@ -178,7 +181,7 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 static void analyze_resume_waiting(async_resume_t *resume)
 {
     if (resume->status == ASYNC_RESUME_PENDING) {
-        async_push_fiber_to_pending(resume, false);
+        async_push_fiber_to_deferred_resume(resume, false);
     }
 }
 
@@ -297,7 +300,7 @@ void async_scheduler_launch(void)
 			execute_microtasks_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			has_handles = execute_callbacks_handler(circular_buffer_is_not_empty(&ASYNC_G(pending_fibers)));
+			has_handles = execute_callbacks_handler(circular_buffer_is_not_empty(&ASYNC_G(deferred_resumes)));
 			TRY_HANDLE_EXCEPTION();
 
 			execute_microtasks_handler();
@@ -308,7 +311,7 @@ void async_scheduler_launch(void)
 			execute_next_fiber_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(pending_fibers)) && check_deadlocks()) {
+			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(deferred_resumes)) && check_deadlocks()) {
 				break;
 			}
 

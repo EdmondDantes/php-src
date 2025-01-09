@@ -40,6 +40,8 @@ METHOD(__construct)
 
 	THIS(status) = ASYNC_RESUME_NO_STATUS;
 	THIS(fiber) = EG(active_fiber);
+
+	GC_ADDREF(&EG(active_fiber)->std);
 }
 
 METHOD(resume)
@@ -244,6 +246,8 @@ static void async_resume_object_destroy(zend_object* object)
 			state->resume = NULL;
 		}
 
+		OBJ_RELEASE(&resume->fiber->std);
+
 		resume->fiber = NULL;
 	}
 
@@ -306,6 +310,7 @@ async_resume_t * async_resume_new(zend_fiber * fiber)
 
 	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(&object);
 	resume->fiber = fiber;
+	GC_ADDREF(&fiber->std);
 
 	return resume;
 }

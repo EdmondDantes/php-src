@@ -56,7 +56,7 @@ void async_globals_dtor(zend_async_globals *async_globals)
 	async_globals->in_scheduler_context = false;
 
 	circular_buffer_dtor(&async_globals->microtasks);
-	circular_buffer_dtor(&async_globals->pending_fibers);
+	circular_buffer_dtor(&async_globals->deferred_resumes);
 	zend_hash_destroy(&async_globals->fibers_state);
 	zend_hash_destroy(&async_globals->defer_callbacks);
 }
@@ -70,7 +70,7 @@ void async_globals_ctor(zend_async_globals *async_globals)
 	async_globals->in_scheduler_context = false;
 
 	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->pending_fibers, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
+	circular_buffer_ctor(&async_globals->deferred_resumes, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
 	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
 	zend_hash_init(&async_globals->defer_callbacks, 8, NULL, ZVAL_PTR_DTOR, 1);
 
@@ -126,19 +126,6 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 //===============================================================
 #pragma endregion
 //===============================================================
-
-zend_always_inline void async_push_fiber_to_pending(async_resume_t *resume, const bool transfer_resume)
-{
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(pending_fibers), &resume, true) == FAILURE)) {
-		async_throw_error("Failed to push the Fiber into the pending queue.");
-	} else {
-		if (false == transfer_resume) {
-			GC_ADDREF(&resume->std);
-		}
-
-		GC_ADDREF(&resume->fiber->std);
-	}
-}
 
 /**
  * Copy of zend_fetch_resource2
@@ -223,6 +210,7 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber)
  *
  * @param fiber A pointer to the zend_fiber to associate with the newly created state.
  * @param resume A pointer to the async_resume_t that manages the resumption logic for the fiber.
+ * @param transfer_fiber A flag indicating whether the fiber should be transferred Refcounts.
  *
  * @return A pointer to the newly allocated async_fiber_state_t structure, or NULL if memory allocation fails.
  *
@@ -233,7 +221,7 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber)
  * @warning The function assumes the fiber is valid and has a handle. If the fiber is destroyed without
  * notifying the Async State, it may lead to undefined behavior.
  */
-static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_resume_t *resume)
+static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_resume_t *resume, const bool transfer_fiber)
 {
 	async_fiber_state_t * state = pecalloc(1, sizeof(async_fiber_state_t), 1);
 
@@ -247,7 +235,16 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	zval zv;
 	ZVAL_PTR(&zv, state);
 
-	zend_hash_index_update(&ASYNC_G(fibers_state), fiber->std.handle, &zv);
+	if (zend_hash_index_update(&ASYNC_G(fibers_state), fiber->std.handle, &zv) != NULL) {
+		//
+		// From this point, the Fiber belongs to the Scheduler.
+		// The reference count will be decremented in the execute_next_fiber method
+		// when the Fiber completes its execution.
+		//
+		if (false == transfer_fiber) {
+			GC_ADDREF(&fiber->std);
+		}
+    }
 
 	return state;
 }
@@ -263,7 +260,7 @@ void async_start_fiber(zend_fiber * fiber)
 	async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
-		async_add_fiber_state(resume->fiber, resume);
+		async_add_fiber_state(resume->fiber, resume, true);
 	} else {
 
 		if (state->resume != NULL) {
@@ -277,7 +274,7 @@ void async_start_fiber(zend_fiber * fiber)
 	resume->status = ASYNC_RESUME_SUCCESS;
 	ZVAL_NULL(&resume->result);
 
-	async_push_fiber_to_pending(resume, true);
+	async_push_fiber_to_deferred_resume(resume, true);
 }
 
 void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error)
@@ -318,10 +315,10 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
 
 	if (state == NULL) {
-		async_add_fiber_state(resume->fiber, resume);
+		async_add_fiber_state(resume->fiber, resume, false);
 	}
 
-	async_push_fiber_to_pending(resume, false);
+	async_push_fiber_to_deferred_resume(resume, false);
 }
 
 void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
@@ -346,7 +343,7 @@ void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
 	const async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
-		state = async_add_fiber_state(fiber, async_resume_new(fiber));
+		state = async_add_fiber_state(fiber, async_resume_new(fiber), false);
 	}
 
 	// Inherit exception from state-fiber if exists.
@@ -407,7 +404,7 @@ void async_await(async_resume_t *resume)
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
 
 	if (state == NULL) {
-		state = async_add_fiber_state(resume->fiber, NULL);
+		state = async_add_fiber_state(resume->fiber, NULL, false);
 
 		if (UNEXPECTED(state == NULL)) {
 			async_throw_error("Failed to create Fiber state");

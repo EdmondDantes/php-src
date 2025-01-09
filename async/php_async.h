@@ -21,6 +21,8 @@
 #include "async/php_scheduler.h"
 #include "async/internal/circular_buffer.h"
 #include "async/php_layer/resume.h"
+#include "php_layer/exceptions.h"
+#include "zend_fibers.h"
 
 #define ASYNC_READABLE 1
 #define ASYNC_WRITABLE 2
@@ -38,7 +40,7 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	// Microtask and fiber queues
 	circular_buffer_t microtasks;
 	/* Queue of resume objects: async_resume_t */
-	circular_buffer_t pending_fibers;
+	circular_buffer_t deferred_resumes;
 	/* List of async_fiber_state_t  */
 	HashTable fibers_state;
 	/* List of deferred callbacks */
@@ -89,6 +91,41 @@ typedef DWORD async_process_id_t;
 typedef int async_file_descriptor_t;
 typedef pid_t async_process_id_t;
 #endif
+
+zend_always_inline void async_push_fiber_to_deferred_resume(async_resume_t *resume, const bool transfer_resume)
+{
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(deferred_resumes), &resume, true) == FAILURE)) {
+		async_throw_error("Failed to push the Fiber into the pending queue.");
+	} else {
+
+		//
+		// When the resume object enters the deferred queue,
+		// its reference count is incremented, and after extraction, it is decremented.
+		// However, the Fiber does not modify its reference count in any way.
+		//
+
+		if (false == transfer_resume) {
+			GC_ADDREF(&resume->std);
+		}
+	}
+}
+
+zend_always_inline async_resume_t * async_next_deferred_resume(void)
+{
+	if (circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
+		return NULL;
+	}
+
+	async_resume_t *resume;
+
+	if (UNEXPECTED(circular_buffer_pop(&ASYNC_G(deferred_resumes), &resume) == FAILURE)) {
+		ZEND_ASSERT("Failed to pop the Fiber from the pending queue.");
+		return NULL;
+	}
+
+	return resume;
+}
+
 
 BEGIN_EXTERN_C()
 
