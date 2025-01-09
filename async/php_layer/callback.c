@@ -47,7 +47,7 @@ METHOD(__construct)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (!zend_is_callable(callable, 0, NULL)) {
-		zend_throw_exception_ex(zend_ce_type_error, 0, "Expected parameter to be a valid callable");
+		zend_argument_value_error(1, "Expected parameter to be a valid callable");
 		RETURN_THROWS();
 	}
 
@@ -254,7 +254,7 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 	// If an exception occurred during the callback execution, we need to transfer it to the Fiber.
 	// (if callback is executed within the Fiber)
 	//
-	zval * fiber = async_callback_get_fiber(callback);
+	const zval * fiber = async_callback_get_fiber(callback);
 
 	if (UNEXPECTED(EG(exception) != NULL && Z_TYPE_P(fiber) == IS_OBJECT)) {
 		async_transfer_throw_to_fiber((zend_fiber *) Z_OBJ_P(async_callback_get_fiber(callback)), EG(exception));

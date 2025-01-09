@@ -30,8 +30,8 @@
 #include "module_entry_arginfo.h"
 
 #define THROW_IF_REACTOR_DISABLED if (UNEXPECTED(false == reactor_is_enabled())) {			\
-		async_throw_error("The operation is not available without an enabled reactor");	\
-		RETURN_THROWS();																\
+		async_throw_error("The operation is not available without an enabled reactor");		\
+		RETURN_THROWS();																	\
 	}
 
 PHP_FUNCTION(Async_launchScheduler)
@@ -113,7 +113,7 @@ PHP_FUNCTION(Async_delay)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (timeout < 0) {
-		async_throw_error("The timeout value must be greater than or equal to 0");
+		zend_argument_value_error(1, "The timeout value must be greater than or equal to 0");
 		RETURN_THROWS();
 	}
 
@@ -173,7 +173,7 @@ PHP_FUNCTION(Async_repeat)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (timeout < 0) {
-		async_throw_error("The timeout value must be greater than or equal to 0");
+		zend_argument_value_error(1, "The timeout value must be greater than or equal to 0");
 		RETURN_THROWS();
 	}
 

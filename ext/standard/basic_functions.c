@@ -1163,7 +1163,7 @@ PHP_FUNCTION(usleep)
 #ifdef PHP_ASYNC
     if (IS_ASYNC_ON) {
         async_await_timeout((unsigned int) num, NULL);
-        RETURN_LONG(0);
+        return;
     }
 #endif
 
