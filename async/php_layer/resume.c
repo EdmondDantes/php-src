@@ -398,7 +398,10 @@ ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
-	} else {
+	} else if (resume->status == ASYNC_RESUME_PENDING) {
+		//
+		// If the operation has not been completed yet, we will resume the Fiber with a timeout exception.
+		//
 		async_resume_fiber(resume, NULL, async_new_exception(async_ce_timeout_exception, "Operation has been cancelled by timeout"));
 	}
 }
