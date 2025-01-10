@@ -433,6 +433,7 @@ void async_await(async_resume_t *resume)
 	ZEND_HASH_FOREACH_END();
 
 	async_resume_pending(resume);
+	state->resume = resume;
 
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
 

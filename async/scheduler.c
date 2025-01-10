@@ -98,18 +98,18 @@ static zend_bool handle_callbacks(zend_bool no_wait)
 	return false;
 }
 
-static void execute_next_fiber(void)
+static bool execute_next_fiber(void)
 {
 	async_resume_t *resume = async_next_deferred_resume();
 
 	if (resume == NULL) {
-		return;
+		return false;
 	}
 
 	if (resume->status == ASYNC_RESUME_PENDING) {
 		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
 		GC_DELREF(&resume->std);
-		return;
+		return false;
 	}
 
 	zval retval;
@@ -167,16 +167,15 @@ static void execute_next_fiber(void)
 
 	zval_ptr_dtor(&result);
 	zval_ptr_dtor(&retval);
+
+	return true;
 }
 
 static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 {
 	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-		// TODO: create resume object
-		async_push_fiber_to_deferred_resume(NULL, true);
+		async_push_fiber_to_deferred_resume(async_resume_new(fiber), true);
 	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
-		// Just remove the fiber from the list
-		OBJ_RELEASE(&fiber->std);
 		zend_hash_index_del(&ASYNC_G(fibers_state), index);
 	} else {
 		async_throw_error(
@@ -316,10 +315,10 @@ void async_scheduler_launch(void)
 
 			ASYNC_G(in_scheduler_context) = false;
 
-			execute_next_fiber_handler();
+			bool was_executed = execute_next_fiber_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			if (false == has_handles && circular_buffer_is_empty(&ASYNC_G(deferred_resumes)) && check_deadlocks()) {
+			if (false == has_handles && false == was_executed && check_deadlocks()) {
 				break;
 			}
 

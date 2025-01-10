@@ -31,7 +31,7 @@ typedef zend_bool (*async_callbacks_handler_t)(zend_bool no_wait);
  * async_resume_next_fiber_handler_t - Function pointer type for resuming the next fiber in the queue.
  * This function continues execution of the next scheduled fiber.
  */
-typedef void (*async_next_fiber_handler_t)(void);
+typedef bool (*async_next_fiber_handler_t)(void);
 
 /**
  * async_execute_microtasks_handler_t - Function pointer type for executing pending microtasks.
