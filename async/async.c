@@ -300,7 +300,6 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		}
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;
-		GC_ADDREF(resume->error);
 		resume->error = error;
 	}
 
@@ -635,6 +634,11 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 	async_await(resume);
 
 	IF_EXCEPTION_GOTO_ERROR;
+
+	if (resume->triggered_notifiers == NULL) {
+		result = 0;
+		goto finally;
+	}
 
 	zval *notifier;
 	result = 0;
