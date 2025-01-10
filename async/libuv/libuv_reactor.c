@@ -298,6 +298,8 @@ static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_boo
 	ZVAL_LONG(&object->timer.microseconds, timeout);
 	ZVAL_BOOL(&object->timer.is_periodic, is_periodic);
 
+	object->std.handlers = &libuv_object_handlers;
+
 	return (reactor_handle_t *) object;
 }
 
@@ -357,6 +359,8 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 	}
 
 	ZVAL_LONG(&object->signal.number, sig_number);
+
+	object->std.handlers = &libuv_object_handlers;
 
 	return (reactor_handle_t *) object;
 }
@@ -421,6 +425,8 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 
 	ZVAL_STRINGL(&object->fs_event.path, path, length);
 	ZVAL_LONG(&object->fs_event.flags, flags);
+
+	object->std.handlers = &libuv_object_handlers;
 
 	return (reactor_handle_t *) object;
 }
@@ -641,18 +647,70 @@ static bool libuv_is_listening(reactor_handle_t *handle)
 	return false;
 }
 
+static void libuv_close_handle(reactor_handle_t *handle)
+{
+	zend_object *object = &handle->std;
+	uv_handle_t * uv_handle = NULL;
+
+	if (object->ce == async_ce_file_handle
+		|| object->ce == async_ce_socket_handle
+		|| object->ce == async_ce_pipe_handle
+		|| object->ce == async_ce_tty_handle) {
+
+		libuv_poll_t *poll = (libuv_poll_t *)object;
+
+		if (poll->uv_handle == NULL) {
+			return;
+		}
+
+		uv_handle = (uv_handle_t *) poll->uv_handle;
+		poll->uv_handle = NULL;
+
+		} else if (object->ce == async_ce_timer_handle) {
+
+			libuv_timer_t *timer = (libuv_timer_t *)object;
+
+			if (timer->uv_handle == NULL) {
+				return;
+			}
+
+			uv_handle = (uv_handle_t *) timer->uv_handle;
+
+		} else if (object->ce == async_ce_signal_handle) {
+
+			libuv_signal_t *signal = (libuv_signal_t *)object;
+
+			if (signal->uv_handle == NULL) {
+				return;
+			}
+
+			uv_handle = (uv_handle_t *) signal->uv_handle;
+
+		} else if (object->ce == async_ce_file_system_handle) {
+
+			libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
+
+			if (fs_event->uv_handle == NULL) {
+				return;
+			}
+
+			uv_handle = (uv_handle_t *) fs_event->uv_handle;
+
+		} else if (object->ce == async_ce_process_handle) {
+
+		} else if (object->ce == async_ce_thread_handle) {
+
+		}
+
+	if (uv_handle != NULL) {
+		uv_close(uv_handle, libuv_close_cb);
+	}
+}
+
 static void libuv_object_destroy(zend_object *object)
 {
-	libuv_handle_t * handle = (libuv_handle_t *) object;
-
-	if (handle->uv_handle == NULL) {
-		return;
-	}
-
-	libuv_remove_handle(&handle->handle);
-
-	uv_close(handle->uv_handle, libuv_close_cb);
-	handle->uv_handle = NULL;
+	libuv_remove_handle((reactor_handle_t *) object);
+	libuv_close_handle((reactor_handle_t *) object);
 }
 
 //=============================================================
