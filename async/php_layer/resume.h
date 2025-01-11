@@ -20,9 +20,10 @@
 
 typedef enum {
 	ASYNC_RESUME_NO_STATUS = 0,
-	ASYNC_RESUME_PENDING = 1,
+	ASYNC_RESUME_WAITING = 1,
 	ASYNC_RESUME_SUCCESS = 2,
 	ASYNC_RESUME_ERROR = 3,
+	ASYNC_RESUME_FINISHED = 4
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
@@ -92,7 +93,7 @@ ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor
 ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
 ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
 ZEND_API void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, zval* event, zval* error);
-ZEND_API void async_resume_pending(async_resume_t *resume);
+ZEND_API void async_resume_waiting(async_resume_t *resume);
 
 END_EXTERN_C()
 

@@ -106,7 +106,7 @@ static bool execute_next_fiber(void)
 		return false;
 	}
 
-	if (resume->status == ASYNC_RESUME_PENDING) {
+	if (resume->status == ASYNC_RESUME_WAITING) {
 		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
 		GC_DELREF(&resume->std);
 		return false;
@@ -187,7 +187,7 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 
 static void analyze_resume_waiting(async_resume_t *resume)
 {
-    if (resume->status == ASYNC_RESUME_PENDING) {
+    if (resume->status == ASYNC_RESUME_WAITING) {
         async_push_fiber_to_deferred_resume(resume, false);
     }
 }

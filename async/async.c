@@ -276,7 +276,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		return;
 	}
 
-	const bool is_pending = resume->status == ASYNC_RESUME_PENDING || resume->status == ASYNC_RESUME_NO_STATUS;
+	const bool is_pending = resume->status == ASYNC_RESUME_WAITING || resume->status == ASYNC_RESUME_NO_STATUS;
 
 	if (Z_TYPE(resume->result) != IS_UNDEF) {
 		ZVAL_PTR_DTOR(&resume->result);
@@ -431,7 +431,7 @@ void async_await(async_resume_t *resume)
 		}
 	ZEND_HASH_FOREACH_END();
 
-	async_resume_pending(resume);
+	async_resume_waiting(resume);
 	state->resume = resume;
 
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
@@ -439,7 +439,8 @@ void async_await(async_resume_t *resume)
 finally:
 
 	if (is_owned_resume) {
-        GC_DELREF(&resume->std);
+		ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
+        OBJ_RELEASE(&resume->std);
     }
 }
 
@@ -536,6 +537,8 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 	}
 
 	async_await(resume);
+
+	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 
 	// Release the reference to the resume object.
 	OBJ_RELEASE(&resume->std);

@@ -46,7 +46,7 @@ METHOD(__construct)
 
 METHOD(resume)
 {
-	if (THIS(status) != ASYNC_RESUME_PENDING) {
+	if (THIS(status) != ASYNC_RESUME_WAITING) {
 		async_throw_error("Cannot resume a non-pending operation");
 		return;
 	}
@@ -62,7 +62,7 @@ METHOD(resume)
 
 METHOD(throw)
 {
-	if (THIS(status) != ASYNC_RESUME_PENDING) {
+	if (THIS(status) != ASYNC_RESUME_WAITING) {
 		async_throw_error("Cannot resume a non-pending operation");
 		return;
 	}
@@ -78,7 +78,7 @@ METHOD(throw)
 
 METHOD(isPending)
 {
-	RETURN_BOOL(THIS(status) == ASYNC_RESUME_PENDING);
+	RETURN_BOOL(THIS(status) == ASYNC_RESUME_WAITING);
 }
 
 METHOD(isResolved)
@@ -398,7 +398,7 @@ ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
-	} else if (resume->status == ASYNC_RESUME_PENDING) {
+	} else if (resume->status == ASYNC_RESUME_WAITING) {
 		//
 		// If the operation has not been completed yet, we will resume the Fiber with a timeout exception.
 		//
@@ -471,9 +471,9 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, z
 	}
 }
 
-void async_resume_pending(async_resume_t *resume)
+void async_resume_waiting(async_resume_t *resume)
 {
-    resume->status = ASYNC_RESUME_PENDING;
+    resume->status = ASYNC_RESUME_WAITING;
 
 	if (resume->triggered_notifiers != NULL) {
         zend_array_release(resume->triggered_notifiers);
