@@ -276,7 +276,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		return;
 	}
 
-	const bool is_pending = resume->status == ASYNC_RESUME_WAITING || resume->status == ASYNC_RESUME_NO_STATUS;
+	const bool was_waiting = resume->status == ASYNC_RESUME_WAITING;
 
 	if (Z_TYPE(resume->result) != IS_UNDEF) {
 		ZVAL_PTR_DTOR(&resume->result);
@@ -311,7 +311,9 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 		state->resume = resume;
 	}
 
-	async_push_fiber_to_deferred_resume(resume, false);
+	if (was_waiting) {
+		async_push_fiber_to_deferred_resume(resume, false);
+	}
 }
 
 void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
