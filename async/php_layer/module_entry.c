@@ -56,6 +56,28 @@ PHP_FUNCTION(Async_await)
 	async_await((resume == NULL || ZVAL_IS_NULL(resume)) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
 }
 
+PHP_FUNCTION(Async_run)
+{
+	zval * callable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	zval zval_fiber;
+	zval params[1];
+
+	ZVAL_COPY_VALUE(&params[0], callable);
+
+	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
+		RETURN_THROWS();
+	}
+
+	// Transfer fiber ownership to the scheduler
+	// (no need to release the fiber handle in this case)
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
+}
+
 PHP_FUNCTION(Async_async)
 {
 	zval * callable;

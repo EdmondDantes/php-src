@@ -17,6 +17,11 @@ function launchScheduler(): void {}
 function await(?Resume $resume = null): void {}
 
 /**
+ * Create a new Fiber that will execute the specified task.
+ */
+function run(callable $task): void {}
+
+/**
  * Creates a coroutine (Fiber) that will execute as soon as an opportunity arises.
  */
 function async(callable $task): FiberHandle {}
