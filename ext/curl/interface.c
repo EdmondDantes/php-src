@@ -66,6 +66,7 @@
 #endif
 
 #include "curl_arginfo.h"
+#include "curl_async.h"
 
 #ifdef PHP_CURL_NEED_OPENSSL_TSL /* {{{ */
 static MUTEX_T *php_curl_openssl_tsl = NULL;

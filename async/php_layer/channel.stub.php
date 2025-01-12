@@ -5,8 +5,8 @@
 namespace Async;
 
 class ChannelException extends \Exception {}
-class ChannelWasClosed extends \Exception {}
-class ChannelIsFull extends \Exception {}
+class ChannelWasClosed extends ChannelException {}
+class ChannelIsFull extends ChannelException {}
 
 /**
  * @strict-properties
@@ -14,7 +14,13 @@ class ChannelIsFull extends \Exception {}
  */
 class Channel
 {
-    public function __construct(int $capacity = 8, bool $expandable = false) {}
+    public const int SEND = 1;
+    public const int RECEIVE = 2;
+    public const int BIDIRECTIONAL = 3;
+
+    public readonly ?\Fiber $ownerFiber = null;
+
+    public function __construct(int $capacity = 8, int $direction = RECEIVE, bool $expandable = false) {}
 
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true):
     void {}
@@ -38,6 +44,10 @@ class Channel
     public function getCapacity(): int {}
 
     public function getUsed(): int {}
+
+    public function getDirection(): int {}
+
+    public function transferOwnership(\Fiber $fiber): void {}
 }
 
 final class ThreadChannel extends Channel
