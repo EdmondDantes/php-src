@@ -4,6 +4,36 @@
 
 namespace Async;
 
+interface ProducerInterface
+{
+    public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void;
+    public function sendAsync(mixed $data): void;
+    public function close(): void;
+    public function transferOwnership(\Fiber $fiber): void;
+}
+
+interface ConsumerInterface
+{
+    public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed;
+    public function receiveAsync(): mixed;
+}
+
+interface ChannelStateInterface
+{
+    public function isClosed(): bool;
+    public function isFull(): bool;
+    public function isEmpty(): bool;
+    public function isNotEmpty(): bool;
+    public function getCapacity(): int;
+    public function getUsed(): int;
+    public function getDirection(): int;
+}
+
+interface ChannelInterface extends ProducerInterface, ConsumerInterface, ChannelStateInterface
+{
+    public function getNotifier(): Notifier;
+}
+
 class ChannelException extends \Exception {}
 class ChannelWasClosed extends ChannelException {}
 class ChannelIsFull extends ChannelException {}
@@ -12,7 +42,7 @@ class ChannelIsFull extends ChannelException {}
  * @strict-properties
  * @not-serializable
  */
-class Channel
+class Channel implements ChannelInterface
 {
     public const int SEND = 1;
     public const int RECEIVE = 2;
@@ -48,6 +78,8 @@ class Channel
     public function getDirection(): int {}
 
     public function transferOwnership(\Fiber $fiber): void {}
+
+    public function getNotifier(): Notifier {}
 }
 
 final class ThreadChannel extends Channel
