@@ -702,7 +702,152 @@ error:
 //===============================================================
 PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tv)
 {
-	
+	int result = 0;
+	fd_set aread, awrite, aexcept;
+
+	/* As max_fd is unsigned, non socket might overflow. */
+	if (max_fd > (php_socket_t)INT_MAX) {
+		return -1;
+	}
+
+	async_resume_t *resume = async_resume_new(NULL);
+
+	if(resume == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	ULONGLONG ms_total;
+
+	/* calculate how long we need to wait in milliseconds */
+	if (tv == NULL) {
+		ms_total = INFINITE;
+	} else {
+		ms_total = tv->tv_sec * 1000;
+		ms_total += tv->tv_usec / 1000;
+	}
+
+	if (ms_total != INFINITE) {
+		async_resume_when(
+			resume,
+			reactor_timer_new_fn(ms_total, false),
+			true,
+			async_resume_when_callback_timeout
+		);
+		IF_EXCEPTION_GOTO_ERROR;
+	}
+
+#define SAFE_FD_ISSET(fd, set)	(set != NULL && FD_ISSET(fd, set))
+
+	/* build an array of handles for non-sockets */
+	for (int i = 0; (uint32_t)i < max_fd; i++) {
+
+		bool is_socket = false;
+		async_file_descriptor_t fh = 0;
+
+#ifdef PHP_WIN32
+
+		fh = (HANDLE)(uintptr_t)_get_osfhandle(i);
+
+		if (fh == INVALID_HANDLE_VALUE) {
+			/* socket */
+			is_socket = true;
+		}
+#else
+		fh = (async_file_descriptor_t) i;
+#endif
+
+		int events = 0;
+		reactor_handle_t *handle = NULL;
+
+		if (SAFE_FD_ISSET(i, rfds)) {
+			events |= ASYNC_READABLE;
+		}
+
+		if (SAFE_FD_ISSET(i, wfds)) {
+			events |= ASYNC_WRITABLE;
+		}
+
+		if (SAFE_FD_ISSET(i, efds)) {
+			events |= ASYNC_PRIORITIZED;
+		}
+
+		if (is_socket) {
+			handle = reactor_socket_new_fn(i, events);
+		} else {
+			handle = reactor_file_new_fn(fh, events);
+		}
+
+		async_resume_when(
+			resume,
+			handle,
+			true,
+			async_resume_when_callback_resolve
+		);
+
+		IF_EXCEPTION_GOTO_ERROR;
+	}
+
+	FD_ZERO(&aread);
+	FD_ZERO(&awrite);
+	FD_ZERO(&aexcept);
+
+	async_await(resume);
+
+	IF_EXCEPTION_GOTO_ERROR;
+
+	if (resume->triggered_notifiers == NULL) {
+		result = 0;
+		goto finally;
+	}
+
+	zval *notifier;
+	result = 0;
+
+	// calculation how many descriptors are ready
+	ZEND_HASH_FOREACH_VAL(resume->triggered_notifiers, notifier) {
+		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_poll_handle)) {
+			result++;
+
+			const reactor_poll_t *poll = (reactor_poll_t *)Z_OBJ_P(notifier);
+
+			// Find the same socket in the ufds array
+			for (int i = 0; (uint32_t)i < max_fd; i++) {
+				if (i == poll->socket) {
+					revents = async_events_to_poll2(Z_LVAL(poll->triggered_events));
+					break;
+				}
+			}
+		}
+	} ZEND_HASH_FOREACH_END();
+
+finally:
+
+	if (EXPECTED(resume != NULL)) {
+		OBJ_RELEASE(&resume->std);
+	}
+
+	return result;
+
+error:
+
+	errno = EINTR;
+	result = -1;
+
+	if (EG(exception)) {
+		zend_object *error = EG(exception);
+		zend_clear_exception();
+
+		if (error->ce == async_ce_cancellation_exception) {
+			errno = ECANCELED;
+		} else if (error->ce == async_ce_timeout_exception) {
+			errno = ETIMEDOUT;
+		} else {
+			zend_exception_error(error, E_WARNING);
+		}
+	}
+
+	goto finally;
 }
 //===============================================================
 #pragma endregion
