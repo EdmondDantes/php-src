@@ -22,28 +22,10 @@
 
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_context = NULL;
-ZEND_TLS uv_loop_t *loop;
+ZEND_TLS reactor_handle_t * timer = NULL;
 
-void poll_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void process_curl_completed_handles(void)
 {
-	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
-	const zend_long events = Z_LVAL_P(z_event);
-	int action = 0;
-
-	if (events & ASYNC_READABLE) {
-		action |= CURL_CSELECT_IN;
-	}
-
-	if (events & ASYNC_WRITABLE) {
-		action |= CURL_CSELECT_OUT;
-	}
-
-	if (Z_TYPE_P(error) == IS_OBJECT) {
-		action |= CURL_CSELECT_ERR;
-	}
-
-	curl_multi_socket_action(curl_multi_handle, handle->socket, action, NULL);
-
 	CURLMsg *msg;
 
 	while ((msg = curl_multi_info_read(curl_multi_handle, NULL))) {
@@ -64,7 +46,30 @@ void poll_callback(void * callback, reactor_notifier_t *notifier, const zval* z_
 	}
 }
 
-int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
+static void poll_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+{
+	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
+	const zend_long events = Z_LVAL_P(z_event);
+	int action = 0;
+
+	if (events & ASYNC_READABLE) {
+		action |= CURL_CSELECT_IN;
+	}
+
+	if (events & ASYNC_WRITABLE) {
+		action |= CURL_CSELECT_OUT;
+	}
+
+	if (Z_TYPE_P(error) == IS_OBJECT) {
+		action |= CURL_CSELECT_ERR;
+	}
+
+	curl_multi_socket_action(curl_multi_handle, handle->socket, action, NULL);
+
+	process_curl_completed_handles();
+}
+
+static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
 	const zval * resume = zend_hash_index_find(curl_multi_context, (zend_ulong) curl);
 
@@ -120,35 +125,68 @@ int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, vo
 	return 0;
 }
 
-int curl_timer_cb(CURLM *multi, long timeout_ms, void *user_p) {
+static void timer_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+{
+	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
+	process_curl_completed_handles();
+}
 
-	static uv_timer_t timer;
-
+static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
+{
 	if (timeout_ms < 0) {
-		uv_timer_stop(&timer);
+		if (timer != NULL) {
+			reactor_remove_handle_fn(timer);
+			OBJ_RELEASE(&timer->std);
+		}
+
 		return 0;
 	}
 
-	if (!uv_is_active((uv_handle_t *)&timer)) {
-		uv_timer_init(loop, &timer);
+	if (timer != NULL) {
+		reactor_remove_handle_fn(timer);
+		OBJ_RELEASE(&timer->std);
 	}
 
-	uv_timer_start(&timer, [](uv_timer_t *handle) {
-		curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
-	}, timeout_ms, 0);
+	timer = reactor_timer_new_fn(timeout_ms, false);
+
+	if (timer == NULL) {
+		return CURLM_INTERNAL_ERROR;
+	}
+
+	zval z_timer_callback;
+	ZVAL_PTR(&z_timer_callback, timer_callback);
+	async_notifier_add_callback(&timer->std, &z_timer_callback);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&timer->std);
+		zend_exception_to_warning("Failed to add timer callback: %s", true);
+		return CURLM_INTERNAL_ERROR;
+	}
+
+	reactor_add_handle(timer);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&timer->std);
+		zend_exception_to_warning("Failed to add timer handle: %s", true);
+		return CURLM_INTERNAL_ERROR;
+	}
 
 	return 0;
 }
 
-void async_curl_setup(void)
+void curl_async_setup(void)
 {
+	if (curl_multi_handle != NULL) {
+		return;
+	}
+
 	curl_multi_handle = curl_multi_init();
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 	curl_multi_context = zend_new_array(8);
 }
 
-void async_curl_shutdown(void)
+void curl_async_shutdown(void)
 {
 	if (curl_multi_handle != NULL) {
 		curl_multi_cleanup(curl_multi_handle);
@@ -163,6 +201,10 @@ void async_curl_shutdown(void)
 
 CURLcode curl_async_perform(CURL* curl)
 {
+	if (curl_multi_handle == NULL) {
+		curl_async_setup();
+	}
+
 	// Add curl handle to curl_multi_context
 	zval z_resume;
 	async_resume_t * resume = async_resume_new(NULL);

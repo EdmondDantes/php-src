@@ -13,7 +13,13 @@ if (PHP_CURL != "no") {
 		 CHECK_LIB("libssh2.lib", "curl", PHP_CURL) &&
 		 CHECK_LIB("nghttp2.lib", "curl", PHP_CURL))
 		) {
-		EXTENSION("curl", "interface.c multi.c share.c curl_file.c");
+
+        if (PHP_ASYNC != "no") {
+			EXTENSION("curl", "interface.c multi.c share.c curl_file.c curl_async.c");
+		} else {
+			EXTENSION("curl", "interface.c multi.c share.c curl_file.c");
+		}
+
 		AC_DEFINE('HAVE_CURL', 1, "Define to 1 if the PHP extension 'curl' is available.");
 		ADD_FLAG("CFLAGS_CURL", "/D CURL_STATICLIB /D PHP_CURL_EXPORTS=1");
 		PHP_INSTALL_HEADERS("ext/curl", "php_curl.h");

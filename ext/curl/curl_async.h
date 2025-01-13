@@ -18,9 +18,8 @@
 
 #include <curl/curl.h>
 
-struct _curl_async_context_s {
-
-};
+void curl_async_setup(void);
+void curl_async_shutdown(void);
 
 CURLcode curl_async_perform(CURL* curl);
 

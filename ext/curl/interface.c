@@ -59,6 +59,10 @@
 #include "ext/standard/url.h"
 #include "curl_private.h"
 
+#ifdef PHP_ASYNC
+#include "curl_async.h"
+#endif
+
 #ifdef __GNUC__
 /* don't complain about deprecated CURLOPT_* we're exposing to PHP; we
    need to keep using those to avoid breaking PHP API compatibility */
@@ -543,6 +547,9 @@ zend_result curl_cast_object(zend_object *obj, zval *result, int type)
 /* {{{ PHP_MSHUTDOWN_FUNCTION */
 PHP_MSHUTDOWN_FUNCTION(curl)
 {
+#ifdef PHP_ASYNC
+	curl_async_shutdown();
+#endif
 	curl_global_cleanup();
 #ifdef PHP_CURL_NEED_OPENSSL_TSL
 	if (php_curl_openssl_tsl) {
