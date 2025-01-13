@@ -18,6 +18,10 @@
 #include "php_network.h"
 #include "win32/time.h"
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 /* Win32 select() will only work with sockets, so we roll our own implementation here.
  * - If you supply only sockets, this simply passes through to winsock select().
  * - If you supply file handles, there is no way to distinguish between
@@ -43,6 +47,12 @@ PHPAPI int php_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *e
 	int sock_max_fd = -1;
 	struct timeval tvslice;
 	int retcode;
+
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT) {
+		return async_select(max_fd, rfds, wfds, efds, tv);
+	}
+#endif
 
 	/* As max_fd is unsigned, non socket might overflow. */
 	if (max_fd > (php_socket_t)INT_MAX) {

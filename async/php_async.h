@@ -289,6 +289,8 @@ ZEND_API void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *erro
  */
 ZEND_API int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
 
+ZEND_API int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tv);
+
 END_EXTERN_C()
 
 #endif //ASYNC_H
