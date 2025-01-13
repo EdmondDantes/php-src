@@ -514,10 +514,6 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 	GC_DELREF(&resume->std);
 }
 
-//===============================================================
-#pragma region POLL2 EMULATION
-//===============================================================
-
 /**
  * The method stops Fiber execution for a specified time.
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
@@ -545,6 +541,10 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 	// Release the reference to the resume object.
 	OBJ_RELEASE(&resume->std);
 }
+
+//===============================================================
+#pragma region POLL2 EMULATION
+//===============================================================
 
 static zend_always_inline zend_ulong poll2_events_to_async(const short events)
 {
