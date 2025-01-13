@@ -17,6 +17,8 @@
 #ifndef ASYNC_NOTIFIER_H
 #define ASYNC_NOTIFIER_H
 
+#include "php.h"
+
 BEGIN_EXTERN_C()
 
 ZEND_API zend_class_entry *async_ce_notifier;
