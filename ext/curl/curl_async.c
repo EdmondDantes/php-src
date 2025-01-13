@@ -16,11 +16,53 @@
 #include "curl_async.h"
 #include "Zend/zend_types.h"
 #include <uv.h>
+#include <zend_exceptions.h>
 #include <async/php_reactor.h>
+#include <async/php_layer/zend_common.h>
 
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_context = NULL;
 ZEND_TLS uv_loop_t *loop;
+
+void poll_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+{
+	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
+	const zend_long events = Z_LVAL_P(z_event);
+	int action = 0;
+
+	if (events & ASYNC_READABLE) {
+		action |= CURL_CSELECT_IN;
+	}
+
+	if (events & ASYNC_WRITABLE) {
+		action |= CURL_CSELECT_OUT;
+	}
+
+	if (Z_TYPE_P(error) == IS_OBJECT) {
+		action |= CURL_CSELECT_ERR;
+	}
+
+	curl_multi_socket_action(curl_multi_handle, handle->socket, action, NULL);
+
+	CURLMsg *msg;
+
+	while ((msg = curl_multi_info_read(curl_multi_handle, NULL))) {
+		if (msg->msg == CURLMSG_DONE) {
+
+			curl_multi_remove_handle(curl_multi_handle, msg->easy_handle);
+
+			const zval * resume = zend_hash_index_find(curl_multi_context, (zend_ulong) msg->easy_handle);
+
+			if (resume == NULL) {
+				continue;
+			}
+
+			zval result;
+			ZVAL_LONG(&result, msg->data.result);
+			async_resume_fiber((async_resume_t *) Z_OBJ_P(resume), &result, NULL);
+		}
+	}
+}
 
 int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
@@ -36,7 +78,9 @@ int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, vo
 			return 0;
 		}
 
+		curl_multi_assign(curl_multi_handle, ((reactor_poll_t *) socket_poll)->socket, NULL);
 		reactor_remove_handle_fn((reactor_handle_t *) socket_poll);
+		OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
 		return 0;
 	}
 
@@ -53,55 +97,30 @@ int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, vo
 		}
 
 		socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
+
+		if (socket_poll == NULL) {
+			return CURLM_BAD_SOCKET;
+		}
+
+		zval callback;
+		ZVAL_PTR(&callback, poll_callback);
+		async_notifier_add_callback(socket_poll, &callback);
+
+		if (EG(exception)) {
+			OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
+			zend_exception_to_warning("Failed to add poll callback: %s", true);
+			return CURLM_BAD_SOCKET;
+		}
+
 		curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
 
+		reactor_add_handle(socket_poll);
 	}
-
-	uv_poll_t *poll_handle = (uv_poll_t *)socket_poll;
-
-	if (what == CURL_POLL_REMOVE) {
-		if (poll_handle) {
-			uv_poll_stop(poll_handle);
-			uv_close((uv_handle_t *)poll_handle, free);
-		}
-
-		return 0;
-	}
-
-	if (!poll_handle) {
-		poll_handle = (uv_poll_t *)malloc(sizeof(uv_poll_t));
-		uv_poll_init(loop, poll_handle, socket_fd);
-		curl_multi_assign(curl_multi_handle, socket_fd, poll_handle);
-	}
-
-	int uv_events = 0;
-
-	if (what & CURL_POLL_IN) {
-		uv_events |= UV_READABLE;
-	}
-
-	if (what & CURL_POLL_OUT) {
-		uv_events |= UV_WRITABLE;
-	}
-
-	uv_poll_start(poll_handle, uv_events, [](uv_poll_t *handle, int status, int events) {
-		int action = 0;
-
-		if (events & UV_READABLE) {
-			action |= CURL_CSELECT_IN;
-		}
-
-		if (events & UV_WRITABLE) {
-			action |= CURL_CSELECT_OUT;
-		}
-
-		curl_multi_socket_action(curl_multi_handle, handle->io_watcher.fd, action, NULL);
-	});
 
 	return 0;
 }
 
-int curl_timer_cb(CURLM *multi, long timeout_ms, void *userp) {
+int curl_timer_cb(CURLM *multi, long timeout_ms, void *user_p) {
 
 	static uv_timer_t timer;
 

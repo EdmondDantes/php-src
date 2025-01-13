@@ -35,6 +35,28 @@ zend_always_inline zend_class_entry* async_get_weak_reference_ce()
 	return weak_ref_ce;
 }
 
+void zend_exception_to_warning(const char * format, const bool clean)
+{
+	if (EG(exception) == NULL) {
+		return;
+	}
+
+	zval rv;
+	const zval *message = zend_read_property_ex(
+		EG(exception)->ce, EG(exception), zend_known_strings[ZEND_STR_MESSAGE], 0, &rv
+	);
+
+	if (message == NULL) {
+		zend_error(E_WARNING, format, "No message");
+	} else {
+		zend_error(E_WARNING, format, Z_STRVAL_P(message));
+	}
+
+	if (clean) {
+		zend_clear_exception();
+	}
+}
+
 void zend_new_weak_reference_from(const zval* referent, zval * retval)
 {
 	if (!create_fn) {

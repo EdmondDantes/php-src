@@ -153,6 +153,8 @@ zend_always_inline void zend_property_array_index_update(zval *property, zend_ul
 	}
 }
 
+void zend_exception_to_warning(const char * format, const bool clean);
+
 /**
  * Creates a new weak reference to the given zval.
  *
