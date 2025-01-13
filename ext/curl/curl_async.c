@@ -22,34 +22,42 @@ ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_context = NULL;
 ZEND_TLS uv_loop_t *loop;
 
-int curl_socket_cb(CURL *easy, curl_socket_t socket_fd, int what, void *user_p, void *socket_data)
+int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
-	switch (what)
-	{
-		case CURL_POLL_IN:
-		{
-			break;
-		}
-		case CURL_POLL_OUT:
-		{
-			break;
-		}
-		case CURL_POLL_INOUT:
-		{
-			break;
-		}
-		case CURL_POLL_REMOVE:
-		{
-			break;
-		}
-		default:
-		{
-			break;
-		}
+	const zval * resume = zend_hash_index_find(curl_multi_context, (zend_ulong) curl);
+
+	if (resume == NULL) {
+		return 0;
 	}
 
+	if (what == CURL_POLL_REMOVE) {
 
-	uv_poll_t *poll_handle = (uv_poll_t *)socket_data;
+		if (socket_poll == NULL) {
+			return 0;
+		}
+
+		reactor_remove_handle_fn((reactor_handle_t *) socket_poll);
+		return 0;
+	}
+
+	if (socket_poll == NULL) {
+
+		zend_long events = 0;
+
+		if (what & CURL_POLL_IN) {
+			events |= UV_READABLE;
+		}
+
+		if (what & CURL_POLL_OUT) {
+			events |= UV_WRITABLE;
+		}
+
+		socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
+		curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
+
+	}
+
+	uv_poll_t *poll_handle = (uv_poll_t *)socket_poll;
 
 	if (what == CURL_POLL_REMOVE) {
 		if (poll_handle) {

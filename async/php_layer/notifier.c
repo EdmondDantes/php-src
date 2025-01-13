@@ -87,6 +87,19 @@ void async_notifier_add_callback(zend_object* notifier, zval* callback)
 {
 	zval* callbacks = async_notifier_get_callbacks(notifier);
 
+	if (Z_TYPE_P(callback) == IS_PTR) {
+
+		if (zend_hash_index_find(Z_ARRVAL_P(callbacks), Z_LVAL_P(callback)) != NULL) {
+			return;
+		}
+
+		if (UNEXPECTED(zend_hash_index_update(Z_ARRVAL_P(callbacks), Z_LVAL_P(callback), callback) == NULL)) {
+			async_throw_error("Failed to add callback to the notifier");
+		}
+
+		return;
+	}
+
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
 		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
 
@@ -119,7 +132,11 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 	HashTable * callbacks = Z_ARRVAL_P(async_notifier_get_callbacks(notifier));
 
 	if (EXPECTED(HT_IS_INITIALIZED(callbacks))) {
-		zend_hash_index_del(callbacks, Z_OBJ_P(callback)->handle);
+		if (Z_TYPE_P(callback) == IS_PTR) {
+			zend_hash_index_del(callbacks, Z_LVAL_P(callback));
+		} else {
+			zend_hash_index_del(callbacks, Z_OBJ_P(callback)->handle);
+		}
 	}
 }
 
@@ -152,6 +169,9 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 				zval_ptr_dtor(&resolved_callback);
 
 				IF_THROW_RETURN_VOID;
+			} else if (Z_TYPE_P(current) == IS_PTR) {
+				const async_notifier_callback_t callback = Z_PTR_P(current);
+				callback(callback, notifier, event, error);
 			}
 
 		IF_THROW_RETURN_VOID;
