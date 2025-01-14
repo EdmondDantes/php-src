@@ -18,11 +18,14 @@
 #include <uv.h>
 #include <zend_exceptions.h>
 #include <async/php_reactor.h>
+#include <async/php_layer/callback.h>
 #include <async/php_layer/zend_common.h>
 
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_context = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
+ZEND_TLS zend_object * poll_callback_obj = NULL;
+ZEND_TLS zend_object * timer_callback_obj = NULL;
 
 static void process_curl_completed_handles(void)
 {
@@ -107,8 +110,17 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 			return CURLM_BAD_SOCKET;
 		}
 
+		if (poll_callback_obj == NULL) {
+            poll_callback_obj = async_callback_new(poll_callback);
+
+            if (poll_callback_obj == NULL) {
+                OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
+                return CURLM_BAD_SOCKET;
+            }
+        }
+
 		zval callback;
-		ZVAL_PTR(&callback, poll_callback);
+		ZVAL_OBJ(&callback, poll_callback_obj);
 		async_notifier_add_callback(socket_poll, &callback);
 
 		if (EG(exception)) {
@@ -153,8 +165,17 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 		return CURLM_INTERNAL_ERROR;
 	}
 
+	if (timer_callback_obj == NULL) {
+		timer_callback_obj = async_callback_new(timer_callback);
+
+		if (timer_callback_obj == NULL) {
+            OBJ_RELEASE(&timer->std);
+            return CURLM_INTERNAL_ERROR;
+        }
+	}
+
 	zval z_timer_callback;
-	ZVAL_PTR(&z_timer_callback, timer_callback);
+	ZVAL_OBJ(&z_timer_callback, timer_callback_obj);
 	async_notifier_add_callback(&timer->std, &z_timer_callback);
 
 	if (UNEXPECTED(EG(exception))) {
@@ -184,10 +205,30 @@ void curl_async_setup(void)
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 	curl_multi_context = zend_new_array(8);
+
+	timer = NULL;
+	poll_callback_obj = NULL;
+	timer_callback_obj = NULL;
 }
 
 void curl_async_shutdown(void)
 {
+	if (timer != NULL) {
+        reactor_remove_handle_fn(timer);
+        OBJ_RELEASE(&timer->std);
+        timer = NULL;
+    }
+
+	if (poll_callback_obj != NULL) {
+        OBJ_RELEASE(poll_callback_obj);
+        poll_callback_obj = NULL;
+    }
+
+	if (timer_callback_obj != NULL) {
+        OBJ_RELEASE(timer_callback_obj);
+        timer_callback_obj = NULL;
+    }
+
 	if (curl_multi_handle != NULL) {
 		curl_multi_cleanup(curl_multi_handle);
 		curl_multi_handle = NULL;

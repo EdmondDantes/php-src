@@ -109,6 +109,20 @@ void async_register_callback_ce(void)
 	async_callback_handlers.clone_obj = NULL;
 }
 
+zend_object * async_callback_new(const async_callback_function_t callback)
+{
+	zval object;
+
+	// Create a new object without calling the constructor
+	if (object_init_ex(&object, async_ce_callback) == FAILURE) {
+		return NULL;
+	}
+
+	ZVAL_PTR(async_callback_get_callback(Z_OBJ_P(&object)), callback);
+
+	return Z_OBJ_P(&object);
+}
+
 /**
  * This method is used to bind the Callback and Resume object.
  *
@@ -183,7 +197,7 @@ zend_object * async_callback_resolve_resume(const zend_object* callback)
  *
  * The method calls the 'callable' with the notifier, event, and error.
  */
-void async_callback_notify(zend_object* callback, zend_object* notifier, const zval* event, const zval* error)
+void async_callback_notify(zend_object* callback, zend_object* notifier, zval* event, zval* error)
 {
 	zval * defer_callback = NULL;
 
@@ -199,6 +213,18 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, const z
 		}
 
         return;
+    }
+
+	// Support pure pointer callbacks.
+	if (Z_TYPE_P(property_callback) == IS_PTR) {
+    	const async_callback_function_t cb_function = Z_PTR_P(property_callback);
+    	cb_function(callback, notifier, event, error);
+
+		if (defer_callback != NULL) {
+			zend_hash_index_del(&ASYNC_G(defer_callbacks), callback->handle);
+		}
+
+    	return;
     }
 
 	if (false == zend_is_callable(property_callback, 0, NULL)) {

@@ -60,8 +60,11 @@ static zend_always_inline zval* async_callback_get_resume(zend_object* callback)
 	return &callback->properties_table[3];
 }
 
+typedef void (*async_callback_function_t)(zend_object * callback, zend_object *notifier, zval* event, zval* error);
+
 void async_register_callback_ce(void);
-void async_callback_notify(zend_object *callback, zend_object *notifier, const zval *event, const zval *error);
+zend_object * async_callback_new(async_callback_function_t callback);
+void async_callback_notify(zend_object *callback, zend_object *notifier, zval *event, zval *error);
 zend_result async_callback_bind_resume(zend_object* callback, const zval* resume);
 void async_callback_registered(zend_object* callback, zend_object* notifier);
 zend_object* async_callback_resolve_resume(const zend_object* callback);
