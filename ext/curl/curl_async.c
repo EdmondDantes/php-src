@@ -143,6 +143,15 @@ static void timer_callback(zend_object * callback, reactor_notifier_t *notifier,
 	process_curl_completed_handles();
 }
 
+static void curl_event_cb(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+{
+	if (notifier->std.ce == async_ce_timer_handle) {
+        timer_callback(callback, notifier, z_event, error);
+    } else {
+    	poll_callback(callback, notifier, z_event, error);
+    }
+}
+
 static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 {
 	if (timeout_ms < 0) {
@@ -278,5 +287,36 @@ CURLMcode curl_async_wait(
 	int timeout_ms,
 	int* ret)
 {
+	curl_async_context * context = emalloc(sizeof(curl_async_context));
 
+	if (context == NULL) {
+        return CURLM_OUT_OF_MEMORY;
+    }
+
+	context->curl_multi_handle = multi_handle;
+	context->timer = reactor_timer_new_fn(timeout_ms, false);
+	context->callback = async_callback_new(curl_event_cb);
+	context->resume = async_resume_new(NULL);
+
+	zval z_callback;
+	ZVAL_OBJ(&z_callback, context->callback);
+	async_notifier_add_callback(&context->timer->std, &z_callback);
+
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
+	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
+
+	async_await(context->resume);
+
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, NULL);
+	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, NULL);
+
+	OBJ_RELEASE(&context->timer->std);
+	OBJ_RELEASE(context->callback);
+	OBJ_RELEASE(&context->resume->std);
+
+	efree(context);
+
+	return CURLM_OK;
 }
