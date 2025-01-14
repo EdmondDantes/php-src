@@ -49,7 +49,7 @@ static void process_curl_completed_handles(void)
 	}
 }
 
-static void poll_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void poll_callback(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
 {
 	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
 	const zend_long events = Z_LVAL_P(z_event);
@@ -137,7 +137,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 	return 0;
 }
 
-static void timer_callback(void * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void timer_callback(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
 {
 	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 	process_curl_completed_handles();
