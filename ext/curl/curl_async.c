@@ -22,7 +22,7 @@
 #include <async/php_layer/zend_common.h>
 
 ZEND_TLS CURLM * curl_multi_handle = NULL;
-ZEND_TLS HashTable * curl_multi_context = NULL;
+ZEND_TLS HashTable * curl_multi_resume_list = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
 ZEND_TLS zend_object * poll_callback_obj = NULL;
 ZEND_TLS zend_object * timer_callback_obj = NULL;
@@ -36,7 +36,7 @@ static void process_curl_completed_handles(void)
 
 			curl_multi_remove_handle(curl_multi_handle, msg->easy_handle);
 
-			const zval * resume = zend_hash_index_find(curl_multi_context, (zend_ulong) msg->easy_handle);
+			const zval * resume = zend_hash_index_find(curl_multi_resume_list, (zend_ulong) msg->easy_handle);
 
 			if (resume == NULL) {
 				continue;
@@ -74,7 +74,7 @@ static void poll_callback(zend_object * callback, reactor_notifier_t *notifier, 
 
 static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
-	const zval * resume = zend_hash_index_find(curl_multi_context, (zend_ulong) curl);
+	const zval * resume = zend_hash_index_find(curl_multi_resume_list, (zend_ulong) curl);
 
 	if (resume == NULL) {
 		return 0;
@@ -204,7 +204,8 @@ void curl_async_setup(void)
 	curl_multi_handle = curl_multi_init();
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
-	curl_multi_context = zend_new_array(8);
+	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETDATA, NULL);
+	curl_multi_resume_list = zend_new_array(8);
 
 	timer = NULL;
 	poll_callback_obj = NULL;
@@ -234,9 +235,9 @@ void curl_async_shutdown(void)
 		curl_multi_handle = NULL;
 	}
 
-	if (curl_multi_context != NULL) {
-		zend_array_destroy(curl_multi_context);
-		curl_multi_context = NULL;
+	if (curl_multi_resume_list != NULL) {
+		zend_array_destroy(curl_multi_resume_list);
+		curl_multi_resume_list = NULL;
 	}
 }
 
@@ -246,7 +247,7 @@ CURLcode curl_async_perform(CURL* curl)
 		curl_async_setup();
 	}
 
-	// Add curl handle to curl_multi_context
+	// Add curl handle to curl_multi_resume_list
 	zval z_resume;
 	async_resume_t * resume = async_resume_new(NULL);
 
@@ -256,8 +257,8 @@ CURLcode curl_async_perform(CURL* curl)
 
 	ZVAL_OBJ(&z_resume, &resume->std);
 
-	// add z_resume to curl_multi_context
-	if (zend_hash_index_update(curl_multi_context, (zend_ulong) curl, &z_resume) == NULL) {
+	// add z_resume to curl_multi_resume_list
+	if (zend_hash_index_update(curl_multi_resume_list, (zend_ulong) curl, &z_resume) == NULL) {
 		zval_ptr_dtor(&z_resume);
 		return CURLE_FAILED_INIT;
 	}
@@ -265,7 +266,17 @@ CURLcode curl_async_perform(CURL* curl)
 	async_await(resume);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Memory leak detected. The resume object should have only one reference");
-	zend_hash_index_del(curl_multi_context, (zend_ulong) curl);
+	zend_hash_index_del(curl_multi_resume_list, (zend_ulong) curl);
 
 	return CURLE_OK;
+}
+
+CURLMcode curl_async_wait(
+	CURLM* multi_handle,
+	struct curl_waitfd extra_fds[],
+	unsigned int extra_nfds,
+	int timeout_ms,
+	int* ret)
+{
+
 }

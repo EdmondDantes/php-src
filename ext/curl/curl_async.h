@@ -16,11 +16,28 @@
 #ifndef CURL_H
 #define CURL_H
 
+#include <async/php_layer/notifier.h>
 #include <curl/curl.h>
+
+typedef struct _curl_async_context curl_async_context;
+
+struct _curl_async_context {
+	CURLM * curl_multi_handle;
+	reactor_handle_t * timer;
+	zend_object * poll_callback;
+	zend_object * timer_callback;
+};
 
 void curl_async_setup(void);
 void curl_async_shutdown(void);
 
 CURLcode curl_async_perform(CURL* curl);
+
+CURLMcode curl_async_wait(
+	CURLM* multi_handle,
+	struct curl_waitfd extra_fds[],
+	unsigned int extra_nfds,
+	int timeout_ms,
+	int* ret);
 
 #endif //CURL_H

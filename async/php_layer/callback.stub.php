@@ -36,6 +36,12 @@ class Callback
      */
     private ?WeakReference $resume = null;
 
+    /**
+     * The user data associated with the callback.
+     * @param mixed $data
+     */
+    private mixed $data;
+
     public function __construct(callable $callback) {}
 
    /**

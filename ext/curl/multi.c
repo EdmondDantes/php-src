@@ -28,6 +28,10 @@
 #include <curl/curl.h>
 #include <curl/multi.h>
 
+#ifdef PHP_ASYNC
+#include "curl_async.h"
+#endif
+
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -219,7 +223,12 @@ PHP_FUNCTION(curl_multi_select)
 		RETURN_THROWS();
 	}
 
+#ifdef PHP_ASYNC
+	error = curl_async_wait(mh->multi, NULL, 0, (int) (timeout * 1000.0), &numfds);
+#else
 	error = curl_multi_wait(mh->multi, NULL, 0, (int) (timeout * 1000.0), &numfds);
+#endif
+
 	if (CURLM_OK != error) {
 		SAVE_CURLM_ERROR(mh, error);
 		RETURN_LONG(-1);
