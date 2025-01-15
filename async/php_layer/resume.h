@@ -83,6 +83,7 @@ ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);
 ZEND_API async_resume_t * async_resume_new(zend_fiber * fiber);
+ZEND_API async_resume_t * async_resume_new_ex(zend_fiber * fiber, const size_t size);
 ZEND_API void async_resume_when(
 		async_resume_t				*resume,
 		reactor_notifier_t			*notifier,

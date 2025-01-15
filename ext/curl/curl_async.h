@@ -23,10 +23,9 @@
 typedef struct _curl_async_context curl_async_context;
 
 struct _curl_async_context {
+	async_resume_t resume;
 	CURLM * curl_multi_handle;
-	reactor_handle_t * timer;
 	zend_object * callback;
-	async_resume_t * resume;
 	reactor_notifier_t * curl_notifier;
 	HashTable * poll_list;
 };

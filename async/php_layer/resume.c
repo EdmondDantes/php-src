@@ -211,11 +211,8 @@ static void async_resume_notifier_dtor(zval *item)
 	efree(resume_notifier);
 }
 
-static zend_object *async_resume_object_create(zend_class_entry *class_entry)
+zend_always_inline void async_resume_object_init(async_resume_t * object, zend_class_entry *class_entry)
 {
-	// Allocate memory for the object and initialize it with zero bytes.
-	DEFINE_ZEND_RAW_OBJECT(async_resume_t, object, class_entry);
-
 	object->status = ASYNC_RESUME_NO_STATUS;
 	object->triggered_notifiers = NULL;
 	object->fiber = NULL;
@@ -230,6 +227,14 @@ static zend_object *async_resume_object_create(zend_class_entry *class_entry)
 	object->std.handlers = &async_resume_handlers;
 
 	zend_hash_init(&object->notifiers, 2, NULL, async_resume_notifier_dtor, 0);
+}
+
+static zend_object *async_resume_object_create(zend_class_entry *class_entry)
+{
+	// Allocate memory for the object and initialize it with zero bytes.
+	DEFINE_ZEND_RAW_OBJECT(async_resume_t, object, class_entry);
+
+	async_resume_object_init(object, class_entry);
 
 	return &object->std;
 }
@@ -309,6 +314,29 @@ async_resume_t * async_resume_new(zend_fiber * fiber)
 	}
 
 	async_resume_t * resume = (async_resume_t *) Z_OBJ_P(&object);
+	resume->fiber = fiber;
+	GC_ADDREF(&fiber->std);
+
+	return resume;
+}
+
+async_resume_t * async_resume_new_ex(zend_fiber * fiber, const size_t size)
+{
+	if (fiber == NULL) {
+		fiber = EG(active_fiber);
+	}
+
+	if (UNEXPECTED(fiber) == NULL) {
+		zend_error(E_CORE_WARNING, "Cannot create a new Resume object outside of a Fiber");
+		return NULL;
+	}
+
+	ZEND_ASSERT(sizeof(async_resume_t) < size && "Extra size must be at least the size of the async_resume_t structure");
+
+	async_resume_t * resume = zend_object_alloc_ex(size, async_ce_resume);
+
+	async_resume_object_init(resume, async_ce_resume);
+
 	resume->fiber = fiber;
 	GC_ADDREF(&fiber->std);
 

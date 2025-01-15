@@ -234,7 +234,7 @@ void curl_register_notifier(void)
 static bool curl_notifier_remove_callback(reactor_notifier_t * notifier, zval * callback)
 {
 	if (Z_TYPE_P(callback) == IS_OBJECT && Z_OBJ_P(callback)->ce == async_ce_resume) {
-
+		curl_multi_assign(curl_multi_handle, ((reactor_poll_t *)notifier)->socket, NULL);
     }
 
 	return true;
@@ -330,6 +330,7 @@ CURLcode curl_async_perform(CURL* curl)
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Memory leak detected. The resume object should have only one reference");
 	zend_hash_index_del(curl_multi_resume_list, (zend_ulong) curl);
+	OBJ_RELEASE(&resume->std);
 
 	return CURLE_OK;
 }
@@ -347,6 +348,100 @@ static void curl_event_cb(zend_object * callback, reactor_notifier_t *notifier, 
 	}
 }
 
+static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+{
+	curl_async_context * context = (curl_async_context *) resume;
+
+	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
+	const zend_long events = Z_LVAL_P(event);
+	int action = 0;
+
+	if (events & ASYNC_READABLE) {
+		action |= CURL_CSELECT_IN;
+	}
+
+	if (events & ASYNC_WRITABLE) {
+		action |= CURL_CSELECT_OUT;
+	}
+
+	if (Z_TYPE_P(error) == IS_OBJECT) {
+		action |= CURL_CSELECT_ERR;
+	}
+
+	curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
+	async_resume_when_callback_resolve(resume, notifier, event, error);
+}
+
+
+static int curl_multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *data)
+{
+	curl_async_context * context = user_p;
+
+	if (context == NULL) {
+        return -1;
+    }
+
+	if (what == CURL_POLL_REMOVE) {
+
+		if (context->poll_list == NULL) {
+			return 0;
+		}
+
+		const zval * z_handle = zend_hash_index_find(context->poll_list, socket_fd);
+
+		if (z_handle == NULL) {
+            return 0;
+        }
+
+		reactor_handle_t * handle = (reactor_handle_t *) Z_OBJ_P(z_handle);
+
+		zend_hash_index_del(context->poll_list, socket_fd);
+		reactor_remove_handle_fn(handle);
+		async_resume_remove_notifier(&context->resume, handle);
+
+		return 0;
+	}
+
+	if (context->poll_list == NULL) {
+        context->poll_list = emalloc(sizeof(HashTable));
+		zend_hash_init(context->poll_list, NULL, 4, NULL, false);
+    }
+
+	zend_long events = 0;
+
+	if (what & CURL_POLL_IN) {
+		events |= UV_READABLE;
+	}
+
+	if (what & CURL_POLL_OUT) {
+		events |= UV_WRITABLE;
+	}
+
+	reactor_handle_t * socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
+
+	if (socket_poll == NULL) {
+		return CURLM_BAD_SOCKET;
+	}
+
+	async_resume_when(&context->resume, socket_poll, true, multi_poll_callback);
+
+	if (EG(exception)) {
+		OBJ_RELEASE(&socket_poll->std);
+		zend_exception_to_warning("Failed to add poll callback: %s", true);
+		return CURLM_BAD_SOCKET;
+	}
+
+	zval z_poll;
+	ZVAL_OBJ(&z_poll, &socket_poll->std);
+	zend_hash_index_add(context->poll_list, socket_fd, &z_poll);
+
+	curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
+
+	reactor_add_handle(socket_poll);
+
+	return 0;
+}
+
 CURLMcode curl_async_wait(
 	CURLM* multi_handle,
 	struct curl_waitfd extra_fds[],
@@ -354,7 +449,7 @@ CURLMcode curl_async_wait(
 	int timeout_ms,
 	int* ret)
 {
-	curl_async_context * context = emalloc(sizeof(curl_async_context));
+	curl_async_context * context = (curl_async_context *) async_resume_new_ex(NULL, sizeof(curl_async_context));
 
 	if (context == NULL) {
         return CURLM_OUT_OF_MEMORY;
@@ -366,35 +461,35 @@ CURLMcode curl_async_wait(
 #define IF_NULL_RETURN(expr) if (UNEXPECTED((expr) == NULL)) { result = CURLM_OUT_OF_MEMORY; goto finally; }
 
 	zend_try {
+
 		context->curl_multi_handle = multi_handle;
-		context->timer = reactor_timer_new_fn(timeout_ms, false);
-		IF_NULL_RETURN(context->timer);
+		reactor_handle_t * curl_notifier = curl_notifier_new();
+		IF_NULL_RETURN(curl_notifier);
 
-		context->callback = async_callback_new(curl_event_cb);
-		IF_NULL_RETURN(context->callback);
+		async_resume_when(&context->resume, curl_notifier, true, async_resume_when_callback_resolve);
 
-		context->curl_notifier = curl_notifier_new();
-		IF_NULL_RETURN(context->curl_notifier);
+		if (UNEXPECTED(EG(exception))) {
+			result = CURLM_INTERNAL_ERROR;
+			OBJ_RELEASE(&curl_notifier->std);
+			goto finally;
+		}
 
-		context->resume = async_resume_new(NULL);
-		IF_NULL_RETURN(context->resume);
+		reactor_handle_t * timer = reactor_timer_new_fn(timeout_ms, false);
+		IF_NULL_RETURN(timer);
 
-		zval z_callback;
-		ZVAL_OBJ(&z_callback, context->callback);
-		async_notifier_add_callback(&context->timer->std, &z_callback);
-		async_resume_when(context->resume, context->curl_notifier, true, async_resume_when_callback_resolve);
-		async_resume_when(context->resume, context->timer, true, async_resume_when_callback_timeout);
+		async_resume_when(&context->resume, timer, true, async_resume_when_callback_timeout);
 
 		if (UNEXPECTED(EG(exception))) {
             result = CURLM_INTERNAL_ERROR;
+			OBJ_RELEASE(&timer->std);
             goto finally;
         }
 
 		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
-		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
+		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_multi_socket_cb);
 		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 
-		async_await(context->resume);
+		async_await(&context->resume);
 	} zend_catch {
 		is_bailout = true;
 		goto finally;
@@ -408,23 +503,11 @@ finally:
 	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
 	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, NULL);
 
-	if (context->resume != NULL) {
-		OBJ_RELEASE(&context->resume->std);
-	}
-
-	if (context->timer != NULL) {
-        OBJ_RELEASE(&context->timer->std);
-    }
-
-	if (context->callback != NULL) {
-		OBJ_RELEASE(context->callback);
-	}
-
 	if (context->poll_list != NULL) {
 		zend_array_destroy(context->poll_list);
 	}
 
-	efree(context);
+	OBJ_RELEASE(&context->resume.std);
 
 	if (is_bailout) {
 		goto bailout;
