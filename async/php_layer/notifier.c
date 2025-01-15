@@ -113,6 +113,13 @@ void async_notifier_add_callback(zend_object* notifier, zval* callback)
  */
 void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 {
+	// If the notifier has a custom remove callback function, then we call it
+	// and if it returns false, then we do not remove the callback.
+	if (((reactor_handle_t *) notifier)->remove_callback_fn
+		&& false == ((reactor_handle_t *) notifier)->remove_callback_fn((reactor_notifier_t *) notifier, callback)) {
+		return;
+	}
+
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
 		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
 

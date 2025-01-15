@@ -27,8 +27,10 @@ struct _curl_async_context {
 	reactor_handle_t * timer;
 	zend_object * callback;
 	async_resume_t * resume;
+	reactor_notifier_t * curl_notifier;
 };
 
+void curl_register_notifier(void);
 void curl_async_setup(void);
 void curl_async_shutdown(void);
 

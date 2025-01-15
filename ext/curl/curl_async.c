@@ -21,6 +21,7 @@
 #include <async/php_layer/callback.h>
 #include <async/php_layer/zend_common.h>
 
+static zend_class_entry * curl_ce_notifier = NULL;
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_resume_list = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
@@ -75,6 +76,8 @@ static void poll_callback(zend_object * callback, reactor_notifier_t *notifier, 
 static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
 	const zval * resume = zend_hash_index_find(curl_multi_resume_list, (zend_ulong) curl);
+	const curl_async_context * context = (curl_async_context *) user_p;
+	CURLM* multi_handle = context != NULL ? context->curl_multi_handle : NULL;
 
 	if (resume == NULL) {
 		return 0;
@@ -86,7 +89,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 			return 0;
 		}
 
-		curl_multi_assign(curl_multi_handle, ((reactor_poll_t *) socket_poll)->socket, NULL);
+		curl_multi_assign(multi_handle, ((reactor_poll_t *) socket_poll)->socket, NULL);
 		reactor_remove_handle_fn((reactor_handle_t *) socket_poll);
 		OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
 		return 0;
@@ -129,7 +132,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 			return CURLM_BAD_SOCKET;
 		}
 
-		curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
+		curl_multi_assign(multi_handle, socket_fd, socket_poll);
 
 		reactor_add_handle(socket_poll);
 	}
@@ -204,11 +207,50 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	return 0;
 }
 
+void curl_register_notifier(void)
+{
+	zend_class_entry ce;
+
+	if (curl_ce_notifier != NULL) {
+        return;
+    }
+
+	INIT_NS_CLASS_ENTRY(ce, "Async", "CurlNotifier", NULL);
+
+	curl_ce_notifier = zend_register_internal_class_with_flags(
+		&ce, async_ce_notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE
+    );
+}
+
+static bool curl_notifier_remove_callback(reactor_notifier_t * notifier, zval * callback)
+{
+	if (Z_TYPE_P(callback) == IS_OBJECT && Z_OBJ_P(callback)->ce == async_ce_resume) {
+
+    }
+
+	return true;
+}
+
+reactor_notifier_t * curl_notifier_new(void)
+{
+	DEFINE_ZEND_INTERNAL_OBJECT(reactor_notifier_t, notifier, curl_ce_notifier);
+
+    if (notifier == NULL) {
+        return NULL;
+    }
+
+	notifier->remove_callback_fn = curl_notifier_remove_callback;
+
+    return notifier;
+}
+
 void curl_async_setup(void)
 {
 	if (curl_multi_handle != NULL) {
 		return;
 	}
+
+	curl_register_notifier();
 
 	curl_multi_handle = curl_multi_init();
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
@@ -272,6 +314,9 @@ CURLcode curl_async_perform(CURL* curl)
 		return CURLE_FAILED_INIT;
 	}
 
+	curl_multi_add_handle(curl_multi_handle, curl);
+	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
+
 	async_await(resume);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Memory leak detected. The resume object should have only one reference");
@@ -293,30 +338,71 @@ CURLMcode curl_async_wait(
         return CURLM_OUT_OF_MEMORY;
     }
 
-	context->curl_multi_handle = multi_handle;
-	context->timer = reactor_timer_new_fn(timeout_ms, false);
-	context->callback = async_callback_new(curl_event_cb);
-	context->resume = async_resume_new(NULL);
+	int result = CURLM_OK;
+	bool is_bailout = false;
 
-	zval z_callback;
-	ZVAL_OBJ(&z_callback, context->callback);
-	async_notifier_add_callback(&context->timer->std, &z_callback);
+#define IF_NULL_RETURN(expr) if (UNEXPECTED((expr) == NULL)) { result = CURLM_OUT_OF_MEMORY; goto finally; }
 
-	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
-	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
-	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
+	zend_try {
+		context->curl_multi_handle = multi_handle;
+		context->timer = reactor_timer_new_fn(timeout_ms, false);
+		IF_NULL_RETURN(context->timer);
 
-	async_await(context->resume);
+		context->callback = async_callback_new(curl_event_cb);
+		IF_NULL_RETURN(context->callback);
+
+		context->curl_notifier = curl_notifier_new();
+		IF_NULL_RETURN(context->curl_notifier);
+
+		context->resume = async_resume_new(NULL);
+		IF_NULL_RETURN(context->resume);
+
+		zval z_callback;
+		ZVAL_OBJ(&z_callback, context->callback);
+		async_notifier_add_callback(&context->timer->std, &z_callback);
+		async_resume_when(context->resume, context->curl_notifier, true, async_resume_when_callback_resolve);
+		async_resume_when(context->resume, context->timer, true, async_resume_when_callback_timeout);
+
+		if (UNEXPECTED(EG(exception))) {
+            result = CURLM_INTERNAL_ERROR;
+            goto finally;
+        }
+
+		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
+		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
+		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
+
+		async_await(context->resume);
+	} zend_catch {
+		is_bailout = true;
+		goto finally;
+bailout:
+		zend_bailout();
+    } zend_end_try();
+
+finally:
 
 	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, NULL);
 	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
 	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, NULL);
 
-	OBJ_RELEASE(&context->timer->std);
-	OBJ_RELEASE(context->callback);
-	OBJ_RELEASE(&context->resume->std);
+	if (context->resume != NULL) {
+		OBJ_RELEASE(&context->resume->std);
+	}
+
+	if (context->timer != NULL) {
+        OBJ_RELEASE(&context->timer->std);
+    }
+
+	if (context->callback != NULL) {
+		OBJ_RELEASE(context->callback);
+	}
 
 	efree(context);
 
-	return CURLM_OK;
+	if (is_bailout) {
+		goto bailout;
+	}
+
+	return result;
 }

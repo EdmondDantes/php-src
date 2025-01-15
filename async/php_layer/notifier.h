@@ -41,6 +41,8 @@ typedef enum {
 typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
 
+typedef bool (* reactor_remove_callback_t) (reactor_notifier_t * notifier, zval * callback);
+
 struct _reactor_handle_s {
 	/* PHP std object Async\Notifier */
 	zend_object std;
@@ -56,6 +58,7 @@ struct _reactor_handle_s {
 			zval callbacks;
 		};
 	};
+	reactor_remove_callback_t remove_callback_fn;
 };
 
 static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
