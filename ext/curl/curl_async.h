@@ -28,6 +28,7 @@ struct _curl_async_context {
 	zend_object * callback;
 	async_resume_t * resume;
 	reactor_notifier_t * curl_notifier;
+	HashTable * poll_list;
 };
 
 void curl_register_notifier(void);

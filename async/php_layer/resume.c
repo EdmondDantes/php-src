@@ -368,6 +368,19 @@ ZEND_API void async_resume_when(
 	}
 }
 
+ZEND_API void async_resume_remove_notifier(async_resume_t *resume, reactor_notifier_t *notifier)
+{
+	if (UNEXPECTED(notifier == NULL)) {
+		return;
+	}
+
+	if (zend_hash_index_del(&resume->notifiers, notifier->std.handle) == SUCCESS) {
+		zval z_callback;
+		ZVAL_OBJ(&z_callback, &resume->std);
+		async_notifier_remove_callback(&notifier->std, &z_callback);
+	}
+}
+
 ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
 {
 	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {

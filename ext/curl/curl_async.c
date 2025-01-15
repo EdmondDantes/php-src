@@ -73,11 +73,32 @@ static void poll_callback(zend_object * callback, reactor_notifier_t *notifier, 
 	process_curl_completed_handles();
 }
 
+static void curl_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+{
+	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
+	const zend_long events = Z_LVAL_P(event);
+	int action = 0;
+
+	if (events & ASYNC_READABLE) {
+		action |= CURL_CSELECT_IN;
+	}
+
+	if (events & ASYNC_WRITABLE) {
+		action |= CURL_CSELECT_OUT;
+	}
+
+	if (Z_TYPE_P(error) == IS_OBJECT) {
+		action |= CURL_CSELECT_ERR;
+	}
+
+	curl_multi_socket_action(curl_multi_handle, handle->socket, action, NULL);
+	process_curl_completed_handles();
+}
+
+
 static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *socket_poll)
 {
 	const zval * resume = zend_hash_index_find(curl_multi_resume_list, (zend_ulong) curl);
-	const curl_async_context * context = (curl_async_context *) user_p;
-	CURLM* multi_handle = context != NULL ? context->curl_multi_handle : NULL;
 
 	if (resume == NULL) {
 		return 0;
@@ -89,9 +110,8 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 			return 0;
 		}
 
-		curl_multi_assign(multi_handle, ((reactor_poll_t *) socket_poll)->socket, NULL);
 		reactor_remove_handle_fn((reactor_handle_t *) socket_poll);
-		OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
+		async_resume_remove_notifier((async_resume_t *) Z_OBJ_P(resume), socket_poll);
 		return 0;
 	}
 
@@ -122,9 +142,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
             }
         }
 
-		zval callback;
-		ZVAL_OBJ(&callback, poll_callback_obj);
-		async_notifier_add_callback(socket_poll, &callback);
+		async_resume_when((async_resume_t *) Z_OBJ_P(resume), socket_poll, true, curl_poll_callback);
 
 		if (EG(exception)) {
 			OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
@@ -132,7 +150,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 			return CURLM_BAD_SOCKET;
 		}
 
-		curl_multi_assign(multi_handle, socket_fd, socket_poll);
+		curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
 
 		reactor_add_handle(socket_poll);
 	}
@@ -144,15 +162,6 @@ static void timer_callback(zend_object * callback, reactor_notifier_t *notifier,
 {
 	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 	process_curl_completed_handles();
-}
-
-static void curl_event_cb(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
-{
-	if (notifier->std.ce == async_ce_timer_handle) {
-        timer_callback(callback, notifier, z_event, error);
-    } else {
-    	poll_callback(callback, notifier, z_event, error);
-    }
 }
 
 static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
@@ -325,6 +334,19 @@ CURLcode curl_async_perform(CURL* curl)
 	return CURLE_OK;
 }
 
+//=============================================================
+#pragma region curl_async_wait
+//=============================================================
+
+static void curl_event_cb(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+{
+	if (notifier->std.ce == async_ce_timer_handle) {
+		timer_callback(callback, notifier, z_event, error);
+	} else {
+		poll_callback(callback, notifier, z_event, error);
+	}
+}
+
 CURLMcode curl_async_wait(
 	CURLM* multi_handle,
 	struct curl_waitfd extra_fds[],
@@ -398,6 +420,10 @@ finally:
 		OBJ_RELEASE(context->callback);
 	}
 
+	if (context->poll_list != NULL) {
+		zend_array_destroy(context->poll_list);
+	}
+
 	efree(context);
 
 	if (is_bailout) {
@@ -406,3 +432,7 @@ finally:
 
 	return result;
 }
+
+//=============================================================
+#pragma endregion
+//=============================================================
