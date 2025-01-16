@@ -27,6 +27,7 @@ struct _curl_async_context {
 	CURLM * curl_multi_handle;
 	zend_object * callback;
 	reactor_notifier_t * curl_notifier;
+	reactor_handle_t * timer;
 	HashTable * poll_list;
 };
 
@@ -36,11 +37,6 @@ void curl_async_shutdown(void);
 
 CURLcode curl_async_perform(CURL* curl);
 
-CURLMcode curl_async_wait(
-	CURLM* multi_handle,
-	struct curl_waitfd extra_fds[],
-	unsigned int extra_nfds,
-	int timeout_ms,
-	int* ret);
+CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds);
 
 #endif //CURL_H

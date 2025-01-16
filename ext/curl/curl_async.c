@@ -339,13 +339,54 @@ CURLcode curl_async_perform(CURL* curl)
 #pragma region curl_async_wait
 //=============================================================
 
-static void curl_event_cb(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void multi_timer_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
 {
-	if (notifier->std.ce == async_ce_timer_handle) {
-		timer_callback(callback, notifier, z_event, error);
-	} else {
-		poll_callback(callback, notifier, z_event, error);
+	curl_multi_socket_action(((curl_async_context *) resume)->curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
+}
+
+static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
+{
+	curl_async_context * context = user_p;
+
+	if (context == NULL) {
+        return CURLM_INTERNAL_ERROR;
+    }
+
+	if (timeout_ms < 0) {
+		if (context->timer != NULL) {
+			async_resume_remove_notifier(&context->resume, context->timer);
+		}
+
+		return 0;
 	}
+
+	if (timer != NULL) {
+		async_resume_remove_notifier(&context->resume, context->timer);
+	}
+
+	context->timer = reactor_timer_new_fn(timeout_ms, false);
+
+	if (context->timer == NULL) {
+		return CURLM_INTERNAL_ERROR;
+	}
+
+	async_resume_when(&context->resume, context->timer, true, multi_timer_callback);
+
+	if (UNEXPECTED(EG(exception))) {
+		OBJ_RELEASE(&context->timer->std);
+		context->timer = NULL;
+		return CURLM_INTERNAL_ERROR;
+	}
+
+	reactor_add_handle(context->timer);
+
+	if (UNEXPECTED(EG(exception))) {
+		async_resume_remove_notifier(&context->resume, context->timer);
+		zend_exception_to_warning("Failed to add timer handle: %s", true);
+		return CURLM_INTERNAL_ERROR;
+	}
+
+	return 0;
 }
 
 static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
@@ -372,8 +413,7 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 	async_resume_when_callback_resolve(resume, notifier, event, error);
 }
 
-
-static int curl_multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *data)
+static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *data)
 {
 	curl_async_context * context = user_p;
 
@@ -442,12 +482,7 @@ static int curl_multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const
 	return 0;
 }
 
-CURLMcode curl_async_wait(
-	CURLM* multi_handle,
-	struct curl_waitfd extra_fds[],
-	unsigned int extra_nfds,
-	int timeout_ms,
-	int* ret)
+CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
 {
 	curl_async_context * context = (curl_async_context *) async_resume_new_ex(NULL, sizeof(curl_async_context));
 
@@ -486,8 +521,8 @@ CURLMcode curl_async_wait(
         }
 
 		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
-		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, curl_multi_socket_cb);
-		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
+		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
+		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
 
 		async_await(&context->resume);
 	} zend_catch {
@@ -506,6 +541,9 @@ finally:
 	if (context->poll_list != NULL) {
 		zend_array_destroy(context->poll_list);
 	}
+
+	// Calculate the number of file descriptors that are ready
+	result = async_resume_get_ready_poll_handles(&context->resume);
 
 	OBJ_RELEASE(&context->resume.std);
 

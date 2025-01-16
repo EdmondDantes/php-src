@@ -96,6 +96,7 @@ ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_
 ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
 ZEND_API void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, zval* event, zval* error);
 ZEND_API void async_resume_waiting(async_resume_t *resume);
+ZEND_API int async_resume_get_ready_poll_handles(const async_resume_t *resume);
 
 END_EXTERN_C()
 

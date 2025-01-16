@@ -532,3 +532,21 @@ void async_resume_waiting(async_resume_t *resume)
 	resume->error = NULL;
 	ZVAL_UNDEF(&resume->result);
 }
+
+ZEND_API int async_resume_get_ready_poll_handles(const async_resume_t *resume)
+{
+	zval *notifier;
+	int result = 0;
+
+	if (resume->triggered_notifiers == NULL) {
+        return 0;
+    }
+
+	ZEND_HASH_FOREACH_VAL(resume->triggered_notifiers, notifier) {
+		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_poll_handle)) {
+			result++;
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	return result;
+}

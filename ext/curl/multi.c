@@ -224,7 +224,7 @@ PHP_FUNCTION(curl_multi_select)
 	}
 
 #ifdef PHP_ASYNC
-	error = curl_async_wait(mh->multi, NULL, 0, (int) (timeout * 1000.0), &numfds);
+	error = curl_async_wait(mh->multi, (int) (timeout * 1000.0), &numfds);
 #else
 	error = curl_multi_wait(mh->multi, NULL, 0, (int) (timeout * 1000.0), &numfds);
 #endif
