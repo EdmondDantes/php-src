@@ -33,10 +33,6 @@
  * The handlers `CURLMOPT_SOCKETFUNCTION` and `CURLMOPT_TIMERFUNCTION` ensure the integration of
  * CURL with the `PHP ASYNC Reactor` (Event Loop).
  *
- * To establish a logical connection between the RESUME object and CURL,
- * a special child class curl_ce_notifier is used.
- * This class inherits from async_ce_notifier and handles events, resuming the Fiber that initiated the CURL EXEC.
- *
  * Note that the algorithm for working with the Resume object is modified here.
  * Typically, all descriptors associated with a Resume object are declared before the Fiber is suspended.
  * However, in the case of CURL, descriptors are declared and added to the Resume object after the Fiber is suspended.
@@ -54,7 +50,6 @@
  * ******************************************************************************************************************
  */
 
-static zend_class_entry * curl_ce_notifier = NULL;
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_resume_list = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
@@ -249,50 +244,11 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	return 0;
 }
 
-void curl_register_notifier(void)
-{
-	zend_class_entry ce;
-
-	if (curl_ce_notifier != NULL) {
-        return;
-    }
-
-	INIT_NS_CLASS_ENTRY(ce, "Async", "CurlNotifier", NULL);
-
-	curl_ce_notifier = zend_register_internal_class_with_flags(
-		&ce, async_ce_notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE
-    );
-}
-
-static bool curl_notifier_remove_callback(reactor_notifier_t * notifier, zval * callback)
-{
-	if (Z_TYPE_P(callback) == IS_OBJECT && Z_OBJ_P(callback)->ce == async_ce_resume) {
-		curl_multi_assign(curl_multi_handle, ((reactor_poll_t *)notifier)->socket, NULL);
-    }
-
-	return true;
-}
-
-reactor_notifier_t * curl_notifier_new(void)
-{
-	DEFINE_ZEND_INTERNAL_OBJECT(reactor_notifier_t, notifier, curl_ce_notifier);
-
-    if (notifier == NULL) {
-        return NULL;
-    }
-
-	notifier->remove_callback_fn = curl_notifier_remove_callback;
-
-    return notifier;
-}
-
 void curl_async_setup(void)
 {
 	if (curl_multi_handle != NULL) {
 		return;
 	}
-
-	curl_register_notifier();
 
 	curl_multi_handle = curl_multi_init();
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
@@ -532,16 +488,6 @@ CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
 	zend_try {
 
 		context->curl_multi_handle = multi_handle;
-		reactor_handle_t * curl_notifier = curl_notifier_new();
-		IF_NULL_RETURN(curl_notifier);
-
-		async_resume_when(&context->resume, curl_notifier, true, async_resume_when_callback_resolve);
-
-		if (UNEXPECTED(EG(exception))) {
-			result = CURLM_INTERNAL_ERROR;
-			OBJ_RELEASE(&curl_notifier->std);
-			goto finally;
-		}
 
 		reactor_handle_t * timer = reactor_timer_new_fn(timeout_ms, false);
 		IF_NULL_RETURN(timer);

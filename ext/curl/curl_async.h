@@ -31,13 +31,12 @@ typedef struct _curl_async_context curl_async_context;
 struct _curl_async_context {
 	async_resume_t resume;
 	CURLM * curl_multi_handle;
-	zend_object * callback;
 	reactor_notifier_t * curl_notifier;
+	zend_object * callback;
 	reactor_handle_t * timer;
 	HashTable * poll_list;
 };
 
-void curl_register_notifier(void);
 void curl_async_setup(void);
 void curl_async_shutdown(void);
 
