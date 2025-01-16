@@ -84,12 +84,12 @@ class Channel implements ChannelInterface
 
 final class ThreadChannel extends Channel
 {
-    public function getSenderThreadId(): int {}
-    public function getReceiverThreadId(): int {}
+    //public function getSenderThreadId(): int {}
+    //public function getReceiverThreadId(): int {}
 }
 
 final class ProcessChannel extends Channel
 {
-    public function getSenderProcessId(): int {}
-    public function getReceiverProcessId(): int {}
+    //public function getSenderProcessId(): int {}
+    //public function getReceiverProcessId(): int {}
 }

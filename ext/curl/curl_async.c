@@ -15,7 +15,6 @@
 */
 #include "curl_async.h"
 #include "Zend/zend_types.h"
-#include <uv.h>
 #include <zend_exceptions.h>
 #include <async/php_reactor.h>
 #include <async/php_layer/callback.h>
@@ -78,7 +77,7 @@ static void process_curl_completed_handles(void)
 	}
 }
 
-static void poll_callback(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void poll_callback(zend_object * callback, zend_object * notifier, const zval* z_event, const zval* error)
 {
 	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
 	const zend_long events = Z_LVAL_P(z_event);
@@ -148,11 +147,11 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 		zend_long events = 0;
 
 		if (what & CURL_POLL_IN) {
-			events |= UV_READABLE;
+			events |= ASYNC_READABLE;
 		}
 
 		if (what & CURL_POLL_OUT) {
-			events |= UV_WRITABLE;
+			events |= ASYNC_WRITABLE;
 		}
 
 		socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
@@ -186,7 +185,7 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 	return 0;
 }
 
-static void timer_callback(zend_object * callback, reactor_notifier_t *notifier, const zval* z_event, const zval* error)
+static void timer_callback(zend_object * callback, zend_object *notifier, const zval* z_event, const zval* error)
 {
 	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 	process_curl_completed_handles();
@@ -434,17 +433,17 @@ static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int 
 
 	if (context->poll_list == NULL) {
         context->poll_list = emalloc(sizeof(HashTable));
-		zend_hash_init(context->poll_list, NULL, 4, NULL, false);
+		zend_hash_init(context->poll_list, 4, NULL, NULL, false);
     }
 
 	zend_long events = 0;
 
 	if (what & CURL_POLL_IN) {
-		events |= UV_READABLE;
+		events |= ASYNC_READABLE;
 	}
 
 	if (what & CURL_POLL_OUT) {
-		events |= UV_WRITABLE;
+		events |= ASYNC_WRITABLE;
 	}
 
 	reactor_handle_t * socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);

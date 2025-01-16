@@ -74,7 +74,7 @@ METHOD(send)
 		Z_PARAM_ZVAL(data)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(timeout)
-		Z_PARAM_OBJ(cancellation, async_ce_notifier)
+		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 		Z_PARAM_BOOL(waitOnFull)
 	ZEND_PARSE_PARAMETERS_END();
 }
@@ -129,16 +129,51 @@ METHOD(getUsed)
 
 }
 
+METHOD(getDirection)
+{
+
+}
+
+METHOD(transferOwnership)
+{
+
+}
+
+METHOD(getNotifier)
+{
+
+}
+
+zend_class_entry *async_channel_object_create(zend_class_entry *class_entry)
+{
+	return NULL;
+}
+
+static void async_channel_object_destroy(zend_object* object)
+{
+
+}
+
+static void async_channel_object_free(zend_object* object)
+{
+
+}
 
 static zend_object_handlers async_channel_handlers;
 
 void async_register_channel_ce(void)
 {
-	async_ce_channel = register_class_Async_Channel();
+	// interfaces
+	async_producer_i_ce = register_class_Async_ProducerInterface();
+	async_consumer_i_ce = register_class_Async_ConsumerInterface();
+	async_channel_state_i_ce = register_class_Async_ChannelStateInterface();
+	async_channel_i_ce = register_class_Async_ChannelInterface(async_producer_i_ce, async_consumer_i_ce, async_channel_state_i_ce);
 
-	async_ce_channel->default_object_handlers = &async_channel_handlers;
-	async_ce_channel->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_channel->create_object = async_channel_object_create;
+	async_channel_ce = register_class_Async_Channel(async_channel_i_ce);
+
+	async_channel_ce->default_object_handlers = &async_channel_handlers;
+	async_channel_ce->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_channel_ce->create_object = async_channel_object_create;
 
 	async_channel_handlers = std_object_handlers;
 	async_channel_handlers.dtor_obj = async_channel_object_destroy;

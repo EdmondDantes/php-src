@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a945a06499ef8147604c7f1e16179b750fbd492c */
+ * Stub hash: 5defe2d2020fedb276893af0b39be40a266abf47 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Callback___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -49,6 +49,12 @@ static zend_class_entry *register_class_Async_Callback(void)
 	zend_string *property_resume_class_Async_WeakReference = zend_string_init("Async\\WeakReference", sizeof("Async\\WeakReference")-1, 1);
 	zend_declare_typed_property(class_entry, property_resume_name, &property_resume_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_resume_class_Async_WeakReference, 0, MAY_BE_NULL));
 	zend_string_release(property_resume_name);
+
+	zval property_data_default_value;
+	ZVAL_UNDEF(&property_data_default_value);
+	zend_string *property_data_name = zend_string_init("data", sizeof("data") - 1, 1);
+	zend_declare_typed_property(class_entry, property_data_name, &property_data_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_string_release(property_data_name);
 
 	return class_entry;
 }

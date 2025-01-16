@@ -54,11 +54,16 @@ zend_always_inline zend_fiber* async_channel_get_owner_fiber(zend_object* channe
 zend_always_inline void async_channel_set_owner_fiber(zend_object* channel, zend_fiber * fiber)
 {
 	zval z_fiber;
-	ZVAL_OBJ(&z_fiber, fiber);
+	ZVAL_OBJ(&z_fiber, (zend_object * )fiber);
 	zval_property_copy(&channel->properties_table[0], &z_fiber);
 }
 
-ZEND_API zend_class_entry * async_ce_channel;
+ZEND_API zend_class_entry * async_producer_i_ce;
+ZEND_API zend_class_entry * async_consumer_i_ce;
+ZEND_API zend_class_entry * async_channel_state_i_ce;
+ZEND_API zend_class_entry * async_channel_i_ce;
+
+ZEND_API zend_class_entry * async_channel_ce;
 ZEND_API zend_class_entry * async_ce_channel_exception;
 ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
 ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
