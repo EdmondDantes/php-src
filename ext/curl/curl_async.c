@@ -172,6 +172,18 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 		curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
 
 		reactor_add_handle(socket_poll);
+	} else {
+		reactor_remove_handle_fn(socket_poll);
+
+		if (what & CURL_POLL_IN) {
+			((reactor_poll_t * ) socket_poll)->events |= ASYNC_READABLE;
+		}
+
+		if (what & CURL_POLL_OUT) {
+			((reactor_poll_t * ) socket_poll)->events |= ASYNC_WRITABLE;
+		}
+
+		reactor_add_handle(socket_poll);
 	}
 
 	return 0;
