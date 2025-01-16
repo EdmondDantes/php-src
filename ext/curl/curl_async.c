@@ -58,8 +58,9 @@ ZEND_TLS zend_object * timer_callback_obj = NULL;
 static void process_curl_completed_handles(void)
 {
 	CURLMsg *msg;
+	int msgs_in_queue = 0;
 
-	while ((msg = curl_multi_info_read(curl_multi_handle, NULL))) {
+	while ((msg = curl_multi_info_read(curl_multi_handle, &msgs_in_queue))) {
 		if (msg->msg == CURLMSG_DONE) {
 
 			curl_multi_remove_handle(curl_multi_handle, msg->easy_handle);
@@ -159,15 +160,6 @@ static int curl_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int w
 		if (socket_poll == NULL) {
 			return CURLM_BAD_SOCKET;
 		}
-
-		if (poll_callback_obj == NULL) {
-            poll_callback_obj = async_callback_new(poll_callback);
-
-            if (poll_callback_obj == NULL) {
-                OBJ_RELEASE(&((reactor_handle_t *) socket_poll)->std);
-                return CURLM_BAD_SOCKET;
-            }
-        }
 
 		async_resume_when((async_resume_t *) Z_OBJ_P(resume), socket_poll, true, curl_poll_callback);
 
