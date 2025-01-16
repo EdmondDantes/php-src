@@ -706,7 +706,7 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 	fd_set aread, awrite, aexcept;
 
 	/* As max_fd is unsigned, non socket might overflow. */
-	if (max_fd > (php_socket_t)INT_MAX) {
+	if (max_fd > (php_socket_t)FD_SETSIZE) {
 		return -1;
 	}
 
@@ -746,13 +746,8 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 		async_file_descriptor_t fh = 0;
 
 #ifdef PHP_WIN32
-
-		fh = (HANDLE)(uintptr_t)_get_osfhandle(i);
-
-		if (fh == INVALID_HANDLE_VALUE) {
-			/* socket */
-			is_socket = true;
-		}
+		// For windows, we work with sockets only
+		is_socket = true;
 #else
 		fh = (async_file_descriptor_t) i;
 #endif
@@ -804,19 +799,25 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 	zval *notifier;
 	result = 0;
 
-	// calculation how many descriptors are ready
+	// Calculation state of aread, awrite, aexcept:
 	ZEND_HASH_FOREACH_VAL(resume->triggered_notifiers, notifier) {
 		if (Z_TYPE_P(notifier) == IS_OBJECT && instanceof_function(Z_OBJ_P(notifier)->ce, async_ce_poll_handle)) {
 			result++;
 
 			const reactor_poll_t *poll = (reactor_poll_t *)Z_OBJ_P(notifier);
 
-			// Find the same socket in the ufds array
-			for (int i = 0; (uint32_t)i < max_fd; i++) {
-				if (i == poll->socket) {
-					revents = async_events_to_poll2(Z_LVAL(poll->triggered_events));
-					break;
-				}
+			const zend_long events = Z_LVAL(poll->triggered_events);
+
+			if (events & ASYNC_READABLE) {
+				FD_SET(poll->socket, &aread);
+			}
+
+			if (events & ASYNC_WRITABLE) {
+				FD_SET(poll->socket, &awrite);
+			}
+
+			if (events & ASYNC_DISCONNECT || events & ASYNC_PRIORITIZED) {
+				FD_SET(poll->socket, &aexcept);
 			}
 		}
 	} ZEND_HASH_FOREACH_END();

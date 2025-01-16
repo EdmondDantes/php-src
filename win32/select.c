@@ -48,7 +48,7 @@ PHPAPI int php_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *e
 	struct timeval tvslice;
 	int retcode;
 
-#ifdef PHP_ASYNC
+#if defined(PHP_ASYNC) && !defined(PHP_WIN32)
 	if (IN_ASYNC_CONTEXT) {
 		return async_select(max_fd, rfds, wfds, efds, tv);
 	}
@@ -103,6 +103,12 @@ PHPAPI int php_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *e
 
 	if (n_handles == 0) {
 		/* plain sockets only - let winsock handle the whole thing */
+#if defined(PHP_ASYNC) && defined(PHP_WIN32)
+		// For win32 we support only sockets in this function
+		if (IN_ASYNC_CONTEXT) {
+			return async_select(max_fd, rfds, wfds, efds, tv);
+		}
+#endif
 		return select(-1, rfds, wfds, efds, tv);
 	}
 
