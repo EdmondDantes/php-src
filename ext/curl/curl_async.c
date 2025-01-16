@@ -21,6 +21,39 @@
 #include <async/php_layer/callback.h>
 #include <async/php_layer/zend_common.h>
 
+/********************************************************************************************************************
+ * This module is designed for the asynchronous version of PHP functions that work with CURL.
+ * The module implements two entry points:
+ * * `curl_async_perform`
+ * * `curl_async_wait`
+ *
+ * which replace the calls to the corresponding CURL LIB functions.
+ *
+ * `curl_async_perform` internally uses a global CURL MULTI object to execute multiple CURL requests asynchronously.
+ * The handlers `CURLMOPT_SOCKETFUNCTION` and `CURLMOPT_TIMERFUNCTION` ensure the integration of
+ * CURL with the `PHP ASYNC Reactor` (Event Loop).
+ *
+ * To establish a logical connection between the RESUME object and CURL,
+ * a special child class curl_ce_notifier is used.
+ * This class inherits from async_ce_notifier and handles events, resuming the Fiber that initiated the CURL EXEC.
+ *
+ * Note that the algorithm for working with the Resume object is modified here.
+ * Typically, all descriptors associated with a Resume object are declared before the Fiber is suspended.
+ * However, in the case of CURL, descriptors are declared and added to the Resume object after the Fiber is suspended.
+ * This is due to the integration logic with CURL.
+ *
+ * Keep in mind that if the Resume object is destroyed,
+ * all associated descriptors will also be destroyed and removed from the event loop.
+ *
+ * `curl_async_wait` is a wrapper for the CURL function `curl_multi_wait`.
+ * It suspends the execution of the Fiber until the first resolved descriptor.
+ * It operates in a manner similar to the previous function,
+ * with the difference that `curl_async_wait` creates a special `Resume` object
+ * with additional context that participates in callbacks `curl_async_context`.
+ *
+ * ******************************************************************************************************************
+ */
+
 static zend_class_entry * curl_ce_notifier = NULL;
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_resume_list = NULL;
@@ -301,6 +334,7 @@ void curl_async_shutdown(void)
 	}
 }
 
+//=============================================================
 CURLcode curl_async_perform(CURL* curl)
 {
 	if (curl_multi_handle == NULL) {
