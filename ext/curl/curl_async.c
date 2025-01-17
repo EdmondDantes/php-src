@@ -409,7 +409,7 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 		action |= CURL_CSELECT_ERR;
 	}
 
-	//curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
+	curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
 	async_resume_when_callback_resolve(resume, notifier, event, error);
 }
 
