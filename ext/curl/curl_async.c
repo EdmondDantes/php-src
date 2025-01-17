@@ -409,7 +409,7 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 		action |= CURL_CSELECT_ERR;
 	}
 
-	curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
+	//curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
 	async_resume_when_callback_resolve(resume, notifier, event, error);
 }
 
@@ -447,37 +447,51 @@ static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int 
 		zend_hash_init(context->poll_list, 4, NULL, NULL, false);
     }
 
-	zend_long events = 0;
+	zval * z_handle = zend_hash_index_find(context->poll_list, socket_fd);
 
-	if (what & CURL_POLL_IN) {
-		events |= ASYNC_READABLE;
+	if (z_handle == NULL) {
+
+		zend_long events = 0;
+
+		if (what & CURL_POLL_IN) {
+			events |= ASYNC_READABLE;
+		}
+
+		if (what & CURL_POLL_OUT) {
+			events |= ASYNC_WRITABLE;
+		}
+
+		reactor_handle_t * socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
+
+		if (socket_poll == NULL) {
+			return -1;
+		}
+
+		zval z_poll;
+		ZVAL_OBJ(&z_poll, &socket_poll->std);
+		zend_hash_index_add(context->poll_list, socket_fd, &z_poll);
+		async_resume_when(&context->resume, socket_poll, true, multi_poll_callback);
+		reactor_add_handle(socket_poll);
+
+		if (EG(exception)) {
+			OBJ_RELEASE(&socket_poll->std);
+			zend_exception_to_warning("Failed to add poll callback: %s", true);
+			return -1;
+		}
+	} else {
+
+		reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(z_handle));
+
+		if (what & CURL_POLL_IN) {
+			((reactor_poll_t * ) Z_OBJ_P(z_handle))->events |= ASYNC_READABLE;
+		}
+
+		if (what & CURL_POLL_OUT) {
+			((reactor_poll_t * ) Z_OBJ_P(z_handle))->events |= ASYNC_WRITABLE;
+		}
+
+		reactor_add_handle((reactor_handle_t *) Z_OBJ_P(z_handle));
 	}
-
-	if (what & CURL_POLL_OUT) {
-		events |= ASYNC_WRITABLE;
-	}
-
-	reactor_handle_t * socket_poll = reactor_socket_new_fn((php_socket_t) socket_fd, events);
-
-	if (socket_poll == NULL) {
-		return CURLM_BAD_SOCKET;
-	}
-
-	async_resume_when(&context->resume, socket_poll, true, multi_poll_callback);
-
-	if (EG(exception)) {
-		OBJ_RELEASE(&socket_poll->std);
-		zend_exception_to_warning("Failed to add poll callback: %s", true);
-		return CURLM_BAD_SOCKET;
-	}
-
-	zval z_poll;
-	ZVAL_OBJ(&z_poll, &socket_poll->std);
-	zend_hash_index_add(context->poll_list, socket_fd, &z_poll);
-
-	curl_multi_assign(curl_multi_handle, socket_fd, socket_poll);
-
-	reactor_add_handle(socket_poll);
 
 	return 0;
 }
@@ -513,6 +527,8 @@ CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
 		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
 		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
 		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
+		// Initiate execution of the transfer
+		curl_multi_socket_action(multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
 		async_await(&context->resume);
 	} zend_catch {
