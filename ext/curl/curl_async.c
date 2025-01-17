@@ -405,7 +405,7 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 		action |= CURL_CSELECT_OUT;
 	}
 
-	if (Z_TYPE_P(error) == IS_OBJECT) {
+	if (UNEXPECTED(error != NULL && Z_TYPE_P(error) == IS_OBJECT)) {
 		action |= CURL_CSELECT_ERR;
 	}
 
@@ -531,6 +531,13 @@ CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
 		curl_multi_socket_action(multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
 		async_await(&context->resume);
+
+		// Clear the timeout exception because it is not an error
+		if (EG(exception) != NULL && EG(exception)->ce == async_ce_timeout_exception) {
+			zend_clear_exception();
+			result = CURLM_OK;
+		}
+
 	} zend_catch {
 		is_bailout = true;
 		goto finally;
@@ -549,7 +556,7 @@ finally:
 	}
 
 	// Calculate the number of file descriptors that are ready
-	result = async_resume_get_ready_poll_handles(&context->resume);
+	*numfds = async_resume_get_ready_poll_handles(&context->resume);
 
 	OBJ_RELEASE(&context->resume.std);
 
