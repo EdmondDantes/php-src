@@ -209,6 +209,15 @@ void _php_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 }
 /* }}} */
 
+#ifdef PHP_ASYNC
+/* {{{ */
+PHP_RSHUTDOWN_FUNCTION(curl)
+{
+	curl_async_shutdown();
+}
+/* }}} */
+#endif
+
 /* {{{ curl_module_entry */
 zend_module_entry curl_module_entry = {
 	STANDARD_MODULE_HEADER,
@@ -217,7 +226,11 @@ zend_module_entry curl_module_entry = {
 	PHP_MINIT(curl),
 	PHP_MSHUTDOWN(curl),
 	NULL,
+#ifdef PHP_ASYNC
+	PHP_RSHUTDOWN(curl),
+#else
 	NULL,
+#endif
 	PHP_MINFO(curl),
 	PHP_CURL_VERSION,
 	STANDARD_MODULE_PROPERTIES
@@ -547,9 +560,6 @@ zend_result curl_cast_object(zend_object *obj, zval *result, int type)
 /* {{{ PHP_MSHUTDOWN_FUNCTION */
 PHP_MSHUTDOWN_FUNCTION(curl)
 {
-#ifdef PHP_ASYNC
-	curl_async_shutdown();
-#endif
 	curl_global_cleanup();
 #ifdef PHP_CURL_NEED_OPENSSL_TSL
 	if (php_curl_openssl_tsl) {

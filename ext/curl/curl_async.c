@@ -198,17 +198,19 @@ static void timer_callback(zend_object * callback, zend_object *notifier, const 
 static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 {
 	if (timeout_ms < 0) {
-		if (timer != NULL) {
-			reactor_remove_handle_fn(timer);
-			OBJ_RELEASE(&timer->std);
+		if (timer_callback_obj != NULL) {
+			OBJ_RELEASE(timer_callback_obj);
+			timer = NULL;
+			timer_callback_obj = NULL;
 		}
 
 		return 0;
 	}
 
-	if (timer != NULL) {
-		reactor_remove_handle_fn(timer);
-		OBJ_RELEASE(&timer->std);
+	if (timer_callback_obj != NULL) {
+		OBJ_RELEASE(timer_callback_obj);
+		timer = NULL;
+		timer_callback_obj = NULL;
 	}
 
 	timer = reactor_timer_new_fn(timeout_ms, false);
@@ -236,10 +238,13 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 		return CURLM_INTERNAL_ERROR;
 	}
 
+	// Timer object owned to the callback object
+	GC_DELREF(&timer->std);
+
 	reactor_add_handle(timer);
 
 	if (UNEXPECTED(EG(exception))) {
-		OBJ_RELEASE(&timer->std);
+		OBJ_RELEASE(timer_callback_obj);
 		zend_exception_to_warning("Failed to add timer handle: %s", true);
 		return CURLM_INTERNAL_ERROR;
 	}
@@ -257,7 +262,8 @@ void curl_async_setup(void)
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, curl_socket_cb);
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 	curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETDATA, NULL);
-	curl_multi_resume_list = zend_new_array(8);
+	curl_multi_resume_list = pemalloc(sizeof(HashTable), false);
+	zend_hash_init(curl_multi_resume_list, 8, NULL, NULL, false);
 
 	timer = NULL;
 	poll_callback_obj = NULL;
@@ -288,7 +294,8 @@ void curl_async_shutdown(void)
 	}
 
 	if (curl_multi_resume_list != NULL) {
-		zend_array_destroy(curl_multi_resume_list);
+		zend_hash_destroy(curl_multi_resume_list);
+		pefree(curl_multi_resume_list, false);
 		curl_multi_resume_list = NULL;
 	}
 }
@@ -363,7 +370,7 @@ static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 		return CURLM_INTERNAL_ERROR;
 	}
 
-	async_resume_when(&context->resume, context->timer, true, multi_timer_callback);
+	async_resume_when(&context->resume, context->timer, false, multi_timer_callback);
 
 	if (UNEXPECTED(EG(exception))) {
 		OBJ_RELEASE(&context->timer->std);
