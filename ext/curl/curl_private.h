@@ -121,6 +121,9 @@ typedef struct {
 	struct {
 		int no;
 	} err;
+#ifdef PHP_ASYNC
+	void *async_context;
+#endif
 	zend_object std;
 } php_curlm;
 

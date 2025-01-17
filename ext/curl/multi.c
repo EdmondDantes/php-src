@@ -224,7 +224,7 @@ PHP_FUNCTION(curl_multi_select)
 	}
 
 #ifdef PHP_ASYNC
-	error = curl_async_wait(mh->multi, (int) (timeout * 1000.0), &numfds);
+	error = curl_async_select(mh, (int) (timeout * 1000.0), &numfds);
 #else
 	error = curl_multi_wait(mh->multi, NULL, 0, (int) (timeout * 1000.0), &numfds);
 #endif
@@ -268,7 +268,11 @@ PHP_FUNCTION(curl_multi_exec)
 	}
 
 	still_running = zval_get_long(z_still_running);
+#ifdef PHP_ASYNC
+	error = curl_async_multi_perform(mh, &still_running);
+#else
 	error = curl_multi_perform(mh->multi, &still_running);
+#endif
 	ZEND_TRY_ASSIGN_REF_LONG(z_still_running, still_running);
 
 	SAVE_CURLM_ERROR(mh, error);
@@ -560,6 +564,10 @@ static zend_function *curl_multi_get_constructor(zend_object *object) {
 static void curl_multi_free_obj(zend_object *object)
 {
 	php_curlm *mh = curl_multi_from_obj(object);
+
+#ifdef PHP_ASYNC
+	curl_async_dtor(mh);
+#endif
 
 	zend_llist_position pos;
 	php_curl *ch;

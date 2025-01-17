@@ -24,7 +24,7 @@
  * This module is designed for the asynchronous version of PHP functions that work with CURL.
  * The module implements two entry points:
  * * `curl_async_perform`
- * * `curl_async_wait`
+ * * `curl_async_select`
  *
  * which replace the calls to the corresponding CURL LIB functions.
  *
@@ -40,10 +40,10 @@
  * Keep in mind that if the Resume object is destroyed,
  * all associated descriptors will also be destroyed and removed from the event loop.
  *
- * `curl_async_wait` is a wrapper for the CURL function `curl_multi_wait`.
+ * `curl_async_select` is a wrapper for the CURL function `curl_multi_wait`.
  * It suspends the execution of the Fiber until the first resolved descriptor.
  * It operates in a manner similar to the previous function,
- * with the difference that `curl_async_wait` creates a special `Resume` object
+ * with the difference that `curl_async_select` creates a special `Resume` object
  * with additional context that participates in callbacks `curl_async_context`.
  *
  * ******************************************************************************************************************
@@ -336,7 +336,7 @@ CURLcode curl_async_perform(CURL* curl)
 }
 
 //=============================================================
-#pragma region curl_async_wait
+#pragma region curl_async_select + curl_multi_perform
 //=============================================================
 
 static void multi_timer_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
@@ -355,6 +355,8 @@ static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	if (timeout_ms < 0) {
 		if (context->timer != NULL) {
 			async_resume_remove_notifier(&context->resume, context->timer);
+			OBJ_RELEASE(&context->timer->std);
+			context->timer = NULL;
 		}
 
 		return 0;
@@ -362,6 +364,8 @@ static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 
 	if (timer != NULL) {
 		async_resume_remove_notifier(&context->resume, context->timer);
+		OBJ_RELEASE(&context->timer->std);
+		context->timer = NULL;
 	}
 
 	context->timer = reactor_timer_new_fn(timeout_ms, false);
@@ -409,13 +413,18 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 		action |= CURL_CSELECT_ERR;
 	}
 
+	printf("multi_poll_callback action %i\n", action);
 	curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
-	async_resume_when_callback_resolve(resume, notifier, event, error);
+	int msgs_in_queue = 0;
+	//curl_multi_info_read(context->curl_multi_handle, &msgs_in_queue);
+	//curl_multi_perform(context->curl_multi_handle, &msgs_in_queue);
+	//async_resume_when_callback_resolve(resume, notifier, event, error);
 }
 
 static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *data)
 {
 	curl_async_context * context = user_p;
+	printf("multi_socket_cb socket %i, action %i\n", socket_fd, what);
 
 	if (context == NULL) {
         return -1;
@@ -438,6 +447,12 @@ static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int 
 		zend_hash_index_del(context->poll_list, socket_fd);
 		reactor_remove_handle_fn(handle);
 		async_resume_remove_notifier(&context->resume, handle);
+
+		if (context->poll_list->nNumUsed == 0) {
+			zval result;
+			ZVAL_NULL(&result);
+			async_resume_fiber(&context->resume, &result, NULL);
+        }
 
 		return 0;
 	}
@@ -496,13 +511,68 @@ static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int 
 	return 0;
 }
 
-CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
+static void curl_async_multi_context_new(php_curlm *curl_m, CURLM *multi_handle)
 {
 	curl_async_context * context = (curl_async_context *) async_resume_new_ex(NULL, sizeof(curl_async_context));
 
 	if (context == NULL) {
+        return;
+    }
+
+	context->curl_multi_handle = multi_handle;
+	curl_m->async_context = context;
+
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
+	curl_multi_setopt(multi_handle, CURLMOPT_TIMERDATA, context);
+	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
+	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
+}
+
+void curl_async_dtor(php_curlm *multi_handle)
+{
+	curl_async_context * context = multi_handle->async_context;
+	multi_handle->async_context = NULL;
+
+	if (context == NULL) {
+        return;
+    }
+
+	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_SOCKETDATA, NULL);
+	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_TIMERDATA, NULL);
+	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_SOCKETFUNCTION, NULL);
+	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
+
+	OBJ_RELEASE(&context->resume.std);
+}
+
+CURLMcode curl_async_multi_perform(php_curlm * curl_m, int *running_handles)
+{
+	if (curl_m->async_context == NULL) {
+        curl_async_multi_context_new(curl_m, curl_m->multi);
+    }
+
+	curl_async_context * context = curl_m->async_context;
+
+	curl_multi_socket_action(curl_m->multi, CURL_SOCKET_TIMEOUT, 0, NULL);
+
+	*running_handles = async_resume_get_ready_poll_handles(&context->resume);
+
+	return CURLM_OK;
+}
+
+CURLMcode curl_async_select(php_curlm * curl_m, int timeout_ms, int* numfds)
+{
+	CURLM* multi_handle = curl_m->multi;
+
+	if (curl_m->async_context == NULL) {
+        curl_async_multi_context_new(curl_m, multi_handle);
+    }
+
+	if (curl_m->async_context == NULL) {
         return CURLM_OUT_OF_MEMORY;
     }
+
+	curl_async_context * context = curl_m->async_context;
 
 	int result = CURLM_OK;
 	bool is_bailout = false;
@@ -524,9 +594,6 @@ CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds)
             goto finally;
         }
 
-		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, context);
-		curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
-		curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
 		// Initiate execution of the transfer
 		curl_multi_socket_action(multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
@@ -547,16 +614,12 @@ bailout:
 
 finally:
 
-	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETFUNCTION, NULL);
-	curl_multi_setopt(multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
-	curl_multi_setopt(multi_handle, CURLMOPT_SOCKETDATA, NULL);
+	// Calculate the number of file descriptors that are ready
+	*numfds = async_resume_get_ready_poll_handles(&context->resume);
 
 	if (context->poll_list != NULL) {
 		zend_array_destroy(context->poll_list);
 	}
-
-	// Calculate the number of file descriptors that are ready
-	*numfds = async_resume_get_ready_poll_handles(&context->resume);
 
 	OBJ_RELEASE(&context->resume.std);
 

@@ -19,6 +19,7 @@
 #include <async/php_layer/notifier.h>
 #include <async/php_layer/resume.h>
 #include <curl/curl.h>
+#include "curl_private.h"
 
 /**
  * @brief The structure of the context for the asynchronous cURL request.
@@ -60,6 +61,10 @@ void curl_async_shutdown(void);
  */
 CURLcode curl_async_perform(CURL* curl);
 
-CURLMcode curl_async_wait(CURLM* multi_handle, int timeout_ms, int* numfds);
+void curl_async_dtor(php_curlm *object);
+
+CURLMcode curl_async_multi_perform(php_curlm * curl_m, int *running_handles);
+
+CURLMcode curl_async_select(php_curlm * curl_m, int timeout_ms, int* numfds);
 
 #endif //CURL_H
