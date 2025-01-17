@@ -402,11 +402,17 @@ ZEND_API void async_resume_remove_notifier(async_resume_t *resume, reactor_notif
 		return;
 	}
 
+	// Add a reference to the notifier object to prevent it from being deleted during the execution of this function.
+	GC_ADDREF(&notifier->std);
+
 	if (zend_hash_index_del(&resume->notifiers, notifier->std.handle) == SUCCESS) {
 		zval z_callback;
 		ZVAL_OBJ(&z_callback, &resume->std);
 		async_notifier_remove_callback(&notifier->std, &z_callback);
 	}
+
+	// Release the reference to the notifier object.
+	OBJ_RELEASE(&notifier->std);
 }
 
 ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
