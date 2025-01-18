@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f5ad07c87e938b790a27191a94744be8a91b2e39 */
+ * Stub hash: 6381cfdb18141a72953132f6e45a5c58e67cb88e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_addCallback, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
@@ -12,14 +12,19 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_notify, 0, 
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, error, Throwable, 1, "null")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier___toString, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_METHOD(Async_Notifier, addCallback);
 ZEND_METHOD(Async_Notifier, removeCallback);
 ZEND_METHOD(Async_Notifier, notify);
+ZEND_METHOD(Async_Notifier, __toString);
 
 static const zend_function_entry class_Async_Notifier_methods[] = {
 	ZEND_ME(Async_Notifier, addCallback, arginfo_class_Async_Notifier_addCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, removeCallback, arginfo_class_Async_Notifier_removeCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, notify, arginfo_class_Async_Notifier_notify, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
+	ZEND_ME(Async_Notifier, __toString, arginfo_class_Async_Notifier___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -35,6 +40,12 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_string *property_callbacks_name = zend_string_init("callbacks", sizeof("callbacks") - 1, 1);
 	zend_declare_typed_property(class_entry, property_callbacks_name, &property_callbacks_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_callbacks_name);
+
+	zval property_reserved_default_value;
+	ZVAL_LONG(&property_reserved_default_value, 0);
+	zend_string *property_reserved_name = zend_string_init("reserved", sizeof("reserved") - 1, 1);
+	zend_declare_typed_property(class_entry, property_reserved_name, &property_reserved_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_reserved_name);
 
 	return class_entry;
 }
