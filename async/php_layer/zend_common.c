@@ -114,3 +114,18 @@ zif_handler zend_hook_php_function(const char *name, const size_t len, zif_handl
 
 	return original_handler;
 }
+
+zif_handler zend_replace_method(zend_object * object, const char * method, const size_t len, const zif_handler handler)
+{
+	zif_handler original_handler = NULL;
+	zend_function *func = zend_hash_str_find_ptr(&object->ce->function_table, method, len);
+
+	if (func == NULL) {
+		return original_handler;
+	}
+
+	original_handler = func->internal_function.handler;
+	func->internal_function.handler = handler;
+
+	return original_handler;
+}

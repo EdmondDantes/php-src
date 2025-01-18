@@ -804,6 +804,62 @@ static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
 #pragma endregion
 //=============================================================
 
+//=============================================================
+#pragma region Getaddrinfo
+//=============================================================
+
+static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+	if (status < 0) {
+		fprintf(stderr, "Error: %s\n", uv_strerror(status));
+	} else {
+		char addr[INET6_ADDRSTRLEN];
+		// Преобразуем адрес в строку
+		if (res->ai_family == AF_INET) {
+			uv_ip4_name((struct sockaddr_in *)res->ai_addr, addr, sizeof(addr));
+		} else if (res->ai_family == AF_INET6) {
+			uv_ip6_name((struct sockaddr_in6 *)res->ai_addr, addr, sizeof(addr));
+		} else {
+			snprintf(addr, sizeof(addr), "Unknown family");
+		}
+		printf("Resolved address: %s\n", addr);
+	}
+
+	uv_freeaddrinfo(res);
+	efree(req);
+}
+
+static void libuv_getaddrinfo(const char * host, const char * service, struct addrinfo * hints)
+{
+	uv_getaddrinfo_t *req = emalloc(sizeof(uv_getaddrinfo_t));
+
+	bool hints_owned = false;
+
+	if (hints == NULL) {
+		hints_owned = true;
+		hints = emalloc(sizeof(struct addrinfo));
+		memset(hints, 0, sizeof(struct addrinfo));
+		hints->ai_family = AF_UNSPEC;
+	}
+
+	req->data = NULL;
+
+	int ret = uv_getaddrinfo(UVLOOP, req, on_resolved, host, service, hints);
+
+	if (hints_owned) {
+		efree(hints);
+	}
+
+	if (ret) {
+		fprintf(stderr, "uv_getaddrinfo error: %s\n", uv_strerror(ret));
+		efree(req);
+	}
+}
+
+//=============================================================
+#pragma endregion
+//=============================================================
+
 static void setup_handlers(void)
 {
 	async_scheduler_set_callbacks_handler(execute_callbacks);

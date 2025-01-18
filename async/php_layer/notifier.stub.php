@@ -15,6 +15,13 @@ class Notifier
     private array $callbacks = [];
 
     /**
+     * Reserved for internal use:
+     * reactor_notifier_notify_t notify_fn
+     * reactor_remove_callback_t remove_callback_fn
+     */
+    private int $reserved = 0;
+
+    /**
      * Adds a callback to the event.
      *
      * @param Callback $callback The callback to add.
@@ -34,4 +41,9 @@ class Notifier
      * Notifies all registered callbacks about the event.
      */
     final protected function notify(mixed $event, ?\Throwable $error = null): void {}
+
+    /**
+     * Returns a string representation of the Notifier that can be used for debugging purposes.
+     */
+    public function __toString(): string {}
 }

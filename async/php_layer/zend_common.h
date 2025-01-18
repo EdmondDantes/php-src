@@ -21,8 +21,9 @@
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"
 
-#define IF_THROW_RETURN_VOID if(EG(exception) != NULL) { return; }
-#define IF_THROW_RETURN(value) if(EG(exception) != NULL) { return value; }
+#define IF_THROW_RETURN_VOID if(UNEXPECTED(EG(exception) != NULL)) { return; }
+#define IF_THROW_FINALLY if(UNEXPECTED(EG(exception) != NULL)) { goto finally; }
+#define IF_THROW_RETURN(value) if(UNEXPECTED(EG(exception) != NULL)) { return value; }
 
 #define DEFINE_VAR(type, var) type *var = (type *) emalloc(sizeof(type));
 
@@ -202,5 +203,12 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval);
 void zend_resolve_weak_reference(zval* weak_reference, zval* retval);
 
 zif_handler zend_hook_php_function(const char *name, const size_t len, zif_handler new_function);
+
+zif_handler zend_replace_method(zend_object * object, const char * method, const size_t len, const zif_handler handler);
+
+zend_always_inline zif_handler zend_replace_to_string_method(zend_object * object, const zif_handler handler)
+{
+	return zend_replace_method(object, ZEND_STRL("__toString"), handler);
+}
 
 #endif //ASYNC_ZEND_COMMON_H

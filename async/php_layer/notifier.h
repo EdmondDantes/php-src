@@ -42,12 +42,13 @@ typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
 
 typedef bool (* reactor_remove_callback_t) (reactor_notifier_t * notifier, zval * callback);
+typedef void (* reactor_notifier_notify_t) (reactor_notifier_t* notifier, zval* event, zval* error);
 
 struct _reactor_handle_s {
-	/* PHP std object Async\Notifier */
-	zend_object std;
 	union
 	{
+		/* PHP std object Async\Notifier */
+		zend_object std;
 		struct
 		{
 			char _padding[sizeof(zend_object) - sizeof(zval)];
@@ -56,9 +57,29 @@ struct _reactor_handle_s {
 			 * point to the std.properties_table[0]
 			 */
 			zval callbacks;
+
+			// Padding memory zone for notify_fn, remove_callback_fn
+			zval _padding2;
+		};
+		struct
+		{
+			// zend object std + callbacks
+			char _padding[sizeof(zend_object)];
+
+			// padding2 + padding3 memory zone
+
+			/**
+			 * Notify function.
+			 * Called when the notifier is triggered.
+			 */
+			reactor_notifier_notify_t notify_fn;
+			/**
+			 * Remove callback function.
+			 * Called when a callback is removed from the notifier.
+			 */
+			reactor_remove_callback_t remove_callback_fn;
 		};
 	};
-	reactor_remove_callback_t remove_callback_fn;
 };
 
 static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
@@ -72,9 +93,13 @@ static zend_always_inline HashTable* async_notifier_get_callbacks_hash(const zen
 }
 
 void async_register_notifier_ce(void);
-void async_notifier_add_callback(zend_object* notifier, zval* callback);
-void async_notifier_remove_callback(zend_object* notifier, zval* callback);
-void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error);
+
+ZEND_API reactor_notifier_t * async_notifier_new_ex(
+	size_t size, reactor_notifier_notify_t notify_fn, reactor_remove_callback_t remove_callback_fn
+);
+ZEND_API void async_notifier_add_callback(zend_object* notifier, zval* callback);
+ZEND_API void async_notifier_remove_callback(zend_object* notifier, zval* callback);
+ZEND_API void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error);
 
 END_EXTERN_C()
 

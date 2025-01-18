@@ -55,6 +55,12 @@ METHOD(removeCallback)
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
+METHOD(__toString)
+{
+	// By default, this method returns the class name.
+	RETURN_STR(zend_string_copy(Z_OBJCE_P(ZEND_THIS)->name));
+}
+
 METHOD(notify)
 {
 	zval* event;
@@ -81,6 +87,24 @@ void async_register_notifier_ce(void)
 	//async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
 	//async_notifier_handlers.free_obj = async_notifier_object_free;
 	async_notifier_handlers.clone_obj = NULL;
+}
+
+reactor_notifier_t * async_notifier_new_ex(
+	size_t size, reactor_notifier_notify_t notify_fn, reactor_remove_callback_t remove_callback_fn
+)
+{
+	if (size == 0) {
+		size = sizeof(reactor_notifier_t);
+	}
+
+	ZEND_ASSERT(sizeof(reactor_notifier_t) < size && "Extra size must be at least the size of the reactor_notifier_t structure");
+
+	reactor_notifier_t * notifier = zend_object_alloc_ex(size, async_ce_notifier);
+
+	notifier->notify_fn = notify_fn;
+	notifier->remove_callback_fn = remove_callback_fn;
+
+	return notifier;
 }
 
 void async_notifier_add_callback(zend_object* notifier, zval* callback)
@@ -140,6 +164,12 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		// to prevent the object from being deleted during the execution of this function.
 		GC_ADDREF(&notifier->std);
 
+		if (notifier->notify_fn != NULL) {
+			notifier->notify_fn(notifier, event, error);
+
+			IF_THROW_FINALLY;
+		}
+
 		zval *current;
 		zval resolved_callback;
 		ZVAL_UNDEF(&resolved_callback);
@@ -158,16 +188,18 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 
 				zval_ptr_dtor(&resolved_callback);
 
-				IF_THROW_RETURN_VOID;
+				IF_THROW_FINALLY;
 			}
 
-		IF_THROW_RETURN_VOID;
+		IF_THROW_FINALLY;
 		ZEND_HASH_FOREACH_END();
 
 	} zend_catch {
 		GC_DELREF(&notifier->std);
 		zend_bailout();
 	} zend_end_try();
+
+finally:
 
 	GC_DELREF(&notifier->std);
 }

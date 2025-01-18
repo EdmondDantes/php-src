@@ -853,3 +853,18 @@ error:
 //===============================================================
 #pragma endregion
 //===============================================================
+
+void async_getaddrinfo()
+{
+	
+}
+
+PHPAPI struct hostent* async_network_gethostbyname(const char *name)
+{
+
+}
+
+PHPAPI int async_network_getaddresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
+{
+
+}
