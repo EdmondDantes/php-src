@@ -23,7 +23,7 @@
 #include "notifier.h"
 
 // After parent property callbacks
-#define TRIGGERED_EVENTS_INDEX 1
+#define TRIGGERED_EVENTS_INDEX 2
 
 /**
  * Data structure for describing FIBER objects, which are represented in PHP as the FiberHandle class.
@@ -116,17 +116,17 @@ static zend_always_inline zval * async_ev_handle_get_triggered_events(zend_objec
 
 static zend_always_inline zval * async_timer_get_microseconds(zend_object *object)
 {
-	return &object->properties_table[1];
+	return &object->properties_table[2];
 }
 
 static zend_always_inline zval * async_timer_get_is_periodic(zend_object *object)
 {
-	return &object->properties_table[2];
+	return &object->properties_table[3];
 }
 
 static zend_always_inline zval * async_signal_get_number(zend_object *object)
 {
-	return &object->properties_table[1];
+	return &object->properties_table[4];
 }
 
 /**
