@@ -57,6 +57,11 @@ typedef struct _reactor_process_s reactor_process_t;
 typedef struct _reactor_thread_s reactor_thread_t;
 
 /**
+ * Data structure for describing DNS INFO objects, which are represented in PHP as the DnsInfo class.
+ */
+typedef struct _reactor_dns_info_s reactor_dns_info_t;
+
+/**
  * Data structure for describing FILE SYSTEM objects, which are represented in PHP as the FileSystemHandle class.
  */
 typedef struct _reactor_file_system_s reactor_file_system_t;
@@ -96,6 +101,13 @@ struct _reactor_process_s {
 struct _reactor_thread_s {
 	reactor_handle_t handle;
 	zval tid;
+};
+
+struct _reactor_dns_info_s {
+	reactor_handle_t handle;
+	zval host;
+	zval port;
+	zval address;
 };
 
 struct _reactor_file_system_s {
@@ -165,6 +177,7 @@ ZEND_API zend_class_entry *async_ce_timer_handle;
 ZEND_API zend_class_entry *async_ce_signal_handle;
 ZEND_API zend_class_entry *async_ce_process_handle;
 ZEND_API zend_class_entry *async_ce_thread_handle;
+ZEND_API zend_class_entry *async_ce_dns_info;
 
 ZEND_API zend_class_entry *async_ce_file_system_handle;
 

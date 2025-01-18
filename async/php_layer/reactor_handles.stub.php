@@ -154,6 +154,24 @@ final class ProcessHandle extends Notifier
  * @strict-properties
  * @not-serializable
  */
+final class DnsInfoHandle extends Notifier
+{
+    public static function resolveHost(string $host, int $port = 0): DnsInfoHandle {}
+    public static function resolveAddress(string $address, int $port = 0): DnsInfoHandle {}
+
+    public readonly string $host;
+    public readonly int $port;
+    public readonly string|null $address = null;
+
+    private function __construct() {}
+
+    public function __toString(): string {}
+}
+
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class FileSystemHandle extends Notifier
 {
     public const int EVENT_RENAME = 1;

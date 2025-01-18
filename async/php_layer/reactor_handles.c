@@ -418,6 +418,11 @@ void async_register_handlers_ce(void)
 	async_ce_thread_handle->create_object = NULL;
 	async_ce_thread_handle->default_object_handlers = &reactor_object_handlers;
 
+	async_ce_dns_info = register_class_Async_DnsInfoHandle(async_ce_notifier);
+	async_ce_dns_info->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_dns_info->create_object = NULL;
+	async_ce_dns_info->default_object_handlers = &reactor_object_handlers;
+
 	async_ce_file_system_handle = register_class_Async_FileSystemHandle(async_ce_notifier);
 	async_ce_file_system_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_file_system_handle->create_object = NULL;

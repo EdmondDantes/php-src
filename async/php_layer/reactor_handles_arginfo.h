@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2d7710cad3a472c9ebbb20c225be592e894fbf83 */
+ * Stub hash: 0861e66caa38a05aafd85b5fd656eaf785e882d9 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -64,6 +64,21 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_ProcessHandle___construct arginfo_class_Async_PollHandle___construct
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_DnsInfoHandle_resolveHost, 0, 1, Async\\DnsInfoHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_DnsInfoHandle_resolveAddress, 0, 1, Async\\DnsInfoHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, address, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Async_DnsInfoHandle___construct arginfo_class_Async_PollHandle___construct
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_DnsInfoHandle___toString, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileSystemHandle_fromPath, 0, 2, Async\\FileSystemHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
@@ -97,6 +112,10 @@ ZEND_METHOD(Async_SignalHandle, isListening);
 ZEND_METHOD(Async_SignalHandle, stop);
 ZEND_METHOD(Async_ThreadHandle, __construct);
 ZEND_METHOD(Async_ProcessHandle, __construct);
+ZEND_METHOD(Async_DnsInfoHandle, resolveHost);
+ZEND_METHOD(Async_DnsInfoHandle, resolveAddress);
+ZEND_METHOD(Async_DnsInfoHandle, __construct);
+ZEND_METHOD(Async_DnsInfoHandle, __toString);
 ZEND_METHOD(Async_FileSystemHandle, fromPath);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
 ZEND_METHOD(Async_FileSystemHandle, isListening);
@@ -153,6 +172,14 @@ static const zend_function_entry class_Async_ThreadHandle_methods[] = {
 
 static const zend_function_entry class_Async_ProcessHandle_methods[] = {
 	ZEND_ME(Async_ProcessHandle, __construct, arginfo_class_Async_ProcessHandle___construct, ZEND_ACC_PRIVATE)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_Async_DnsInfoHandle_methods[] = {
+	ZEND_ME(Async_DnsInfoHandle, resolveHost, arginfo_class_Async_DnsInfoHandle_resolveHost, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_DnsInfoHandle, resolveAddress, arginfo_class_Async_DnsInfoHandle_resolveAddress, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_DnsInfoHandle, __construct, arginfo_class_Async_DnsInfoHandle___construct, ZEND_ACC_PRIVATE)
+	ZEND_ME(Async_DnsInfoHandle, __toString, arginfo_class_Async_DnsInfoHandle___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -326,6 +353,30 @@ static zend_class_entry *register_class_Async_ProcessHandle(zend_class_entry *cl
 	zend_string *property_exitCode_name = zend_string_init("exitCode", sizeof("exitCode") - 1, 1);
 	zend_declare_typed_property(class_entry, property_exitCode_name, &property_exitCode_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
 	zend_string_release(property_exitCode_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_Async_DnsInfoHandle(zend_class_entry *class_entry_Async_Notifier)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "Async", "DnsInfoHandle", class_Async_DnsInfoHandle_methods);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+
+	zval property_host_default_value;
+	ZVAL_UNDEF(&property_host_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_HOST), &property_host_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+
+	zval property_port_default_value;
+	ZVAL_UNDEF(&property_port_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_PORT), &property_port_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+
+	zval property_address_default_value;
+	ZVAL_NULL(&property_address_default_value);
+	zend_string *property_address_name = zend_string_init("address", sizeof("address") - 1, 1);
+	zend_declare_typed_property(class_entry, property_address_name, &property_address_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release(property_address_name);
 
 	return class_entry;
 }
