@@ -39,7 +39,7 @@ Async\async(function () {
 
 Async\async(function () {
     // Fiber acting as the client
-    sleep(1); // Ensure the server is ready
+    usleep(1); // Ensure the server is ready
 
     $client = stream_socket_client(ASYNC_TCP_SERVER, $errno, $errstr);
 

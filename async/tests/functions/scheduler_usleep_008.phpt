@@ -9,7 +9,7 @@ Async\defer(function() {
 
 Async\async(function() {
     echo "fiber start\n";
-    usleep(10);
+    usleep(1);
     echo "fiber end\n";
 });
 
