@@ -362,7 +362,7 @@ static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 		return 0;
 	}
 
-	if (timer != NULL) {
+	if (context->timer != NULL) {
 		async_resume_remove_notifier(&context->resume, context->timer);
 		OBJ_RELEASE(&context->timer->std);
 		context->timer = NULL;
@@ -413,18 +413,12 @@ static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *noti
 		action |= CURL_CSELECT_ERR;
 	}
 
-	printf("multi_poll_callback action %i\n", action);
 	curl_multi_socket_action(context->curl_multi_handle, handle->socket, action, NULL);
-	int msgs_in_queue = 0;
-	//curl_multi_info_read(context->curl_multi_handle, &msgs_in_queue);
-	//curl_multi_perform(context->curl_multi_handle, &msgs_in_queue);
-	//async_resume_when_callback_resolve(resume, notifier, event, error);
 }
 
 static int multi_socket_cb(CURL *curl, const curl_socket_t socket_fd, const int what, void *user_p, void *data)
 {
 	curl_async_context * context = user_p;
-	printf("multi_socket_cb socket %i, action %i\n", socket_fd, what);
 
 	if (context == NULL) {
         return -1;
@@ -537,11 +531,22 @@ void curl_async_dtor(php_curlm *multi_handle)
         return;
     }
 
+	if (context->poll_list != NULL) {
+		zend_array_destroy(context->poll_list);
+		context->poll_list = NULL;
+	}
+
+	if (context->timer != NULL) {
+        OBJ_RELEASE(&context->timer->std);
+        context->timer = NULL;
+    }
+
 	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_SOCKETDATA, NULL);
 	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_TIMERDATA, NULL);
 	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_SOCKETFUNCTION, NULL);
 	curl_multi_setopt(context->curl_multi_handle, CURLMOPT_TIMERFUNCTION, NULL);
 
+	ZEND_ASSERT(GC_REFCOUNT(&context->resume.std) == 1 && "Memory leak detected. The resume object should have only one reference");
 	OBJ_RELEASE(&context->resume.std);
 }
 
@@ -598,6 +603,7 @@ CURLMcode curl_async_select(php_curlm * curl_m, int timeout_ms, int* numfds)
 		curl_multi_socket_action(multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
 		async_await(&context->resume);
+		async_resume_remove_notifier(&context->resume, timer);
 
 		// Clear the timeout exception because it is not an error
 		if (EG(exception) != NULL && EG(exception)->ce == async_ce_timeout_exception) {
@@ -616,12 +622,6 @@ finally:
 
 	// Calculate the number of file descriptors that are ready
 	*numfds = async_resume_get_ready_poll_handles(&context->resume);
-
-	if (context->poll_list != NULL) {
-		zend_array_destroy(context->poll_list);
-	}
-
-	OBJ_RELEASE(&context->resume.std);
 
 	if (is_bailout) {
 		goto bailout;

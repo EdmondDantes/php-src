@@ -32,8 +32,6 @@ typedef struct _curl_async_context curl_async_context;
 struct _curl_async_context {
 	async_resume_t resume;
 	CURLM * curl_multi_handle;
-	reactor_notifier_t * curl_notifier;
-	zend_object * callback;
 	reactor_handle_t * timer;
 	HashTable * poll_list;
 };
@@ -61,7 +59,7 @@ void curl_async_shutdown(void);
  */
 CURLcode curl_async_perform(CURL* curl);
 
-void curl_async_dtor(php_curlm *object);
+void curl_async_dtor(php_curlm *multi_handle);
 
 CURLMcode curl_async_multi_perform(php_curlm * curl_m, int *running_handles);
 

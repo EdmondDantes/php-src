@@ -15,7 +15,6 @@
 */
 #include "libuv_reactor.h"
 
-#include <time.h>
 #include <zend_exceptions.h>
 #include <async/php_async.h>
 #include <async/php_reactor.h>

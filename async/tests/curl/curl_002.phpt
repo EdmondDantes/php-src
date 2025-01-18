@@ -25,7 +25,6 @@ Async\async(function() {
     curl_multi_add_handle($mh, $ch2);
 
     $active = null;
-    $i = 0;
     do {
         $status = curl_multi_exec($mh, $active);
         if ($status !== CURLM_OK) {
@@ -33,12 +32,7 @@ Async\async(function() {
             break;
         }
 
-        $time = microtime(true);
         curl_multi_select($mh, 1.0);
-        $delta = microtime(true) - $time;
-        echo "delta: $delta\n";
-        echo "wait $i\n";
-        $i++;
     } while ($active);
 
     // Retrieve responses
