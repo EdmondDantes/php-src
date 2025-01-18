@@ -808,8 +808,22 @@ static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
 #pragma region Getaddrinfo
 //=============================================================
 
-static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+typedef struct dns_notifier_s {
+	reactor_notifier_t notifier;
+	uv_getaddrinfo_t req;
+} dns_notifier_t;
+
+static bool dns_notifier_dtor(reactor_notifier_t * notifier, zval * callback)
 {
+	dns_notifier_t * dns_notifier = (dns_notifier_t *) notifier;
+
+	return true;
+}
+
+static void dns_on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+	dns_notifier_t * dns_notifier = req->data;
+
 	if (status < 0) {
 		fprintf(stderr, "Error: %s\n", uv_strerror(status));
 	} else {
@@ -829,9 +843,11 @@ static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 	efree(req);
 }
 
-static void libuv_getaddrinfo(const char * host, const char * service, struct addrinfo * hints)
+static dns_notifier_t * dns_notifier_new(const char * host, const char * service, struct addrinfo * hints)
 {
-	uv_getaddrinfo_t *req = emalloc(sizeof(uv_getaddrinfo_t));
+	dns_notifier_t * dns_notifier = (dns_notifier_t *) async_notifier_new_ex(
+		sizeof(dns_notifier_t), NULL, dns_notifier_dtor
+	);
 
 	bool hints_owned = false;
 
@@ -842,18 +858,20 @@ static void libuv_getaddrinfo(const char * host, const char * service, struct ad
 		hints->ai_family = AF_UNSPEC;
 	}
 
-	req->data = NULL;
+	dns_notifier->req.data = dns_notifier;
 
-	int ret = uv_getaddrinfo(UVLOOP, req, on_resolved, host, service, hints);
+	const int result = uv_getaddrinfo(UVLOOP, &dns_notifier->req, dns_on_resolved, host, service, hints);
 
 	if (hints_owned) {
 		efree(hints);
 	}
 
-	if (ret) {
-		fprintf(stderr, "uv_getaddrinfo error: %s\n", uv_strerror(ret));
-		efree(req);
+	if (result) {
+		fprintf(stderr, "uv_getaddrinfo error: %s\n", uv_strerror(result));
+		OBJ_RELEASE(&dns_notifier->notifier.std);
 	}
+
+	return dns_notifier;
 }
 
 //=============================================================
