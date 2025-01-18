@@ -799,6 +799,7 @@ static reactor_file_system_new_t prev_reactor_file_system_new_fn = NULL;
 
 static reactor_process_new_t prev_reactor_process_new_fn = NULL;
 static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
+static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
 
 //=============================================================
 #pragma endregion
@@ -874,6 +875,11 @@ static dns_notifier_t * dns_notifier_new(const char * host, const char * service
 	return dns_notifier;
 }
 
+static dns_notifier_t * libuv_dns_info_new()
+{
+
+}
+
 //=============================================================
 #pragma endregion
 //=============================================================
@@ -933,6 +939,9 @@ static void setup_handlers(void)
 	prev_reactor_thread_new_fn = reactor_thread_new_fn;
 	reactor_thread_new_fn = libuv_thread_new;
 
+	prev_reactor_dns_info_new_fn = reactor_dns_info_new_fn;
+	reactor_dns_info_new_fn = libuv_dns_info_new;
+
 	prev_reactor_file_system_new_fn = reactor_file_system_new_fn;
 	reactor_file_system_new_fn = libuv_file_system_new;
 }
@@ -960,6 +969,7 @@ static void restore_handlers(void)
 	reactor_signal_new_fn = prev_reactor_signal_new_fn;
 	reactor_process_new_fn = prev_reactor_process_new_fn;
 	reactor_thread_new_fn = prev_reactor_thread_new_fn;
+	reactor_dns_info_new_fn = prev_reactor_dns_info_new_fn;
 	reactor_file_system_new_fn = prev_reactor_file_system_new_fn;
 }
 

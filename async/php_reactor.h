@@ -129,6 +129,14 @@ typedef reactor_handle_t* (*reactor_process_new_t)(async_process_id_t pid, zend_
  */
 typedef reactor_handle_t* (*reactor_thread_new_t)(THREAD_T thread_id, zend_ulong events);
 
+/**
+ * reactor_dns_info_new_t - Creates a new DNS info event handle.
+ * Resolves DNS information for the specified host and port.
+ */
+typedef reactor_handle_t * (*reactor_dns_info_new_t)(
+	const char *host, size_t host_len, const int *port, const char *address, size_t address_len
+);
+
 BEGIN_EXTERN_C()
 
 ZEND_API zend_bool reactor_is_enabled(void);
@@ -155,6 +163,7 @@ ZEND_API reactor_tty_new_t reactor_tty_new_fn;
 ZEND_API reactor_file_system_new_t reactor_file_system_new_fn;
 ZEND_API reactor_process_new_t reactor_process_new_fn;
 ZEND_API reactor_thread_new_t reactor_thread_new_fn;
+ZEND_API reactor_dns_info_new_t reactor_dns_info_new_fn;
 
 END_EXTERN_C()
 
