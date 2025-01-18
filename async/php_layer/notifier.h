@@ -75,7 +75,7 @@ struct _reactor_handle_s {
 			reactor_notifier_handler_t handler_fn;
 			/**
 			 * Remove callback function.
-			 * Called when a callback is should be removed.
+			 * Called when a callback is should be removed or when the notifier is destroyed.
 			 */
 			reactor_remove_callback_t remove_callback_fn;
 		};

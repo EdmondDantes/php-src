@@ -75,6 +75,21 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
+static void async_notifier_object_destroy(zend_object *object)
+{
+	reactor_notifier_t *notifier = (reactor_notifier_t *) object;
+
+	if (notifier->remove_callback_fn) {
+		zval callback;
+		ZVAL_NULL(&callback);
+		notifier->remove_callback_fn(notifier, &callback);
+	}
+
+	notifier->remove_callback_fn = NULL;
+
+	zend_object_std_dtor(&notifier->std);
+}
+
 void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
@@ -84,7 +99,7 @@ void async_register_notifier_ce(void)
 	async_ce_notifier->default_object_handlers = &async_notifier_handlers;
 
 	async_notifier_handlers = std_object_handlers;
-	//async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
+	async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
 	//async_notifier_handlers.free_obj = async_notifier_object_free;
 	async_notifier_handlers.clone_obj = NULL;
 }
