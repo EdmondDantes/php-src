@@ -90,7 +90,7 @@ void async_register_notifier_ce(void)
 }
 
 reactor_notifier_t * async_notifier_new_ex(
-	size_t size, reactor_notifier_notify_t notify_fn, reactor_remove_callback_t remove_callback_fn
+	size_t size, reactor_notifier_handler_t handler_fn, reactor_remove_callback_t remove_callback_fn
 )
 {
 	if (size == 0) {
@@ -101,7 +101,7 @@ reactor_notifier_t * async_notifier_new_ex(
 
 	reactor_notifier_t * notifier = zend_object_alloc_ex(size, async_ce_notifier);
 
-	notifier->notify_fn = notify_fn;
+	notifier->handler_fn = handler_fn;
 	notifier->remove_callback_fn = remove_callback_fn;
 
 	return notifier;
@@ -164,8 +164,8 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		// to prevent the object from being deleted during the execution of this function.
 		GC_ADDREF(&notifier->std);
 
-		if (notifier->notify_fn != NULL) {
-			notifier->notify_fn(notifier, event, error);
+		if (notifier->handler_fn != NULL) {
+			notifier->handler_fn(notifier, event, error);
 
 			IF_THROW_FINALLY;
 		}
