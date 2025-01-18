@@ -52,7 +52,7 @@
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_resume_list = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
-ZEND_TLS zend_object * poll_callback_obj = NULL;
+ZEND_TLS reactor_notifier_t * curl_notifier = NULL;
 ZEND_TLS zend_object * timer_callback_obj = NULL;
 
 static void process_curl_completed_handles(void)
@@ -252,6 +252,27 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	return 0;
 }
 
+static void ZEND_FASTCALL curl_notifier_to_string(INTERNAL_FUNCTION_PARAMETERS)
+{
+	const zend_object * object = Z_OBJ_P(getThis());
+
+	if (object == NULL) {
+		RETURN_EMPTY_STRING();
+	}
+
+	RETURN_STRING("CURL HANDLE");
+}
+
+void curl_notifier_init(void)
+{
+	if (curl_notifier != NULL) {
+		return;
+	}
+
+	curl_notifier = async_notifier_new_ex(0, NULL, NULL);
+	zend_replace_to_string_method(&curl_notifier->std, curl_notifier_to_string);
+}
+
 void curl_async_setup(void)
 {
 	if (curl_multi_handle != NULL) {
@@ -266,7 +287,7 @@ void curl_async_setup(void)
 	zend_hash_init(curl_multi_resume_list, 8, NULL, NULL, false);
 
 	timer = NULL;
-	poll_callback_obj = NULL;
+	curl_notifier = NULL;
 	timer_callback_obj = NULL;
 }
 
@@ -278,9 +299,9 @@ void curl_async_shutdown(void)
         timer = NULL;
     }
 
-	if (poll_callback_obj != NULL) {
-        OBJ_RELEASE(poll_callback_obj);
-        poll_callback_obj = NULL;
+	if (curl_notifier != NULL) {
+        OBJ_RELEASE(&curl_notifier->std);
+        curl_notifier = NULL;
     }
 
 	if (timer_callback_obj != NULL) {
@@ -322,6 +343,9 @@ CURLcode curl_async_perform(CURL* curl)
 		zval_ptr_dtor(&z_resume);
 		return CURLE_FAILED_INIT;
 	}
+
+	curl_notifier_init();
+	async_resume_when(resume, curl_notifier, false, async_resume_when_callback_resolve);
 
 	curl_multi_add_handle(curl_multi_handle, curl);
 	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);

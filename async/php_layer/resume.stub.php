@@ -89,4 +89,9 @@ final class Resume
      * Removes a Notifier from the `Resume` object.
      */
     public function removeNotifier(Notifier $notifier): static {}
+
+    /**
+     * Returns a string representation of the `Resume` object that can be used for debugging purposes.
+     */
+    public function __toString(): string {}
 }

@@ -202,6 +202,13 @@ METHOD(removeNotifier)
 	async_notifier_remove_callback(Z_OBJ_P(notifier), ZEND_THIS);
 }
 
+METHOD(__toString)
+{
+
+
+	RETURN_STRING("Resume");
+}
+
 static void async_resume_notifier_dtor(zval *item)
 {
 	async_resume_notifier_t * resume_notifier = Z_PTR_P(item);
