@@ -189,7 +189,7 @@ PHPAPI int php_network_getaddresses(const char *host, int socktype, struct socka
 # endif
 
 #ifdef PHP_ASYNC
-	if (UNEXPECTED(IN_ASYNC_CONTEXT)) {
+	if (IN_ASYNC_CONTEXT) {
 		async_getaddrinfo(host, NULL, &hints, &res);
 		n = 0;
 	} else {
