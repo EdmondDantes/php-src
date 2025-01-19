@@ -291,6 +291,8 @@ ZEND_API int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 
 ZEND_API int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tv);
 
+ZEND_API void async_getaddrinfo(const char * node, const char * service, const struct addrinfo * hints, struct addrinfo ** res);
+
 END_EXTERN_C()
 
 #endif //ASYNC_H

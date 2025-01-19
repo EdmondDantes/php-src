@@ -188,7 +188,18 @@ PHPAPI int php_network_getaddresses(const char *host, int socktype, struct socka
 	hints.ai_family = ipv6_borked ? AF_INET : AF_UNSPEC;
 # endif
 
-	if ((n = getaddrinfo(host, NULL, &hints, &res))) {
+#ifdef PHP_ASYNC
+	if (UNEXPECTED(IN_ASYNC_CONTEXT)) {
+		async_getaddrinfo(host, NULL, &hints, &res);
+		n = 0;
+	} else {
+		n = getaddrinfo(host, NULL, &hints, &res);
+	}
+#else
+	n = getaddrinfo(host, NULL, &hints, &res);
+#endif
+
+	if (n) {
 # if defined(PHP_WIN32)
 		char *gai_error = php_win32_error_to_msg(n);
 # elif defined(HAVE_GAI_STRERROR)

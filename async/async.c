@@ -854,9 +854,26 @@ error:
 #pragma endregion
 //===============================================================
 
-void async_getaddrinfo()
+void async_getaddrinfo(const char * node, const char * service, const struct addrinfo * hints, struct addrinfo ** res)
 {
-	
+	async_resume_t *resume = async_resume_new(NULL);
+
+	if(resume == NULL) {
+		errno = ENOMEM;
+		return;
+	}
+
+	reactor_dns_info_new_fn(node, service, NULL, hints);
+	async_dns_lookup(resume, node, service, hints);
+
+	async_await(resume);
+
+	if (resume->error != NULL) {
+		zend_throw_exception_object(resume->error);
+		return;
+	}
+
+	*res = resume->addrinfo;
 }
 
 PHPAPI struct hostent* async_network_gethostbyname(const char *name)
