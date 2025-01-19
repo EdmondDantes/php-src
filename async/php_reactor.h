@@ -133,8 +133,12 @@ typedef reactor_handle_t* (*reactor_thread_new_t)(THREAD_T thread_id, zend_ulong
  * reactor_dns_info_new_t - Creates a new DNS info event handle.
  * Resolves DNS information for the specified host and port.
  */
-typedef reactor_handle_t * (*reactor_dns_info_new_t)(
-	const char *host, size_t host_len, const int *port, const char *address, size_t address_len
+typedef reactor_handle_t * (*reactor_dns_info_new_t)
+(
+	const zend_string *host,
+	const zend_string *service,
+	const zend_string * address,
+	struct addrinfo *hints
 );
 
 BEGIN_EXTERN_C()

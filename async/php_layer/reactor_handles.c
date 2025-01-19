@@ -297,6 +297,83 @@ PHP_METHOD(Async_FileSystemHandle, stop)
 	reactor_remove_handle_fn((reactor_handle_t *) Z_OBJ_P(ZEND_THIS));
 }
 
+PHP_METHOD(Async_DnsInfoHandle, resolveHost)
+{
+	THROW_IF_REACTOR_DISABLED;
+
+	zend_string *host;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STR(host)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reactor_dns_info_t * dns_info = (reactor_dns_info_t *) reactor_dns_info_new_fn(host, NULL, NULL, NULL);
+
+	if (dns_info == NULL) {
+        RETURN_THROWS();
+    }
+
+	ZVAL_NULL(&dns_info->address);
+	ZVAL_STR(&dns_info->host, zend_string_copy(host));
+
+	RETURN_OBJ(&dns_info->handle.std);
+}
+
+PHP_METHOD(Async_DnsInfoHandle, resolveAddress)
+{
+	THROW_IF_REACTOR_DISABLED;
+
+	zend_string *address;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STR(address)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reactor_dns_info_t * dns_info = (reactor_dns_info_t *) reactor_dns_info_new_fn(NULL, NULL, address, NULL);
+
+	if (dns_info == NULL) {
+		RETURN_THROWS();
+	}
+
+	ZVAL_STR(&dns_info->address, zend_string_copy(address));
+	ZVAL_NULL(&dns_info->host);
+
+	RETURN_OBJ(&dns_info->handle.std);
+}
+
+PHP_METHOD(Async_DnsInfoHandle, __toString)
+{
+	const reactor_dns_info_t * dns_info = (reactor_dns_info_t *) Z_OBJ_P(ZEND_THIS);
+
+	if (Z_TYPE(dns_info->address) == IS_STRING) {
+
+		zend_string *prefix = zend_string_init("Dns address: ", sizeof("Dns address: ") - 1, 0);
+
+		zend_string *result = zend_string_concat2(
+		ZSTR_VAL(prefix), ZSTR_LEN(prefix),
+		ZSTR_VAL(Z_STR(dns_info->address)), ZSTR_LEN(Z_STR(dns_info->address))
+		);
+
+		zend_string_free(prefix);
+
+        RETURN_STR(result);
+    } else if (Z_TYPE(dns_info->host) == IS_STRING) {
+
+    	zend_string *prefix = zend_string_init("Dns host: ", sizeof("Dns host: ") - 1, 0);
+
+	    zend_string *result = zend_string_concat2(
+	    ZSTR_VAL(prefix), ZSTR_LEN(prefix),
+	    ZSTR_VAL(Z_STR(dns_info->host)), ZSTR_LEN(Z_STR(dns_info->host))
+        );
+
+    	zend_string_free(prefix);
+
+        RETURN_STR(result);
+    } else {
+        RETURN_STR(zend_string_init("Dns info", sizeof("Dns info") - 1, 0));
+    }
+}
+
 PHP_METHOD(Async_FileSystemHandle, fromPath)
 {
 	THROW_IF_REACTOR_DISABLED;
@@ -361,6 +438,9 @@ static void reactor_fiber_handle_destroy(zend_object* object)
 	}
 
 	handle->fiber = NULL;
+
+	// call parent dtor function
+	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
 static zend_object_handlers reactor_object_handlers;
@@ -369,7 +449,8 @@ static zend_object_handlers reactor_fiber_handle_handlers;
 void async_register_handlers_ce(void)
 {
 	// Create common handlers for reactor classes
-	reactor_object_handlers = std_object_handlers;
+	// Copy the notifier object handlers and replace the clone_obj method with NULL
+	reactor_object_handlers = *async_ce_notifier->default_object_handlers;
 	reactor_object_handlers.clone_obj = NULL;
 
 	async_ce_poll_handle = register_class_Async_PollHandle(async_ce_notifier);
@@ -377,7 +458,7 @@ void async_register_handlers_ce(void)
 	async_ce_poll_handle->create_object = NULL;
 	async_ce_poll_handle->default_object_handlers = &reactor_object_handlers;
 
-	reactor_fiber_handle_handlers = std_object_handlers;
+	reactor_fiber_handle_handlers = *async_ce_notifier->default_object_handlers;
 	reactor_fiber_handle_handlers.clone_obj = NULL;
 	reactor_fiber_handle_handlers.dtor_obj = reactor_fiber_handle_destroy;
 

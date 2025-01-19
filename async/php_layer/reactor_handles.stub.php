@@ -156,11 +156,10 @@ final class ProcessHandle extends Notifier
  */
 final class DnsInfoHandle extends Notifier
 {
-    public static function resolveHost(string $host, int $port = 0): DnsInfoHandle {}
-    public static function resolveAddress(string $address, int $port = 0): DnsInfoHandle {}
+    public static function resolveHost(string $host): DnsInfoHandle {}
+    public static function resolveAddress(string $address): DnsInfoHandle {}
 
-    public readonly string $host;
-    public readonly int $port;
+    public readonly string|null $host = null;
     public readonly string|null $address = null;
 
     private function __construct() {}

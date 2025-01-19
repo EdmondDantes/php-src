@@ -106,7 +106,6 @@ struct _reactor_thread_s {
 struct _reactor_dns_info_s {
 	reactor_handle_t handle;
 	zval host;
-	zval port;
 	zval address;
 };
 

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 0861e66caa38a05aafd85b5fd656eaf785e882d9 */
+ * Stub hash: 91cfd2a7c2a52cacc571b9bd6e230f0d4e16fa00 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -66,12 +66,10 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_DnsInfoHandle_resolveHost, 0, 1, Async\\DnsInfoHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_DnsInfoHandle_resolveAddress, 0, 1, Async\\DnsInfoHandle, 0)
 	ZEND_ARG_TYPE_INFO(0, address, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_DnsInfoHandle___construct arginfo_class_Async_PollHandle___construct
@@ -365,12 +363,8 @@ static zend_class_entry *register_class_Async_DnsInfoHandle(zend_class_entry *cl
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval property_host_default_value;
-	ZVAL_UNDEF(&property_host_default_value);
-	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_HOST), &property_host_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-
-	zval property_port_default_value;
-	ZVAL_UNDEF(&property_port_default_value);
-	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_PORT), &property_port_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	ZVAL_NULL(&property_host_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_HOST), &property_host_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
 
 	zval property_address_default_value;
 	ZVAL_NULL(&property_address_default_value);

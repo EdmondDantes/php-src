@@ -809,48 +809,74 @@ static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
 #pragma region Getaddrinfo
 //=============================================================
 
-typedef struct dns_notifier_s {
-	reactor_notifier_t notifier;
-	uv_getaddrinfo_t req;
-} dns_notifier_t;
-
 static bool dns_notifier_dtor(reactor_notifier_t * notifier, zval * callback)
 {
-	dns_notifier_t * dns_notifier = (dns_notifier_t *) notifier;
+	libuv_dns_info_t * dns_notifier = (libuv_dns_info_t *) notifier;
 
 	return true;
 }
 
-static void dns_on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+static void dns_on_resolved(uv_getaddrinfo_t *req, const int status, struct addrinfo *res)
 {
-	dns_notifier_t * dns_notifier = req->data;
+	libuv_dns_info_t * dns_handle = req->data;
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	if (Z_TYPE(dns_handle->dns_info.address) == IS_STRING) {
+        zend_string_release(Z_STR(dns_handle->dns_info.address));
+    }
+
+	ZVAL_NULL(&dns_handle->dns_info.address);
 
 	if (status < 0) {
-		fprintf(stderr, "Error: %s\n", uv_strerror(status));
+		zend_object *exception = async_new_exception(
+			async_ce_input_output_exception, "Dns info error: %s", uv_strerror(status)
+		);
+
+		ZVAL_OBJ(&error, exception);
 	} else {
-		char addr[INET6_ADDRSTRLEN];
-		// Преобразуем адрес в строку
+		zend_string *addr = zend_string_alloc(INET6_ADDRSTRLEN - 1, 0);
+
 		if (res->ai_family == AF_INET) {
-			uv_ip4_name((struct sockaddr_in *)res->ai_addr, addr, sizeof(addr));
+			uv_ip4_name((struct sockaddr_in *)res->ai_addr, ZSTR_VAL(addr), INET6_ADDRSTRLEN);
+			ZVAL_STR(&dns_handle->dns_info.address, addr);
 		} else if (res->ai_family == AF_INET6) {
-			uv_ip6_name((struct sockaddr_in6 *)res->ai_addr, addr, sizeof(addr));
+			uv_ip6_name((struct sockaddr_in6 *)res->ai_addr, ZSTR_VAL(addr), INET6_ADDRSTRLEN);
+			ZVAL_STR(&dns_handle->dns_info.address, addr);
 		} else {
-			snprintf(addr, sizeof(addr), "Unknown family");
+			zend_object *exception = async_new_exception(
+				async_ce_input_output_exception, "Dns info error: Unknown address family"
+			);
+
+			ZVAL_OBJ(&error, exception);
+			zend_string_release(addr);
 		}
-		printf("Resolved address: %s\n", addr);
 	}
 
 	uv_freeaddrinfo(res);
 	efree(req);
+
+	async_notifier_notify(&dns_handle->handle, &dns_handle->dns_info.address, &error);
 }
 
-static dns_notifier_t * dns_notifier_new(const char * host, const char * service, struct addrinfo * hints)
+static libuv_dns_info_t * libuv_dns_info_new(
+	zend_string * host, const zend_string * service, zend_string * address, struct addrinfo * hints
+)
 {
-	dns_notifier_t * dns_notifier = (dns_notifier_t *) async_notifier_new_ex(
-		sizeof(dns_notifier_t), NULL, dns_notifier_dtor
+	libuv_dns_info_t * dns_handle = (libuv_dns_info_t *) async_notifier_new_ex(
+		sizeof(libuv_dns_info_t), NULL, dns_notifier_dtor
 	);
 
 	bool hints_owned = false;
+
+	if (host != NULL) {
+		ZVAL_STR(&dns_handle->dns_info.host, zend_string_copy(host));
+	}
+
+	if (address != NULL) {
+		ZVAL_STR(&dns_handle->dns_info.address, zend_string_copy(address));
+	}
 
 	if (hints == NULL) {
 		hints_owned = true;
@@ -859,25 +885,23 @@ static dns_notifier_t * dns_notifier_new(const char * host, const char * service
 		hints->ai_family = AF_UNSPEC;
 	}
 
-	dns_notifier->req.data = dns_notifier;
+	const char * c_host = host != NULL ? ZSTR_VAL(host) : NULL;
+	const char * c_service = service != NULL ? ZSTR_VAL(service) : NULL;
 
-	const int result = uv_getaddrinfo(UVLOOP, &dns_notifier->req, dns_on_resolved, host, service, hints);
+	dns_handle->req.data = dns_handle;
+
+	const int result = uv_getaddrinfo(UVLOOP, &dns_handle->req, dns_on_resolved, c_host, c_service, hints);
 
 	if (hints_owned) {
 		efree(hints);
 	}
 
 	if (result) {
-		fprintf(stderr, "uv_getaddrinfo error: %s\n", uv_strerror(result));
-		OBJ_RELEASE(&dns_notifier->notifier.std);
+		async_throw_error("getaddrinfo error: %s", uv_strerror(result));
+		OBJ_RELEASE(&dns_handle->handle.std);
 	}
 
-	return dns_notifier;
-}
-
-static dns_notifier_t * libuv_dns_info_new()
-{
-
+	return dns_handle;
 }
 
 //=============================================================
