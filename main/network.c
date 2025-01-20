@@ -1360,6 +1360,11 @@ static struct hostent * gethostname_re (const char *host,struct hostent *hostbuf
 #endif
 
 PHPAPI struct hostent*	php_network_gethostbyname(const char *name) {
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT) {
+        return async_network_get_host_by_name(name);
+    }
+#endif
 #if !defined(HAVE_GETHOSTBYNAME_R)
 	return gethostbyname(name);
 #else

@@ -18,7 +18,6 @@
 
 #include <php_network.h>
 #include <zend_fibers.h>
-#include <zlib.h>
 
 #include "php_reactor.h"
 #include "php_scheduler.h"
@@ -42,6 +41,8 @@ ZEND_DECLARE_MODULE_GLOBALS(async)
 #else
 async_globals* async_globals;
 #endif
+
+ZEND_TLS HashTable * host_name_list = NULL;
 
 //===============================================================
 #pragma region Startup and Shutdown
@@ -104,6 +105,10 @@ void async_module_startup(void)
  */
 void async_module_shutdown(void)
 {
+	if (host_name_list != NULL) {
+		zend_hash_destroy(host_name_list);
+		host_name_list = NULL;
+	}
 }
 
 void async_fiber_shutdown_callback(zend_fiber *fiber)
@@ -858,15 +863,14 @@ error:
 #pragma region DNS
 //===============================================================
 
-PHPAPI int async_network_get_addresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
+int async_network_get_addresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
 {
 	if (host == NULL) {
 		return 0;
 	}
 
-	struct addrinfo hints;
+	struct addrinfo hints = {0};
 
-	memset(&hints, '\0', sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = socktype;
 
@@ -888,6 +892,7 @@ PHPAPI int async_network_get_addresses(const char *host, int socktype, struct so
 
 	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
 	async_await(resume);
+	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 
@@ -920,8 +925,6 @@ PHPAPI int async_network_get_addresses(const char *host, int socktype, struct so
 		return -1;
 	}
 
-	OBJ_RELEASE(&resume->std);
-
 	struct sockaddr **sap;
 	struct addrinfo *sai;
 	int n;
@@ -947,9 +950,126 @@ PHPAPI int async_network_get_addresses(const char *host, int socktype, struct so
 	return n;
 }
 
-PHPAPI struct hostent* async_network_gethostbyname(const char *name)
+static struct hostent *addr_info_to_hostent(const struct addrinfo *addr_info)
 {
+	if (addr_info == NULL || addr_info->ai_family != AF_INET) {
+		return NULL;
+	}
 
+	struct hostent *result = (struct hostent *)emalloc(sizeof(struct hostent));
+
+	if (result == NULL) {
+		return NULL;
+	}
+
+	memset(result, 0, sizeof(struct hostent));
+
+	char **addr_list = (char **)emalloc(2 * sizeof(char *));
+
+	if (addr_list == NULL) {
+		efree(result);
+		return NULL;
+	}
+
+	memset(addr_list, 0, 2 * sizeof(char *));
+
+	struct sockaddr_in *addr_in = (struct sockaddr_in *)addr_info->ai_addr;
+	addr_list[0] = (char *)emalloc(sizeof(struct in_addr));
+
+	if (addr_list[0] == NULL) {
+		efree(addr_list);
+		efree(result);
+		return NULL;
+	}
+
+	memcpy(addr_list[0], &addr_in->sin_addr, sizeof(struct in_addr));
+
+	result->h_name = addr_info->ai_canonname ? estrdup(addr_info->ai_canonname) : NULL;
+	result->h_aliases = NULL;
+	result->h_addrtype = AF_INET;
+	result->h_length = sizeof(struct in_addr);
+	result->h_addr_list = addr_list;
+
+	return result;
+}
+
+zend_always_inline struct hostent* find_host_by_name(const char *name)
+{
+	if (host_name_list == NULL) {
+        return NULL;
+    }
+
+	zval *entry = zend_hash_str_find(host_name_list, name, strlen(name));
+
+	if (entry == NULL) {
+        return NULL;
+    }
+
+	return (struct hostent *)Z_PTR_P(entry);
+}
+
+zend_always_inline void store_host_by_name(const char *name, struct hostent *host)
+{
+    if (host_name_list == NULL) {
+        ALLOC_HASHTABLE(host_name_list);
+        zend_hash_init(host_name_list, 8, NULL, ZVAL_PTR_DTOR, 0);
+    }
+
+    zval zv;
+    ZVAL_PTR(&zv, host);
+
+    zend_hash_str_update(host_name_list, name, strlen(name), &zv);
+}
+
+PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
+{
+	if (name == NULL) {
+        return NULL;
+    }
+
+	struct hostent* result = find_host_by_name(name);
+
+	if (result != NULL) {
+        return result;
+    }
+
+	struct addrinfo hints = {0};
+
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = 0;
+
+	async_resume_t *resume = async_resume_new(NULL);
+
+	if(resume == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	const zend_string * z_host = zend_string_init(name, strlen(name), 0);
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(z_host, NULL, NULL, &hints);
+
+	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
+		OBJ_RELEASE(&dns_info->std);
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
+	async_await(resume);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
+		OBJ_RELEASE(&resume->std);
+	}
+
+	result = addr_info_to_hostent(((reactor_dns_info_t *) dns_info)->addr_info);
+
+	store_host_by_name(name, result);
+
+	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
+	OBJ_RELEASE(&dns_info->std);
+
+	return result;
 }
 
 //===============================================================
