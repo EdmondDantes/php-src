@@ -700,7 +700,19 @@ static void libuv_close_handle(reactor_handle_t *handle)
 	} else if (object->ce == async_ce_thread_handle) {
 
 	} else if (object->ce == async_ce_dns_info) {
-		uv_freeaddrinfo(((libuv_dns_info_t *) object)->req.addrinfo);
+
+		libuv_dns_info_t *dns_info = (libuv_dns_info_t *)object;
+
+		if (dns_info->addr_info != NULL) {
+			if (dns_info->is_addr_info) {
+				uv_freeaddrinfo(dns_info->addr_info->addrinfo);
+			} else {
+
+			}
+
+			efree(dns_info->addr_info);
+		}
+
 		return;
     }
 
@@ -812,7 +824,7 @@ static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
 //=============================================================
 #pragma region Getaddrinfo
 //=============================================================
-static void dns_on_resolved(uv_getaddrinfo_t *req, const int status, struct addrinfo *res)
+static void addr_on_resolved(uv_getaddrinfo_t *req, const int status, struct addrinfo *res)
 {
 	libuv_dns_info_t * dns_handle = req->data;
 
@@ -827,12 +839,34 @@ static void dns_on_resolved(uv_getaddrinfo_t *req, const int status, struct addr
 
 	if (status < 0) {
 		zend_object *exception = async_new_exception(
-			async_ce_input_output_exception, "Dns info error: %s", uv_strerror(status)
+			async_ce_input_output_exception, "async getaddrinfo error: %s", uv_strerror(status)
 		);
 
 		ZVAL_OBJ(&error, exception);
 	} else {
 		dns_handle->dns_info.addr_info = res;
+	}
+
+	zval z_null;
+	ZVAL_NULL(&z_null);
+	async_notifier_notify(&dns_handle->handle, &z_null, &error);
+}
+
+static void host_on_resolved(const uv_getnameinfo_t* req, const int status, const char* hostname, const char* service)
+{
+	libuv_dns_info_t * dns_handle = req->data;
+
+	zval error;
+	ZVAL_NULL(&error);
+
+	if (status < 0) {
+		zend_object *exception = async_new_exception(
+			async_ce_input_output_exception, "async getnameinfo error: %s", uv_strerror(status)
+		);
+
+		ZVAL_OBJ(&error, exception);
+	} else {
+	    ZVAL_STRING(&dns_handle->dns_info.host, hostname);
 	}
 
 	zval z_null;
@@ -847,6 +881,19 @@ static libuv_dns_info_t * libuv_dns_info_new(
 	struct addrinfo * hints
 )
 {
+	struct sockaddr_storage addr_storage;
+
+	if (address != NULL) {
+		if (inet_pton(AF_INET, ZSTR_VAL(address), &((struct sockaddr_in*)&addr_storage)->sin_addr) == 1) {
+			uv_ip4_addr(ZSTR_VAL(address), 0, (struct sockaddr_in*)&addr_storage);
+		} else if (inet_pton(AF_INET6, ZSTR_VAL(address), &((struct sockaddr_in6*)&addr_storage)->sin6_addr) == 1) {
+			uv_ip6_addr(ZSTR_VAL(address), 0, (struct sockaddr_in6*)&addr_storage);
+		} else {
+			async_throw_error("Invalid IP address format: %s", ZSTR_VAL(address));
+			return NULL;
+		}
+	}
+
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_dns_info_t, dns_handle, async_ce_dns_info);
 	dns_handle->std.handlers = &libuv_object_handlers;
 
@@ -870,14 +917,22 @@ static libuv_dns_info_t * libuv_dns_info_new(
 	const char * c_host = host != NULL ? ZSTR_VAL(host) : NULL;
 	const char * c_service = service != NULL ? ZSTR_VAL(service) : NULL;
 
-	dns_handle->req.data = dns_handle;
-
 	int result = 0;
 
 	if (address != NULL) {
-		result = uv_getnameinfo(UVLOOP, &dns_handle->req, dns_on_resolved, (struct sockaddr *) Z_STR(dns_handle->dns_info.address)->val, 0);
+		dns_handle->is_addr_info = false;
+		dns_handle->name_info = emalloc(sizeof(uv_getnameinfo_t));
+		dns_handle->name_info->data = dns_handle;
+
+		result = uv_getnameinfo(
+			UVLOOP, dns_handle->name_info, host_on_resolved, (const struct sockaddr*) &addr_storage, 0
+		);
 	} else {
-		result = uv_getaddrinfo(UVLOOP, &dns_handle->req, dns_on_resolved, c_host, c_service, hints);
+		dns_handle->is_addr_info = true;
+		dns_handle->addr_info = emalloc(sizeof(uv_getaddrinfo_t));
+		dns_handle->addr_info->data = dns_handle;
+
+		result = uv_getaddrinfo(UVLOOP, dns_handle->addr_info, addr_on_resolved, c_host, c_service, hints);
 	}
 
 	if (hints_owned) {

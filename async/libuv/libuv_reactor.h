@@ -96,7 +96,12 @@ struct _libuv_dns_info_s {
 		reactor_handle_t handle;
 		reactor_dns_info_t dns_info;
 	};
-	uv_getaddrinfo_t req;
+	union
+	{
+		uv_getaddrinfo_t * addr_info;
+		uv_getnameinfo_t * name_info;
+	};
+	bool is_addr_info;
 };
 
 struct _libuv_fs_event_s {
