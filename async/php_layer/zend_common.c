@@ -57,6 +57,28 @@ void zend_exception_to_warning(const char * format, const bool clean)
 	}
 }
 
+zend_string * zend_current_exception_get_message(const bool clean)
+{
+	if (EG(exception) == NULL) {
+		return NULL;
+	}
+
+	zval rv;
+	const zval *message = zend_read_property_ex(
+		EG(exception)->ce, EG(exception), zend_known_strings[ZEND_STR_MESSAGE], 0, &rv
+	);
+
+	if (clean) {
+		zend_clear_exception();
+	}
+
+	if (message != NULL && Z_TYPE_P(message) == IS_STRING) {
+		return Z_STR_P(message);
+	} else {
+		return NULL;
+	}
+}
+
 void zend_new_weak_reference_from(const zval* referent, zval * retval)
 {
 	if (!create_fn) {

@@ -854,26 +854,97 @@ error:
 #pragma endregion
 //===============================================================
 
-void async_getaddrinfo(const char * node, const char * service, const struct addrinfo * hints, struct addrinfo ** res)
+//===============================================================
+#pragma region DNS
+//===============================================================
+
+PHPAPI int async_network_get_addresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
 {
+	if (host == NULL) {
+		return 0;
+	}
+
+	struct addrinfo hints;
+
+	memset(&hints, '\0', sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = socktype;
+
 	async_resume_t *resume = async_resume_new(NULL);
 
 	if(resume == NULL) {
 		errno = ENOMEM;
-		return;
+		return -1;
 	}
 
-	reactor_dns_info_new_fn(node, service, NULL, hints);
-	async_dns_lookup(resume, node, service, hints);
+	const zend_string * z_host = zend_string_init(host, strlen(host), 0);
 
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(z_host, NULL, NULL, &hints);
+
+	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
+		OBJ_RELEASE(&dns_info->std);
+		return -1;
+	}
+
+	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
 	async_await(resume);
 
-	if (resume->error != NULL) {
-		zend_throw_exception_object(resume->error);
-		return;
+	if (UNEXPECTED(EG(exception) != NULL)) {
+
+		zend_string * message = zend_current_exception_get_message(true);
+		bool is_owned_message = false;
+
+		if (message == NULL) {
+			is_owned_message = true;
+			message = zend_string_init("Unknown error", sizeof("Unknown error") - 1, 0);
+		}
+
+		if (error_string) {
+
+			/* free error string received during previous iteration (if any) */
+			if (*error_string) {
+				zend_string_release_ex(*error_string, 0);
+			}
+
+			*error_string = strpprintf(
+				0, "async getaddrinfo for %s failed: %s", host, ZSTR_VAL(message)
+			);
+		} else {
+			php_error_docref(NULL, E_WARNING, "async getaddrinfo for %s failed: %s", host, ZSTR_VAL(message));
+		}
+
+		if (is_owned_message) {
+			zend_string_release(message);
+		}
+
+		return -1;
 	}
 
-	*res = resume->addrinfo;
+	OBJ_RELEASE(&resume->std);
+
+	struct sockaddr **sap;
+	struct addrinfo *sai;
+	int n;
+
+	sai = ((reactor_dns_info_t *) dns_info)->addr_info;
+
+	for (n = 1; (sai = sai->ai_next) != NULL; n++)
+		;
+
+	*sal = safe_emalloc((n + 1), sizeof(*sal), 0);
+	sai = ((reactor_dns_info_t *) dns_info)->addr_info;
+	sap = *sal;
+
+	do {
+		*sap = emalloc(sai->ai_addrlen);
+		memcpy(*sap, sai->ai_addr, sai->ai_addrlen);
+		sap++;
+	} while ((sai = sai->ai_next) != NULL);
+
+	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
+	OBJ_RELEASE(&dns_info->std);
+
+	return n;
 }
 
 PHPAPI struct hostent* async_network_gethostbyname(const char *name)
@@ -881,7 +952,6 @@ PHPAPI struct hostent* async_network_gethostbyname(const char *name)
 
 }
 
-PHPAPI int async_network_getaddresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
-{
-
-}
+//===============================================================
+#pragma endregion
+//===============================================================

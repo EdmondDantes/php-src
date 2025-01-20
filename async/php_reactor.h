@@ -137,7 +137,7 @@ typedef reactor_handle_t * (*reactor_dns_info_new_t)
 (
 	const zend_string *host,
 	const zend_string *service,
-	const zend_string * address,
+	const zend_string *address,
 	struct addrinfo *hints
 );
 

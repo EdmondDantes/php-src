@@ -107,6 +107,7 @@ struct _reactor_dns_info_s {
 	reactor_handle_t handle;
 	zval host;
 	zval address;
+	struct addrinfo *addr_info;
 };
 
 struct _reactor_file_system_s {

@@ -665,41 +665,44 @@ static void libuv_close_handle(reactor_handle_t *handle)
 		uv_handle = (uv_handle_t *) poll->uv_handle;
 		poll->uv_handle = NULL;
 
-		} else if (object->ce == async_ce_timer_handle) {
+	} else if (object->ce == async_ce_timer_handle) {
 
-			libuv_timer_t *timer = (libuv_timer_t *)object;
+		libuv_timer_t *timer = (libuv_timer_t *)object;
 
-			if (timer->uv_handle == NULL) {
-				return;
-			}
-
-			uv_handle = (uv_handle_t *) timer->uv_handle;
-
-		} else if (object->ce == async_ce_signal_handle) {
-
-			libuv_signal_t *signal = (libuv_signal_t *)object;
-
-			if (signal->uv_handle == NULL) {
-				return;
-			}
-
-			uv_handle = (uv_handle_t *) signal->uv_handle;
-
-		} else if (object->ce == async_ce_file_system_handle) {
-
-			libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
-
-			if (fs_event->uv_handle == NULL) {
-				return;
-			}
-
-			uv_handle = (uv_handle_t *) fs_event->uv_handle;
-
-		} else if (object->ce == async_ce_process_handle) {
-
-		} else if (object->ce == async_ce_thread_handle) {
-
+		if (timer->uv_handle == NULL) {
+			return;
 		}
+
+		uv_handle = (uv_handle_t *) timer->uv_handle;
+
+	} else if (object->ce == async_ce_signal_handle) {
+
+		libuv_signal_t *signal = (libuv_signal_t *)object;
+
+		if (signal->uv_handle == NULL) {
+			return;
+		}
+
+		uv_handle = (uv_handle_t *) signal->uv_handle;
+
+	} else if (object->ce == async_ce_file_system_handle) {
+
+		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
+
+		if (fs_event->uv_handle == NULL) {
+			return;
+		}
+
+		uv_handle = (uv_handle_t *) fs_event->uv_handle;
+
+	} else if (object->ce == async_ce_process_handle) {
+
+	} else if (object->ce == async_ce_thread_handle) {
+
+	} else if (object->ce == async_ce_dns_info) {
+		uv_freeaddrinfo(((libuv_dns_info_t *) object)->req.addrinfo);
+		return;
+    }
 
 	if (uv_handle != NULL) {
 		uv_close(uv_handle, libuv_close_cb);
@@ -710,6 +713,7 @@ static void libuv_object_destroy(zend_object *object)
 {
 	libuv_remove_handle((reactor_handle_t *) object);
 	libuv_close_handle((reactor_handle_t *) object);
+	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
 //=============================================================
@@ -808,14 +812,6 @@ static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
 //=============================================================
 #pragma region Getaddrinfo
 //=============================================================
-
-static bool dns_notifier_dtor(reactor_notifier_t * notifier, zval * callback)
-{
-	libuv_dns_info_t * dns_notifier = (libuv_dns_info_t *) notifier;
-
-	return true;
-}
-
 static void dns_on_resolved(uv_getaddrinfo_t *req, const int status, struct addrinfo *res)
 {
 	libuv_dns_info_t * dns_handle = req->data;
@@ -836,37 +832,23 @@ static void dns_on_resolved(uv_getaddrinfo_t *req, const int status, struct addr
 
 		ZVAL_OBJ(&error, exception);
 	} else {
-		zend_string *addr = zend_string_alloc(INET6_ADDRSTRLEN - 1, 0);
-
-		if (res->ai_family == AF_INET) {
-			uv_ip4_name((struct sockaddr_in *)res->ai_addr, ZSTR_VAL(addr), INET6_ADDRSTRLEN);
-			ZVAL_STR(&dns_handle->dns_info.address, addr);
-		} else if (res->ai_family == AF_INET6) {
-			uv_ip6_name((struct sockaddr_in6 *)res->ai_addr, ZSTR_VAL(addr), INET6_ADDRSTRLEN);
-			ZVAL_STR(&dns_handle->dns_info.address, addr);
-		} else {
-			zend_object *exception = async_new_exception(
-				async_ce_input_output_exception, "Dns info error: Unknown address family"
-			);
-
-			ZVAL_OBJ(&error, exception);
-			zend_string_release(addr);
-		}
+		dns_handle->dns_info.addr_info = res;
 	}
 
-	uv_freeaddrinfo(res);
-	efree(req);
-
-	async_notifier_notify(&dns_handle->handle, &dns_handle->dns_info.address, &error);
+	zval z_null;
+	ZVAL_NULL(&z_null);
+	async_notifier_notify(&dns_handle->handle, &z_null, &error);
 }
 
 static libuv_dns_info_t * libuv_dns_info_new(
-	zend_string * host, const zend_string * service, zend_string * address, struct addrinfo * hints
+	zend_string * host,
+	zend_string * service,
+	zend_string * address,
+	struct addrinfo * hints
 )
 {
-	libuv_dns_info_t * dns_handle = (libuv_dns_info_t *) async_notifier_new_ex(
-		sizeof(libuv_dns_info_t), NULL, dns_notifier_dtor
-	);
+	DEFINE_ZEND_INTERNAL_OBJECT(libuv_dns_info_t, dns_handle, async_ce_dns_info);
+	dns_handle->std.handlers = &libuv_object_handlers;
 
 	bool hints_owned = false;
 

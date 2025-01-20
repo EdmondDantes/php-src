@@ -161,6 +161,13 @@ PHPAPI int php_network_getaddresses(const char *host, int socktype, struct socka
 	if (host == NULL) {
 		return 0;
 	}
+
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT) {
+		return async_network_get_addresses(host, socktype, sal, error_string);
+	}
+#endif
+
 #ifdef HAVE_GETADDRINFO
 	memset(&hints, '\0', sizeof(hints));
 
@@ -188,18 +195,7 @@ PHPAPI int php_network_getaddresses(const char *host, int socktype, struct socka
 	hints.ai_family = ipv6_borked ? AF_INET : AF_UNSPEC;
 # endif
 
-#ifdef PHP_ASYNC
-	if (IN_ASYNC_CONTEXT) {
-		async_getaddrinfo(host, NULL, &hints, &res);
-		n = 0;
-	} else {
-		n = getaddrinfo(host, NULL, &hints, &res);
-	}
-#else
-	n = getaddrinfo(host, NULL, &hints, &res);
-#endif
-
-	if (n) {
+	if ((n = getaddrinfo(host, NULL, &hints, &res))) {
 # if defined(PHP_WIN32)
 		char *gai_error = php_win32_error_to_msg(n);
 # elif defined(HAVE_GAI_STRERROR)
