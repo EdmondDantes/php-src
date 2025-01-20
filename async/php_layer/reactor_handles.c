@@ -341,6 +341,8 @@ PHP_METHOD(Async_DnsInfoHandle, resolveAddress)
 	RETURN_OBJ(&dns_info->handle.std);
 }
 
+PHP_METHOD(Async_DnsInfoHandle, __construct) {}
+
 PHP_METHOD(Async_DnsInfoHandle, __toString)
 {
 	const reactor_dns_info_t * dns_info = (reactor_dns_info_t *) Z_OBJ_P(ZEND_THIS);

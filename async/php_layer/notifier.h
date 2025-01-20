@@ -64,7 +64,7 @@ struct _reactor_handle_s {
 		struct
 		{
 			// zend object std + callbacks
-			char _padding[sizeof(zend_object)];
+			char _padding3[sizeof(zend_object)];
 
 			// padding2 + padding3 memory zone
 
