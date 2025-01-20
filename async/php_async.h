@@ -295,7 +295,7 @@ ZEND_API int async_network_get_addresses(const char *host, int socktype, struct 
 
 ZEND_API struct hostent* async_network_get_host_by_name(const char *name);
 
-ZEND_API zend_string* async_get_host_by_addr(char* ip);
+ZEND_API zend_string* async_get_host_by_addr(const char* ip);
 
 END_EXTERN_C()
 

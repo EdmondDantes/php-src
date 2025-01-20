@@ -1073,7 +1073,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 	return result;
 }
 
-zend_string* async_get_host_by_addr(char* ip)
+zend_string* async_get_host_by_addr(const char * ip)
 {
 	if (ip == NULL) {
         return NULL;
@@ -1086,9 +1086,9 @@ zend_string* async_get_host_by_addr(char* ip)
 		return NULL;
 	}
 
-	const zend_string * z_ip = zend_string_init(ip, strlen(ip), 0);
+	const zend_string * z_address = zend_string_init(ip, strlen(ip), 0);
 
-	reactor_handle_t * dns_info = reactor_dns_info_new_fn(NULL, NULL, z_ip, NULL);
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(NULL, NULL, z_address, NULL);
 
 	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
 		OBJ_RELEASE(&dns_info->std);
@@ -1096,7 +1096,7 @@ zend_string* async_get_host_by_addr(char* ip)
 		return NULL;
 	}
 
-	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
+	async_resume_when(resume, dns_info, true, async_resume_when_callback_resolve);
 	async_await(resume);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
@@ -1104,7 +1104,8 @@ zend_string* async_get_host_by_addr(char* ip)
 		OBJ_RELEASE(&resume->std);
 	}
 
-	zend_string * result;
+	zend_string * result = zend_string_copy(Z_STR(((reactor_dns_info_t *) dns_info)->host));
+	OBJ_RELEASE(&resume->std);
 
 	return result;
 }
