@@ -1060,6 +1060,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
 		OBJ_RELEASE(&resume->std);
+		return NULL;
 	}
 
 	result = addr_info_to_hostent(((reactor_dns_info_t *) dns_info)->addr_info);
@@ -1068,6 +1069,42 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 
 	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
 	OBJ_RELEASE(&dns_info->std);
+
+	return result;
+}
+
+zend_string* async_get_host_by_addr(char* ip)
+{
+	if (ip == NULL) {
+        return NULL;
+    }
+
+	async_resume_t *resume = async_resume_new(NULL);
+
+	if(resume == NULL) {
+		zend_error(E_CORE_WARNING, "Failed to create a new Resume object");
+		return NULL;
+	}
+
+	const zend_string * z_ip = zend_string_init(ip, strlen(ip), 0);
+
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(NULL, NULL, z_ip, NULL);
+
+	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
+		OBJ_RELEASE(&dns_info->std);
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
+	async_await(resume);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		zend_exception_to_warning("async_get_host_by_addr error: %s", true);
+		OBJ_RELEASE(&resume->std);
+	}
+
+	zend_string * result;
 
 	return result;
 }

@@ -68,6 +68,10 @@ extern void __res_ndestroy(res_state statp);
 
 #include "php_dns.h"
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 /* type compat */
 #ifndef DNS_T_A
 #define DNS_T_A		1
@@ -153,7 +157,16 @@ PHP_FUNCTION(gethostbyaddr)
 		Z_PARAM_PATH(addr, addr_len)
 	ZEND_PARSE_PARAMETERS_END();
 
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT)
+	{
+		hostname = async_get_host_by_addr(addr);
+	} else {
+		hostname = php_gethostbyaddr(addr);
+	}
+#else
 	hostname = php_gethostbyaddr(addr);
+#endif
 
 	if (hostname == NULL) {
 #ifdef HAVE_IPV6

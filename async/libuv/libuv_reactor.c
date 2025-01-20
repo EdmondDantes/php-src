@@ -872,14 +872,20 @@ static libuv_dns_info_t * libuv_dns_info_new(
 
 	dns_handle->req.data = dns_handle;
 
-	const int result = uv_getaddrinfo(UVLOOP, &dns_handle->req, dns_on_resolved, c_host, c_service, hints);
+	int result = 0;
+
+	if (address != NULL) {
+		result = uv_getnameinfo(UVLOOP, &dns_handle->req, dns_on_resolved, (struct sockaddr *) Z_STR(dns_handle->dns_info.address)->val, 0);
+	} else {
+		result = uv_getaddrinfo(UVLOOP, &dns_handle->req, dns_on_resolved, c_host, c_service, hints);
+	}
 
 	if (hints_owned) {
 		efree(hints);
 	}
 
 	if (result) {
-		async_throw_error("getaddrinfo error: %s", uv_strerror(result));
+		async_throw_error("Dns info error: %s", uv_strerror(result));
 		OBJ_RELEASE(&dns_handle->handle.std);
 	}
 
