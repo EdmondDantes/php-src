@@ -359,6 +359,7 @@ CURLcode curl_async_perform(CURL* curl)
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Memory leak detected. The resume object should have only one reference");
 	zend_hash_index_del(curl_multi_resume_list, (zend_ulong) curl);
+	async_notifier_remove_callback(&curl_notifier->std, &z_resume);
 	OBJ_RELEASE(&resume->std);
 
 	return CURLE_OK;

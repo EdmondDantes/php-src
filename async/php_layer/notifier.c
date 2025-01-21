@@ -99,11 +99,6 @@ static void async_notifier_object_destroy(zend_object *object)
 	notifier->handler_fn = NULL;
 	notifier->remove_callback_fn = NULL;
 	ZVAL_NULL(&notifier->_padding2);
-
-	zend_object_std_dtor(&notifier->std);
-
-	notifier->handler_fn = NULL;
-	notifier->remove_callback_fn = NULL;
 }
 
 void async_register_notifier_ce(void)
