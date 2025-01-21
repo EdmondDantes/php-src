@@ -124,6 +124,8 @@ reactor_notifier_t * async_notifier_new_ex(
 	ZEND_ASSERT(sizeof(reactor_notifier_t) <= size && "Extra size must be at least the size of the reactor_notifier_t structure");
 
 	reactor_notifier_t * notifier = zend_object_alloc_ex(size, async_ce_notifier);
+	zend_object_std_init(&notifier->std, async_ce_notifier);
+	object_properties_init(&notifier->std, async_ce_notifier);
 
 	notifier->handler_fn = handler_fn;
 	notifier->remove_callback_fn = remove_callback_fn;
