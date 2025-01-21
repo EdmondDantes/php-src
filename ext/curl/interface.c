@@ -430,6 +430,10 @@ PHP_MINIT_FUNCTION(curl)
 	curl_share_register_handlers();
 	curlfile_register_class();
 
+#ifdef PHP_ASYNC
+	curl_async_register_ce();
+#endif
+
 	return SUCCESS;
 }
 /* }}} */

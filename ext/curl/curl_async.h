@@ -36,6 +36,7 @@ struct _curl_async_context {
 	HashTable * poll_list;
 };
 
+void curl_async_register_ce(void);
 void curl_async_setup(void);
 void curl_async_shutdown(void);
 

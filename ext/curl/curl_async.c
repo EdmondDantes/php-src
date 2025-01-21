@@ -49,6 +49,8 @@
  * ******************************************************************************************************************
  */
 
+static zend_class_entry * curl_async_notifier_ce = NULL;
+
 ZEND_TLS CURLM * curl_multi_handle = NULL;
 ZEND_TLS HashTable * curl_multi_resume_list = NULL;
 ZEND_TLS reactor_handle_t * timer = NULL;
@@ -252,25 +254,28 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	return 0;
 }
 
-static void ZEND_FASTCALL curl_notifier_to_string(INTERNAL_FUNCTION_PARAMETERS)
-{
-	const zend_object * object = Z_OBJ_P(getThis());
-
-	if (object == NULL) {
-		RETURN_EMPTY_STRING();
-	}
-
-	RETURN_STRING("CURL HANDLE");
-}
-
 void curl_notifier_init(void)
 {
 	if (curl_notifier != NULL) {
 		return;
 	}
 
-	curl_notifier = async_notifier_new_ex(0, NULL, NULL);
-	//zend_replace_to_string_method(&curl_notifier->std, curl_notifier_to_string);
+	zval object;
+
+	// Create a new object without calling the constructor
+	if (object_init_ex(&object, curl_async_notifier_ce) == FAILURE) {
+		return;
+	}
+
+	curl_notifier = (reactor_notifier_t *) Z_OBJ(object);
+}
+
+void curl_async_register_ce(void)
+{
+	zend_class_entry ce;
+
+	INIT_CLASS_ENTRY(ce, "CurlAsyncHandle", NULL);
+	curl_async_notifier_ce = zend_register_internal_class_ex(&ce, async_ce_notifier);
 }
 
 void curl_async_setup(void)

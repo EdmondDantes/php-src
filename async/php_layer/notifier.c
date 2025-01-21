@@ -79,6 +79,8 @@ static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
 	// Allocate memory for the object and initialize it with zero bytes.
 	DEFINE_ZEND_RAW_OBJECT(reactor_notifier_t, object, class_entry);
+	zend_object_std_init(&object->std, class_entry);
+	object_properties_init(&object->std, class_entry);
 	async_notifier_object_init(object);
 
 	return &object->std;
