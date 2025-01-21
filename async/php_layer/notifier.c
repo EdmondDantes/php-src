@@ -75,6 +75,15 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
+static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
+{
+	// Allocate memory for the object and initialize it with zero bytes.
+	DEFINE_ZEND_RAW_OBJECT(reactor_notifier_t, object, class_entry);
+	async_notifier_object_init(object);
+
+	return &object->std;
+}
+
 static void async_notifier_object_destroy(zend_object *object)
 {
 	reactor_notifier_t *notifier = (reactor_notifier_t *) object;
@@ -94,7 +103,7 @@ void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_notifier->create_object = NULL;
+	async_ce_notifier->create_object = async_notifier_object_create;
 
 	async_ce_notifier->default_object_handlers = &async_notifier_handlers;
 
@@ -112,7 +121,7 @@ reactor_notifier_t * async_notifier_new_ex(
 		size = sizeof(reactor_notifier_t);
 	}
 
-	ZEND_ASSERT(sizeof(reactor_notifier_t) < size && "Extra size must be at least the size of the reactor_notifier_t structure");
+	ZEND_ASSERT(sizeof(reactor_notifier_t) <= size && "Extra size must be at least the size of the reactor_notifier_t structure");
 
 	reactor_notifier_t * notifier = zend_object_alloc_ex(size, async_ce_notifier);
 

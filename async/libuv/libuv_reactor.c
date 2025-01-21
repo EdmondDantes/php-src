@@ -192,6 +192,7 @@ static zend_always_inline libuv_poll_t * libuv_poll_new(
 	)
 {
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_poll_t, object, class_entry);
+	async_notifier_object_init(&object->handle);
 
 	if (UNEXPECTED(object == NULL)) {
 		return NULL;
@@ -269,6 +270,7 @@ static reactor_handle_t* libuv_timer_new(const zend_long timeout, const zend_boo
 	}
 
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_timer_t, object, async_ce_timer_handle);
+	async_notifier_object_init(&object->handle);
 
 	if (UNEXPECTED(object == NULL)) {
 		return NULL;
@@ -334,6 +336,7 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 	}
 
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_signal_t, object, async_ce_signal_handle);
+	async_notifier_object_init(&object->handle);
 
 	if (UNEXPECTED(object == NULL)) {
 		return NULL;
@@ -399,6 +402,7 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 	}
 
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_fs_event_t, object, async_ce_file_system_handle);
+	async_notifier_object_init(&object->handle);
 
 	if (UNEXPECTED(object == NULL)) {
 		return NULL;
@@ -895,6 +899,7 @@ static libuv_dns_info_t * libuv_dns_info_new(
 	}
 
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_dns_info_t, dns_handle, async_ce_dns_info);
+	async_notifier_object_init(&dns_handle->handle);
 	dns_handle->std.handlers = &libuv_object_handlers;
 
 	bool hints_owned = false;

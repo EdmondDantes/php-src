@@ -204,8 +204,6 @@ METHOD(removeNotifier)
 
 METHOD(__toString)
 {
-
-
 	RETURN_STRING("Resume");
 }
 

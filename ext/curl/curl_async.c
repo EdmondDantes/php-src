@@ -270,7 +270,7 @@ void curl_notifier_init(void)
 	}
 
 	curl_notifier = async_notifier_new_ex(0, NULL, NULL);
-	zend_replace_to_string_method(&curl_notifier->std, curl_notifier_to_string);
+	//zend_replace_to_string_method(&curl_notifier->std, curl_notifier_to_string);
 }
 
 void curl_async_setup(void)

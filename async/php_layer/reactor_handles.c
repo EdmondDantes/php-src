@@ -427,6 +427,7 @@ static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
 
 	zend_object_std_init(&object->handle.std, class_entry);
 	object_properties_init(&object->handle.std, class_entry);
+	async_notifier_object_init(&object->handle);
 
 	return &object->handle.std;
 }
@@ -523,6 +524,7 @@ reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
 	}
 
 	DEFINE_ZEND_INTERNAL_OBJECT(reactor_fiber_handle_t, handle, async_ce_fiber_handle);
+	async_notifier_object_init(&handle->handle);
 
 	handle->fiber = fiber;
 	GC_ADDREF(&fiber->std);
