@@ -881,9 +881,11 @@ int async_network_get_addresses(const char *host, int socktype, struct sockaddr 
 		return -1;
 	}
 
-	const zend_string * z_host = zend_string_init(host, strlen(host), 0);
+	zend_string * z_host = zend_string_init(host, strlen(host), 0);
 
 	reactor_handle_t * dns_info = reactor_dns_info_new_fn(z_host, NULL, NULL, &hints);
+
+	zend_string_release(z_host);
 
 	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
 		OBJ_RELEASE(&dns_info->std);
@@ -1047,8 +1049,9 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 		return NULL;
 	}
 
-	const zend_string * z_host = zend_string_init(name, strlen(name), 0);
+	zend_string * z_host = zend_string_init(name, strlen(name), 0);
 	reactor_handle_t * dns_info = reactor_dns_info_new_fn(z_host, NULL, NULL, &hints);
+	zend_string_release(z_host);
 
 	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
 		OBJ_RELEASE(&dns_info->std);
