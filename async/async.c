@@ -944,6 +944,8 @@ int async_network_get_addresses(const char *host, int socktype, struct sockaddr 
 		sap++;
 	} while ((sai = sai->ai_next) != NULL);
 
+	*sap = NULL;
+
 	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
 	OBJ_RELEASE(&dns_info->std);
 
