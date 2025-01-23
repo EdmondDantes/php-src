@@ -172,6 +172,17 @@ ZEND_API void zend_fiber_switch_unblock(void);
 ZEND_API bool zend_fiber_switch_blocked(void);
 
 #ifdef PHP_ASYNC
+
+typedef struct _zend_fiber_defer_entry zend_fiber_defer_entry;
+typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_entry * entry);
+
+struct _zend_fiber_defer_entry {
+	zend_fiber_defer_func func;
+	zend_object *object;
+};
+
+ZEND_API void zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry);
+
 ZEND_API zend_fiber_storage * zend_fiber_storage_new(void);
 
 zend_always_inline void zend_fiber_storage_add(zend_fiber_storage *storage, zend_string *key, zval *value)

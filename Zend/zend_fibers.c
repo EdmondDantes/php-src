@@ -422,9 +422,9 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
 
     ZEND_HASH_FOREACH_VAL(fiber->shutdown_handlers, callback) {
 
-    	if (Z_TYPE_P(callback) != IS_PTR) {
-    		// Pointer to the C-function.
-    		((void (*)(zend_fiber *))Z_PTR_P(callback))(fiber);
+    	if (Z_TYPE_P(callback) == IS_PTR) {
+    		zend_fiber_defer_entry *entry = Z_PTR_P(callback);
+    		entry->func(fiber, entry);
     		continue;
     	}
 
@@ -1184,6 +1184,28 @@ ZEND_METHOD(Fiber, getCurrent)
 //
 #ifdef PHP_ASYNC
 
+static void shutdown_handlers_dtor(zval *zval_ptr)
+{
+	if (Z_TYPE_P(zval_ptr) == IS_PTR) {
+
+	    zend_fiber_defer_entry *entry = Z_PTR_P(zval_ptr);
+
+		if (entry != NULL && entry->object != NULL) {
+			OBJ_RELEASE(entry->object);
+			efree(entry);
+		}
+
+    } else {
+	    zval_ptr_dtor(zval_ptr);
+    }
+}
+
+zend_always_inline void shutdown_handlers_new(HashTable ** ht)
+{
+    ALLOC_HASHTABLE(*ht);
+    zend_hash_init(*ht, 4, NULL, shutdown_handlers_dtor, 0);
+}
+
 ZEND_METHOD(Fiber, getContext)
 {
 	zend_fiber* fiber = (zend_fiber*)Z_OBJ_P(ZEND_THIS);
@@ -1211,8 +1233,7 @@ ZEND_METHOD(Fiber, defer)
 	}
 
 	if (!fiber->shutdown_handlers) {
-		ALLOC_HASHTABLE(fiber->shutdown_handlers);
-		zend_hash_init(fiber->shutdown_handlers, 0, NULL, ZVAL_PTR_DTOR, 0);
+	    shutdown_handlers_new(&fiber->shutdown_handlers);
 	}
 
 	zval new_callback;
@@ -1445,6 +1466,20 @@ void zend_fiber_shutdown(void)
 }
 
 #ifdef PHP_ASYNC
+
+void zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry)
+{
+	if (fiber->shutdown_handlers == NULL) {
+		shutdown_handlers_new(&fiber->shutdown_handlers);
+	}
+
+	zval z_entry;
+	ZVAL_PTR(&z_entry, entry);
+
+	if (zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry) != NULL) {
+        GC_ADDREF(entry->object);
+    }
+}
 
 zend_fiber_storage * zend_fiber_storage_new(void)
 {

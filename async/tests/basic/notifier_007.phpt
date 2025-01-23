@@ -3,8 +3,8 @@ Fiber handle with callback
 --FILE--
 <?php
 
-$callback = new Async\Callback(function(Async\Notifier $notifier, mixed $data) {
-    echo "callback from $notifier: $data\n";
+$callback = new Async\Callback(function(Async\Notifier $notifier, \Fiber $fiber) {
+    echo "callback from $notifier\n";
 });
 
 $fiber = Async\async(function() {
@@ -21,4 +21,5 @@ echo "end\n";
 --EXPECT--
 start
 async function 1
+callback from Async\FiberHandle
 end
