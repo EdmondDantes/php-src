@@ -1290,7 +1290,7 @@ ZEND_METHOD(FiberContext, set)
 	zend_string * key;
 	zval * value;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_STR(key)
 		Z_PARAM_ZVAL(value)
 	ZEND_PARSE_PARAMETERS_END();
@@ -1324,23 +1324,62 @@ ZEND_METHOD(FiberContext, findObject)
 		RETURN_THROWS();
 	}
 
-	zval * result = zend_fiber_storage_find_object(THIS_FIBER_CONTEXT, ce);
+	zend_object * result = zend_fiber_storage_find_object(THIS_FIBER_CONTEXT, ce);
 
 	if (result == NULL) {
 		RETURN_NULL();
 	}
 
-	RETURN_ZVAL(result, 1, 0);
+	RETURN_OBJ(result);
 }
 
 ZEND_METHOD(FiberContext, bindObject)
 {
+	zend_object * object;
+	zend_string * type;
+	zend_bool replace = 0;
+	zend_class_entry *ce = NULL;
 
+	ZEND_PARSE_PARAMETERS_START(1, 3)
+		Z_PARAM_OBJ(object)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR(type)
+		Z_PARAM_BOOL(replace)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (type == NULL) {
+		ce = object->ce;
+	} else {
+		ce = zend_lookup_class(type);
+	}
+
+	if (ce == NULL) {
+		zend_throw_error(zend_ce_type_error, "Type %s not found", ZSTR_VAL(type));
+		RETURN_THROWS();
+	}
+
+	if (zend_fiber_storage_bind(THIS_FIBER_CONTEXT, object, ce, replace) == FAILURE) {
+		zend_throw_error(NULL, "Failed to bind object to fiber context");
+		RETURN_THROWS();
+	}
 }
 
 ZEND_METHOD(FiberContext, unbindObject)
 {
+	zend_string * type;
 
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STR(type)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zend_class_entry *ce = zend_lookup_class_ex(type, NULL, 0);
+
+	if (ce == NULL) {
+		zend_throw_error(zend_ce_type_error, "Type %s not found", ZSTR_VAL(type));
+		RETURN_THROWS();
+	}
+
+	zend_fiber_storage_unbind(THIS_FIBER_CONTEXT, ce);
 }
 
 #endif
