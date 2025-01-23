@@ -90,12 +90,12 @@ PHP_METHOD(Async_FiberHandle, getContext)
 
 	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
 
-	if (fiber->user_local_storage) {
-		RETURN_ARR(fiber->user_local_storage);
+	if (fiber->fiber_storage) {
+		RETURN_ARR(fiber->fiber_storage);
 	} else {
-		ALLOC_HASHTABLE(fiber->user_local_storage);
-		zend_hash_init(fiber->user_local_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
-		RETURN_ARR(fiber->user_local_storage);
+		ALLOC_HASHTABLE(fiber->fiber_storage);
+		zend_hash_init(fiber->fiber_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
+		RETURN_ARR(fiber->fiber_storage);
 	}
 }
 

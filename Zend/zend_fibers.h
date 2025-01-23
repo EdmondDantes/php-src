@@ -99,6 +99,14 @@ struct _zend_fiber_context {
 	void *reserved[ZEND_MAX_RESERVED_RESOURCES];
 };
 
+#ifdef PHP_ASYNC
+typedef struct _zend_fiber_storage {
+	zend_object std;
+	HashTable storage;
+} zend_fiber_storage;
+#endif
+
+
 struct _zend_fiber {
 	/* PHP object handle. */
 	zend_object std;
@@ -137,7 +145,7 @@ struct _zend_fiber {
 #ifdef PHP_ASYNC
 
 	/* Fiber local storage. */
-	HashTable *user_local_storage;
+	zend_fiber_storage *fiber_storage;
 
     /* Fiber shutdown_handlers */
 	HashTable *shutdown_handlers;
@@ -162,6 +170,30 @@ ZEND_API void* zend_fiber_stack_base(zend_fiber_stack *stack);
 ZEND_API void zend_fiber_switch_block(void);
 ZEND_API void zend_fiber_switch_unblock(void);
 ZEND_API bool zend_fiber_switch_blocked(void);
+
+#ifdef PHP_ASYNC
+ZEND_API zend_fiber_storage * zend_fiber_storage_new(void);
+
+zend_always_inline void zend_fiber_storage_add(zend_fiber_storage *storage, zend_string *key, zval *value)
+{
+	zend_hash_update(&storage->storage, key, value);
+}
+
+zend_always_inline void zend_fiber_storage_del(zend_fiber_storage *storage, zend_string * key)
+{
+	zend_hash_del(&storage->storage, key);
+}
+
+zend_always_inline zval * zend_fiber_storage_find(const zend_fiber_storage *storage, zend_string * key)
+{
+	return zend_hash_find(&storage->storage, key);
+}
+
+ZEND_API zend_object * zend_fiber_storage_find_object(const zend_fiber_storage *storage, zend_class_entry * class_entry);
+ZEND_API zend_result zend_fiber_storage_bind(zend_fiber_storage *storage, zend_object *object, zend_class_entry * class_entry, bool replace);
+ZEND_API void zend_fiber_storage_unbind(zend_fiber_storage *storage, zend_class_entry * class_entry);
+
+#endif
 
 END_EXTERN_C()
 
