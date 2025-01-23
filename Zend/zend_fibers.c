@@ -1191,7 +1191,10 @@ static void shutdown_handlers_dtor(zval *zval_ptr)
 	    zend_fiber_defer_entry *entry = Z_PTR_P(zval_ptr);
 
 		if (entry != NULL && entry->object != NULL) {
-			OBJ_RELEASE(entry->object);
+			if (false == entry->without_dtor) {
+                OBJ_RELEASE(entry->object);
+            }
+
 			efree(entry);
 		}
 
@@ -1467,7 +1470,7 @@ void zend_fiber_shutdown(void)
 
 #ifdef PHP_ASYNC
 
-void zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry)
+zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object)
 {
 	if (fiber->shutdown_handlers == NULL) {
 		shutdown_handlers_new(&fiber->shutdown_handlers);
@@ -1475,10 +1478,20 @@ void zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry)
 
 	zval z_entry;
 	ZVAL_PTR(&z_entry, entry);
+	zval * index = zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry);
 
-	if (zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry) != NULL) {
+	if (index != NULL && false == transfer_object) {
         GC_ADDREF(entry->object);
     }
+
+	return index != NULL ? Z_LVAL_P(index) : -1;
+}
+
+void zend_fiber_remove_defer(const zend_fiber *fiber, const zend_long index)
+{
+	if (fiber->shutdown_handlers != NULL) {
+		zend_hash_index_del(fiber->shutdown_handlers, index);
+	}
 }
 
 zend_fiber_storage * zend_fiber_storage_new(void)

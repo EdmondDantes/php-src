@@ -435,6 +435,7 @@ static void reactor_fiber_handle_destroy(zend_object* object)
 	reactor_fiber_handle_t * handle = (reactor_fiber_handle_t *) object;
 
 	if (handle->fiber != NULL) {
+		zend_fiber_remove_defer(handle->fiber, handle->callback_index);
 		OBJ_RELEASE(&handle->fiber->std);
 	}
 
@@ -537,8 +538,9 @@ reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
 	zend_fiber_defer_entry * entry = emalloc(sizeof(zend_fiber_defer_entry));
 	entry->object = &handle->handle.std;
 	entry->func = async_fiber_handle_defer_cb;
+	entry->without_dtor = true;
 
-	zend_fiber_defer(handle->fiber, entry);
+	handle->callback_index = zend_fiber_defer(handle->fiber, entry, true);
 
 	return handle;
 }

@@ -179,9 +179,12 @@ typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_entry
 struct _zend_fiber_defer_entry {
 	zend_fiber_defer_func func;
 	zend_object *object;
+	bool without_dtor;
 };
 
-ZEND_API void zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry);
+ZEND_API zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object);
+
+ZEND_API void zend_fiber_remove_defer(const zend_fiber *fiber, const zend_long index);
 
 ZEND_API zend_fiber_storage * zend_fiber_storage_new(void);
 
