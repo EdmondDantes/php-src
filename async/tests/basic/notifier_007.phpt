@@ -4,7 +4,7 @@ Fiber handle with callback
 <?php
 
 $callback = new Async\Callback(function(Async\Notifier $notifier, \Fiber $fiber) {
-    echo "callback from $notifier\n";
+    echo "Fiber was terminated $notifier\n";
 });
 
 $fiber = Async\async(function() {
@@ -21,5 +21,5 @@ echo "end\n";
 --EXPECT--
 start
 async function 1
-callback from Async\FiberHandle
+Fiber was terminated Async\FiberHandle
 end
