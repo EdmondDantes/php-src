@@ -685,6 +685,7 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		// Cleanup user local storage.
         if(fiber->fiber_storage) {
         	OBJ_RELEASE(&fiber->fiber_storage->std);
+        	fiber->fiber_storage = NULL;
 		}
 
 #endif
@@ -1194,7 +1195,7 @@ ZEND_METHOD(Fiber, getContext)
 	RETURN_OBJ_COPY(fiber->fiber_storage);
 }
 
-ZEND_METHOD(Fiber, addShutdownHandler)
+ZEND_METHOD(Fiber, defer)
 {
 	zval *callback;
 
@@ -1219,7 +1220,7 @@ ZEND_METHOD(Fiber, addShutdownHandler)
 	zend_hash_next_index_insert(fiber->shutdown_handlers, &new_callback);
 }
 
-ZEND_METHOD(Fiber, removeShutdownHandler)
+ZEND_METHOD(Fiber, removeDeferHandler)
 {
 	zval *callback;
 

@@ -28,9 +28,9 @@ final class Fiber
 
     public function getContext(): FiberContext {}
 
-    public function addShutdownHandler(callable $callable): void {}
+    public function defer(callable $callable): void {}
 
-    public function removeShutdownHandler(callable $callable): void {}
+    public function removeDeferHandler(callable $callable): void {}
 
     public static function getCurrent(): ?Fiber {}
 

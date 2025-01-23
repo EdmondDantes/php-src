@@ -89,8 +89,8 @@ ZEND_METHOD(Fiber, getReturn);
 #ifdef PHP_ASYNC
 ZEND_METHOD(Fiber, getContext);
 #endif
-ZEND_METHOD(Fiber, addShutdownHandler);
-ZEND_METHOD(Fiber, removeShutdownHandler);
+ZEND_METHOD(Fiber, defer);
+ZEND_METHOD(Fiber, removeDeferHandler);
 ZEND_METHOD(Fiber, getCurrent);
 ZEND_METHOD(Fiber, suspend);
 #ifdef PHP_ASYNC
