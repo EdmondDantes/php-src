@@ -246,13 +246,13 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, zval* e
 	ZVAL_OBJ(&args[0], notifier);
 
 	if (event) {
-		ZVAL_COPY(&args[1], event);
+		ZVAL_COPY_VALUE(&args[1], event);
 	} else {
 		ZVAL_NULL(&args[1]);
 	}
 
 	if (error) {
-		ZVAL_COPY(&args[2], error);
+		ZVAL_COPY_VALUE(&args[2], error);
 	} else {
 		ZVAL_NULL(&args[2]);
 	}
@@ -267,11 +267,6 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, zval* e
 		php_error_docref(NULL, E_WARNING, "Failed to call the callable %s", ZSTR_VAL(callable_name));
 		zend_string_release(callable_name);
 	}
-
-	// Cleanup arguments
-	zval_ptr_dtor(&args[0]);
-	zval_ptr_dtor(&args[1]);
-	zval_ptr_dtor(&args[2]);
 
 	// Cleanup return value
 	zval_ptr_dtor(&retval);

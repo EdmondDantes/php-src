@@ -144,7 +144,7 @@ METHOD(getNotifier)
 
 }
 
-zend_class_entry *async_channel_object_create(zend_class_entry *class_entry)
+zend_object * async_channel_object_create(zend_class_entry *class_entry)
 {
 	return NULL;
 }
