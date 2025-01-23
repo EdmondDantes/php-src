@@ -684,8 +684,7 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 
 		// Cleanup user local storage.
         if(fiber->fiber_storage) {
-			zend_hash_destroy(fiber->fiber_storage);
-			FREE_HASHTABLE(fiber->fiber_storage);
+        	OBJ_RELEASE(&fiber->fiber_storage->std);
 		}
 
 #endif
@@ -1188,13 +1187,11 @@ ZEND_METHOD(Fiber, getContext)
 {
 	zend_fiber* fiber = (zend_fiber*)Z_OBJ_P(ZEND_THIS);
 
-	if (fiber->fiber_storage) {
-		RETURN_ARR(fiber->fiber_storage);
-	} else {
-		ALLOC_HASHTABLE(fiber->fiber_storage);
-		zend_hash_init(fiber->fiber_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
-		RETURN_ARR(fiber->fiber_storage);
+	if (UNEXPECTED(fiber->fiber_storage == NULL)) {
+		fiber->fiber_storage = zend_fiber_storage_new();
 	}
+
+	RETURN_OBJ_COPY(fiber->fiber_storage);
 }
 
 ZEND_METHOD(Fiber, addShutdownHandler)
@@ -1330,7 +1327,7 @@ ZEND_METHOD(FiberContext, findObject)
 		RETURN_NULL();
 	}
 
-	RETURN_OBJ(result);
+	RETURN_OBJ_COPY(result);
 }
 
 ZEND_METHOD(FiberContext, bindObject)

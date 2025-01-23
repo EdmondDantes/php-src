@@ -90,13 +90,11 @@ PHP_METHOD(Async_FiberHandle, getContext)
 
 	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
 
-	if (fiber->fiber_storage) {
-		RETURN_ARR(fiber->fiber_storage);
-	} else {
-		ALLOC_HASHTABLE(fiber->fiber_storage);
-		zend_hash_init(fiber->fiber_storage, 0, NULL, ZVAL_PTR_DTOR, 0);
-		RETURN_ARR(fiber->fiber_storage);
+	if (fiber->fiber_storage == NULL) {
+		fiber->fiber_storage = zend_fiber_storage_new();
 	}
+
+	RETURN_OBJ_COPY(fiber->fiber_storage);
 }
 
 PHP_METHOD(Async_FiberHandle, cancelWith)
