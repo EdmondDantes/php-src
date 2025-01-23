@@ -424,7 +424,7 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
 
     	if (Z_TYPE_P(callback) != IS_PTR) {
     		// Pointer to the C-function.
-    		Z_PTR_P(callback)(fiber);
+    		((void (*)(zend_fiber *))Z_PTR_P(callback))(fiber);
     		continue;
     	}
 

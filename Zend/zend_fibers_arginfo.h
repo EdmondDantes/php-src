@@ -32,11 +32,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Fiber_getContext, 0, 0, FiberContext, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Fiber_addShutdownHandler, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Fiber_defer, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, callable, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Fiber_removeShutdownHandler arginfo_class_Fiber_addShutdownHandler
+#define arginfo_class_Fiber_removeDeferHandler arginfo_class_Fiber_defer
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
@@ -115,8 +115,8 @@ static const zend_function_entry class_Fiber_methods[] = {
 	ZEND_ME(Fiber, isTerminated, arginfo_class_Fiber_isTerminated, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getReturn, arginfo_class_Fiber_getReturn, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getContext, arginfo_class_Fiber_getContext, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, addShutdownHandler, arginfo_class_Fiber_addShutdownHandler, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, removeShutdownHandler, arginfo_class_Fiber_removeShutdownHandler, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, defer, arginfo_class_Fiber_defer, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, removeDeferHandler, arginfo_class_Fiber_removeDeferHandler, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_class_Fiber_getCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_class_Fiber_suspend, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
