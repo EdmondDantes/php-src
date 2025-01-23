@@ -1478,13 +1478,13 @@ zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * ent
 
 	zval z_entry;
 	ZVAL_PTR(&z_entry, entry);
-	zval * index = zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry);
+	const zval * item = zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry);
 
-	if (index != NULL && false == transfer_object) {
+	if (item != NULL && false == transfer_object) {
         GC_ADDREF(entry->object);
     }
 
-	return index != NULL ? Z_LVAL_P(index) : -1;
+	return item != NULL ? fiber->shutdown_handlers->nNextFreeElement - 1 : -1;
 }
 
 void zend_fiber_remove_defer(const zend_fiber *fiber, const zend_long index)
