@@ -261,6 +261,66 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 	async_throw_error("Invalid microtask type: should be a callable or a internal pointer to a function");
 }
 
+static void async_scheduler_dtor(const bool graceful_shutdown)
+{
+	ASYNC_G(in_scheduler_context) = false;
+	ASYNC_G(graceful_shutdown) = true;
+
+	if (graceful_shutdown) {
+
+		zend_exception_save();
+
+		// 1. Walk through all fibers and cancel them if they are suspended.
+		zval * current;
+
+		zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
+
+		ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
+			const async_fiber_state_t *fiber_state = Z_PTR_P(current);
+
+			if (fiber_state->resume != NULL) {
+				async_cancel_fiber(fiber_state->fiber, cancellation_exception);
+			} else if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+				zend_fiber_finalize_without_executing(fiber_state->fiber);
+			} else {
+				async_cancel_fiber(fiber_state->fiber, cancellation_exception);
+			}
+
+			if (EG(exception)) {
+				zend_exception_save();
+			}
+
+		} ZEND_HASH_FOREACH_END();
+
+		const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ?
+										ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
+
+		while (false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
+			execute_next_fiber_handler();
+
+			if (UNEXPECTED(EG(exception))) {
+				zend_exception_save();
+			}
+		}
+
+		const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
+								? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
+
+		execute_microtasks_handler();
+
+		if (UNEXPECTED(EG(exception))) {
+			zend_exception_save();
+		}
+
+		zend_exception_restore();
+	}
+
+	ASYNC_G(in_scheduler_context) = false;
+	ASYNC_G(is_async) = false;
+	zend_hash_clean(&ASYNC_G(defer_callbacks));
+	reactor_shutdown_fn();
+}
+
 #define TRY_HANDLE_EXCEPTION() \
 	if (EG(exception) != NULL && handle_exception_handler != NULL) { \
 		handle_exception_handler(); \
@@ -325,15 +385,9 @@ void async_scheduler_launch(void)
 		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0 || reactor_loop_alive_fn());
 
 	} zend_catch {
-		ASYNC_G(in_scheduler_context) = false;
-		ASYNC_G(is_async) = false;
-		reactor_shutdown_fn();
-		zend_hash_clean(&ASYNC_G(defer_callbacks));
+		async_scheduler_dtor(false);
 		zend_bailout();
 	} zend_end_try();
 
-	ASYNC_G(in_scheduler_context) = false;
-	ASYNC_G(is_async) = false;
-	zend_hash_clean(&ASYNC_G(defer_callbacks));
-	reactor_shutdown_fn();
+	async_scheduler_dtor(true);
 }

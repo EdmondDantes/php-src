@@ -673,6 +673,11 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		//
 #ifdef PHP_ASYNC
 
+		//
+		// This code is related to zend_fiber_finalize_without_executing.
+		// Please watch out for changes in that function.
+		//
+
 		if (IS_ASYNC_ON) {
 			async_fiber_shutdown_callback(fiber);
 		}
@@ -1469,6 +1474,24 @@ void zend_fiber_shutdown(void)
 }
 
 #ifdef PHP_ASYNC
+
+void zend_fiber_finalize_without_executing(zend_fiber *fiber)
+{
+	if (fiber->context.status != ZEND_FIBER_STATUS_INIT) {
+		return;
+	}
+
+	async_fiber_shutdown_callback(fiber);
+
+	if(fiber->shutdown_handlers) {
+		zend_fiber_invoke_shutdown_handlers(fiber);
+	}
+
+	if(fiber->fiber_storage) {
+		OBJ_RELEASE(&fiber->fiber_storage->std);
+		fiber->fiber_storage = NULL;
+	}
+}
 
 zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object)
 {

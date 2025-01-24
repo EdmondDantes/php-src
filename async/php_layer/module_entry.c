@@ -34,6 +34,11 @@
 		RETURN_THROWS();																	\
 	}
 
+#define THROW_IF_SHUTDOWN if (UNEXPECTED(ASYNC_G(graceful_shutdown))) {						\
+		async_throw_error("The operation cannot be executed during a graceful shutdown");	\
+		RETURN_THROWS();																	\
+	}
+
 PHP_FUNCTION(Async_launchScheduler)
 {
 	async_scheduler_launch();
@@ -41,6 +46,8 @@ PHP_FUNCTION(Async_launchScheduler)
 
 PHP_FUNCTION(Async_await)
 {
+	THROW_IF_SHUTDOWN;
+
 	zval *resume = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -58,6 +65,11 @@ PHP_FUNCTION(Async_await)
 
 PHP_FUNCTION(Async_run)
 {
+	if (UNEXPECTED(ASYNC_G(graceful_shutdown))) {
+		zend_error(E_CORE_WARNING, "Cannot run the scheduler during a graceful shutdown");
+		return;
+	}
+
 	zval * callable;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -80,6 +92,8 @@ PHP_FUNCTION(Async_run)
 
 PHP_FUNCTION(Async_async)
 {
+	THROW_IF_SHUTDOWN;
+
 	zval * callable;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)

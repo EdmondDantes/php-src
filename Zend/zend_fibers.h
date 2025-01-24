@@ -182,6 +182,8 @@ struct _zend_fiber_defer_entry {
 	bool without_dtor;
 };
 
+void zend_fiber_finalize_without_executing(zend_fiber *fiber);
+
 ZEND_API zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object);
 
 ZEND_API void zend_fiber_defer_callable(zend_fiber *fiber, zval * callable);
