@@ -134,7 +134,7 @@ zend_result async_callback_bind_resume(zend_object* callback, const zval* resume
 	zval* resume_current = async_callback_get_resume(callback);
 
 	if (UNEXPECTED(resume_current != NULL && Z_TYPE_P(resume_current) == IS_NULL)) {
-		zend_error(E_WARNING, "Attempt to bind the resume object and Callback twice.");
+		async_warning("Attempt to bind the resume object and Callback twice.");
 		return FAILURE;
 	}
 

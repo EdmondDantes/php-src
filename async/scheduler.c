@@ -19,6 +19,7 @@
 #include "php_reactor.h"
 #include "internal/zval_circular_buffer.h"
 #include "php_layer/exceptions.h"
+#include "php_layer/zend_common.h"
 
 //
 // The coefficient of the maximum number of microtasks that can be executed
@@ -147,7 +148,7 @@ static bool execute_next_fiber(void)
 	} else {
 
 		if (UNEXPECTED(fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
-			zend_error(E_WARNING, "Attempt to resume with error a fiber that has not been started");
+			async_warning("Attempt to resume with error a fiber that has not been started");
 			zend_fiber_start(fiber, &retval);
 		} else {
 			zval zval_error;
@@ -155,6 +156,11 @@ static bool execute_next_fiber(void)
 			zend_fiber_resume_exception(fiber, &zval_error, &retval);
 		}
 	}
+
+	// Ignore the exception if it is a cancellation exception
+	if (UNEXPECTED(EG(exception) && instanceof_function(EG(exception)->ce, async_ce_cancellation_exception))) {
+        zend_clear_exception();
+    }
 
 	// Free fiber if it is completed
 	if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
@@ -264,9 +270,10 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 static void async_scheduler_dtor(const bool graceful_shutdown)
 {
 	ASYNC_G(in_scheduler_context) = false;
-	ASYNC_G(graceful_shutdown) = true;
 
-	if (graceful_shutdown) {
+	if (UNEXPECTED(graceful_shutdown)) {
+
+		ASYNC_G(graceful_shutdown) = true;
 
 		zend_exception_save();
 
@@ -312,13 +319,36 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 			zend_exception_save();
 		}
 
+		OBJ_RELEASE(cancellation_exception);
+
 		zend_exception_restore();
 	}
 
+	zend_exception_save();
+
+	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
+		async_warning(
+			"%u microtasks were not executed", circular_buffer_count(&ASYNC_G(microtasks))
+		);
+	}
+
+	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes)))) {
+		async_warning(
+			"%u deferred resumes were not executed",
+			circular_buffer_count(&ASYNC_G(deferred_resumes))
+		);
+	}
+
+	zval_c_buffer_cleanup(&ASYNC_G(deferred_resumes));
+	zval_c_buffer_cleanup(&ASYNC_G(microtasks));
+	zend_hash_clean(&ASYNC_G(defer_callbacks));
+	zend_hash_clean(&ASYNC_G(fibers_state));
+
 	ASYNC_G(in_scheduler_context) = false;
 	ASYNC_G(is_async) = false;
-	zend_hash_clean(&ASYNC_G(defer_callbacks));
 	reactor_shutdown_fn();
+
+	zend_exception_restore();
 }
 
 #define TRY_HANDLE_EXCEPTION() \
@@ -352,8 +382,10 @@ void async_scheduler_launch(void)
 	 * This functions pointer will be set to the actual functions.
 	 */
 	const async_callbacks_handler_t execute_callbacks_handler = ASYNC_G(execute_callbacks_handler);
-	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler) ? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
-	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ? ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
+	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
+													? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
+	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler)
+													? ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
 	const async_exception_handler_t handle_exception_handler = ASYNC_G(exception_handler);
 
 	zend_try
@@ -389,5 +421,5 @@ void async_scheduler_launch(void)
 		zend_bailout();
 	} zend_end_try();
 
-	async_scheduler_dtor(true);
+	async_scheduler_dtor(EG(exception) != NULL);
 }

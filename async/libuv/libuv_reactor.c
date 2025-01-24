@@ -571,7 +571,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		const int error = uv_poll_stop(poll->uv_handle);
 
 		if (error < 0) {
-			zend_error(E_WARNING, "Failed to stop poll handle: %s", uv_strerror(error));
+			async_warning("Failed to stop poll handle: %s", uv_strerror(error));
 		}
 
 		poll->is_listening = false;
@@ -587,7 +587,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		const int error = uv_timer_stop(timer->uv_handle);
 
 		if (error < 0) {
-			zend_error(E_WARNING, "Failed to stop timer handle: %s", uv_strerror(error));
+			async_warning("Failed to stop timer handle: %s", uv_strerror(error));
 		}
 
     	timer->is_listening = false;
@@ -603,7 +603,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		const int error = uv_signal_stop(signal->uv_handle);
 
         if (error < 0) {
-            zend_error(E_WARNING, "Failed to stop signal handle: %s", uv_strerror(error));
+            async_warning("Failed to stop signal handle: %s", uv_strerror(error));
         }
 
     	signal->is_listening = false;
@@ -619,7 +619,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		const int error = uv_fs_event_stop(fs_event->uv_handle);
 
 		if (error < 0) {
-            zend_error(E_WARNING, "Failed to stop file system event handle: %s", uv_strerror(error));
+            async_warning("Failed to stop file system event handle: %s", uv_strerror(error));
         }
 
     	fs_event->is_listening = false;

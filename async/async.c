@@ -123,7 +123,7 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 	state->resume = NULL;
 
 	if (zend_hash_index_del(&ASYNC_G(fibers_state), fiber->std.handle) == FAILURE) {
-		zend_error(E_WARNING, "Failed to remove the fiber state from the hash table.");
+		async_warning("Failed to remove the fiber state from the hash table.");
 	}
 }
 

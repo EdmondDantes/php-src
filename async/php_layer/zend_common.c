@@ -47,9 +47,9 @@ void zend_exception_to_warning(const char * format, const bool clean)
 	);
 
 	if (message == NULL) {
-		zend_error(E_WARNING, format, "No message");
+		async_warning(format, "No message");
 	} else {
-		zend_error(E_WARNING, format, Z_STRVAL_P(message));
+		async_warning(format, Z_STRVAL_P(message));
 	}
 
 	if (clean) {
@@ -96,7 +96,7 @@ void zend_new_weak_reference_from(const zval* referent, zval * retval)
 	zend_call_known_function(create_fn, NULL, weak_ref_ce, retval, 1, (zval*) referent, NULL);
 
 	if (UNEXPECTED(Z_TYPE_P(retval) == IS_NULL || Z_ISUNDEF_P(retval))) {
-		zend_error(E_WARNING, "Failed to invoke WeakReference::create");
+		async_warning("Failed to invoke WeakReference::create");
 	}
 }
 

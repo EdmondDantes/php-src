@@ -68,7 +68,7 @@ static void reactor_handle_method_no(reactor_handle_t *handle)
 
 static zend_bool reactor_is_listening_no(const reactor_handle_t *handle)
 {
-	zend_error(E_WARNING, "Reactor API method is_listening not implemented");
+	async_warning("Reactor API method is_listening not implemented");
 	return false;
 }
 

@@ -108,7 +108,7 @@ void circular_buffer_dtor(const circular_buffer_t *buffer)
  * The method will return TRUE if the buffer actually uses half the memory allocated.
  * This means the memory can be released.
  */
-static zend_always_inline bool circular_buffer_should_be_decrease(const circular_buffer_t *buffer)
+zend_always_inline bool circular_buffer_should_be_decrease(const circular_buffer_t *buffer)
 {
 	if(buffer->head == NULL || buffer->tail == NULL) {
 		return 0;
@@ -126,7 +126,7 @@ static zend_always_inline bool circular_buffer_should_be_decrease(const circular
 /**
  * Recalculate the decrease threshold.
  */
-static void zend_always_inline circular_buffer_recalc_decrease_t(circular_buffer_t *buffer, const size_t new_count)
+zend_always_inline void circular_buffer_recalc_decrease_t(circular_buffer_t *buffer, const size_t new_count)
 {
 	if(new_count <= buffer->min_size) {
 		buffer->decrease_t = 0;
@@ -249,7 +249,7 @@ zend_result circular_buffer_realloc(circular_buffer_t *buffer, size_t new_count)
 /**
  * Move the header to the next position.
  */
-static zend_always_inline zend_result circular_buffer_header_next(circular_buffer_t *buffer)
+zend_always_inline zend_result circular_buffer_header_next(circular_buffer_t *buffer)
 {
 	if(UNEXPECTED(buffer->head == NULL)) {
 		buffer->head = buffer->start;
@@ -275,7 +275,7 @@ static zend_always_inline zend_result circular_buffer_header_next(circular_buffe
 /**
  * Move the tail to the next position.
  */
-static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_t *buffer)
+zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_t *buffer)
 {
 	if(UNEXPECTED(buffer->tail == buffer->head)) {
 		return FAILURE;

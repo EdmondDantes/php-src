@@ -356,7 +356,7 @@ ZEND_API void async_resume_when(
 	)
 {
 	if (UNEXPECTED(callback == NULL)) {
-		zend_error(E_WARNING, "Callback cannot be NULL");
+		async_warning("Callback cannot be NULL");
 
 		if (trans_notifier) {
 			OBJ_RELEASE(&notifier->std);
@@ -366,7 +366,7 @@ ZEND_API void async_resume_when(
 	}
 
 	if (UNEXPECTED(zend_hash_index_find(&resume->notifiers, notifier->std.handle) != NULL)) {
-		zend_error(E_WARNING, "Callback or notifier already registered");
+		async_warning("Callback or notifier already registered");
 
 		if (trans_notifier) {
 			OBJ_RELEASE(&notifier->std);

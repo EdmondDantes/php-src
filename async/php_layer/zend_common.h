@@ -104,6 +104,14 @@ void zend_always_inline zend_object_ptr_reset(zend_object * destination)
 	destination = NULL;
 }
 
+zend_always_inline void async_warning(const char * format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	zend_error(E_CORE_WARNING, format, args);
+	va_end(args);
+}
+
 /**
  * Allocates memory for a new object instance.
  * The difference from the standard zend_object_alloc function
