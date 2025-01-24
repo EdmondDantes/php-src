@@ -1481,8 +1481,6 @@ void zend_fiber_finalize_without_executing(zend_fiber *fiber)
 		return;
 	}
 
-	async_fiber_shutdown_callback(fiber);
-
 	if(fiber->shutdown_handlers) {
 		zend_fiber_invoke_shutdown_handlers(fiber);
 	}

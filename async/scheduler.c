@@ -107,9 +107,26 @@ static bool execute_next_fiber(void)
 		return false;
 	}
 
-	if (resume->status == ASYNC_RESUME_WAITING) {
+	if (UNEXPECTED(resume->status == ASYNC_RESUME_IGNORED)) {
+		async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
+
+		if (state != NULL) {
+			state->resume = NULL;
+		}
+
+		OBJ_RELEASE(&resume->std);
+		return false;
+	}
+
+	if (UNEXPECTED(resume->status == ASYNC_RESUME_WAITING)) {
 		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
-		GC_DELREF(&resume->std);
+		async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
+
+		if (state != NULL) {
+			state->resume = NULL;
+		}
+
+		OBJ_RELEASE(&resume->std);
 		return false;
 	}
 
@@ -267,6 +284,20 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 	async_throw_error("Invalid microtask type: should be a callable or a internal pointer to a function");
 }
 
+zend_always_inline void execute_deferred_fibers(void)
+{
+	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ?
+									ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
+
+	while (false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
+		execute_next_fiber_handler();
+
+		if (UNEXPECTED(EG(exception))) {
+			zend_exception_save();
+		}
+	}
+}
+
 static void async_scheduler_dtor(const bool graceful_shutdown)
 {
 	ASYNC_G(in_scheduler_context) = false;
@@ -283,11 +314,11 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 		zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
 
 		ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
-			const async_fiber_state_t *fiber_state = Z_PTR_P(current);
+			async_fiber_state_t *fiber_state = Z_PTR_P(current);
 
-			if (fiber_state->resume != NULL) {
-				async_cancel_fiber(fiber_state->fiber, cancellation_exception);
-			} else if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+			if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+				// No need to cancel the fiber if it has not been started.
+				fiber_state->resume->status = ASYNC_RESUME_IGNORED;
 				zend_fiber_finalize_without_executing(fiber_state->fiber);
 			} else {
 				async_cancel_fiber(fiber_state->fiber, cancellation_exception);
@@ -299,16 +330,7 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 
 		} ZEND_HASH_FOREACH_END();
 
-		const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ?
-										ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
-
-		while (false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
-			execute_next_fiber_handler();
-
-			if (UNEXPECTED(EG(exception))) {
-				zend_exception_save();
-			}
-		}
+		execute_deferred_fibers();
 
 		const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
 								? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
@@ -342,6 +364,17 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 	zval_c_buffer_cleanup(&ASYNC_G(deferred_resumes));
 	zval_c_buffer_cleanup(&ASYNC_G(microtasks));
 	zend_hash_clean(&ASYNC_G(defer_callbacks));
+
+	zval *current;
+	// foreach by fibers_state and release all fibers
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
+		async_fiber_state_t *fiber_state = Z_PTR_P(current);
+
+		if (fiber_state->fiber != NULL) {
+			OBJ_RELEASE(&fiber_state->fiber->std);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	zend_hash_clean(&ASYNC_G(fibers_state));
 
 	ASYNC_G(in_scheduler_context) = false;
@@ -375,6 +408,7 @@ void async_scheduler_launch(void)
 	}
 
 	ASYNC_G(is_async) = true;
+
 	reactor_startup_fn();
 
 	/**

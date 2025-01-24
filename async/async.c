@@ -62,6 +62,11 @@ void async_globals_dtor(zend_async_globals *async_globals)
 	zend_hash_destroy(&async_globals->defer_callbacks);
 }
 
+static void async_fiber_state_dtor(zval *zval)
+{
+	pefree(Z_PTR_P(zval), false);
+}
+
 /**
  * Async globals constructor.
  */
@@ -72,7 +77,7 @@ void async_globals_ctor(zend_async_globals *async_globals)
 
 	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
 	circular_buffer_ctor(&async_globals->deferred_resumes, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
-	zend_hash_init(&async_globals->fibers_state, 128, NULL, NULL, 1);
+	zend_hash_init(&async_globals->fibers_state, 128, NULL, async_fiber_state_dtor, 1);
 	zend_hash_init(&async_globals->defer_callbacks, 8, NULL, ZVAL_PTR_DTOR, 1);
 
 	async_globals->execute_callbacks_handler = NULL;
@@ -227,7 +232,7 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber)
  */
 static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_resume_t *resume, const bool transfer_fiber)
 {
-	async_fiber_state_t * state = pecalloc(1, sizeof(async_fiber_state_t), 1);
+	async_fiber_state_t * state = pecalloc(1, sizeof(async_fiber_state_t), false);
 
 	if (state == NULL) {
         return NULL;
