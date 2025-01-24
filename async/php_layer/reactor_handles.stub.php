@@ -48,12 +48,23 @@ final class FiberHandle extends Notifier
 
     public function isTerminated(): bool {}
 
-    public function &getContext(): array {}
+    public function &getContext(): \FiberContext {}
 
     /**
      * Allows canceling the execution of a coroutine with an exception.
      */
     public function cancelWith(\Throwable $error): void {}
+
+    /**
+     * Define a callback to be executed when the fiber is terminated.
+     */
+    public function defer(callable $callback): void {}
+
+    /**
+     * Remove a previously defined defer handler.
+     */
+    public function removeDeferHandler(callable $callable): void {}
+
 }
 
 /**

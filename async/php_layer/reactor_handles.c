@@ -112,6 +112,54 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 	async_cancel_fiber(fiber, Z_OBJ_P(error));
 }
 
+ZEND_METHOD(Async_FiberHandle, defer)
+{
+	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	zval *callback;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!zend_is_callable(callback, 0, NULL)) {
+		zend_throw_exception_ex(zend_ce_type_error, 0, "Expected parameter \"callback\" should be a valid callable");
+		RETURN_THROWS();
+	}
+
+	zend_fiber_defer_callable(fiber, callback);
+}
+
+ZEND_METHOD(Async_FiberHandle, removeDeferHandler)
+{
+	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+
+	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
+
+	zval *callback;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!fiber->shutdown_handlers) {
+		return;
+	}
+
+	zend_ulong index;
+	zend_string *key;
+	zval *entry;
+
+	ZEND_HASH_FOREACH_KEY_VAL(fiber->shutdown_handlers, index, key, entry) {
+		if (zend_is_identical(entry, callback)) {
+			zend_hash_index_del(fiber->shutdown_handlers, index);
+			return;
+		}
+	} ZEND_HASH_FOREACH_END();
+}
+
 PHP_METHOD(Async_PollHandle, __construct) {}
 
 PHP_METHOD(Async_PollHandle, isListening)

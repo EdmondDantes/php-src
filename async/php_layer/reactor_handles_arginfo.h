@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 91cfd2a7c2a52cacc571b9bd6e230f0d4e16fa00 */
+ * Stub hash: bb535dc217efb4d6ea332e5b8244969500c5e98b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -20,11 +20,19 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_FiberHandle_isTerminated arginfo_class_Async_PollHandle_isListening
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_getContext, 1, 0, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FiberHandle_getContext, 1, 0, FiberContext, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_cancelWith, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, error, Throwable, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_defer, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_removeDeferHandler, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, callable, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileHandle_fromResource, 0, 1, Async\\FileHandle, 0)
@@ -98,6 +106,8 @@ ZEND_METHOD(Async_FiberHandle, isRunning);
 ZEND_METHOD(Async_FiberHandle, isTerminated);
 ZEND_METHOD(Async_FiberHandle, getContext);
 ZEND_METHOD(Async_FiberHandle, cancelWith);
+ZEND_METHOD(Async_FiberHandle, defer);
+ZEND_METHOD(Async_FiberHandle, removeDeferHandler);
 ZEND_METHOD(Async_FileHandle, fromResource);
 ZEND_METHOD(Async_SocketHandle, fromResource);
 ZEND_METHOD(Async_SocketHandle, fromSocket);
@@ -134,6 +144,8 @@ static const zend_function_entry class_Async_FiberHandle_methods[] = {
 	ZEND_ME(Async_FiberHandle, isTerminated, arginfo_class_Async_FiberHandle_isTerminated, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, getContext, arginfo_class_Async_FiberHandle_getContext, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, cancelWith, arginfo_class_Async_FiberHandle_cancelWith, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FiberHandle, defer, arginfo_class_Async_FiberHandle_defer, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FiberHandle, removeDeferHandler, arginfo_class_Async_FiberHandle_removeDeferHandler, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
