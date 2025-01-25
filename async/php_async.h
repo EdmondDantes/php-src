@@ -82,6 +82,7 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 
 #define IS_ASYNC_ON (ASYNC_G(is_async) == true)
 #define IS_ASYNC_OFF (ASYNC_G(is_async) == false)
+#define IS_ASYNC_HAS_DEFER_FIBER circular_buffer_is_not_empty(&ASYNC_G(deferred_resumes))
 
 #define IN_ASYNC_CONTEXT EG(active_fiber) != NULL && IS_ASYNC_ON
 
@@ -250,6 +251,10 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_obje
  * - The error object passed will have its reference count managed by the resumption process.
  */
 ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
+
+ZEND_API async_resume_t * async_new_resume_with_timeout(
+	zend_fiber * fiber, const zend_ulong timeout, reactor_notifier_t *cancellation
+);
 
 ZEND_API void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation);
 

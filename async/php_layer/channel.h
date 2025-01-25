@@ -21,18 +21,13 @@
 #include "zend_common.h"
 #include "async/internal/circular_buffer.h"
 
-typedef enum {
-	ASYNC_CHANNEL_DIRECTION_SEND = 1,
-	ASYNC_CHANNEL_DIRECTION_RECEIVE = 2,
-	ASYNC_CHANNEL_DIRECTION_BOTH = 3
-} ASYNC_CHANNEL_DIRECTION;
-
 typedef struct _async_channel_s async_channel_t;
+
+#define CHANNEL_FROM_ZEND_OBJ(zend_object) (async_channel_t *)((char *)(zend_object) - XtOffsetOf(async_channel_t, std))
 
 struct _async_channel_s {
 	circular_buffer_t buffer;
 	bool expandable;
-	int direction;
 	reactor_notifier_t *notifier;
 	zend_object std;
 };
@@ -58,12 +53,13 @@ zend_always_inline void async_channel_set_owner_fiber(zend_object* channel, zend
 	zval_property_copy(&channel->properties_table[0], &z_fiber);
 }
 
-ZEND_API zend_class_entry * async_producer_i_ce;
-ZEND_API zend_class_entry * async_consumer_i_ce;
-ZEND_API zend_class_entry * async_channel_state_i_ce;
-ZEND_API zend_class_entry * async_channel_i_ce;
+ZEND_API zend_class_entry * async_ce_producer_i;
+ZEND_API zend_class_entry * async_ce_consumer_i;
+ZEND_API zend_class_entry * async_ce_channel_state_i;
+ZEND_API zend_class_entry * async_ce_channel_i;
 
-ZEND_API zend_class_entry * async_channel_ce;
+ZEND_API zend_class_entry * async_ce_channel_notifier;
+ZEND_API zend_class_entry * async_ce_channel;
 ZEND_API zend_class_entry * async_ce_channel_exception;
 ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
 ZEND_API zend_class_entry * async_ce_channel_is_full_exception;

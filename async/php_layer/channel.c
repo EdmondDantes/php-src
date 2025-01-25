@@ -24,16 +24,18 @@
 #define THIS_CHANNEL ((async_channel_t *)((char *)Z_OBJ_P(ZEND_THIS) - XtOffsetOf(async_channel_t, std)))
 #define THIS(field) THIS_CHANNEL->field
 
+static bool notify_new_data(async_channel_t *channel);
+
 METHOD(__construct)
 {
 	zend_long capacity = 8;
-	zend_long direction = ASYNC_CHANNEL_DIRECTION_RECEIVE;
-	zend_bool expandable = false;
+	zend_object * owner = NULL;
+	zend_long expandable = false;
 
-	ZEND_PARSE_PARAMETERS_START(0, 2)
+	ZEND_PARSE_PARAMETERS_START(0, 3)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(capacity)
-		Z_PARAM_LONG(direction)
+		Z_PARAM_OBJECT_OF_CLASS(owner, zend_ce_fiber)
 		Z_PARAM_BOOL(expandable)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -54,13 +56,16 @@ METHOD(__construct)
 	}
 
 	THIS(expandable) = expandable;
-	THIS(direction) = (int)direction;
 
-	if (direction != ASYNC_CHANNEL_DIRECTION_BOTH && EG(active_fiber)) {
+	if (EG(active_fiber) != NULL) {
 		async_channel_set_owner_fiber(Z_OBJ_P(ZEND_THIS), EG(active_fiber));
+	} else if (owner != NULL) {
+		async_channel_set_owner_fiber(Z_OBJ_P(ZEND_THIS), (zend_fiber *) owner);
 	} else {
 		ZVAL_NULL(async_channel_get_owner(Z_OBJ_P(ZEND_THIS)));
 	}
+
+	THIS(notifier) = async_notifier_new_by_class(sizeof(reactor_notifier_t), async_ce_channel_notifier);
 }
 
 METHOD(send)
@@ -77,11 +82,85 @@ METHOD(send)
 		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 		Z_PARAM_BOOL(waitOnFull)
 	ZEND_PARSE_PARAMETERS_END();
+
+	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
+
+	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) != &EG(active_fiber)->std)) {
+		zend_throw_exception(async_ce_channel_exception, "Only owner fiber can send data to the channel", 0);
+		RETURN_THROWS();
+	}
+
+	async_channel_t * channel = THIS_CHANNEL;
+
+	if (UNEXPECTED(waitOnFull && false == channel->expandable && circular_buffer_is_full(&channel->buffer))) {
+		async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
+
+		async_resume_when(resume, channel->notifier, false, async_resume_when_callback_resolve);
+		async_await(resume);
+		OBJ_RELEASE(&resume->std);
+
+		if (UNEXPECTED(EG(exception))) {
+			RETURN_THROWS();
+		}
+	} else if (UNEXPECTED(false == channel->expandable && circular_buffer_is_full(&channel->buffer))) {
+		zend_throw_exception(async_ce_channel_is_full_exception, "Channel is full", 0);
+		RETURN_THROWS();
+	}
+
+	zval_c_buffer_push(&channel->buffer, data);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	notify_new_data(channel);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	if (IS_ASYNC_HAS_DEFER_FIBER) {
+		async_await_timeout(timeout, (reactor_notifier_t *) cancellation);
+	}
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
 }
 
 METHOD(sendAsync)
 {
+	zval *data;
 
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(data)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
+
+	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) != &EG(active_fiber)->std)) {
+		zend_throw_exception(async_ce_channel_exception, "Only owner fiber can send data to the channel", 0);
+		RETURN_THROWS();
+	}
+
+	async_channel_t * channel = THIS_CHANNEL;
+
+	if (UNEXPECTED(false == channel->expandable && circular_buffer_is_full(&channel->buffer))) {
+		zend_throw_exception(async_ce_channel_is_full_exception, "Channel is full", 0);
+		RETURN_THROWS();
+	}
+
+	zval_c_buffer_push(&channel->buffer, data);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	notify_new_data(channel);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
 }
 
 METHOD(receive)
@@ -144,19 +223,20 @@ METHOD(getNotifier)
 
 }
 
-zend_object * async_channel_object_create(zend_class_entry *class_entry)
-{
-	return NULL;
-}
-
 static void async_channel_object_destroy(zend_object* object)
 {
+	async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
 
-}
+	if (channel->notifier != NULL) {
+		OBJ_RELEASE(&channel->notifier->std);
+		channel->notifier = NULL;
+	}
 
-static void async_channel_object_free(zend_object* object)
-{
-
+	if (channel->buffer.start != NULL) {
+		zval_c_buffer_cleanup(&channel->buffer);
+		circular_buffer_dtor(&channel->buffer);
+		channel->buffer.start = NULL;
+	}
 }
 
 static zend_object_handlers async_channel_handlers;
@@ -164,19 +244,19 @@ static zend_object_handlers async_channel_handlers;
 void async_register_channel_ce(void)
 {
 	// interfaces
-	async_producer_i_ce = register_class_Async_ProducerInterface();
-	async_consumer_i_ce = register_class_Async_ConsumerInterface();
-	async_channel_state_i_ce = register_class_Async_ChannelStateInterface();
-	async_channel_i_ce = register_class_Async_ChannelInterface(async_producer_i_ce, async_consumer_i_ce, async_channel_state_i_ce);
+	async_ce_producer_i = register_class_Async_ProducerInterface();
+	async_ce_consumer_i = register_class_Async_ConsumerInterface();
+	async_ce_channel_state_i = register_class_Async_ChannelStateInterface();
+	async_ce_channel_i = register_class_Async_ChannelInterface(async_ce_producer_i, async_ce_consumer_i, async_ce_channel_state_i);
 
-	async_channel_ce = register_class_Async_Channel(async_channel_i_ce);
+	async_ce_channel_notifier = register_class_Async_ChannelNotifier(async_ce_notifier);
+	async_ce_channel = register_class_Async_Channel(async_ce_channel_i);
 
-	async_channel_ce->default_object_handlers = &async_channel_handlers;
-	async_channel_ce->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_channel_ce->create_object = async_channel_object_create;
+	async_ce_channel->default_object_handlers = &async_channel_handlers;
+	async_ce_channel->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_channel->create_object = NULL;
 
 	async_channel_handlers = std_object_handlers;
 	async_channel_handlers.dtor_obj = async_channel_object_destroy;
-	async_channel_handlers.free_obj = async_channel_object_free;
 	async_channel_handlers.clone_obj = NULL;
 }

@@ -103,6 +103,7 @@ zend_always_inline void async_notifier_object_init(reactor_notifier_t * notifier
 ZEND_API reactor_notifier_t * async_notifier_new_ex(
 	size_t size, reactor_notifier_handler_t handler_fn, reactor_remove_callback_t remove_callback_fn
 );
+ZEND_API reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_entry *class_entry);
 ZEND_API void async_notifier_add_callback(zend_object* notifier, zval* callback);
 ZEND_API void async_notifier_remove_callback(zend_object* notifier, zval* callback);
 ZEND_API void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error);

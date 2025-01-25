@@ -35,8 +35,10 @@ interface ChannelInterface extends ProducerInterface, ConsumerInterface, Channel
 }
 
 class ChannelException extends \Exception {}
-class ChannelWasClosed extends ChannelException {}
-class ChannelIsFull extends ChannelException {}
+final class ChannelWasClosed extends ChannelException {}
+final class ChannelIsFull extends ChannelException {}
+
+final class ChannelNotifier extends Notifier {}
 
 /**
  * @strict-properties
@@ -44,16 +46,11 @@ class ChannelIsFull extends ChannelException {}
  */
 class Channel implements ChannelInterface
 {
-    public const int SEND = 1;
-    public const int RECEIVE = 2;
-    public const int BIDIRECTIONAL = 3;
+    public readonly ?\Fiber $owner = null;
 
-    public readonly ?\Fiber $ownerFiber = null;
+    public function __construct(int $capacity = 8, ?\Fiber $owner = null, bool $expandable = false) {}
 
-    public function __construct(int $capacity = 8, int $direction = RECEIVE, bool $expandable = false) {}
-
-    public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true):
-    void {}
+    public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void {}
 
     public function sendAsync(mixed $data): void {}
 
@@ -75,19 +72,23 @@ class Channel implements ChannelInterface
 
     public function getUsed(): int {}
 
-    public function getDirection(): int {}
-
-    public function transferOwnership(\Fiber $fiber): void {}
-
     public function getNotifier(): Notifier {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class ThreadChannel extends Channel
 {
     //public function getSenderThreadId(): int {}
     //public function getReceiverThreadId(): int {}
 }
 
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class ProcessChannel extends Channel
 {
     //public function getSenderProcessId(): int {}

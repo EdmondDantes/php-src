@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: ae92e1ee6916ba66ac2732b588b67101ab95a4bd */
+ * Stub hash: 9e98f05f5a75d0248793088ed9c8451598be37fd */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_send, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
@@ -48,7 +48,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Channel___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, capacity, IS_LONG, 0, "8")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, direction, IS_LONG, 0, "RECEIVE")
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, owner, Fiber, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, expandable, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
@@ -74,10 +74,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Channel_getUsed arginfo_class_Async_ChannelStateInterface_getCapacity
 
-#define arginfo_class_Async_Channel_getDirection arginfo_class_Async_ChannelStateInterface_getCapacity
-
-#define arginfo_class_Async_Channel_transferOwnership arginfo_class_Async_ProducerInterface_transferOwnership
-
 #define arginfo_class_Async_Channel_getNotifier arginfo_class_Async_ChannelInterface_getNotifier
 
 ZEND_METHOD(Async_Channel, __construct);
@@ -92,8 +88,6 @@ ZEND_METHOD(Async_Channel, isEmpty);
 ZEND_METHOD(Async_Channel, isNotEmpty);
 ZEND_METHOD(Async_Channel, getCapacity);
 ZEND_METHOD(Async_Channel, getUsed);
-ZEND_METHOD(Async_Channel, getDirection);
-ZEND_METHOD(Async_Channel, transferOwnership);
 ZEND_METHOD(Async_Channel, getNotifier);
 
 static const zend_function_entry class_Async_ProducerInterface_methods[] = {
@@ -139,8 +133,6 @@ static const zend_function_entry class_Async_Channel_methods[] = {
 	ZEND_ME(Async_Channel, isNotEmpty, arginfo_class_Async_Channel_isNotEmpty, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, getCapacity, arginfo_class_Async_Channel_getCapacity, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, getUsed, arginfo_class_Async_Channel_getUsed, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Channel, getDirection, arginfo_class_Async_Channel_getDirection, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Channel, transferOwnership, arginfo_class_Async_Channel_transferOwnership, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, getNotifier, arginfo_class_Async_Channel_getNotifier, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
@@ -201,7 +193,7 @@ static zend_class_entry *register_class_Async_ChannelWasClosed(zend_class_entry 
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ChannelWasClosed", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, 0);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, ZEND_ACC_FINAL);
 
 	return class_entry;
 }
@@ -211,7 +203,17 @@ static zend_class_entry *register_class_Async_ChannelIsFull(zend_class_entry *cl
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ChannelIsFull", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, 0);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, ZEND_ACC_FINAL);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_Async_ChannelNotifier(zend_class_entry *class_entry_Async_Notifier)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "Async", "ChannelNotifier", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL);
 
 	return class_entry;
 }
@@ -224,30 +226,12 @@ static zend_class_entry *register_class_Async_Channel(zend_class_entry *class_en
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 	zend_class_implements(class_entry, 1, class_entry_Async_ChannelInterface);
 
-	zval const_SEND_value;
-	ZVAL_LONG(&const_SEND_value, 1);
-	zend_string *const_SEND_name = zend_string_init_interned("SEND", sizeof("SEND") - 1, 1);
-	zend_declare_typed_class_constant(class_entry, const_SEND_name, &const_SEND_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(const_SEND_name);
-
-	zval const_RECEIVE_value;
-	ZVAL_LONG(&const_RECEIVE_value, 2);
-	zend_string *const_RECEIVE_name = zend_string_init_interned("RECEIVE", sizeof("RECEIVE") - 1, 1);
-	zend_declare_typed_class_constant(class_entry, const_RECEIVE_name, &const_RECEIVE_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(const_RECEIVE_name);
-
-	zval const_BIDIRECTIONAL_value;
-	ZVAL_LONG(&const_BIDIRECTIONAL_value, 3);
-	zend_string *const_BIDIRECTIONAL_name = zend_string_init_interned("BIDIRECTIONAL", sizeof("BIDIRECTIONAL") - 1, 1);
-	zend_declare_typed_class_constant(class_entry, const_BIDIRECTIONAL_name, &const_BIDIRECTIONAL_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(const_BIDIRECTIONAL_name);
-
-	zval property_ownerFiber_default_value;
-	ZVAL_NULL(&property_ownerFiber_default_value);
-	zend_string *property_ownerFiber_name = zend_string_init("ownerFiber", sizeof("ownerFiber") - 1, 1);
-	zend_string *property_ownerFiber_class_Fiber = zend_string_init("Fiber", sizeof("Fiber")-1, 1);
-	zend_declare_typed_property(class_entry, property_ownerFiber_name, &property_ownerFiber_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_ownerFiber_class_Fiber, 0, MAY_BE_NULL));
-	zend_string_release(property_ownerFiber_name);
+	zval property_owner_default_value;
+	ZVAL_NULL(&property_owner_default_value);
+	zend_string *property_owner_name = zend_string_init("owner", sizeof("owner") - 1, 1);
+	zend_string *property_owner_class_Fiber = zend_string_init("Fiber", sizeof("Fiber")-1, 1);
+	zend_declare_typed_property(class_entry, property_owner_name, &property_owner_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_owner_class_Fiber, 0, MAY_BE_NULL));
+	zend_string_release(property_owner_name);
 
 	return class_entry;
 }
@@ -257,7 +241,7 @@ static zend_class_entry *register_class_Async_ThreadChannel(zend_class_entry *cl
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ThreadChannel", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Channel, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Channel, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
@@ -267,7 +251,7 @@ static zend_class_entry *register_class_Async_ProcessChannel(zend_class_entry *c
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ProcessChannel", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Channel, ZEND_ACC_FINAL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Channel, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }

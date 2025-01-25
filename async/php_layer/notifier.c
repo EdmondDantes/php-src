@@ -135,6 +135,18 @@ reactor_notifier_t * async_notifier_new_ex(
 	return notifier;
 }
 
+reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_entry *class_entry)
+{
+	reactor_notifier_t * notifier = zend_object_alloc_ex(size, class_entry);
+	zend_object_std_init(&notifier->std, class_entry);
+	object_properties_init(&notifier->std, class_entry);
+
+	notifier->handler_fn = NULL;
+	notifier->remove_callback_fn = NULL;
+
+	return notifier;
+}
+
 void async_notifier_add_callback(zend_object* notifier, zval* callback)
 {
 	zval* callbacks = async_notifier_get_callbacks(notifier);

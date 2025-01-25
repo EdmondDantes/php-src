@@ -530,6 +530,25 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 	GC_DELREF(&resume->std);
 }
 
+async_resume_t * async_new_resume_with_timeout(
+	zend_fiber * fiber, const zend_ulong timeout, reactor_notifier_t *cancellation
+)
+{
+	async_resume_t *resume = async_resume_new(fiber);
+
+	if (timeout > 0) {
+		async_resume_when(
+			resume, reactor_timer_new_fn(timeout, false), true, async_resume_when_callback_resolve
+		);
+	}
+
+	if (cancellation != NULL) {
+		async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
+	}
+
+	return resume;
+}
+
 /**
  * The method stops Fiber execution for a specified time.
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
@@ -537,18 +556,12 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
  */
 void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation)
 {
-	if (timeout == 0) {
+	if (UNEXPECTED(timeout == 0 && cancellation == NULL)) {
 		async_await(NULL);
 		return;
 	}
 
-	async_resume_t *resume = async_resume_new(NULL);
-
-	async_resume_when(resume, reactor_timer_new_fn(timeout, false), true, async_resume_when_callback_resolve);
-
-	if (cancellation != NULL) {
-		async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
-	}
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
 
 	async_await(resume);
 
