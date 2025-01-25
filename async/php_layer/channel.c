@@ -271,7 +271,7 @@ METHOD(close)
 
 METHOD(isClosed)
 {
-
+	RETURN_BOOL(THIS(closed));
 }
 
 METHOD(isFull)
