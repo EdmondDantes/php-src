@@ -211,6 +211,15 @@ static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
 static void analyze_resume_waiting(async_resume_t *resume)
 {
     if (resume->status == ASYNC_RESUME_WAITING) {
+    	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
+
+    	if (state != NULL) {
+    		state->resume = resume;
+    	}
+
+    	resume->status = ASYNC_RESUME_SUCCESS;
+    	ZVAL_NULL(&resume->result);
+
         async_push_fiber_to_deferred_resume(resume, false);
     }
 }
