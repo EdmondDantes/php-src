@@ -1,5 +1,5 @@
 --TEST--
-Async\defer should be executed before Async\async and Async\run
+Async\defer executed in the order of the call stack
 --FILE--
 <?php
 
@@ -18,11 +18,11 @@ Async\defer(function() {
 Async\async(function() {
     echo "async function 1\n";
 
+    Async\await();
+
     Async\defer(function() {
         echo "async function defer 4\n";
     });
-
-    Async\await();
 });
 
 Async\run(function() {
@@ -44,7 +44,7 @@ async function defer 1
 async function defer 2
 async function defer 3
 async function 1
-async function defer 4
 async function 2
 async function defer 5
+async function defer 4
 end
