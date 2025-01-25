@@ -298,6 +298,26 @@ zend_always_inline void execute_deferred_fibers(void)
 	}
 }
 
+static void call_fiber_deferred_callbacks(void)
+{
+	zval * current;
+
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
+		const async_fiber_state_t *fiber_state = Z_PTR_P(current);
+
+		if (fiber_state->resume != NULL) {
+			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
+		}
+
+		zend_fiber_finalize(fiber_state->fiber);
+
+		if (EG(exception)) {
+			zend_exception_save();
+		}
+
+	} ZEND_HASH_FOREACH_END();
+}
+
 static void cancel_deferred_fibers(void)
 {
 	zend_exception_save();
@@ -313,7 +333,7 @@ static void cancel_deferred_fibers(void)
 		if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
 			// No need to cancel the fiber if it has not been started.
 			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
-			zend_fiber_finalize_without_executing(fiber_state->fiber);
+			zend_fiber_finalize(fiber_state->fiber);
 		} else {
 			async_cancel_fiber(fiber_state->fiber, cancellation_exception);
 		}
@@ -350,7 +370,7 @@ static void start_graceful_shutdown(void)
 	cancel_deferred_fibers();
 }
 
-static void async_scheduler_dtor(const bool graceful_shutdown)
+static void async_scheduler_dtor(void)
 {
 	ASYNC_G(in_scheduler_context) = false;
 
@@ -462,9 +482,10 @@ void async_scheduler_launch(void)
 		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0 || reactor_loop_alive_fn());
 
 	} zend_catch {
-		async_scheduler_dtor(false);
+		call_fiber_deferred_callbacks();
+		async_scheduler_dtor();
 		zend_bailout();
 	} zend_end_try();
 
-	async_scheduler_dtor(EG(exception) != NULL);
+	async_scheduler_dtor();
 }
