@@ -1,5 +1,5 @@
 --TEST--
-Fiber handle with callback
+Fiber handle cancel() method
 --FILE--
 <?php
 
@@ -11,7 +11,7 @@ $fiber = Async\async(function() {
 
 Async\run(function() use($fiber) {
     echo "async function 2\n";
-    $fiber->cancelWith(new Async\CancellationException("Should be ignored"));
+    $fiber->cancel();
 });
 
 echo "start\n";
