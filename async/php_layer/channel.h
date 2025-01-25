@@ -21,6 +21,12 @@
 #include "zend_common.h"
 #include "async/internal/circular_buffer.h"
 
+typedef enum {
+	ASYNC_DATA_PUSHED = 1,
+	ASYNC_DATA_POPPED = 2,
+	ASYNC_CHANNEL_CLOSED = 3
+} async_channel_event;
+
 typedef struct _async_channel_s async_channel_t;
 
 #define CHANNEL_FROM_ZEND_OBJ(zend_object) (async_channel_t *)((char *)(zend_object) - XtOffsetOf(async_channel_t, std))
@@ -28,6 +34,8 @@ typedef struct _async_channel_s async_channel_t;
 struct _async_channel_s {
 	circular_buffer_t buffer;
 	bool expandable;
+	bool data_popped;
+	bool closed;
 	reactor_notifier_t *notifier;
 	zend_object std;
 };
