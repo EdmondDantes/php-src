@@ -50,6 +50,8 @@ final class FiberHandle extends Notifier
 
     public function &getContext(): \FiberContext {}
 
+    public function cancel(): void {}
+
     /**
      * Allows canceling the execution of a coroutine with an exception.
      */

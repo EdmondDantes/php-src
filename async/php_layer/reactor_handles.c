@@ -97,6 +97,14 @@ PHP_METHOD(Async_FiberHandle, getContext)
 	RETURN_OBJ_COPY(fiber->fiber_storage);
 }
 
+PHP_METHOD(Async_FiberHandle, cancel)
+{
+	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
+	zend_object * error = async_new_exception(async_ce_cancellation_exception, "Fiber has been canceled");
+	async_cancel_fiber(fiber, error);
+	GC_DELREF(error);
+}
+
 PHP_METHOD(Async_FiberHandle, cancelWith)
 {
 	const zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
@@ -105,7 +113,7 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 
 	zval *error;
 
-	ZEND_PARSE_PARAMETERS_START(1, 2)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
 	Z_PARAM_OBJECT_OF_CLASS(error, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
