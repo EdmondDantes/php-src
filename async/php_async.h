@@ -250,7 +250,7 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_obje
  * - This function relies on the internal state of the fiber to determine if cancellation is possible.
  * - The error object passed will have its reference count managed by the resumption process.
  */
-ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error);
+ZEND_API void async_cancel_fiber(const zend_fiber *fiber, zend_object *error, const bool transfer_error);
 
 ZEND_API async_resume_t * async_new_resume_with_timeout(
 	zend_fiber * fiber, const zend_ulong timeout, reactor_notifier_t *cancellation

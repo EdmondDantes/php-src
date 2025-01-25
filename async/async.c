@@ -316,7 +316,8 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;
 		resume->error = error;
-		GC_ADDREF(error);
+		//No need addref because the resume is owner of error
+		//GC_ADDREF(error);
 	}
 
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
@@ -332,13 +333,22 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	}
 }
 
-void async_cancel_fiber(const zend_fiber *fiber, zend_object *error)
+void async_cancel_fiber(const zend_fiber *fiber, zend_object *error, const bool transfer_error)
 {
 	const async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL || state->resume == NULL) {
 		async_throw_error("The fiber is not waiting for asynchronous operations and cannot be terminated.");
+
+		if (transfer_error) {
+			OBJ_RELEASE(error);
+		}
+
 		return;
+	}
+
+	if (false == transfer_error) {
+		GC_ADDREF(error);
 	}
 
 	async_resume_fiber(state->resume, NULL, error);

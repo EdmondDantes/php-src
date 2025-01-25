@@ -335,7 +335,7 @@ static void cancel_deferred_fibers(void)
 			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
 			zend_fiber_finalize(fiber_state->fiber);
 		} else {
-			async_cancel_fiber(fiber_state->fiber, cancellation_exception);
+			async_cancel_fiber(fiber_state->fiber, cancellation_exception, false);
 		}
 
 		if (EG(exception)) {
