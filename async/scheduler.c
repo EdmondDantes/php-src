@@ -298,55 +298,85 @@ zend_always_inline void execute_deferred_fibers(void)
 	}
 }
 
-static void async_scheduler_dtor(const bool graceful_shutdown)
+static void cancel_deferred_fibers(void)
 {
-	ASYNC_G(in_scheduler_context) = false;
+	zend_exception_save();
 
-	if (UNEXPECTED(graceful_shutdown)) {
+	// 1. Walk through all fibers and cancel them if they are suspended.
+	zval * current;
 
-		ASYNC_G(graceful_shutdown) = true;
+	zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
 
-		zend_exception_save();
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
+		async_fiber_state_t *fiber_state = Z_PTR_P(current);
 
-		// 1. Walk through all fibers and cancel them if they are suspended.
-		zval * current;
+		if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+			// No need to cancel the fiber if it has not been started.
+			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
+			zend_fiber_finalize_without_executing(fiber_state->fiber);
+		} else {
+			async_cancel_fiber(fiber_state->fiber, cancellation_exception);
+		}
 
-		zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
-
-		ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
-			async_fiber_state_t *fiber_state = Z_PTR_P(current);
-
-			if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
-				// No need to cancel the fiber if it has not been started.
-				fiber_state->resume->status = ASYNC_RESUME_IGNORED;
-				zend_fiber_finalize_without_executing(fiber_state->fiber);
-			} else {
-				async_cancel_fiber(fiber_state->fiber, cancellation_exception);
-			}
-
-			if (EG(exception)) {
-				zend_exception_save();
-			}
-
-		} ZEND_HASH_FOREACH_END();
-
-		execute_deferred_fibers();
-
-		const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
-								? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
-
-		execute_microtasks_handler();
-
-		if (UNEXPECTED(EG(exception))) {
+		if (EG(exception)) {
 			zend_exception_save();
 		}
 
-		OBJ_RELEASE(cancellation_exception);
+	} ZEND_HASH_FOREACH_END();
 
-		zend_exception_restore();
+	OBJ_RELEASE(cancellation_exception);
+
+	zend_exception_restore();
+}
+
+static void on_graceful_shutdown_timeout(reactor_notifier_t * notifier, zval* event, zval* error)
+{
+	ASYNC_G(break_loop) = true;
+
+	async_warning("Graceful shutdown timeout exceeded");
+
+	notifier->handler_fn = NULL;
+	OBJ_RELEASE(&notifier->std);
+
+	cancel_deferred_fibers();
+	execute_deferred_fibers();
+
+	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
+							? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
+
+	execute_microtasks_handler();
+
+	if (UNEXPECTED(EG(exception))) {
+		zend_exception_save();
+	}
+}
+
+static void start_graceful_shutdown(void)
+{
+	if (ASYNC_G(graceful_shutdown)) {
+		zend_exception_save();
+		return;
 	}
 
-	zend_exception_save();
+	ASYNC_G(graceful_shutdown) = true;
+
+	cancel_deferred_fibers();
+
+	reactor_timer_t * timer = (reactor_timer_t *) reactor_timer_new_fn(5000, false);
+
+	if (EG(exception)) {
+		zend_exception_save();
+	}
+
+	if (timer != NULL) {
+		timer->handle.handler_fn = on_graceful_shutdown_timeout;
+		reactor_add_handle(&timer->handle);
+	}
+}
+
+static void async_scheduler_dtor(const bool graceful_shutdown)
+{
+	ASYNC_G(in_scheduler_context) = false;
 
 	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
 		async_warning(
@@ -377,20 +407,25 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 
 	zend_hash_clean(&ASYNC_G(fibers_state));
 
+	reactor_shutdown_fn();
+	ASYNC_G(graceful_shutdown) = false;
+	ASYNC_G(break_loop) = false;
 	ASYNC_G(in_scheduler_context) = false;
 	ASYNC_G(is_async) = false;
-	reactor_shutdown_fn();
 
 	zend_exception_restore();
 }
 
 #define TRY_HANDLE_EXCEPTION() \
-	if (EG(exception) != NULL && handle_exception_handler != NULL) { \
+	if (UNEXPECTED(EG(exception) != NULL && handle_exception_handler != NULL)) { \
 		handle_exception_handler(); \
 	} \
-	if (EG(exception) != NULL) { \
-		break; \
-	}
+	if (UNEXPECTED(EG(exception) != NULL)) { \
+		start_graceful_shutdown(); \
+	} \
+	if (UNEXPECTED(ASYNC_G(break_loop))) { \
+        break; \
+    }
 
 /**
  * The main loop of the scheduler.
