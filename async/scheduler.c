@@ -329,15 +329,8 @@ static void cancel_deferred_fibers(void)
 	zend_exception_restore();
 }
 
-static void on_graceful_shutdown_timeout(reactor_notifier_t * notifier, zval* event, zval* error)
+static void finally_shutdown(void)
 {
-	ASYNC_G(break_loop) = true;
-
-	async_warning("Graceful shutdown timeout exceeded");
-
-	notifier->handler_fn = NULL;
-	OBJ_RELEASE(&notifier->std);
-
 	cancel_deferred_fibers();
 	execute_deferred_fibers();
 
@@ -353,25 +346,8 @@ static void on_graceful_shutdown_timeout(reactor_notifier_t * notifier, zval* ev
 
 static void start_graceful_shutdown(void)
 {
-	if (ASYNC_G(graceful_shutdown)) {
-		zend_exception_save();
-		return;
-	}
-
 	ASYNC_G(graceful_shutdown) = true;
-
 	cancel_deferred_fibers();
-
-	reactor_timer_t * timer = (reactor_timer_t *) reactor_timer_new_fn(5000, false);
-
-	if (EG(exception)) {
-		zend_exception_save();
-	}
-
-	if (timer != NULL) {
-		timer->handle.handler_fn = on_graceful_shutdown_timeout;
-		reactor_add_handle(&timer->handle);
-	}
 }
 
 static void async_scheduler_dtor(const bool graceful_shutdown)
@@ -409,7 +385,6 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 
 	reactor_shutdown_fn();
 	ASYNC_G(graceful_shutdown) = false;
-	ASYNC_G(break_loop) = false;
 	ASYNC_G(in_scheduler_context) = false;
 	ASYNC_G(is_async) = false;
 
@@ -421,11 +396,12 @@ static void async_scheduler_dtor(const bool graceful_shutdown)
 		handle_exception_handler(); \
 	} \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
+	    if(ASYNC_G(graceful_shutdown)) { \
+			finally_shutdown(); \
+            break; \
+        } \
 		start_graceful_shutdown(); \
-	} \
-	if (UNEXPECTED(ASYNC_G(break_loop))) { \
-        break; \
-    }
+	}
 
 /**
  * The main loop of the scheduler.
