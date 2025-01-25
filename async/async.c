@@ -462,6 +462,14 @@ void async_await(async_resume_t *resume)
 	async_resume_waiting(resume);
 	state->resume = resume;
 
+	if (UNEXPECTED(zend_hash_num_elements(&resume->notifiers) == 0)) {
+		// Put resume into the deferred queue if there are no notifiers.
+		resume->status = ASYNC_RESUME_SUCCESS;
+		ZVAL_NULL(&resume->result);
+		state->resume = resume;
+		async_push_fiber_to_deferred_resume(resume, false);
+    }
+
 	zend_fiber_suspend(EG(active_fiber), NULL, NULL);
 
 finally:
