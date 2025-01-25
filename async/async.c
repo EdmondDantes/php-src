@@ -316,6 +316,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;
 		resume->error = error;
+		GC_ADDREF(error);
 	}
 
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
