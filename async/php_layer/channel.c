@@ -50,12 +50,12 @@ METHOD(__construct)
 {
 	zend_long capacity = 8;
 	zend_object * owner = NULL;
-	zend_long expandable = false;
+	bool expandable = false;
 
 	ZEND_PARSE_PARAMETERS_START(0, 3)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(capacity)
-		Z_PARAM_OBJECT_OF_CLASS(owner, zend_ce_fiber)
+		Z_PARAM_OBJ_OF_CLASS(owner, zend_ce_fiber)
 		Z_PARAM_BOOL(expandable)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -326,7 +326,7 @@ METHOD(getUsed)
 
 METHOD(getNotifier)
 {
-	RETURN_OBJ_COPY(THIS(notifier));
+	RETURN_OBJ_COPY((zend_object *) THIS(notifier));
 }
 
 static void async_channel_object_destroy(zend_object* object)

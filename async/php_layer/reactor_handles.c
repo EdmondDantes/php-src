@@ -94,7 +94,7 @@ PHP_METHOD(Async_FiberHandle, getContext)
 		fiber->fiber_storage = zend_fiber_storage_new();
 	}
 
-	RETURN_OBJ_COPY(fiber->fiber_storage);
+	RETURN_OBJ_COPY((zend_object *)fiber->fiber_storage);
 }
 
 PHP_METHOD(Async_FiberHandle, cancel)
@@ -571,7 +571,7 @@ void async_register_handlers_ce(void)
 static void async_fiber_handle_defer_cb(zend_fiber * fiber, zend_fiber_defer_callback * callback)
 {
 	zval event;
-	ZVAL_OBJ(&event, fiber);
+	ZVAL_OBJ(&event, (zend_object *) fiber);
 	async_notifier_notify((reactor_notifier_t *) callback->object, &event, NULL);
 }
 
