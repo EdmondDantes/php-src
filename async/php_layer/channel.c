@@ -261,7 +261,7 @@ METHOD(receive)
 		emit_data_popped(channel);
 
 		if(UNEXPECTED(EG(exception))) {
-            zval_dtor_ptr(return_value);
+            zval_ptr_dtor(return_value);
 			RETURN_THROWS();
 		}
 
@@ -367,7 +367,7 @@ METHOD(finishConsuming)
 		RETURN_THROWS();
 	}
 
-	if (UNEXPECTED(circular_buffer_is_not_empty(&channel->buffer))) {
+	if (UNEXPECTED(circular_buffer_is_not_empty(&THIS_CHANNEL->buffer))) {
 		async_warning("Try to close the channel with data. The data will be lost.");
 	}
 
