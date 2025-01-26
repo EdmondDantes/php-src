@@ -414,31 +414,6 @@ METHOD(getNotifier)
 	RETURN_OBJ_COPY((zend_object *) THIS(notifier));
 }
 
-static void async_channel_object_destroy(zend_object* object)
-{
-	async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
-
-	if (channel->fiber_callback_index != -1) {
-		const zend_fiber *fiber = async_channel_get_owner_fiber(object);
-
-		if (fiber != NULL) {
-			zend_fiber_remove_defer(fiber, channel->fiber_callback_index);
-			channel->fiber_callback_index = -1;
-		}
-	}
-
-	if (channel->notifier != NULL) {
-		OBJ_RELEASE(&channel->notifier->std);
-		channel->notifier = NULL;
-	}
-
-	if (channel->buffer.start != NULL) {
-		zval_c_buffer_cleanup(&channel->buffer);
-		circular_buffer_dtor(&channel->buffer);
-		channel->buffer.start = NULL;
-	}
-}
-
 static bool emit_data_pushed(async_channel_t *channel)
 {
 	channel->data_popped = false;
@@ -504,6 +479,45 @@ static void emit_channel_closed(async_channel_t *channel)
 	OBJ_RELEASE(cancellable);
 }
 
+static zend_object *async_channel_object_create(zend_class_entry *class_entry)
+{
+	const size_t size = sizeof(async_channel_t) + zend_object_properties_size(class_entry);
+	async_channel_t * object = emalloc(size);
+
+	zend_object_std_init(&object->std, class_entry);
+	object_properties_init(&object->std, class_entry);
+
+	return &object->std;
+}
+
+static void async_channel_object_destroy(zend_object* object)
+{
+	async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
+
+	if (channel->fiber_callback_index != -1) {
+		const zend_fiber *fiber = async_channel_get_owner_fiber(object);
+
+		if (fiber != NULL) {
+			zend_fiber_remove_defer(fiber, channel->fiber_callback_index);
+			channel->fiber_callback_index = -1;
+		}
+	}
+
+	if (channel->notifier != NULL) {
+		OBJ_RELEASE(&channel->notifier->std);
+		channel->notifier = NULL;
+	}
+
+	zval_c_buffer_cleanup(&channel->buffer);
+	circular_buffer_dtor(&channel->buffer);
+}
+
+static void async_channel_object_free(zend_object *object)
+{
+	zend_object_std_dtor(object);
+	//async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
+	//pefree(channel, 1);
+}
 
 static zend_object_handlers async_channel_handlers;
 
@@ -525,9 +539,11 @@ void async_register_channel_ce(void)
 
 	async_ce_channel->default_object_handlers = &async_channel_handlers;
 	async_ce_channel->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-	async_ce_channel->create_object = NULL;
+	async_ce_channel->create_object = async_channel_object_create;
 
 	async_channel_handlers = std_object_handlers;
+	async_channel_handlers.offset = XtOffsetOf(async_channel_t, std);
 	async_channel_handlers.dtor_obj = async_channel_object_destroy;
+	async_channel_handlers.free_obj = async_channel_object_free;
 	async_channel_handlers.clone_obj = NULL;
 }

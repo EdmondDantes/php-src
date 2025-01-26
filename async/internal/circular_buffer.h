@@ -55,7 +55,7 @@ struct _circular_buffer_s {
 };
 
 zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const size_t item_size, const allocator_t *allocator);
-void circular_buffer_dtor(const circular_buffer_t *buffer);
+void circular_buffer_dtor(circular_buffer_t *buffer);
 circular_buffer_t *circular_buffer_new(const size_t count, const size_t item_size, const allocator_t *allocator);
 void circular_buffer_destroy(circular_buffer_t *buffer);
 

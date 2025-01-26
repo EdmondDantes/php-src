@@ -99,9 +99,14 @@ zend_result circular_buffer_ctor(circular_buffer_t * buffer, size_t count, const
 	return SUCCESS;
 }
 
-void circular_buffer_dtor(const circular_buffer_t *buffer)
+void circular_buffer_dtor(circular_buffer_t *buffer)
 {
-	(buffer->allocator->m_free)(buffer->start);
+	if (UNEXPECTED(buffer->start != NULL)) {
+		(buffer->allocator->m_free)(buffer->start);
+	}
+
+	buffer->start = NULL;
+	buffer->end = NULL;
 }
 
 /**
