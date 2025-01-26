@@ -137,7 +137,12 @@ static reactor_handle_t* reactor_thread_new(THREAD_T tread_id, zend_ulong events
 	return NULL;
 }
 
-static reactor_handle_t* reactor_dns_info_new(const char *host, size_t host_len, const int *port, const char *address, size_t address_len)
+static reactor_handle_t* reactor_dns_info_new(
+	zend_string *host,
+	zend_string *service,
+	zend_string *address,
+	struct addrinfo *hints
+)
 {
 	async_throw_error("Reactor API method dns_info_new not implemented");
 	return NULL;

@@ -488,7 +488,10 @@ void async_scheduler_launch(void)
 				break;
 			}
 
-		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0 || reactor_loop_alive_fn());
+		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0
+			|| circular_buffer_is_not_empty(&ASYNC_G(microtasks))
+			|| reactor_loop_alive_fn()
+		);
 
 	} zend_catch {
 		call_fiber_deferred_callbacks();

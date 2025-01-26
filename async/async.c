@@ -1133,7 +1133,7 @@ zend_string* async_get_host_by_addr(const char * ip)
 		return NULL;
 	}
 
-	const zend_string * z_address = zend_string_init(ip, strlen(ip), 0);
+	zend_string * z_address = zend_string_init(ip, strlen(ip), 0);
 
 	reactor_handle_t * dns_info = reactor_dns_info_new_fn(NULL, NULL, z_address, NULL);
 
