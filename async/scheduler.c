@@ -236,6 +236,11 @@ static zend_bool check_deadlocks(void)
 	zend_ulong index;
 	zend_string *key;
 
+	async_warning(
+		"No active fibers, deadlock detected. Fibers in waiting: %u",
+		zend_hash_num_elements(&ASYNC_G(fibers_state))
+	);
+
 	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
 
 		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
@@ -484,7 +489,10 @@ void async_scheduler_launch(void)
 			bool was_executed = execute_next_fiber_handler();
 			TRY_HANDLE_EXCEPTION();
 
-			if (false == has_handles && false == was_executed && check_deadlocks()) {
+			if (false == has_handles
+				&& false == was_executed
+				&& circular_buffer_is_empty(&ASYNC_G(deferred_resumes))
+				&& check_deadlocks()) {
 				break;
 			}
 

@@ -25,18 +25,32 @@
 #define METHOD(name) PHP_METHOD(Async_Channel, name)
 #define THIS_CHANNEL ((async_channel_t *)((char *)Z_OBJ_P(ZEND_THIS) - XtOffsetOf(async_channel_t, std)))
 #define THIS(field) THIS_CHANNEL->field
+
 #define THROW_IF_CLOSED if (UNEXPECTED(THIS(closed))) { \
-	zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0); return; \
-	RETURN_THROWS(); \
-}
+		zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0); \
+		RETURN_THROWS(); \
+	}
+
 #define THROW_IF_PRODUCING_FINISHED if (UNEXPECTED(THIS(finish_producing))) { \
-	zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0); return; \
-	RETURN_THROWS(); \
+		zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0); \
+		RETURN_THROWS(); \
+	}
+
+#define THROW_IF_EMPTY if (UNEXPECTED(circular_buffer_is_empty(&THIS(buffer)))) { \
+    zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0); \
+    RETURN_THROWS(); \
 }
+
+#define THROW_CHANNEL_EMPTY zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0); \
+    RETURN_THROWS();
+
 
 static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
+
+static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
 
 zend_always_inline void close_channel(async_channel_t *channel)
 {
@@ -133,6 +147,8 @@ METHOD(send)
 		Z_PARAM_BOOL(waitOnFull)
 	ZEND_PARSE_PARAMETERS_END();
 
+	printf("call send\n");
+
 	THROW_IF_CLOSED
 	THROW_IF_PRODUCING_FINISHED
 
@@ -148,7 +164,7 @@ METHOD(send)
 	if (UNEXPECTED(waitOnFull && false == channel->expandable && circular_buffer_is_full(&channel->buffer))) {
 		async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 
-		async_resume_when(resume, channel->notifier, false, async_resume_when_callback_resolve);
+		async_resume_when(resume, channel->notifier, false, resume_when_data_popped);
 		async_await(resume);
 		OBJ_RELEASE(&resume->std);
 
@@ -173,7 +189,10 @@ METHOD(send)
 	}
 
 	if (IS_ASYNC_HAS_DEFER_FIBER) {
-		async_await_timeout(timeout, (reactor_notifier_t *) cancellation);
+		async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
+		async_resume_when(resume, channel->notifier, false, resume_when_data_popped);
+		async_await(resume);
+		OBJ_RELEASE(&resume->std);
 	}
 
 	if (UNEXPECTED(EG(exception))) {
@@ -230,6 +249,8 @@ METHOD(receive)
 		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 	ZEND_PARSE_PARAMETERS_END();
 
+	printf("call receive in fiber %u\n", EG(active_fiber)->std.handle);
+
 	THROW_IF_CLOSED
 
 	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
@@ -250,13 +271,23 @@ METHOD(receive)
 			zend_exception_restore();
 		}
 
+		emit_data_popped(channel);
+
 		return;
 	} else if (UNEXPECTED(THIS(finish_producing))) {
 		close_channel(channel);
 		THROW_IF_CLOSED
 	}
 
-	async_await_timeout(timeout, (reactor_notifier_t *) cancellation);
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
+	async_resume_when(resume, channel->notifier, false, resume_when_data_pushed);
+
+	printf("receive in fiber %u will be resume\n", EG(active_fiber)->std.handle);
+
+	async_await(resume);
+	OBJ_RELEASE(&resume->std);
+
+	printf("receive in fiber %u was resumed\n", EG(active_fiber)->std.handle);
 
 	if (UNEXPECTED(EG(exception))) {
 		RETURN_THROWS();
@@ -268,7 +299,8 @@ METHOD(receive)
 			THROW_IF_CLOSED
 		}
 
-		RETURN_NULL();
+		printf("receive in fiber %u was empty\n", EG(active_fiber)->std.handle);
+		THROW_CHANNEL_EMPTY
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
@@ -310,7 +342,7 @@ METHOD(receiveAsync)
 			THROW_IF_CLOSED
 		}
 
-		RETURN_NULL();
+		THROW_CHANNEL_EMPTY
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
@@ -526,11 +558,35 @@ static void async_channel_object_destroy(zend_object* object)
 	circular_buffer_dtor(&channel->buffer);
 }
 
+static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+{
+	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+		return;
+	}
+
+	if (Z_LVAL_P(event) == ASYNC_DATA_PUSHED) {
+		printf("resume when data pushed fiber %u\n", resume->fiber->std.handle);
+        async_resume_fiber(resume, NULL, NULL);
+    }
+}
+
+static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+{
+	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+		return;
+	}
+
+	if (Z_LVAL_P(event) == ASYNC_DATA_POPPED) {
+		printf(" ==> resume when data popped fiber %u\n", resume->fiber->std.handle);
+        async_resume_fiber(resume, NULL, NULL);
+    }
+}
+
 static void async_channel_object_free(zend_object *object)
 {
 	zend_object_std_dtor(object);
-	//async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
-	//pefree(channel, 1);
 }
 
 static zend_object_handlers async_channel_handlers;
