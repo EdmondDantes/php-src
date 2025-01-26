@@ -243,13 +243,17 @@ METHOD(receive)
 
 	if (circular_buffer_is_not_empty(&channel->buffer)) {
 		zval_c_buffer_pop(&channel->buffer, return_value);
-		return;
-	}
 
-	if (UNEXPECTED(THIS(finish_producing))) {
+		if (UNEXPECTED(THIS(finish_producing)) && circular_buffer_is_empty(&channel->buffer)) {
+			zend_exception_save();
+			close_channel(channel);
+			zend_exception_restore();
+		}
+
+		return;
+	} else if (UNEXPECTED(THIS(finish_producing))) {
 		close_channel(channel);
-		zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0);
-		RETURN_THROWS();
+		THROW_IF_CLOSED
 	}
 
 	async_await_timeout(timeout, (reactor_notifier_t *) cancellation);
@@ -259,12 +263,17 @@ METHOD(receive)
 	}
 
 	if (UNEXPECTED(circular_buffer_is_empty(&channel->buffer))) {
+		if (UNEXPECTED(THIS(finish_producing))) {
+			close_channel(channel);
+			THROW_IF_CLOSED
+		}
+
 		RETURN_NULL();
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
 
-	if (UNEXPECTED(THIS(finish_producing))) {
+	if (UNEXPECTED(THIS(finish_producing) && circular_buffer_is_empty(&channel->buffer))) {
 		zend_exception_save();
 		close_channel(channel);
 		zend_exception_restore();
@@ -298,6 +307,7 @@ METHOD(receiveAsync)
 	if (circular_buffer_is_empty(&channel->buffer)) {
 		if (UNEXPECTED(THIS(finish_producing))) {
 			close_channel(channel);
+			THROW_IF_CLOSED
 		}
 
 		RETURN_NULL();
@@ -305,10 +315,14 @@ METHOD(receiveAsync)
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
 
-	if (UNEXPECTED(THIS(finish_producing))) {
+	if (UNEXPECTED(THIS(finish_producing) && circular_buffer_is_empty(&channel->buffer))) {
 		zend_exception_save();
 		close_channel(channel);
 		zend_exception_restore();
+
+		if (EG(exception) == NULL) {
+			THROW_IF_CLOSED
+		}
 	}
 
 	if (EG(exception)) {
