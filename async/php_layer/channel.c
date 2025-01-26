@@ -29,21 +29,35 @@
 	zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0); return; \
 	RETURN_THROWS(); \
 }
+#define THROW_IF_PRODUCING_FINISHED if (UNEXPECTED(THIS(finish_producing))) { \
+	zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0); return; \
+	RETURN_THROWS(); \
+}
 
 static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
 
+zend_always_inline void close_channel(async_channel_t *channel)
+{
+	channel->closed = true;
+	emit_channel_closed(channel);
+
+	if (UNEXPECTED(circular_buffer_is_not_empty(&channel->buffer))) {
+		async_warning("Try to close the channel with data. The data will be lost.");
+	}
+
+	zval_c_buffer_cleanup(&channel->buffer);
+	circular_buffer_dtor(&channel->buffer);
+}
+
 static void on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * entry)
 {
 	async_channel_t * channel = CHANNEL_FROM_ZEND_OBJ(entry->object);
 	channel->fiber_callback_index = -1;
+	channel->finish_producing = true;
 
 	ZEND_ASSERT(async_channel_get_owner_fiber(entry->object) == fiber && "Fiber is not the owner of the channel");
-
-	emit_channel_closed(channel);
-	zval_c_buffer_cleanup(&channel->buffer);
-	circular_buffer_dtor(&channel->buffer);
 }
 
 METHOD(__construct)
@@ -77,6 +91,9 @@ METHOD(__construct)
 
 	THIS(expandable) = expandable;
 	zend_fiber * owner_fiber = NULL;
+
+	THIS(finish_producing) = false;
+	THIS(closed) = false;
 
 	if (EG(active_fiber) != NULL) {
 		async_channel_set_owner_fiber(Z_OBJ_P(ZEND_THIS), EG(active_fiber));
@@ -117,6 +134,7 @@ METHOD(send)
 	ZEND_PARSE_PARAMETERS_END();
 
 	THROW_IF_CLOSED
+	THROW_IF_PRODUCING_FINISHED
 
 	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
 
@@ -172,6 +190,7 @@ METHOD(sendAsync)
 	ZEND_PARSE_PARAMETERS_END();
 
 	THROW_IF_CLOSED
+	THROW_IF_PRODUCING_FINISHED
 
 	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
 
@@ -227,6 +246,12 @@ METHOD(receive)
 		return;
 	}
 
+	if (UNEXPECTED(THIS(finish_producing))) {
+		close_channel(channel);
+		zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0);
+		RETURN_THROWS();
+	}
+
 	async_await_timeout(timeout, (reactor_notifier_t *) cancellation);
 
 	if (UNEXPECTED(EG(exception))) {
@@ -238,6 +263,12 @@ METHOD(receive)
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
+
+	if (UNEXPECTED(THIS(finish_producing))) {
+		zend_exception_save();
+		close_channel(channel);
+		zend_exception_restore();
+	}
 
 	if (EG(exception)) {
 		emit_data_popped(channel);
@@ -265,10 +296,20 @@ METHOD(receiveAsync)
 	async_channel_t * channel = THIS_CHANNEL;
 
 	if (circular_buffer_is_empty(&channel->buffer)) {
+		if (UNEXPECTED(THIS(finish_producing))) {
+			close_channel(channel);
+		}
+
 		RETURN_NULL();
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
+
+	if (UNEXPECTED(THIS(finish_producing))) {
+		zend_exception_save();
+		close_channel(channel);
+		zend_exception_restore();
+	}
 
 	if (EG(exception)) {
 		emit_data_popped(channel);
@@ -282,16 +323,55 @@ METHOD(receiveAsync)
 	}
 }
 
+METHOD(finishProducing)
+{
+	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
+
+	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
+		zend_throw_exception(async_ce_channel_exception, "Only owner fiber can finish producing", 0);
+		RETURN_THROWS();
+	}
+
+	THIS(finish_producing) = true;
+
+	if (THIS(fiber_callback_index) != -1) {
+		zend_fiber_remove_defer(owner, THIS(fiber_callback_index));
+		THIS(fiber_callback_index) = -1;
+	}
+
+	if (circular_buffer_is_empty(&THIS(buffer))) {
+		close_channel(THIS_CHANNEL);
+	}
+}
+
+METHOD(finishConsuming)
+{
+	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
+
+	if (UNEXPECTED(owner != NULL && owner == EG(active_fiber))) {
+		zend_throw_exception(async_ce_channel_exception, "Owner fiber cannot finish consuming", 0);
+		RETURN_THROWS();
+	}
+
+	close_channel(THIS_CHANNEL);
+}
+
+METHOD(discardData)
+{
+	if (THIS(closed)) {
+		return;
+	}
+
+	zval_c_buffer_cleanup(&THIS(buffer));
+}
+
 METHOD(close)
 {
 	if (THIS(closed)) {
         return;
     }
 
-	THIS(closed) = true;
-	emit_channel_closed(THIS_CHANNEL);
-	zval_c_buffer_cleanup(&THIS(buffer));
-	circular_buffer_dtor(&THIS(buffer));
+	close_channel(THIS_CHANNEL);
 }
 
 METHOD(isClosed)
@@ -312,6 +392,11 @@ METHOD(isEmpty)
 METHOD(isNotEmpty)
 {
 	RETURN_BOOL(circular_buffer_is_not_empty(&THIS(buffer)));
+}
+
+METHOD(isProducingFinished)
+{
+	RETURN_BOOL(THIS(finish_producing));
 }
 
 METHOD(getCapacity)
@@ -429,6 +514,11 @@ void async_register_channel_ce(void)
 	async_ce_consumer_i = register_class_Async_ConsumerInterface();
 	async_ce_channel_state_i = register_class_Async_ChannelStateInterface();
 	async_ce_channel_i = register_class_Async_ChannelInterface(async_ce_producer_i, async_ce_consumer_i, async_ce_channel_state_i);
+
+	async_ce_channel_exception = register_class_Async_ChannelException(zend_ce_exception);
+	async_ce_channel_was_closed_exception = register_class_Async_ChannelWasClosed(async_ce_channel_exception);
+	async_ce_channel_is_full_exception = register_class_Async_ChannelIsFull(async_ce_channel_exception);
+	async_ce_channel_producing_finished_exception = register_class_Async_ChannelProducingFinished(async_ce_channel_exception);
 
 	async_ce_channel_notifier = register_class_Async_ChannelNotifier(async_ce_notifier);
 	async_ce_channel = register_class_Async_Channel(async_ce_channel_i);

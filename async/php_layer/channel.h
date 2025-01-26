@@ -34,8 +34,13 @@ typedef struct _async_channel_s async_channel_t;
 struct _async_channel_s {
 	circular_buffer_t buffer;
 	bool expandable;
+	/* Indicates that subscribers have been notified that data in the channel has been read. */
 	bool data_popped;
+	/* Indicates that no new data will be added to the channel. */
+	bool finish_producing;
+	/* Indicates that the channel has been permanently closed. */
 	bool closed;
+	/* The index of the callback handler when the fiber is completed. */
 	zend_long fiber_callback_index;
 	reactor_notifier_t *notifier;
 	zend_object std;
@@ -69,9 +74,11 @@ ZEND_API zend_class_entry * async_ce_channel_i;
 
 ZEND_API zend_class_entry * async_ce_channel_notifier;
 ZEND_API zend_class_entry * async_ce_channel;
+
 ZEND_API zend_class_entry * async_ce_channel_exception;
 ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
 ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
+ZEND_API zend_class_entry * async_ce_channel_producing_finished_exception;
 
 void async_register_channel_ce(void);
 
