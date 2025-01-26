@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9e98f05f5a75d0248793088ed9c8451598be37fd */
+ * Stub hash: 16d1bbc44d89ab11c12b70da6495617a923d63db */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_send, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
@@ -13,10 +13,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_se
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_close, 0, 0, IS_VOID, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_transferOwnership, 0, 1, IS_VOID, 0)
-	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ConsumerInterface_receive, 0, 0, IS_MIXED, 0)
@@ -40,8 +36,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ChannelStateInterfac
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_ChannelStateInterface_getUsed arginfo_class_Async_ChannelStateInterface_getCapacity
-
-#define arginfo_class_Async_ChannelStateInterface_getDirection arginfo_class_Async_ChannelStateInterface_getCapacity
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_ChannelInterface_getNotifier, 0, 0, Async\\\116otifier, 0)
 ZEND_END_ARG_INFO()
@@ -94,7 +88,6 @@ static const zend_function_entry class_Async_ProducerInterface_methods[] = {
 	ZEND_RAW_FENTRY("send", NULL, arginfo_class_Async_ProducerInterface_send, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("sendAsync", NULL, arginfo_class_Async_ProducerInterface_sendAsync, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("close", NULL, arginfo_class_Async_ProducerInterface_close, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
-	ZEND_RAW_FENTRY("transferOwnership", NULL, arginfo_class_Async_ProducerInterface_transferOwnership, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
 };
 
@@ -111,7 +104,6 @@ static const zend_function_entry class_Async_ChannelStateInterface_methods[] = {
 	ZEND_RAW_FENTRY("isNotEmpty", NULL, arginfo_class_Async_ChannelStateInterface_isNotEmpty, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("getCapacity", NULL, arginfo_class_Async_ChannelStateInterface_getCapacity, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("getUsed", NULL, arginfo_class_Async_ChannelStateInterface_getUsed, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
-	ZEND_RAW_FENTRY("getDirection", NULL, arginfo_class_Async_ChannelStateInterface_getDirection, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
 };
 

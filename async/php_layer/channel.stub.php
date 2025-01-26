@@ -9,7 +9,6 @@ interface ProducerInterface
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void;
     public function sendAsync(mixed $data): void;
     public function close(): void;
-    public function transferOwnership(\Fiber $fiber): void;
 }
 
 interface ConsumerInterface
@@ -26,7 +25,6 @@ interface ChannelStateInterface
     public function isNotEmpty(): bool;
     public function getCapacity(): int;
     public function getUsed(): int;
-    public function getDirection(): int;
 }
 
 interface ChannelInterface extends ProducerInterface, ConsumerInterface, ChannelStateInterface
