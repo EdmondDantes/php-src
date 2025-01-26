@@ -173,10 +173,10 @@ ZEND_API bool zend_fiber_switch_blocked(void);
 
 #ifdef PHP_ASYNC
 
-typedef struct _zend_fiber_defer_entry zend_fiber_defer_entry;
-typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_entry * entry);
+typedef struct _zend_fiber_defer_callback zend_fiber_defer_callback;
+typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_callback * callback);
 
-struct _zend_fiber_defer_entry {
+struct _zend_fiber_defer_callback {
 	zend_fiber_defer_func func;
 	zend_object *object;
 	bool without_dtor;
@@ -184,7 +184,7 @@ struct _zend_fiber_defer_entry {
 
 void zend_fiber_finalize(zend_fiber *fiber);
 
-ZEND_API zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object);
+ZEND_API zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_callback * callback, const bool transfer_object);
 
 ZEND_API void zend_fiber_defer_callable(zend_fiber *fiber, zval * callable);
 

@@ -34,6 +34,18 @@ static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
 
+static void on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * entry)
+{
+	async_channel_t * channel = CHANNEL_FROM_ZEND_OBJ(entry->object);
+	channel->fiber_callback_index = -1;
+
+	ZEND_ASSERT(async_channel_get_owner_fiber(entry->object) == fiber && "Fiber is not the owner of the channel");
+
+	emit_channel_closed(channel);
+	zval_c_buffer_cleanup(&channel->buffer);
+	circular_buffer_dtor(&channel->buffer);
+}
+
 METHOD(__construct)
 {
 	zend_long capacity = 8;
@@ -64,16 +76,29 @@ METHOD(__construct)
 	}
 
 	THIS(expandable) = expandable;
+	zend_fiber * owner_fiber = NULL;
 
 	if (EG(active_fiber) != NULL) {
 		async_channel_set_owner_fiber(Z_OBJ_P(ZEND_THIS), EG(active_fiber));
+		owner_fiber = EG(active_fiber);
 	} else if (owner != NULL) {
 		async_channel_set_owner_fiber(Z_OBJ_P(ZEND_THIS), (zend_fiber *) owner);
+		owner_fiber = (zend_fiber *) owner;
 	} else {
 		ZVAL_NULL(async_channel_get_owner(Z_OBJ_P(ZEND_THIS)));
 	}
 
 	THIS(notifier) = async_notifier_new_by_class(sizeof(reactor_notifier_t), async_ce_channel_notifier);
+
+	if (owner_fiber != NULL) {
+		zend_fiber_defer_callback * callback = emalloc(sizeof(zend_fiber_defer_callback));
+		callback->object = Z_OBJ_P(ZEND_THIS);
+		callback->func = on_fiber_finished;
+		callback->without_dtor = true;
+		THIS(fiber_callback_index) = zend_fiber_defer(owner_fiber, callback, true);
+	} else {
+		THIS(fiber_callback_index) = -1;
+	}
 }
 
 METHOD(send)
@@ -307,6 +332,15 @@ METHOD(getNotifier)
 static void async_channel_object_destroy(zend_object* object)
 {
 	async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
+
+	if (channel->fiber_callback_index != -1) {
+		const zend_fiber *fiber = async_channel_get_owner_fiber(object);
+
+		if (fiber != NULL) {
+			zend_fiber_remove_defer(fiber, channel->fiber_callback_index);
+			channel->fiber_callback_index = -1;
+		}
+	}
 
 	if (channel->notifier != NULL) {
 		OBJ_RELEASE(&channel->notifier->std);

@@ -36,6 +36,7 @@ struct _async_channel_s {
 	bool expandable;
 	bool data_popped;
 	bool closed;
+	zend_long fiber_callback_index;
 	reactor_notifier_t *notifier;
 	zend_object std;
 };

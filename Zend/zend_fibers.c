@@ -423,8 +423,8 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
     ZEND_HASH_FOREACH_VAL(fiber->shutdown_handlers, callback) {
 
     	if (Z_TYPE_P(callback) == IS_PTR) {
-    		zend_fiber_defer_entry *entry = Z_PTR_P(callback);
-    		entry->func(fiber, entry);
+    		zend_fiber_defer_callback *defer_callback = Z_PTR_P(callback);
+    		defer_callback->func(fiber, defer_callback);
     		continue;
     	}
 
@@ -1193,14 +1193,14 @@ static void shutdown_handlers_dtor(zval *zval_ptr)
 {
 	if (Z_TYPE_P(zval_ptr) == IS_PTR) {
 
-	    zend_fiber_defer_entry *entry = Z_PTR_P(zval_ptr);
+	    zend_fiber_defer_callback *callback = Z_PTR_P(zval_ptr);
 
-		if (entry != NULL && entry->object != NULL) {
-			if (false == entry->without_dtor) {
-                OBJ_RELEASE(entry->object);
+		if (callback != NULL && callback->object != NULL) {
+			if (false == callback->without_dtor) {
+                OBJ_RELEASE(callback->object);
             }
 
-			efree(entry);
+			efree(callback);
 		}
 
     } else {
@@ -1487,18 +1487,18 @@ void zend_fiber_finalize(zend_fiber *fiber)
 	}
 }
 
-zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_entry * entry, const bool transfer_object)
+zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_callback * callback, const bool transfer_object)
 {
 	if (fiber->shutdown_handlers == NULL) {
 		shutdown_handlers_new(&fiber->shutdown_handlers);
 	}
 
-	zval z_entry;
-	ZVAL_PTR(&z_entry, entry);
-	const zval * item = zend_hash_next_index_insert(fiber->shutdown_handlers, &z_entry);
+	zval z_callback;
+	ZVAL_PTR(&z_callback, callback);
+	const zval * item = zend_hash_next_index_insert(fiber->shutdown_handlers, &z_callback);
 
 	if (item != NULL && false == transfer_object) {
-        GC_ADDREF(entry->object);
+        GC_ADDREF(callback->object);
     }
 
 	return item != NULL ? fiber->shutdown_handlers->nNextFreeElement - 1 : -1;

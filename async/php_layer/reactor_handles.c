@@ -568,11 +568,11 @@ void async_register_handlers_ce(void)
 	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers;
 }
 
-static void async_fiber_handle_defer_cb(zend_fiber * fiber, zend_fiber_defer_entry * entry)
+static void async_fiber_handle_defer_cb(zend_fiber * fiber, zend_fiber_defer_callback * callback)
 {
 	zval event;
 	ZVAL_OBJ(&event, fiber);
-	async_notifier_notify((reactor_notifier_t *) entry->object, &event, NULL);
+	async_notifier_notify((reactor_notifier_t *) callback->object, &event, NULL);
 }
 
 reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
@@ -591,12 +591,12 @@ reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
 	handle->fiber = fiber;
 	GC_ADDREF(&fiber->std);
 
-	zend_fiber_defer_entry * entry = emalloc(sizeof(zend_fiber_defer_entry));
-	entry->object = &handle->handle.std;
-	entry->func = async_fiber_handle_defer_cb;
-	entry->without_dtor = true;
+	zend_fiber_defer_callback * callback = emalloc(sizeof(zend_fiber_defer_callback));
+	callback->object = &handle->handle.std;
+	callback->func = async_fiber_handle_defer_cb;
+	callback->without_dtor = true;
 
-	handle->callback_index = zend_fiber_defer(handle->fiber, entry, true);
+	handle->callback_index = zend_fiber_defer(handle->fiber, callback, true);
 
 	return handle;
 }
