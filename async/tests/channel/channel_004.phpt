@@ -11,20 +11,11 @@ Async\run(function() {
         $receiveLimit = 3;
         $received = 0;
 
-        while (true) {
-            try {
-                $data = $channel->receive();
-                echo "receive: $data\n";
-                $received++;
-                if ($received >= $receiveLimit) {
-                    $channel->close();
-                    break;
-                }
-            } catch (Async\ChannelWasClosed $e) {
-                echo "channel closed\n";
-                break;
-            } catch (Async\ChannelProducingFinished $e) {
-                echo "producing finished\n";
+        while (($data = $channel->receive()) != null) {
+            echo "receive: $data\n";
+            $received++;
+            if ($received >= $receiveLimit) {
+                $channel->close();
                 break;
             }
         }

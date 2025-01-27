@@ -7,17 +7,8 @@ Async\run(function() {
     $channel = new Async\Channel();
 
     Async\run(function() use($channel) {
-        while (true) {
-            try {
-                $data = $channel->receive();
-                echo "receive: $data\n";
-            } catch (Async\ChannelWasClosed $e) {
-                echo "channel closed\n";
-                break;
-            } catch (Async\ChannelProducingFinished $e) {
-                echo "producing finished\n";
-                break;
-            }
+        while (($data = $channel->receive()) != null) {
+            echo "receive: $data\n";
         }
     });
 
@@ -37,5 +28,4 @@ receive: event data 0
 receive: event data 1
 receive: event data 2
 receive: event data 3
-channel closed
 end

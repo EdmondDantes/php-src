@@ -31,15 +31,6 @@
 		RETURN_THROWS(); \
 	}
 
-#define THROW_IF_EMPTY if (UNEXPECTED(circular_buffer_is_empty(&THIS(buffer)))) { \
-    zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0); \
-    RETURN_THROWS(); \
-}
-
-#define THROW_CHANNEL_EMPTY zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0); \
-    RETURN_THROWS();
-
-
 static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
@@ -278,7 +269,7 @@ METHOD(receive)
 	}
 
 	if (UNEXPECTED(circular_buffer_is_empty(&channel->buffer))) {
-		THROW_CHANNEL_EMPTY
+		RETURN_NULL();
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
@@ -477,13 +468,9 @@ static void emit_channel_closed(async_channel_t *channel)
 	channel->data_popped = false;
 	channel->closed = true;
 
-	zend_object * cancellable = async_new_exception(async_ce_channel_was_closed_exception, "Channel was closed");
-	zval event, error;
+	zval event;
 	ZVAL_LONG(&event, ASYNC_CHANNEL_CLOSED);
-	ZVAL_OBJ(&error, cancellable);
-
-	async_notifier_notify(channel->notifier, &event, &error);
-	OBJ_RELEASE(cancellable);
+	async_notifier_notify(channel->notifier, &event, NULL);
 }
 
 static zend_object *async_channel_object_create(zend_class_entry *class_entry)
@@ -530,7 +517,7 @@ static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *
 		return;
 	}
 
-	if (Z_LVAL_P(event) == ASYNC_DATA_PUSHED) {
+	if (Z_LVAL_P(event) == ASYNC_DATA_PUSHED || Z_LVAL_P(event) == ASYNC_CHANNEL_CLOSED) {
         async_resume_fiber(resume, NULL, NULL);
     }
 }
@@ -542,7 +529,7 @@ static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *
 		return;
 	}
 
-	if (Z_LVAL_P(event) == ASYNC_DATA_POPPED) {
+	if (Z_LVAL_P(event) == ASYNC_DATA_POPPED || Z_LVAL_P(event) == ASYNC_CHANNEL_CLOSED) {
         async_resume_fiber(resume, NULL, NULL);
     }
 }
