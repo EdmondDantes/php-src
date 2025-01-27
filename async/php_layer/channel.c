@@ -226,7 +226,7 @@ METHOD(receive)
 
 	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
-	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
+	if (UNEXPECTED(owner != NULL && owner == EG(active_fiber))) {
 		zend_throw_exception(async_ce_channel_exception, "Owner fiber cannot receive data from the channel", 0);
 		RETURN_THROWS();
 	}
@@ -291,7 +291,7 @@ METHOD(receiveAsync)
 {
 	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
-	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
+	if (UNEXPECTED(owner != NULL && owner == EG(active_fiber))) {
 		zend_throw_exception(async_ce_channel_exception, "Owner fiber cannot receive data from the channel", 0);
 		RETURN_THROWS();
 	}
