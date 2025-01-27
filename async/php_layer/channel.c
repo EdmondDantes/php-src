@@ -186,9 +186,9 @@ METHOD(sendAsync)
 
 	THROW_IF_CLOSED
 
-	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
+	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
-	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) != &EG(active_fiber)->std)) {
+	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
 		zend_throw_exception(async_ce_channel_exception, "Only owner fiber can send data to the channel", 0);
 		RETURN_THROWS();
 	}
@@ -224,9 +224,9 @@ METHOD(receive)
 		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 	ZEND_PARSE_PARAMETERS_END();
 
-	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
+	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
-	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) == &EG(active_fiber)->std)) {
+	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
 		zend_throw_exception(async_ce_channel_exception, "Owner fiber cannot receive data from the channel", 0);
 		RETURN_THROWS();
 	}
@@ -289,9 +289,9 @@ METHOD(receive)
 
 METHOD(receiveAsync)
 {
-	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
+	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
-	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) == &EG(active_fiber)->std)) {
+	if (UNEXPECTED(owner != NULL && owner != EG(active_fiber))) {
 		zend_throw_exception(async_ce_channel_exception, "Owner fiber cannot receive data from the channel", 0);
 		RETURN_THROWS();
 	}
