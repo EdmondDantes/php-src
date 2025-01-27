@@ -458,6 +458,7 @@ ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_
 		}
 
 		async_resume_fiber(resume, NULL, exception);
+		GC_DELREF(exception);
 	}
 }
 
@@ -469,9 +470,9 @@ ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor
 		//
 		// If the operation has not been completed yet, we will resume the Fiber with a timeout exception.
 		//
-		async_resume_fiber(
-			resume, NULL, async_new_exception(async_ce_timeout_exception, "Operation has been cancelled by timeout")
-		);
+		zend_object * exception = async_new_exception(async_ce_timeout_exception, "Operation has been cancelled by timeout");
+		async_resume_fiber(resume, NULL, exception);
+		GC_DELREF(exception);
 	}
 }
 
