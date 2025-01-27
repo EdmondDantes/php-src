@@ -164,6 +164,30 @@ zend_always_inline void zend_property_array_index_update(zval *property, zend_ul
 	}
 }
 
+zend_always_inline void zend_apply_current_filename_and_line(zend_string **filename, uint32_t *lineno)
+{
+	if (*filename != NULL) {
+		zend_string_release(*filename);
+		*filename = NULL;
+		*lineno = 0;
+	}
+
+	if (zend_is_compiling()) {
+		*filename = zend_get_compiled_filename();
+		*lineno = zend_get_compiled_lineno();
+	} else if (zend_is_executing()) {
+		*filename = zend_get_executed_filename_ex();
+		*lineno = zend_get_executed_lineno();
+	} else {
+		*filename = NULL;
+		*lineno = 0;
+	}
+
+	if (*filename != NULL) {
+		zend_string_addref(*filename);
+	}
+}
+
 void zend_exception_to_warning(const char * format, const bool clean);
 
 zend_string * zend_current_exception_get_message(const bool clean);
@@ -222,5 +246,7 @@ zend_always_inline zif_handler zend_replace_to_string_method(zend_object * objec
 {
 	return zend_replace_method(object, ZEND_STRL("__toString"), handler);
 }
+
+void zend_get_function_name_by_fci(zend_fcall_info * fci, zend_fcall_info_cache *fci_cache, zend_string **name);
 
 #endif //ASYNC_ZEND_COMMON_H

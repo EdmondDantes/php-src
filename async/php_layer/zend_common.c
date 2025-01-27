@@ -151,3 +151,14 @@ zif_handler zend_replace_method(zend_object * object, const char * method, const
 
 	return original_handler;
 }
+
+void zend_get_function_name_by_fci(zend_fcall_info * fci, zend_fcall_info_cache *fci_cache, zend_string **name)
+{
+	if (fci_cache != NULL && fci_cache->function_handler != NULL) {
+        *name = fci_cache->function_handler->common.function_name;
+    } else if (fci != NULL && Z_TYPE(fci->function_name) != IS_UNDEF) {
+        *name = Z_STR(fci->function_name);
+    } else {
+        *name = NULL;
+    }
+}

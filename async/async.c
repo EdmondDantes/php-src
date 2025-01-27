@@ -434,6 +434,9 @@ void async_await(async_resume_t *resume)
         }
 	}
 
+	// Save the current filename and line number.
+	zend_apply_current_filename_and_line(&resume->filename, &resume->lineno);
+
 	//
 	// Add all notifiers to the event loop.
 	// The operation of adding a handle to the event loop is idempotent,

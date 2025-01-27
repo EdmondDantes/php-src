@@ -194,43 +194,7 @@ static bool execute_next_fiber(void)
 	return true;
 }
 
-static void validate_fiber_status(zend_fiber *fiber, const zend_ulong index)
-{
-	if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-		async_push_fiber_to_deferred_resume(async_resume_new(fiber), true);
-	} else if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
-		zend_hash_index_del(&ASYNC_G(fibers_state), index);
-	} else {
-		async_throw_error(
-			"Fiber detected without a Resume object in an invalid state. Fiber status: %d",
-			fiber->context.status
-		);
-	}
-}
-
-static void analyze_resume_waiting(async_resume_t *resume)
-{
-    if (resume->status == ASYNC_RESUME_WAITING) {
-    	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
-
-    	if (state != NULL) {
-    		state->resume = resume;
-    	}
-
-    	resume->status = ASYNC_RESUME_SUCCESS;
-    	ZVAL_NULL(&resume->result);
-
-        async_push_fiber_to_deferred_resume(resume, false);
-    }
-}
-
-/**
- * The method checks all fibers and their Resume objects for the existence of a DeadLock or a logical processing error.
- * If a DeadLock is detected, the method throws a PHP exception and terminates the loop execution.
- *
- * @return zend_bool
- */
-static zend_bool check_deadlocks(void)
+static bool resolve_deadlocks(void)
 {
 	zval *value;
 	zend_ulong index;
@@ -240,19 +204,37 @@ static zend_bool check_deadlocks(void)
 		"No active fibers, deadlock detected. Fibers in waiting: %u", zend_hash_num_elements(&ASYNC_G(fibers_state))
 	);
 
+	// Try to cancel first fiber that is suspended.
 	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
 
 		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
 
-		if (fiber_state->resume == NULL) {
-			validate_fiber_status(fiber_state->fiber, index);
-        } else {
-        	analyze_resume_waiting(fiber_state->resume);
-        }
+		if (fiber_state->resume->filename != NULL) {
+
+			//zend_string * function_name = NULL;
+			//zend_get_function_name_by_fci(&fiber_state->fiber->fci, &fiber_state->fiber->fci_cache, &function_name);
+
+			async_warning(
+				"Resume that suspended in file: %s, line: %d will be canceled",
+				fiber_state->resume->status,
+				ZSTR_VAL(fiber_state->resume->filename),
+				fiber_state->resume->lineno
+			);
+		}
+
+		async_cancel_fiber(
+			fiber_state->fiber,
+			async_new_exception(async_ce_cancellation_exception, "Deadlock detected"),
+			true
+		);
 
 		if (EG(exception) != NULL) {
 			return true;
 		}
+
+		// We try to cancel only one fiber at a time with the hope that the deadlock will be resolved.
+		break;
+
 	ZEND_HASH_FOREACH_END();
 
 	return false;
@@ -494,7 +476,7 @@ void async_scheduler_launch(void)
 				&& zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0
 				&& circular_buffer_is_empty(&ASYNC_G(deferred_resumes))
 				&& circular_buffer_is_empty(&ASYNC_G(microtasks))
-				&& check_deadlocks()
+				&& resolve_deadlocks()
 				)) {
 				break;
 			}

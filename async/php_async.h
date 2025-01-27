@@ -244,6 +244,7 @@ ZEND_API void async_resume_fiber(async_resume_t *resume, zval* result, zend_obje
  *
  * @param fiber  A constant pointer to the zend_fiber structure representing the fiber to cancel.
  * @param error  A zend_object pointer representing the error to pass to the fiber upon cancellation.
+ * @param transfer_error Indicates that the error object is transferred to the ownership of the function.
  *
  * @note
  * - If the fiber is not in a cancelable state, no action is taken other than throwing an error.

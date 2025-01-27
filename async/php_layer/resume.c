@@ -204,6 +204,10 @@ METHOD(removeNotifier)
 
 METHOD(__toString)
 {
+	if (THIS_RESUME->filename != NULL) {
+		RETURN_STR(zend_strpprintf(0, "Resume at %s:%d", ZSTR_VAL(THIS_RESUME->filename), THIS_RESUME->lineno));
+	}
+
 	RETURN_STRING("Resume");
 }
 
@@ -222,6 +226,8 @@ zend_always_inline void async_resume_object_init(async_resume_t * object, zend_c
 	object->triggered_notifiers = NULL;
 	object->fiber = NULL;
 	object->error = NULL;
+	object->filename = NULL;
+	object->lineno = 0;
 
 	zend_object_std_init(&object->std, class_entry);
 	object_properties_init(&object->std, class_entry);
@@ -291,6 +297,12 @@ static void async_resume_object_destroy(zend_object* object)
 	ZEND_HASH_FOREACH_END();
 
 	resume->error = NULL;
+
+	if (resume->filename != NULL) {
+		zend_string_release(resume->filename);
+		resume->filename = NULL;
+		resume->lineno = 0;
+	}
 }
 
 static void async_resume_object_free(zend_object* object)

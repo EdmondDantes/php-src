@@ -56,6 +56,10 @@ struct _async_resume_s {
 	HashTable * triggered_notifiers;
 	/* The array of async_resume_notifier_t. */
 	HashTable notifiers;
+	/* Filename of the resume object creation point. */
+	zend_string *filename;
+	/* Line number of the resume object creation point. */
+	uint32_t lineno;
 };
 
 /**
