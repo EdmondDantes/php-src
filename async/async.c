@@ -316,8 +316,7 @@ void async_resume_fiber(async_resume_t *resume, zval* result, zend_object* error
 	} else {
 		resume->status = ASYNC_RESUME_ERROR;
 		resume->error = error;
-		//No need addref because the resume is owner of error
-		//GC_ADDREF(error);
+		GC_ADDREF(error);
 	}
 
 	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
@@ -347,11 +346,12 @@ void async_cancel_fiber(const zend_fiber *fiber, zend_object *error, const bool 
 		return;
 	}
 
-	if (false == transfer_error) {
-		GC_ADDREF(error);
-	}
-
 	async_resume_fiber(state->resume, NULL, error);
+
+	if (true == transfer_error) {
+		// because async_resume_fiber increments the reference count of the error object
+		GC_DELREF(error);
+	}
 }
 
 void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)

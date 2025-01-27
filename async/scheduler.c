@@ -236,10 +236,8 @@ static zend_bool check_deadlocks(void)
 	zend_ulong index;
 	zend_string *key;
 
-	async_warning(
-		"No active fibers, deadlock detected. Fibers in waiting: %u",
-		zend_hash_num_elements(&ASYNC_G(fibers_state))
-	);
+	const uint32_t waiting = zend_hash_num_elements(&ASYNC_G(fibers_state));
+	async_warning("No active fibers, deadlock detected. Fibers in waiting: %u", waiting);
 
 	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
 
