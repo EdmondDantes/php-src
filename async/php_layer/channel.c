@@ -31,11 +31,6 @@
 		RETURN_THROWS(); \
 	}
 
-#define THROW_IF_PRODUCING_FINISHED if (UNEXPECTED(THIS(finish_producing))) { \
-		zend_throw_exception(async_ce_channel_producing_finished_exception, "Channel producing was finished", 0); \
-		RETURN_THROWS(); \
-	}
-
 #define THROW_IF_EMPTY if (UNEXPECTED(circular_buffer_is_empty(&THIS(buffer)))) { \
     zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0); \
     RETURN_THROWS(); \
@@ -264,7 +259,9 @@ METHOD(receive)
 		return;
 	}
 
-	THROW_IF_CLOSED
+	if (UNEXPECTED(THIS(closed))) {
+		RETURN_NULL();
+	}
 
 	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 	async_resume_when(resume, channel->notifier, false, resume_when_data_pushed);
@@ -274,6 +271,10 @@ METHOD(receive)
 
 	if (UNEXPECTED(EG(exception))) {
 		RETURN_THROWS();
+	}
+
+	if (UNEXPECTED(THIS(closed))) {
+		RETURN_NULL();
 	}
 
 	if (UNEXPECTED(circular_buffer_is_empty(&channel->buffer))) {
@@ -290,6 +291,7 @@ METHOD(receive)
 	emit_data_popped(channel);
 
 	if (EG(exception)) {
+		zval_ptr_dtor(return_value);
 		RETURN_THROWS();
 	}
 }
@@ -306,8 +308,7 @@ METHOD(receiveAsync)
 	async_channel_t * channel = THIS_CHANNEL;
 
 	if (circular_buffer_is_empty(&channel->buffer)) {
-        THROW_IF_CLOSED
-		THROW_CHANNEL_EMPTY
+		RETURN_NULL();
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
@@ -320,6 +321,7 @@ METHOD(receiveAsync)
 	emit_data_popped(channel);
 
 	if (EG(exception)) {
+		zval_ptr_dtor(return_value);
 		RETURN_THROWS();
 	}
 }
@@ -563,7 +565,6 @@ void async_register_channel_ce(void)
 	async_ce_channel_exception = register_class_Async_ChannelException(zend_ce_exception);
 	async_ce_channel_was_closed_exception = register_class_Async_ChannelWasClosed(async_ce_channel_exception);
 	async_ce_channel_is_full_exception = register_class_Async_ChannelIsFull(async_ce_channel_exception);
-	async_ce_channel_producing_finished_exception = register_class_Async_ChannelProducingFinished(async_ce_channel_exception);
 
 	async_ce_channel_notifier = register_class_Async_ChannelNotifier(async_ce_notifier);
 	async_ce_channel = register_class_Async_Channel(async_ce_channel_i);

@@ -78,7 +78,6 @@ ZEND_API zend_class_entry * async_ce_channel;
 ZEND_API zend_class_entry * async_ce_channel_exception;
 ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
 ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
-ZEND_API zend_class_entry * async_ce_channel_producing_finished_exception;
 
 void async_register_channel_ce(void);
 

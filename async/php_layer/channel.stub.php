@@ -42,7 +42,6 @@ interface ChannelInterface extends ProducerInterface, ConsumerInterface, Channel
 class ChannelException extends \Exception {}
 final class ChannelWasClosed extends ChannelException {}
 final class ChannelIsFull extends ChannelException {}
-final class ChannelProducingFinished extends ChannelException {}
 
 final class ChannelNotifier extends Notifier {}
 

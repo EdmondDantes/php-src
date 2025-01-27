@@ -1,5 +1,5 @@
 --TEST--
-Channel: consumer break data receiving cycle by closing the channel
+Channel: two receivers and one producer
 --FILE--
 <?php
 
@@ -8,27 +8,14 @@ Async\run(function() {
 
     Async\run(function() use($channel) {
 
-        while (true) {
-            try {
-                $data = $channel->receive();
-                echo "receive by 1: $data\n";
-            } catch (Async\ChannelWasClosed $e) {
-                echo "channel closed\n";
-                break;
-            }
+        while (($data = $channel->receive()) != null) {
+            echo "receive by 1: $data\n";
         }
     });
 
     Async\run(function() use($channel) {
-
-        while (true) {
-            try {
-                $data = $channel->receive();
-                echo "receive by 2: $data\n";
-            } catch (Async\ChannelWasClosed $e) {
-                echo "channel closed\n";
-                break;
-            }
+        while (($data = $channel->receive()) != null) {
+            echo "receive by 2: $data\n";
         }
     });
 
@@ -44,8 +31,9 @@ echo "end\n";
 ?>
 --EXPECT--
 start
-receive: event data 0
-receive: event data 1
-receive: event data 2
-producer catch 'channel closed'
+receive by 1: event data 0
+receive by 1: event data 1
+receive by 2: event data 2
+receive by 1: event data 3
+receive by 2: event data 4
 end

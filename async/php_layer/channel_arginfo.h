@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 795b06b584ecfbbe0ba70b49cbf6edd6765291ad */
+ * Stub hash: da6430754d8cce8dcc2048637220d10ee09a4dbb */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_send, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
@@ -232,16 +232,6 @@ static zend_class_entry *register_class_Async_ChannelIsFull(zend_class_entry *cl
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ChannelIsFull", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, ZEND_ACC_FINAL);
-
-	return class_entry;
-}
-
-static zend_class_entry *register_class_Async_ChannelProducingFinished(zend_class_entry *class_entry_Async_ChannelException)
-{
-	zend_class_entry ce, *class_entry;
-
-	INIT_NS_CLASS_ENTRY(ce, "Async", "ChannelProducingFinished", NULL);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_ChannelException, ZEND_ACC_FINAL);
 
 	return class_entry;
