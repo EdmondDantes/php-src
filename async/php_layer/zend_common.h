@@ -108,8 +108,10 @@ zend_always_inline void async_warning(const char * format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	zend_error(E_CORE_WARNING, format, args);
+	zend_string *message = zend_vstrpprintf(0, format, args);
 	va_end(args);
+	zend_error(E_CORE_WARNING, message->val);
+	zend_string_release(message);
 }
 
 /**
