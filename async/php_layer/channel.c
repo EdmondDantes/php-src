@@ -62,7 +62,7 @@ static void on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * en
 {
 	async_channel_t * channel = CHANNEL_FROM_ZEND_OBJ(entry->object);
 	channel->fiber_callback_index = -1;
-	channel->finish_producing = true;
+	close_channel(channel);
 
 	ZEND_ASSERT(async_channel_get_owner_fiber(entry->object) == fiber && "Fiber is not the owner of the channel");
 }
@@ -139,8 +139,6 @@ METHOD(send)
 		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 		Z_PARAM_BOOL(waitOnFull)
 	ZEND_PARSE_PARAMETERS_END();
-
-	printf("call send\n");
 
 	THROW_IF_CLOSED
 
@@ -240,8 +238,6 @@ METHOD(receive)
 		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
 	ZEND_PARSE_PARAMETERS_END();
 
-	printf("call receive in fiber %u\n", EG(active_fiber)->std.handle);
-
 	zval * owner = async_channel_get_owner(Z_OBJ_P(ZEND_THIS));
 
 	if (UNEXPECTED(owner != NULL && Z_OBJ_P(owner) == &EG(active_fiber)->std)) {
@@ -273,19 +269,14 @@ METHOD(receive)
 	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 	async_resume_when(resume, channel->notifier, false, resume_when_data_pushed);
 
-	printf("receive in fiber %u will be resume\n", EG(active_fiber)->std.handle);
-
 	async_await(resume);
 	OBJ_RELEASE(&resume->std);
-
-	printf("receive in fiber %u was resumed\n", EG(active_fiber)->std.handle);
 
 	if (UNEXPECTED(EG(exception))) {
 		RETURN_THROWS();
 	}
 
 	if (UNEXPECTED(circular_buffer_is_empty(&channel->buffer))) {
-		printf("receive in fiber %u was empty\n", EG(active_fiber)->std.handle);
 		THROW_CHANNEL_EMPTY
 	}
 
@@ -508,6 +499,10 @@ static void async_channel_object_destroy(zend_object* object)
 {
 	async_channel_t *channel = CHANNEL_FROM_ZEND_OBJ(object);
 
+	if (false == channel->closed) {
+		close_channel(channel);
+	}
+
 	if (channel->fiber_callback_index != -1) {
 		const zend_fiber *fiber = async_channel_get_owner_fiber(object);
 
@@ -534,7 +529,6 @@ static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *
 	}
 
 	if (Z_LVAL_P(event) == ASYNC_DATA_PUSHED) {
-		printf("resume when data pushed fiber %u\n", resume->fiber->std.handle);
         async_resume_fiber(resume, NULL, NULL);
     }
 }
@@ -547,7 +541,6 @@ static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *
 	}
 
 	if (Z_LVAL_P(event) == ASYNC_DATA_POPPED) {
-		printf(" ==> resume when data popped fiber %u\n", resume->fiber->std.handle);
         async_resume_fiber(resume, NULL, NULL);
     }
 }

@@ -275,17 +275,20 @@ static void async_resume_object_destroy(zend_object* object)
 		OBJ_RELEASE(resume->error);
 	}
 
-	if (HT_IS_INITIALIZED(&resume->notifiers)) {
-		zval *current;
-		zval current_object;
-		ZVAL_OBJ(&current_object, object);
+	// Remove all notifiers and callbacks.
+	zval *current;
+	zval current_object;
+	ZVAL_OBJ(&current_object, object);
 
-		ZEND_HASH_FOREACH_VAL(&resume->notifiers, current)
-			if (Z_TYPE_P(current) == IS_OBJECT) {
-				async_notifier_remove_callback(Z_OBJ_P(current), &current_object);
-			}
-		ZEND_HASH_FOREACH_END();
-    }
+	ZEND_HASH_FOREACH_VAL(&resume->notifiers, current)
+		if (Z_TYPE_P(current) == IS_PTR)
+		{
+			async_resume_notifier_t * resume_notifier = Z_PTR_P(current);
+			async_notifier_remove_callback(&resume_notifier->notifier->std, &current_object);
+		} else if (Z_TYPE_P(current) == IS_OBJECT) {
+			async_notifier_remove_callback(Z_OBJ_P(current), &current_object);
+		}
+	ZEND_HASH_FOREACH_END();
 
 	resume->error = NULL;
 }
