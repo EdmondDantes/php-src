@@ -91,6 +91,11 @@ final class Resume
     public function removeNotifier(Notifier $notifier): static {}
 
     /**
+     * Returns the last position: the file name and line number where the Resume object was used for awaiting.
+     */
+    public function awaitedIn(): string {}
+
+    /**
      * Returns a string representation of the `Resume` object that can be used for debugging purposes.
      */
     public function __toString(): string {}

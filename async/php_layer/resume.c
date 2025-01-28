@@ -202,6 +202,15 @@ METHOD(removeNotifier)
 	async_notifier_remove_callback(Z_OBJ_P(notifier), ZEND_THIS);
 }
 
+METHOD(awaitedIn)
+{
+	if (THIS_RESUME->filename != NULL) {
+		RETURN_STR(zend_strpprintf(0, "%s:%d", ZSTR_VAL(THIS_RESUME->filename), THIS_RESUME->lineno));
+	} else {
+        RETURN_STRING("");
+    }
+}
+
 METHOD(__toString)
 {
 	if (THIS_RESUME->filename != NULL) {
