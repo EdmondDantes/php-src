@@ -18,6 +18,7 @@ Async\run(function() {
             break;
         }
 
+        echo "send: event data $i\n";
         $data = $channel->sendAsync("event data $i");
     }
 });
@@ -29,6 +30,10 @@ echo "end\n";
 ?>
 --EXPECT--
 start
+send: event data 0
+send: event data 1
+send: event data 2
+send: event data 3
 receive: event data 0
 receive: event data 1
 receive: event data 2
