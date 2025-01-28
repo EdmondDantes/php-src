@@ -204,13 +204,13 @@ static bool resolve_deadlocks(void)
 		"No active fibers, deadlock detected. Fibers in waiting: %u", zend_hash_num_elements(&ASYNC_G(fibers_state))
 	);
 
-	// Try to cancel first fiber that is suspended.
 	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
 
 		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
 
 		if (fiber_state->resume->filename != NULL) {
 
+			//Maybe we need to get the function name
 			//zend_string * function_name = NULL;
 			//zend_get_function_name_by_fci(&fiber_state->fiber->fci, &fiber_state->fiber->fci_cache, &function_name);
 
@@ -231,9 +231,6 @@ static bool resolve_deadlocks(void)
 		if (EG(exception) != NULL) {
 			return true;
 		}
-
-		// We try to cancel only one fiber at a time with the hope that the deadlock will be resolved.
-		break;
 
 	ZEND_HASH_FOREACH_END();
 
