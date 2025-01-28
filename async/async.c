@@ -477,6 +477,28 @@ void async_await(async_resume_t *resume)
 
 finally:
 
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		zend_exception_save();
+	}
+
+	ZEND_HASH_FOREACH_VAL(&resume->notifiers, notifier)
+
+		ZEND_ASSERT(Z_TYPE_P(notifier) == IS_PTR && "Invalid notifier in the resume->notifiers");
+
+		if (EXPECTED(Z_TYPE_P(notifier) == IS_PTR)) {
+
+			reactor_remove_handle_fn(((async_resume_notifier_t *) Z_PTR_P(notifier))->notifier);
+
+			if (EG(exception) != NULL) {
+				zend_exception_save();
+			}
+		}
+	ZEND_HASH_FOREACH_END();
+
+	if (UNEXPECTED(EG(prev_exception) != NULL)) {
+		zend_exception_restore();
+	}
+
 	if (is_owned_resume) {
 		ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
         OBJ_RELEASE(&resume->std);
