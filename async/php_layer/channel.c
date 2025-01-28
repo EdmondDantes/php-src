@@ -365,6 +365,10 @@ METHOD(waitUntilReadable)
 		RETURN_TRUE;
 	}
 
+	if (THIS(closed)) {
+		RETURN_FALSE;
+	}
+
 	ZEND_PARSE_PARAMETERS_START(0, 2)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(timeout)

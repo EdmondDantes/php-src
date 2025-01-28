@@ -216,7 +216,6 @@ static bool resolve_deadlocks(void)
 
 			async_warning(
 				"Resume that suspended in file: %s, line: %d will be canceled",
-				fiber_state->resume->status,
 				ZSTR_VAL(fiber_state->resume->filename),
 				fiber_state->resume->lineno
 			);
