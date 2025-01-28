@@ -1,11 +1,11 @@
 --TEST--
-Async\await()
+Async\wait()
 --FILE--
 <?php
 
 Async\async(function() {
     echo "async function 1:1\n";
-    Async\await();
+    Async\wait();
     echo "async function 1:2\n";
 });
 

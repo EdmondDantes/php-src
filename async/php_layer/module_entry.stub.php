@@ -14,7 +14,7 @@ function launchScheduler(): void {}
  * Suspends the execution of a Fiber until the Resume object is resolved.
  * If the Resume object is destructed for any reason, it automatically resumes the Fiber.
  */
-function await(?Resume $resume = null): void {}
+function wait(?Resume $resume = null): void {}
 
 /**
  * Create a new Fiber that will execute the specified task.

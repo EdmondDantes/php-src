@@ -385,7 +385,7 @@ void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
  *
  * @param resume - Resume object. If NULL, a new object will be created.
  */
-void async_await(async_resume_t *resume)
+void async_wait(async_resume_t *resume)
 {
 	if (UNEXPECTED(IS_ASYNC_OFF)) {
 		return;
@@ -517,7 +517,7 @@ void async_await_socket()
 
 /**
  * The method stops Fiber execution for a Zend resource.
- * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_wait.
  */
 void async_await_resource(
 	zend_resource * resource, const zend_ulong actions, const zend_ulong timeout, reactor_notifier_t * cancellation
@@ -547,7 +547,7 @@ void async_await_resource(
         async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
     }
 
-	async_await(resume);
+	async_wait(resume);
 
 	// Release the reference to the resume object.
 	GC_DELREF(&resume->std);
@@ -555,7 +555,7 @@ void async_await_resource(
 
 /**
  * The method stops Fiber execution for a specified signal.
- * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_wait.
  */
 void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancellation)
 {
@@ -567,7 +567,7 @@ void async_await_signal(const zend_long sig_number, reactor_notifier_t * cancell
 		async_resume_when(resume, cancellation, false, async_resume_when_callback_cancel);
 	}
 
-	async_await(resume);
+	async_wait(resume);
 
 	// Release the reference to the resume object.
 	GC_DELREF(&resume->std);
@@ -594,19 +594,19 @@ async_resume_t * async_new_resume_with_timeout(
 
 /**
  * The method stops Fiber execution for a specified time.
- * The method creates a Resume descriptor, a timeout handle if needed, and calls async_await.
+ * The method creates a Resume descriptor, a timeout handle if needed, and calls async_wait.
  * It's like a sleep()/usleep() function.
  */
 void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation)
 {
 	if (UNEXPECTED(timeout == 0 && cancellation == NULL)) {
-		async_await(NULL);
+		async_wait(NULL);
 		return;
 	}
 
 	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
 
-	async_await(resume);
+	async_wait(resume);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 
@@ -708,7 +708,7 @@ int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout)
 		IF_EXCEPTION_GOTO_ERROR;
 	}
 
-	async_await(resume);
+	async_wait(resume);
 
 	IF_EXCEPTION_GOTO_ERROR;
 
@@ -859,7 +859,7 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 	FD_ZERO(&awrite);
 	FD_ZERO(&aexcept);
 
-	async_await(resume);
+	async_wait(resume);
 
 	IF_EXCEPTION_GOTO_ERROR;
 
@@ -960,7 +960,7 @@ int async_network_get_addresses(const char *host, int socktype, struct sockaddr 
 	}
 
 	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
-	async_await(resume);
+	async_wait(resume);
 	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
@@ -1127,7 +1127,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 	}
 
 	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
-	async_await(resume);
+	async_wait(resume);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
@@ -1169,7 +1169,7 @@ zend_string* async_get_host_by_addr(const char * ip)
 	}
 
 	async_resume_when(resume, dns_info, true, async_resume_when_callback_resolve);
-	async_await(resume);
+	async_wait(resume);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_to_warning("async_get_host_by_addr error: %s", true);

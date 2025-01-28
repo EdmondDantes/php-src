@@ -18,7 +18,7 @@ Async\defer(function() {
 Async\async(function() {
     echo "async function 1\n";
 
-    Async\await();
+    Async\wait();
 
     Async\defer(function() {
         echo "async function defer 4\n";

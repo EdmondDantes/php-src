@@ -31,6 +31,11 @@
 		RETURN_THROWS(); \
 	}
 
+#define THROW_IF_CLOSED_AND_EMPTY if (UNEXPECTED(THIS(closed) && circular_buffer_is_empty(&THIS(buffer)))) { \
+		zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0); \
+		RETURN_THROWS(); \
+	}
+
 static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
@@ -141,7 +146,7 @@ METHOD(send)
 		async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 
 		async_resume_when(resume, channel->notifier, false, resume_when_data_popped);
-		async_await(resume);
+		async_wait(resume);
 		OBJ_RELEASE(&resume->std);
 
 		if (UNEXPECTED(EG(exception))) {
@@ -167,7 +172,7 @@ METHOD(send)
 	if (IS_ASYNC_HAS_DEFER_FIBER) {
 		async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 		async_resume_when(resume, channel->notifier, false, resume_when_data_popped);
-		async_await(resume);
+		async_wait(resume);
 		OBJ_RELEASE(&resume->std);
 	}
 
@@ -257,7 +262,7 @@ METHOD(receive)
 	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
 	async_resume_when(resume, channel->notifier, false, resume_when_data_pushed);
 
-	async_await(resume);
+	async_wait(resume);
 	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception))) {
@@ -315,6 +320,58 @@ METHOD(receiveAsync)
 		zval_ptr_dtor(return_value);
 		RETURN_THROWS();
 	}
+}
+
+METHOD(waitUntilWritable)
+{
+	zend_long timeout = 0;
+	zend_object *cancellation = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(0, 2)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(timeout)
+		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_channel_t * channel = THIS_CHANNEL;
+
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
+
+	async_resume_when(resume, channel->notifier, false, resume_when_data_popped);
+	async_wait(resume);
+	OBJ_RELEASE(&resume->std);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	THROW_IF_CLOSED_AND_EMPTY
+}
+
+METHOD(waitUntilReadable)
+{
+	zend_long timeout = 0;
+	zend_object *cancellation = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(0, 2)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(timeout)
+		Z_PARAM_OBJ_OF_CLASS(cancellation, async_ce_notifier)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_channel_t * channel = THIS_CHANNEL;
+
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
+	async_resume_when(resume, channel->notifier, false, resume_when_data_pushed);
+
+	async_wait(resume);
+	OBJ_RELEASE(&resume->std);
+
+	if (UNEXPECTED(EG(exception))) {
+		RETURN_THROWS();
+	}
+
+	THROW_IF_CLOSED_AND_EMPTY
 }
 
 METHOD(finishProducing)
@@ -544,10 +601,10 @@ static zend_object_handlers async_channel_handlers;
 void async_register_channel_ce(void)
 {
 	// interfaces
-	async_ce_producer_i = register_class_Async_ProducerInterface();
-	async_ce_consumer_i = register_class_Async_ConsumerInterface();
 	async_ce_channel_state_i = register_class_Async_ChannelStateInterface();
-	async_ce_channel_i = register_class_Async_ChannelInterface(async_ce_producer_i, async_ce_consumer_i, async_ce_channel_state_i);
+	async_ce_producer_i = register_class_Async_ProducerInterface(async_ce_channel_state_i);
+	async_ce_consumer_i = register_class_Async_ConsumerInterface(async_ce_channel_state_i);
+	async_ce_channel_i = register_class_Async_ChannelInterface(async_ce_producer_i, async_ce_consumer_i);
 
 	async_ce_channel_exception = register_class_Async_ChannelException(zend_ce_exception);
 	async_ce_channel_was_closed_exception = register_class_Async_ChannelWasClosed(async_ce_channel_exception);

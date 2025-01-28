@@ -4,7 +4,7 @@ Cannot await a resume object outside of an async context
 <?php
 
 try {
-    Async\await(new Async\Resume());
+    Async\wait(new Async\Resume());
 } catch (Async\AsyncException $e) {
     echo "Async\AsyncException should be catch";
 }

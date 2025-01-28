@@ -355,7 +355,7 @@ CURLcode curl_async_perform(CURL* curl)
 	curl_multi_add_handle(curl_multi_handle, curl);
 	curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
-	async_await(resume);
+	async_wait(resume);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Memory leak detected. The resume object should have only one reference");
 	zend_hash_index_del(curl_multi_resume_list, (zend_ulong) curl);
@@ -632,7 +632,7 @@ CURLMcode curl_async_select(php_curlm * curl_m, int timeout_ms, int* numfds)
 		// Initiate execution of the transfer
 		curl_multi_socket_action(multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 
-		async_await(&context->resume);
+		async_wait(&context->resume);
 		async_resume_remove_notifier(&context->resume, timer);
 
 		// Clear the timeout exception because it is not an error

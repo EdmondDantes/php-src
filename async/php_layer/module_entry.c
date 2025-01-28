@@ -44,7 +44,7 @@ PHP_FUNCTION(Async_launchScheduler)
 	async_scheduler_launch();
 }
 
-PHP_FUNCTION(Async_await)
+PHP_FUNCTION(Async_wait)
 {
 	THROW_IF_SHUTDOWN;
 
@@ -60,7 +60,7 @@ PHP_FUNCTION(Async_await)
 		RETURN_THROWS();
 	}
 
-	async_await((resume == NULL || ZVAL_IS_NULL(resume)) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
+	async_wait((resume == NULL || ZVAL_IS_NULL(resume)) ? NULL: (async_resume_t *) Z_OBJ_P(resume));
 }
 
 PHP_FUNCTION(Async_run)

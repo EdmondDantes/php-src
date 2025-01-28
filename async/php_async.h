@@ -164,13 +164,13 @@ ZEND_API php_socket_t async_try_extract_socket_object(zend_object * object);
  * @return void   No return value. Errors are signaled through thrown exceptions or error messages.
  *
  * @throws Throws errors in the following cases:
- *         - Awaiting in a non-fiber context.
- *         - Awaiting in the scheduler context.
+ *         - Waiting in a non-fiber context.
+ *         - Waiting in the scheduler context.
  *         - Resume object is in an invalid state.
  *         - Resume object is not linked to the active fiber.
  *         - Failed to create fiber state or resume object.
  */
-ZEND_API void async_await(async_resume_t *resume);
+ZEND_API void async_wait(async_resume_t *resume);
 
 /**
  * Finds the state of a given fiber.

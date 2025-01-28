@@ -5,7 +5,7 @@ Async\defer exception: Cannot await in the scheduler context
 
 Async\defer(function() {
     echo "async function defer 1\n";
-    Async\await();
+    Async\wait();
 });
 
 echo "start\n";
