@@ -1185,3 +1185,39 @@ zend_string* async_get_host_by_addr(const char * ip)
 //===============================================================
 #pragma endregion
 //===============================================================
+
+bool async_ensure_socket_nonblocking(php_socket_t socket)
+{
+#ifdef PHP_WIN32
+	/* Set the socket to nonblocking mode */
+	DWORD yes = 1;
+	if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR) {
+		int error = WSAGetLastError();
+		char *buffer = php_win32_error_to_msg(error);
+
+		if (!buffer[0]) {
+			async_warning("Unable to set socket to non-blocking mode [0x%08lx]", error);
+		} else {
+			async_warning("Unable to set socket to non-blocking mode [0x%08lx]: %s", error, buffer);
+		}
+
+		php_win32_error_msg_free(buffer);
+
+		return false;
+	}
+#else
+	int flags = fcntl(socket, F_GETFL);
+
+	if (flags == -1) {
+		async_warning("Unable to obtain blocking state");
+		return false;
+	}
+
+	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+		async_warning("Unable to set socket to non-blocking mode");
+		return false;
+	}
+#endif
+
+	return true;
+}

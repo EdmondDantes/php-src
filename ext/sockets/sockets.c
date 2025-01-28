@@ -91,6 +91,10 @@ ZEND_DECLARE_MODULE_GLOBALS(sockets)
 #define PF_INET AF_INET
 #endif
 
+#ifdef PHP_ASYNC
+#include "async/php_async.h"
+#endif
+
 static PHP_GINIT_FUNCTION(sockets);
 static PHP_GSHUTDOWN_FUNCTION(sockets);
 static PHP_MINIT_FUNCTION(sockets);
@@ -262,7 +266,17 @@ static bool php_open_listen_sock(php_socket *sock, unsigned short port, int back
 
 static bool php_accept_connect(php_socket *in_sock, php_socket *out_sock, struct sockaddr *la, socklen_t *la_len) /* {{{ */
 {
-	out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
+	if (in_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(in_sock->bsd_socket)) {
+		out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
+
+		if (out_sock->bsd_socket == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			// wait for the socket to become readable
+			out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
+		}
+
+	} else {
+		out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
+	}
 
 	if (IS_INVALID_SOCKET(out_sock)) {
 		PHP_SOCKET_ERROR(out_sock, "unable to accept incoming connection", errno);

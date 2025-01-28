@@ -307,6 +307,8 @@ ZEND_API struct hostent* async_network_get_host_by_name(const char *name);
 
 ZEND_API zend_string* async_get_host_by_addr(const char* ip);
 
+ZEND_API bool async_ensure_socket_nonblocking(php_socket_t socket);
+
 END_EXTERN_C()
 
 #endif //ASYNC_H
