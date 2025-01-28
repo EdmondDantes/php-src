@@ -1,5 +1,5 @@
 --TEST--
-Channel: waitUntilReadable + receiveAsync
+Channel: waitUntilReadable + tryReceive
 --FILE--
 <?php
 
@@ -8,7 +8,7 @@ Async\run(function() {
 
     Async\run(function() use($channel) {
         while ($channel->waitUntilReadable()) {
-            $data = $channel->receiveAsync();
+            $data = $channel->tryReceive();
             echo "receive: $data\n";
         }
     });

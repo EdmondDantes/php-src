@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 7b59846dd337dcc917d5109b79b23a5ad5f1848f */
+ * Stub hash: 073690aebc5cdc50c77dd4a993dd22602b9e8780 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ChannelStateInterface_isClosed, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -24,7 +24,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_se
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, waitOnFull, _IS_BOOL, 1, "true")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_sendAsync, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ProducerInterface_trySend, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
@@ -41,7 +41,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ConsumerInterface_re
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, cancellation, Async\\\116otifier, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ConsumerInterface_receiveAsync, 0, 0, IS_MIXED, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ConsumerInterface_tryReceive, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_ConsumerInterface_waitUntilReadable arginfo_class_Async_ProducerInterface_waitUntilWritable
@@ -63,11 +63,11 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Channel_send arginfo_class_Async_ProducerInterface_send
 
-#define arginfo_class_Async_Channel_sendAsync arginfo_class_Async_ProducerInterface_sendAsync
+#define arginfo_class_Async_Channel_trySend arginfo_class_Async_ProducerInterface_trySend
 
 #define arginfo_class_Async_Channel_receive arginfo_class_Async_ConsumerInterface_receive
 
-#define arginfo_class_Async_Channel_receiveAsync arginfo_class_Async_ConsumerInterface_receiveAsync
+#define arginfo_class_Async_Channel_tryReceive arginfo_class_Async_ConsumerInterface_tryReceive
 
 #define arginfo_class_Async_Channel_waitUntilWritable arginfo_class_Async_ProducerInterface_waitUntilWritable
 
@@ -99,9 +99,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_METHOD(Async_Channel, __construct);
 ZEND_METHOD(Async_Channel, send);
-ZEND_METHOD(Async_Channel, sendAsync);
+ZEND_METHOD(Async_Channel, trySend);
 ZEND_METHOD(Async_Channel, receive);
-ZEND_METHOD(Async_Channel, receiveAsync);
+ZEND_METHOD(Async_Channel, tryReceive);
 ZEND_METHOD(Async_Channel, waitUntilWritable);
 ZEND_METHOD(Async_Channel, waitUntilReadable);
 ZEND_METHOD(Async_Channel, finishProducing);
@@ -130,7 +130,7 @@ static const zend_function_entry class_Async_ChannelStateInterface_methods[] = {
 
 static const zend_function_entry class_Async_ProducerInterface_methods[] = {
 	ZEND_RAW_FENTRY("send", NULL, arginfo_class_Async_ProducerInterface_send, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
-	ZEND_RAW_FENTRY("sendAsync", NULL, arginfo_class_Async_ProducerInterface_sendAsync, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
+	ZEND_RAW_FENTRY("trySend", NULL, arginfo_class_Async_ProducerInterface_trySend, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("waitUntilWritable", NULL, arginfo_class_Async_ProducerInterface_waitUntilWritable, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("finishProducing", NULL, arginfo_class_Async_ProducerInterface_finishProducing, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
@@ -138,7 +138,7 @@ static const zend_function_entry class_Async_ProducerInterface_methods[] = {
 
 static const zend_function_entry class_Async_ConsumerInterface_methods[] = {
 	ZEND_RAW_FENTRY("receive", NULL, arginfo_class_Async_ConsumerInterface_receive, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
-	ZEND_RAW_FENTRY("receiveAsync", NULL, arginfo_class_Async_ConsumerInterface_receiveAsync, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
+	ZEND_RAW_FENTRY("tryReceive", NULL, arginfo_class_Async_ConsumerInterface_tryReceive, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("waitUntilReadable", NULL, arginfo_class_Async_ConsumerInterface_waitUntilReadable, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("discardData", NULL, arginfo_class_Async_ConsumerInterface_discardData, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_RAW_FENTRY("finishConsuming", NULL, arginfo_class_Async_ConsumerInterface_finishConsuming, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
@@ -154,9 +154,9 @@ static const zend_function_entry class_Async_ChannelInterface_methods[] = {
 static const zend_function_entry class_Async_Channel_methods[] = {
 	ZEND_ME(Async_Channel, __construct, arginfo_class_Async_Channel___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, send, arginfo_class_Async_Channel_send, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Channel, sendAsync, arginfo_class_Async_Channel_sendAsync, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, trySend, arginfo_class_Async_Channel_trySend, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, receive, arginfo_class_Async_Channel_receive, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Channel, receiveAsync, arginfo_class_Async_Channel_receiveAsync, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, tryReceive, arginfo_class_Async_Channel_tryReceive, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, waitUntilWritable, arginfo_class_Async_Channel_waitUntilWritable, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, waitUntilReadable, arginfo_class_Async_Channel_waitUntilReadable, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, finishProducing, arginfo_class_Async_Channel_finishProducing, ZEND_ACC_PUBLIC)

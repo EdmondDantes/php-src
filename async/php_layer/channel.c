@@ -181,7 +181,7 @@ METHOD(send)
 	}
 }
 
-METHOD(sendAsync)
+METHOD(trySend)
 {
 	zval *data;
 
@@ -292,7 +292,7 @@ METHOD(receive)
 	}
 }
 
-METHOD(receiveAsync)
+METHOD(tryReceive)
 {
 	const zend_fiber * owner = async_channel_get_owner_fiber(&THIS_CHANNEL->std);
 
