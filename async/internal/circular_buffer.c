@@ -406,7 +406,7 @@ size_t circular_buffer_count(const circular_buffer_t *buffer)
 		dist = -dist;
 	}
 
-	return (size_t)(dist / (ptrdiff_t)buffer->item_size) + 1;
+	return (size_t)(dist / (ptrdiff_t)buffer->item_size) + ((buffer->tail != NULL) ? 0 : 1);
 }
 
 size_t circular_buffer_capacity(const circular_buffer_t *buffer)

@@ -471,7 +471,7 @@ METHOD(isNotEmpty)
 
 METHOD(isProducingFinished)
 {
-	RETURN_BOOL(THIS(finish_producing));
+	RETURN_BOOL(THIS(closed) && circular_buffer_is_empty(&THIS(buffer)));
 }
 
 METHOD(getCapacity)
