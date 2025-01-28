@@ -327,6 +327,10 @@ METHOD(waitUntilWritable)
 	zend_long timeout = 0;
 	zend_object *cancellation = NULL;
 
+	if (false == circular_buffer_is_full(&THIS(buffer))) {
+		RETURN_TRUE;
+	}
+
 	ZEND_PARSE_PARAMETERS_START(0, 2)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(timeout)
@@ -345,13 +349,21 @@ METHOD(waitUntilWritable)
 		RETURN_THROWS();
 	}
 
-	THROW_IF_CLOSED_AND_EMPTY
+	if (UNEXPECTED(channel->closed && circular_buffer_is_empty(&channel->buffer))) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
 }
 
 METHOD(waitUntilReadable)
 {
 	zend_long timeout = 0;
 	zend_object *cancellation = NULL;
+
+	if (circular_buffer_is_not_empty(&THIS(buffer))) {
+		RETURN_TRUE;
+	}
 
 	ZEND_PARSE_PARAMETERS_START(0, 2)
 		Z_PARAM_OPTIONAL
@@ -371,7 +383,11 @@ METHOD(waitUntilReadable)
 		RETURN_THROWS();
 	}
 
-	THROW_IF_CLOSED_AND_EMPTY
+	if (UNEXPECTED(channel->closed && circular_buffer_is_empty(&channel->buffer))) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
 }
 
 METHOD(finishProducing)

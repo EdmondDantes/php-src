@@ -19,7 +19,7 @@ interface ProducerInterface extends ChannelStateInterface
 {
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void;
     public function sendAsync(mixed $data): void;
-    public function waitUntilWritable(int $timeout = 0, ?Notifier $cancellation = null): void;
+    public function waitUntilWritable(int $timeout = 0, ?Notifier $cancellation = null): bool;
     public function finishProducing(): void;
 }
 
@@ -27,7 +27,7 @@ interface ConsumerInterface extends ChannelStateInterface
 {
     public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed;
     public function receiveAsync(): mixed;
-    public function waitUntilReadable(int $timeout = 0, ?Notifier $cancellation = null): void;
+    public function waitUntilReadable(int $timeout = 0, ?Notifier $cancellation = null): bool;
     public function discardData(): void;
     public function finishConsuming(): void;
 }
@@ -62,9 +62,9 @@ class Channel implements ChannelInterface
 
     public function receiveAsync(): mixed {}
 
-    public function waitUntilWritable(int $timeout = 0, ?Notifier $cancellation = null): void;
+    public function waitUntilWritable(int $timeout = 0, ?Notifier $cancellation = null): bool;
 
-    public function waitUntilReadable(int $timeout = 0, ?Notifier $cancellation = null): void;
+    public function waitUntilReadable(int $timeout = 0, ?Notifier $cancellation = null): bool;
 
     public function finishProducing(): void {}
 
