@@ -490,6 +490,68 @@ static int async_send(php_socket *sock, const void *buf, size_t len, int flags)
 	return total_sent;
 }
 
+static int async_recvfrom(php_socket *sock, void *buf, size_t maxlen, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
+{
+	char *buffer = (char *)buf;
+	int total_read = 0;
+
+	if (maxlen == 0) {
+		return 0;
+	}
+
+	while (total_read < maxlen) {
+		const int bytes_received = recvfrom(sock->bsd_socket, buffer + total_read, (int)maxlen - total_read, flags, src_addr, addrlen);
+
+		if (bytes_received > 0) {
+			total_read += bytes_received;
+		} else if (bytes_received == 0) {
+			return total_read;
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			async_wait_socket(sock->bsd_socket, ASYNC_READABLE, 0, NULL);
+
+			if (UNEXPECTED(EG(exception) != NULL)) {
+				zend_clear_exception();
+				return (total_read > 0) ? total_read : -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
+	return total_read;
+}
+
+static int async_sendto(php_socket *sock, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+	const char *buffer = (const char *)buf;
+	int total_sent = 0;
+
+	if (len == 0) {
+		return 0;
+	}
+
+	while (total_sent < len) {
+		const int bytes_sent = sendto(sock->bsd_socket, buffer + total_sent, (int)len - total_sent, flags, dest_addr, addrlen);
+
+		if (bytes_sent > 0) {
+			total_sent += bytes_sent;
+		} else if (bytes_sent == 0) {
+			return total_sent;
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			async_wait_socket(sock->bsd_socket, ASYNC_WRITABLE, 0, NULL);
+
+			if (UNEXPECTED(EG(exception) != NULL)) {
+				zend_clear_exception();
+				return (total_sent > 0) ? total_sent : -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
+	return total_sent;
+}
+
 int async_connect(PHP_SOCKET sockfd, struct sockaddr *addr, socklen_t addrlen)
 {
 	do {
@@ -1603,7 +1665,11 @@ PHP_FUNCTION(socket_send)
 		RETURN_THROWS();
 	}
 
-	retval = send(php_sock->bsd_socket, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
+	if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+        retval = async_send(php_sock, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
+    } else {
+	    retval = send(php_sock->bsd_socket, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
+    }
 
 	if (retval == (size_t)-1) {
 		PHP_SOCKET_ERROR(php_sock, "Unable to write to socket", errno);
@@ -1659,7 +1725,11 @@ PHP_FUNCTION(socket_recvfrom)
 			memset(&s_un, 0, slen);
 			s_un.sun_family = AF_UNIX;
 
-			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
+            } else {
+            	retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
+            }
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "Unable to recvfrom", errno);
@@ -1683,7 +1753,11 @@ PHP_FUNCTION(socket_recvfrom)
 				WRONG_PARAM_COUNT;
 			}
 
-			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
+            } else {
+            	retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
+            }
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "Unable to recvfrom", errno);
@@ -1710,7 +1784,11 @@ PHP_FUNCTION(socket_recvfrom)
 				WRONG_PARAM_COUNT;
 			}
 
-			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
+            } else {
+	            retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
+            }
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "unable to recvfrom", errno);
@@ -1777,7 +1855,12 @@ PHP_FUNCTION(socket_sendto)
 			s_un.sun_family = AF_UNIX;
 			snprintf(s_un.sun_path, sizeof(s_un.sun_path), "%s", addr);
 
-			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len,	flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
+            } else {
+            	retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len,	flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
+            }
+
 			break;
 
 		case AF_INET:
@@ -1794,7 +1877,12 @@ PHP_FUNCTION(socket_sendto)
 				RETURN_FALSE;
 			}
 
-			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
+            } else {
+            	retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
+            }
+
 			break;
 #ifdef HAVE_IPV6
 		case AF_INET6:
@@ -1811,7 +1899,12 @@ PHP_FUNCTION(socket_sendto)
 				RETURN_FALSE;
 			}
 
-			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+                retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
+            } else {
+	            retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
+            }
+
 			break;
 #endif
 		default:
