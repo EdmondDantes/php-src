@@ -2866,8 +2866,15 @@ PHP_FUNCTION(socket_addrinfo_lookup)
 		} ZEND_HASH_FOREACH_END();
 	}
 
-	if (IN_ASYNC_CONTEXT) {
-		if (async_getaddrinfo(ZSTR_VAL(hostname), service, &hints, &result) != 0) {
+	bool is_async = IN_ASYNC_CONTEXT;
+
+	if (is_async) {
+		zend_string * z_service = service ? zend_string_init(service, service_len, 0) : NULL;
+		async_get_addr_info(hostname, z_service, &hints, &result);
+		zend_string_release(z_service);
+
+		if (EG(exception)) {
+			zend_clear_exception();
 			RETURN_FALSE;
 		}
 
@@ -2897,7 +2904,11 @@ PHP_FUNCTION(socket_addrinfo_lookup)
 		}
 	}
 
-	freeaddrinfo(result);
+	if (is_async) {
+		async_free_addr_info(result);
+	} else {
+		freeaddrinfo(result);
+	}
 }
 /* }}} */
 

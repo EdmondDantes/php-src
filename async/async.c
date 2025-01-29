@@ -1226,9 +1226,33 @@ zend_string* async_get_host_by_addr(const char * ip)
 	return result;
 }
 
-int async_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
+void async_get_addr_info(zend_string *host, zend_string *service, const struct addrinfo *hints, struct addrinfo **res)
 {
-	
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(host, service, NULL, &hints);
+
+	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
+		OBJ_RELEASE(&dns_info->std);
+		return;
+	}
+
+	async_resume_t *resume = async_resume_new(NULL);
+
+	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
+	async_wait(resume);
+	OBJ_RELEASE(&resume->std);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	res = &((reactor_dns_info_t *) dns_info)->addr_info;
+}
+
+void async_free_addr_info(struct addrinfo *addr_info)
+{
+	// Calc from addinfo reactor_dns_info_t
+	reactor_dns_info_t * dns_info = (reactor_dns_info_t *)((char *)addr_info - XtOffsetOf(reactor_dns_info_t, addr_info));
+	OBJ_RELEASE(&dns_info->handle.std);
 }
 
 //===============================================================
