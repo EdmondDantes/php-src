@@ -1226,9 +1226,9 @@ zend_string* async_get_host_by_addr(const char * ip)
 	return result;
 }
 
-void async_get_addr_info(zend_string *host, zend_string *service, const struct addrinfo *hints, struct addrinfo **res)
+void async_get_addr_info(zend_string *host, zend_string *service, struct addrinfo *hints, struct addrinfo **res)
 {
-	reactor_handle_t * dns_info = reactor_dns_info_new_fn(host, service, NULL, &hints);
+	reactor_handle_t * dns_info = reactor_dns_info_new_fn(host, service, NULL, hints);
 
 	if (UNEXPECTED(EG(exception) != NULL || dns_info == NULL)) {
 		OBJ_RELEASE(&dns_info->std);
