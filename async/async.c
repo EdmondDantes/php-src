@@ -1226,6 +1226,11 @@ zend_string* async_get_host_by_addr(const char * ip)
 	return result;
 }
 
+int async_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
+{
+	
+}
+
 //===============================================================
 #pragma endregion
 //===============================================================

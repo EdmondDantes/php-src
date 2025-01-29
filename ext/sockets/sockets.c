@@ -388,6 +388,21 @@ static int php_read(php_socket *sock, void *buf, size_t maxlen, int flags)
 /* }}} */
 
 #ifdef PHP_ASYNC
+
+zend_always_inline bool ensure_socket_nonblocking(php_socket * socket)
+{
+	if (socket->non_blocking) {
+		return true;
+	}
+
+	if (async_ensure_socket_nonblocking(socket->bsd_socket)) {
+		socket->non_blocking = true;
+		return true;
+	}
+
+	return false;
+}
+
 static int async_php_read(php_socket *sock, void *buf, size_t maxlen, int flags)
 {
 	char *buffer = (char *)buf;
@@ -1097,7 +1112,7 @@ PHP_FUNCTION(socket_write)
 		length = str_len;
 	}
 
-	if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+	if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
         retval = async_send(php_sock, str, length, 0);
     } else {
 #ifndef PHP_WIN32
@@ -1143,14 +1158,14 @@ PHP_FUNCTION(socket_read)
 	tmpbuf = zend_string_alloc(length, 0);
 
 	if (type == PHP_NORMAL_READ) {
-		if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+		if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
             retval = async_php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
         } else {
             retval = php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
         }
 	} else {
 		/* PHP_BINARY_READ */
-		if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+		if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
 			retval = async_recv(php_sock, ZSTR_VAL(tmpbuf), length, 0);
         } else {
         	retval = recv(php_sock->bsd_socket, ZSTR_VAL(tmpbuf), length, 0);
@@ -1421,7 +1436,7 @@ PHP_FUNCTION(socket_connect)
 				RETURN_FALSE;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_connect(php_sock->bsd_socket, (struct sockaddr *)&sin6, sizeof(struct sockaddr_in6));
             } else {
             	retval = connect(php_sock->bsd_socket, (struct sockaddr *)&sin6, sizeof(struct sockaddr_in6));
@@ -1444,7 +1459,7 @@ PHP_FUNCTION(socket_connect)
 				RETURN_FALSE;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_connect(php_sock->bsd_socket, (struct sockaddr *)&sin, sizeof(struct sockaddr_in));
             } else {
             	retval = connect(php_sock->bsd_socket, (struct sockaddr *)&sin, sizeof(struct sockaddr_in));
@@ -1464,7 +1479,7 @@ PHP_FUNCTION(socket_connect)
 			s_un.sun_family = AF_UNIX;
 			memcpy(&s_un.sun_path, addr, addr_len);
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_connect(php_sock->bsd_socket, (struct sockaddr *)&s_un,
                         (socklen_t)(XtOffsetOf(struct sockaddr_un, sun_path) + addr_len));
             } else {
@@ -1617,7 +1632,7 @@ PHP_FUNCTION(socket_recv)
 
 	recv_buf = zend_string_alloc(len, 0);
 
-	if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+	if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
         retval = async_recv(php_sock, ZSTR_VAL(recv_buf), len, flags);
     } else {
         retval = recv(php_sock->bsd_socket, ZSTR_VAL(recv_buf), len, flags);
@@ -1665,7 +1680,7 @@ PHP_FUNCTION(socket_send)
 		RETURN_THROWS();
 	}
 
-	if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+	if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
         retval = async_send(php_sock, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
     } else {
 	    retval = send(php_sock->bsd_socket, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
@@ -1725,7 +1740,7 @@ PHP_FUNCTION(socket_recvfrom)
 			memset(&s_un, 0, slen);
 			s_un.sun_family = AF_UNIX;
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
             } else {
             	retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
@@ -1753,7 +1768,7 @@ PHP_FUNCTION(socket_recvfrom)
 				WRONG_PARAM_COUNT;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
             } else {
             	retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
@@ -1784,7 +1799,7 @@ PHP_FUNCTION(socket_recvfrom)
 				WRONG_PARAM_COUNT;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_recvfrom(php_sock, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
             } else {
 	            retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
@@ -1855,7 +1870,7 @@ PHP_FUNCTION(socket_sendto)
 			s_un.sun_family = AF_UNIX;
 			snprintf(s_un.sun_path, sizeof(s_un.sun_path), "%s", addr);
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
             } else {
             	retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len,	flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
@@ -1877,7 +1892,7 @@ PHP_FUNCTION(socket_sendto)
 				RETURN_FALSE;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
             } else {
             	retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
@@ -1899,7 +1914,7 @@ PHP_FUNCTION(socket_sendto)
 				RETURN_FALSE;
 			}
 
-			if (php_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(php_sock->bsd_socket)) {
+			if (php_sock->blocking && IN_ASYNC_CONTEXT && ensure_socket_nonblocking(php_sock)) {
                 retval = async_sendto(php_sock, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
             } else {
 	            retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
@@ -2851,7 +2866,12 @@ PHP_FUNCTION(socket_addrinfo_lookup)
 		} ZEND_HASH_FOREACH_END();
 	}
 
-	if (getaddrinfo(ZSTR_VAL(hostname), service, &hints, &result) != 0) {
+	if (IN_ASYNC_CONTEXT) {
+		if (async_getaddrinfo(ZSTR_VAL(hostname), service, &hints, &result) != 0) {
+			RETURN_FALSE;
+		}
+
+	} else if (getaddrinfo(ZSTR_VAL(hostname), service, &hints, &result) != 0) {
 		RETURN_FALSE;
 	}
 
