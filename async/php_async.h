@@ -257,7 +257,11 @@ ZEND_API async_resume_t * async_new_resume_with_timeout(
 	zend_fiber * fiber, const zend_ulong timeout, reactor_notifier_t *cancellation
 );
 
-ZEND_API void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation);
+ZEND_API void async_wait_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation);
+
+ZEND_API void async_wait_socket(php_socket_t socket, const zend_ulong events, const zend_ulong timeout, reactor_notifier_t * cancellation);
+
+ZEND_API void async_wait_fd(async_file_descriptor_t fd, const zend_ulong events, const zend_ulong timeout, reactor_notifier_t * cancellation);
 
 /**
  * Transfers an exception to the specified fiber and schedules it for resumption.

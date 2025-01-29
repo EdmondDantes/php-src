@@ -1137,7 +1137,7 @@ PHP_FUNCTION(sleep)
 
 #ifdef PHP_ASYNC
     if (IN_ASYNC_CONTEXT) {
-        async_await_timeout((unsigned int) num * 1000, NULL);
+        async_wait_timeout((unsigned int) num * 1000, NULL);
         RETURN_LONG(0);
     }
 #endif
@@ -1162,7 +1162,7 @@ PHP_FUNCTION(usleep)
 
 #ifdef PHP_ASYNC
     if (IN_ASYNC_CONTEXT) {
-        async_await_timeout((unsigned int) num, NULL);
+        async_wait_timeout((unsigned int) num, NULL);
         return;
     }
 #endif

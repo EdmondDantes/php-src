@@ -67,6 +67,7 @@
 #endif
 
 #include <stddef.h>
+#include <zend_exceptions.h>
 
 #include "sockaddr_conv.h"
 #include "multicast.h"
@@ -269,8 +270,16 @@ static bool php_accept_connect(php_socket *in_sock, php_socket *out_sock, struct
 	if (in_sock->blocking && IN_ASYNC_CONTEXT && async_ensure_socket_nonblocking(in_sock->bsd_socket)) {
 		out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
 
-		if (out_sock->bsd_socket == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-			// wait for the socket to become readable
+		while (out_sock->bsd_socket == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			async_wait_socket(in_sock->bsd_socket, ASYNC_READABLE, 0, NULL);
+
+			if (EG(exception) != NULL) {
+				out_sock->bsd_socket = INVALID_SOCKET;
+				zend_clear_exception();
+				PHP_SOCKET_ERROR(out_sock, "unable to accept incoming connection", errno);
+				return 0;
+			}
+
 			out_sock->bsd_socket = accept(in_sock->bsd_socket, la, la_len);
 		}
 
@@ -377,6 +386,75 @@ static int php_read(php_socket *sock, void *buf, size_t maxlen, int flags)
 	return n;
 }
 /* }}} */
+
+#ifdef PHP_ASYNC
+static int async_php_read(php_socket *sock, void *buf, size_t maxlen, int flags)
+{
+	char *buffer = (char *)buf;
+	int total_read = 0;
+
+	if (maxlen == 0) {
+		return 0;
+	}
+
+	while (total_read < maxlen) {
+		const int bytes_received = recv(sock->bsd_socket, buffer + total_read, 1, flags);
+
+		if (bytes_received > 0) {
+			if (buffer[total_read] == '\n' || buffer[total_read] == '\r') {
+				total_read++;
+				return total_read;
+			}
+			total_read++;
+		} else if (bytes_received == 0) {
+			return total_read;
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			async_wait_socket(sock->bsd_socket, ASYNC_READABLE, 0, NULL);
+
+			if (UNEXPECTED(EG(exception) != NULL)) {
+				zend_clear_exception();
+				return (total_read > 0) ? total_read : -1;
+			}
+		} else {
+            return -1;
+        }
+	}
+
+	return total_read;
+}
+
+static int async_recv(php_socket *sock, void *buf, size_t maxlen, int flags)
+{
+	char *buffer = (char *)buf;
+	int total_read = 0;
+
+	if (maxlen == 0) {
+		return 0;
+	}
+
+	while (total_read < maxlen) {
+		const int bytes_received = recv(sock->bsd_socket, buffer + total_read, (int)maxlen - total_read, flags);
+
+		if (bytes_received > 0) {
+			total_read += bytes_received;
+		} else if (bytes_received == 0) {
+			return total_read;
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+
+			async_wait_socket(sock->bsd_socket, ASYNC_READABLE, 0, NULL);
+
+			if (UNEXPECTED(EG(exception) != NULL)) {
+				zend_clear_exception();
+				return (total_read > 0) ? total_read : -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
+	return total_read;
+}
+#endif
 
 char *sockets_strerror(int error) /* {{{ */
 {
@@ -941,9 +1019,18 @@ PHP_FUNCTION(socket_read)
 	tmpbuf = zend_string_alloc(length, 0);
 
 	if (type == PHP_NORMAL_READ) {
-		retval = php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
+		if (php_sock->blocking && IN_ASYNC_CONTEXT) {
+            retval = async_php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
+        } else {
+            retval = php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
+        }
 	} else {
-		retval = recv(php_sock->bsd_socket, ZSTR_VAL(tmpbuf), length, 0);
+		/* PHP_BINARY_READ */
+		if (php_sock->blocking && IN_ASYNC_CONTEXT) {
+            retval = async_php_read(php_sock, ZSTR_VAL(tmpbuf), length, MSG_WAITALL);
+        } else {
+            retval = async_recv(php_sock->bsd_socket, ZSTR_VAL(tmpbuf), length, MSG_WAITALL);
+        }
 	}
 
 	if (retval == -1) {

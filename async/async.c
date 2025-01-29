@@ -597,7 +597,7 @@ async_resume_t * async_new_resume_with_timeout(
  * The method creates a Resume descriptor, a timeout handle if needed, and calls async_wait.
  * It's like a sleep()/usleep() function.
  */
-void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation)
+void async_wait_timeout(const zend_ulong timeout, reactor_notifier_t * cancellation)
 {
 	if (UNEXPECTED(timeout == 0 && cancellation == NULL)) {
 		async_wait(NULL);
@@ -611,6 +611,50 @@ void async_await_timeout(const zend_ulong timeout, reactor_notifier_t * cancella
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 
 	// Release the reference to the resume object.
+	OBJ_RELEASE(&resume->std);
+}
+
+void async_wait_socket(php_socket_t socket, const zend_ulong events, const zend_ulong timeout, reactor_notifier_t * cancellation)
+{
+	reactor_handle_t * handle = reactor_socket_new_fn(socket, events);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+        return;
+    }
+
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	async_resume_when(resume, handle, true, async_resume_when_callback_resolve);
+
+	async_wait(resume);
+
+	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
+	OBJ_RELEASE(&resume->std);
+}
+
+void async_wait_fd(async_file_descriptor_t fd, const zend_ulong events, const zend_ulong timeout, reactor_notifier_t * cancellation)
+{
+	reactor_handle_t * handle = reactor_file_new_fn(fd, events);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	async_resume_when(resume, handle, true, async_resume_when_callback_resolve);
+
+	async_wait(resume);
+
+	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 	OBJ_RELEASE(&resume->std);
 }
 
