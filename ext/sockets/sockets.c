@@ -569,23 +569,38 @@ static int async_sendto(php_socket *sock, const void *buf, size_t len, int flags
 
 int async_connect(PHP_SOCKET sockfd, struct sockaddr *addr, socklen_t addrlen)
 {
-	do {
-		const int retval = connect(sockfd, addr, addrlen);
+	const int retval = connect(sockfd, addr, addrlen);
 
-		if (retval == 0) {
-			return 0;
-		}
+	if (retval == 0) {
+		return 0;
+	}
 
-		if (retval == -1 && errno != EINPROGRESS) {
-            return -1;
-        }
+	if (retval == -1 && errno != EINPROGRESS && errno != EWOULDBLOCK) {
+		return -1;
+	}
 
+	do
+	{
 		async_wait_socket(sockfd, ASYNC_READABLE | ASYNC_WRITABLE, 0, NULL);
 
 		if (UNEXPECTED(EG(exception) != NULL)) {
 			zend_clear_exception();
 			return -1;
 		}
+
+		int error = 0;
+		socklen_t len = sizeof(error);
+
+		getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (void *)&error, &len);
+
+		if (error == 0) {
+			return 0;
+		}
+
+		if (error != EINPROGRESS && error != EWOULDBLOCK) {
+            set_errno(error);
+            return -1;
+        }
 
 	} while (true);
 }

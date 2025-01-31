@@ -4,7 +4,11 @@ cURL with Http
 curl
 --FILE--
 <?php
-include "../sapi/cli/tests/php_cli_server.inc";
+// For IPv4
+define("PHP_CLI_SERVER_HOSTNAME", "127.0.0.1");
+
+require_once __DIR__."/../php_cli_server.php";
+
 php_cli_server_start();
 
 Async\async(function() {
