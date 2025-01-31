@@ -1108,6 +1108,32 @@ static struct hostent *addr_info_to_hostent(const struct addrinfo *addr_info)
 	return result;
 }
 
+static void hostent_dtor(zval *pDest)
+{
+	struct hostent *host = Z_PTR_P(pDest);
+
+	if (host == NULL) {
+		return;
+	}
+
+	// Free the canonical name if it was allocated
+	if (host->h_name) {
+		efree(host->h_name);
+	}
+
+	// Free the address list
+	if (host->h_addr_list) {
+		if (host->h_addr_list[0]) {
+			efree(host->h_addr_list[0]);
+		}
+
+		efree(host->h_addr_list);
+	}
+
+	// Free the hostent structure itself
+	efree(host);
+}
+
 zend_always_inline struct hostent* find_host_by_name(const char *name)
 {
 	if (host_name_list == NULL) {
@@ -1127,7 +1153,7 @@ zend_always_inline void store_host_by_name(const char *name, struct hostent *hos
 {
     if (host_name_list == NULL) {
         ALLOC_HASHTABLE(host_name_list);
-        zend_hash_init(host_name_list, 8, NULL, ZVAL_PTR_DTOR, 0);
+        zend_hash_init(host_name_list, 8, NULL, hostent_dtor, 0);
     }
 
     zval zv;
