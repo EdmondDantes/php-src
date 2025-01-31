@@ -1172,17 +1172,18 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 
 	async_resume_when(resume, dns_info, false, async_resume_when_callback_resolve);
 	async_wait(resume);
+	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
-		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
-		OBJ_RELEASE(&resume->std);
+		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);		
+		OBJ_RELEASE(&dns_info->std);
 		return NULL;
 	}
 
 	result = addr_info_to_hostent(((reactor_dns_info_t *) dns_info)->addr_info);
 
 	store_host_by_name(name, result);
-
+	
 	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
 	OBJ_RELEASE(&dns_info->std);
 

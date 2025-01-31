@@ -10,8 +10,9 @@ php_cli_server_start();
 Async\async(function() {
     echo "fiber start\n";
 
-    $host = PHP_CLI_SERVER_ADDRESS;
-    $port = 80;
+    $hostPort = explode(":", PHP_CLI_SERVER_ADDRESS);
+    $host = $hostPort[0];
+    $port = $hostPort[1];
     $request = "GET / HTTP/1.1\r\nHost: $host\r\nConnection: Close\r\n\r\n";
 
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
