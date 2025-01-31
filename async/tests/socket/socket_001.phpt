@@ -1,5 +1,5 @@
 --TEST--
-cURL with Http
+Get HTTP response from PHP CLI server using socket functions
 --EXTENSIONS--
 curl
 --FILE--
