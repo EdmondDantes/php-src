@@ -1,5 +1,5 @@
 --TEST--
-Client-server communication within fibers
+Error occurred in the client fiber due to socket_bind() executed in the server fiber
 --EXTENSIONS--
 sockets
 --FILE--
