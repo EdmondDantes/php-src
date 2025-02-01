@@ -39,8 +39,8 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	bool in_scheduler_context;
 	/* Equal TRUE if the reactor is in the process of shutting down */
 	bool graceful_shutdown;
-	/* Reserved flag */
-	bool _reserved;
+	/* Exit exception object */
+	zend_object * exit_exception;
 	// Microtask and fiber queues
 	circular_buffer_t microtasks;
 	/* Queue of resume objects: async_resume_t */

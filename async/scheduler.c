@@ -342,6 +342,14 @@ static void cancel_deferred_fibers(void)
 
 static void finally_shutdown(void)
 {
+	if (ASYNC_G(exit_exception) != NULL && EG(exception) != NULL) {
+		zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
+		GC_DELREF(ASYNC_G(exit_exception));
+		ASYNC_G(exit_exception) = EG(exception);
+		GC_ADDREF(EG(exception));
+		zend_clear_exception();
+	}
+
 	cancel_deferred_fibers();
 	execute_deferred_fibers();
 
@@ -351,28 +359,31 @@ static void finally_shutdown(void)
 	execute_microtasks_handler();
 
 	if (UNEXPECTED(EG(exception))) {
-		zend_exception_save();
+		if (ASYNC_G(exit_exception) != NULL) {
+			zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
+			GC_DELREF(ASYNC_G(exit_exception));
+			ASYNC_G(exit_exception) = EG(exception);
+			GC_ADDREF(EG(exception));
+		}
 	}
 }
 
 static void start_graceful_shutdown(void)
 {
 	ASYNC_G(graceful_shutdown) = true;
+	ASYNC_G(exit_exception) = EG(exception);
+	GC_ADDREF(EG(exception));
 
-	/*
-	zend_string * message = zend_current_exception_get_message(false);
-	zend_string * file = zend_current_exception_get_file();
-
-	async_warning(
-			"Graceful shutdown started due to an unhandled exception \"%s\" occurred in file %s, on line: %i with message \"%s\"",
-			ZSTR_VAL(EG(exception)->ce->name),
-			file ? ZSTR_VAL(file) : "Unknown",
-			zend_current_exception_get_line(),
-			message ? ZSTR_VAL(message) : "Unknown"
-	);
-	*/
-
+	zend_clear_exception();
 	cancel_deferred_fibers();
+
+	if (UNEXPECTED(EG(exception)) != NULL) {
+		zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
+		GC_DELREF(ASYNC_G(exit_exception));
+		ASYNC_G(exit_exception) = EG(exception);
+		GC_ADDREF(EG(exception));
+		zend_clear_exception();
+	}
 }
 
 static void async_scheduler_dtor(void)
@@ -502,5 +513,22 @@ void async_scheduler_launch(void)
 		zend_bailout();
 	} zend_end_try();
 
+	ZEND_ASSERT(reactor_loop_alive_fn() == false && "The event loop must be stopped");
+
+	zend_object * exit_exception = ASYNC_G(exit_exception);
+	ASYNC_G(exit_exception) = NULL;
+
 	async_scheduler_dtor();
+
+	if (EG(exception) != NULL && exit_exception != NULL) {
+		zend_exception_set_previous(EG(exception), exit_exception);
+		GC_DELREF(exit_exception);
+		exit_exception = EG(exception);
+		GC_ADDREF(exit_exception);
+		zend_clear_exception();
+	}
+
+	if (exit_exception != NULL) {
+		zend_throw_exception_internal(exit_exception);
+	}
 }

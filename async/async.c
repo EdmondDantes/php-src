@@ -70,6 +70,8 @@ void async_globals_dtor(zend_async_globals *async_globals)
 	async_globals->is_async = false;
 	async_globals->in_scheduler_context = false;
 
+	ZEND_ASSERT(async_globals->exit_exception == NULL && "Exit exception must be NULL.");
+
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->deferred_resumes);
 	zend_hash_destroy(&async_globals->fibers_state);
@@ -1211,7 +1213,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
-		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);		
+		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
 		OBJ_RELEASE(&dns_info->std);
 		return NULL;
 	}

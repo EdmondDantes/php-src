@@ -16,6 +16,8 @@
 
 #include "zend_common.h"
 
+#include "exceptions.h"
+
 static zend_class_entry* weak_ref_ce = NULL;
 static zend_function* create_fn = NULL;
 static zend_function* get_fn = NULL;
@@ -38,6 +40,14 @@ zend_always_inline zend_class_entry* async_get_weak_reference_ce()
 void zend_exception_to_warning(const char * format, const bool clean)
 {
 	if (EG(exception) == NULL) {
+		return;
+	}
+
+	if (instanceof_function(EG(exception)->ce, async_ce_cancellation_exception)) {
+		// Ignore the exception if it is a cancellation exception
+		if (clean) {
+			zend_clear_exception();
+		}
 		return;
 	}
 
