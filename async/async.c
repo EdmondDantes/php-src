@@ -48,6 +48,20 @@ ZEND_TLS HashTable * host_name_list = NULL;
 #pragma region Startup and Shutdown
 //===============================================================
 
+void async_host_name_list_ctor(void)
+{
+	host_name_list = NULL;
+}
+
+void async_host_name_list_dtor(void)
+{
+	if (host_name_list != NULL) {
+		zend_hash_destroy(host_name_list);
+		FREE_HASHTABLE(host_name_list);
+		host_name_list = NULL;
+	}
+}
+
 /**
  * Async globals destructor.
  */
@@ -110,10 +124,6 @@ void async_module_startup(void)
  */
 void async_module_shutdown(void)
 {
-	if (host_name_list != NULL) {
-		zend_hash_destroy(host_name_list);
-		host_name_list = NULL;
-	}
 }
 
 void async_fiber_shutdown_callback(zend_fiber *fiber)

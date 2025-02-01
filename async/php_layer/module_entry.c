@@ -320,14 +320,26 @@ static PHP_GSHUTDOWN_FUNCTION(async)
 	async_globals_dtor(async_globals);
 }
 
+PHP_RINIT_FUNCTION(async) /* {{{ */
+{
+	async_host_name_list_ctor();
+	return SUCCESS;
+} /* }}} */
+
+PHP_RSHUTDOWN_FUNCTION(async) /* {{{ */
+{
+	async_host_name_list_dtor();
+	return SUCCESS;
+} /* }}} */
+
 static zend_module_entry async_module_entry = { /* {{{ */
 	STANDARD_MODULE_HEADER,
 	"PHP True Asynchrony",
 	ext_functions,
 	ZEND_MINIT(async),
 	ZEND_MSHUTDOWN(async),
-	NULL,
-	NULL,
+	PHP_RINIT(async),
+	PHP_RSHUTDOWN(async),
 	PHP_MINFO(async_info),
 	PHP_ASYNC_VERSION,
 	PHP_MODULE_GLOBALS(async),

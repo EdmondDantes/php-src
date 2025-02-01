@@ -1,12 +1,10 @@
 --TEST--
-Get HTTP response from PHP CLI server using socket functions
+gethostbyname inside async fiber
 --FILE--
 <?php
 Async\async(function() {
     echo "fiber start\n";
-
     echo gethostbyname("localhost") . "\n";
-
     echo "fiber end\n";
 });
 

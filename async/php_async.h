@@ -136,6 +136,8 @@ BEGIN_EXTERN_C()
 
 void async_module_startup(void);
 void async_module_shutdown(void);
+void async_host_name_list_ctor(void);
+void async_host_name_list_dtor(void);
 void async_globals_ctor(zend_async_globals *async_globals);
 void async_globals_dtor(zend_async_globals *async_globals);
 void async_fiber_shutdown_callback(zend_fiber *fiber);
