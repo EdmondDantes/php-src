@@ -828,6 +828,7 @@ static reactor_file_system_new_t prev_reactor_file_system_new_fn = NULL;
 static reactor_process_new_t prev_reactor_process_new_fn = NULL;
 static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
 static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
+static reactor_dns_info_cancel_t prev_reactor_dns_info_cancel_fn = NULL;
 
 //=============================================================
 #pragma endregion
@@ -849,6 +850,13 @@ static void addr_on_resolved(uv_getaddrinfo_t *req, const int status, struct add
 
 	ZVAL_NULL(&dns_handle->dns_info.address);
 
+	if (status == UV_ECANCELED) {
+		// No need to call async_notifier_notify if the request is canceled.
+		uv_freeaddrinfo(res);
+		OBJ_RELEASE(&dns_handle->handle.std);
+		return;
+	}
+
 	if (status < 0) {
 		zend_object *exception = async_new_exception(
 			async_ce_input_output_exception, "async getaddrinfo error: %s", uv_strerror(status)
@@ -863,6 +871,7 @@ static void addr_on_resolved(uv_getaddrinfo_t *req, const int status, struct add
 	ZVAL_NULL(&z_null);
 	async_notifier_notify(&dns_handle->handle, &z_null, &error);
 	zval_ptr_dtor(&error);
+	OBJ_RELEASE(&dns_handle->handle.std);
 }
 
 static void host_on_resolved(const uv_getnameinfo_t* req, const int status, const char* hostname, const char* service)
@@ -871,6 +880,12 @@ static void host_on_resolved(const uv_getnameinfo_t* req, const int status, cons
 
 	zval error;
 	ZVAL_NULL(&error);
+
+	if (status == UV_ECANCELED) {
+		// No need to call async_notifier_notify if the request is canceled.
+		OBJ_RELEASE(&dns_handle->handle.std);
+		return;
+	}
 
 	if (status < 0) {
 		zend_object *exception = async_new_exception(
@@ -886,6 +901,7 @@ static void host_on_resolved(const uv_getnameinfo_t* req, const int status, cons
 	ZVAL_NULL(&z_null);
 	async_notifier_notify(&dns_handle->handle, &z_null, &error);
 	zval_ptr_dtor(&error);
+	OBJ_RELEASE(&dns_handle->handle.std);
 }
 
 static reactor_handle_t * libuv_dns_info_new(
@@ -934,6 +950,11 @@ static reactor_handle_t * libuv_dns_info_new(
 
 	int result = 0;
 
+	// Increase the reference count to prevent the object from being destroyed before the callback is executed.
+	// The object will be released in the callback function.
+	// Please see https://docs.libuv.org/en/v1.x/request.html#c.uv_cancel
+	GC_ADDREF(&dns_handle->handle.std);
+
 	if (address != NULL) {
 		dns_handle->is_addr_info = false;
 		dns_handle->name_info = emalloc(sizeof(uv_getnameinfo_t));
@@ -956,10 +977,30 @@ static reactor_handle_t * libuv_dns_info_new(
 
 	if (result) {
 		async_throw_error("Dns info error: %s", uv_strerror(result));
+		// Release the reference count if the request failed after the GC_ADDREF call.
+		GC_DELREF(&dns_handle->handle.std);
+		// Release the object if the request failed.
 		OBJ_RELEASE(&dns_handle->handle.std);
 	}
 
 	return (reactor_handle_t *) dns_handle;
+}
+
+static void libuv_dns_info_cancel(reactor_handle_t *handle)
+{
+	libuv_dns_info_t *dns_handle = (libuv_dns_info_t *)handle;
+
+	if (dns_handle->is_cancelled) {
+		return;
+	}
+
+	dns_handle->is_cancelled = true;
+
+	if (dns_handle->is_addr_info) {
+		uv_cancel((uv_req_t *)dns_handle->addr_info);
+	} else {
+		uv_cancel((uv_req_t *)dns_handle->name_info);
+	}
 }
 
 //=============================================================
@@ -1024,6 +1065,9 @@ static void setup_handlers(void)
 	prev_reactor_dns_info_new_fn = reactor_dns_info_new_fn;
 	reactor_dns_info_new_fn = libuv_dns_info_new;
 
+	prev_reactor_dns_info_cancel_fn = reactor_dns_info_cancel_fn;
+	reactor_dns_info_cancel_fn = libuv_dns_info_cancel;
+
 	prev_reactor_file_system_new_fn = reactor_file_system_new_fn;
 	reactor_file_system_new_fn = libuv_file_system_new;
 }
@@ -1052,6 +1096,8 @@ static void restore_handlers(void)
 	reactor_process_new_fn = prev_reactor_process_new_fn;
 	reactor_thread_new_fn = prev_reactor_thread_new_fn;
 	reactor_dns_info_new_fn = prev_reactor_dns_info_new_fn;
+	reactor_dns_info_cancel_fn = prev_reactor_dns_info_cancel_fn;
+
 	reactor_file_system_new_fn = prev_reactor_file_system_new_fn;
 }
 

@@ -102,6 +102,7 @@ struct _libuv_dns_info_s {
 		uv_getnameinfo_t * name_info;
 	};
 	bool is_addr_info;
+	bool is_cancelled;
 };
 
 struct _libuv_fs_event_s {

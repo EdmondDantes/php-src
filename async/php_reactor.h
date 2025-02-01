@@ -141,6 +141,8 @@ typedef reactor_handle_t * (*reactor_dns_info_new_t)
 	struct addrinfo *hints
 );
 
+typedef void (*reactor_dns_info_cancel_t)(reactor_handle_t *handle);
+
 BEGIN_EXTERN_C()
 
 ZEND_API zend_bool reactor_is_enabled(void);
@@ -168,6 +170,7 @@ ZEND_API reactor_file_system_new_t reactor_file_system_new_fn;
 ZEND_API reactor_process_new_t reactor_process_new_fn;
 ZEND_API reactor_thread_new_t reactor_thread_new_fn;
 ZEND_API reactor_dns_info_new_t reactor_dns_info_new_fn;
+ZEND_API reactor_dns_info_cancel_t reactor_dns_info_cancel_fn;
 
 END_EXTERN_C()
 

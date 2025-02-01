@@ -1021,6 +1021,9 @@ int async_network_get_addresses(const char *host, int socktype, struct sockaddr 
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 
+		reactor_dns_info_cancel_fn(dns_info);
+		OBJ_RELEASE(&dns_info->std);
+
 		zend_string * message = zend_current_exception_get_message(true);
 		bool is_owned_message = false;
 
@@ -1071,7 +1074,6 @@ int async_network_get_addresses(const char *host, int socktype, struct sockaddr 
 
 	*sap = NULL;
 
-	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
 	OBJ_RELEASE(&dns_info->std);
 
 	return n;
@@ -1214,6 +1216,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_to_warning("async_network_get_host_by_name error: %s", true);
+		reactor_dns_info_cancel_fn(dns_info);
 		OBJ_RELEASE(&dns_info->std);
 		return NULL;
 	}
@@ -1222,7 +1225,6 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 
 	store_host_by_name(name, result);
 	
-	ZEND_ASSERT(GC_REFCOUNT(&dns_info->std) == 1 && "DNS info object has references more than 1");
 	OBJ_RELEASE(&dns_info->std);
 
 	return result;
@@ -1253,14 +1255,16 @@ zend_string* async_get_host_by_addr(const char * ip)
 
 	async_resume_when(resume, dns_info, true, async_resume_when_callback_resolve);
 	async_wait(resume);
+	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_to_warning("async_get_host_by_addr error: %s", true);
-		OBJ_RELEASE(&resume->std);
+		reactor_dns_info_cancel_fn(dns_info);
+		OBJ_RELEASE(&dns_info->std);
 	}
 
 	zend_string * result = zend_string_copy(Z_STR(((reactor_dns_info_t *) dns_info)->host));
-	OBJ_RELEASE(&resume->std);
+	OBJ_RELEASE(&dns_info->std);
 
 	return result;
 }
@@ -1281,6 +1285,8 @@ void async_get_addr_info(zend_string *host, zend_string *service, struct addrinf
 	OBJ_RELEASE(&resume->std);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
+		reactor_dns_info_cancel_fn(dns_info);
+		OBJ_RELEASE(&dns_info->std);
 		return;
 	}
 

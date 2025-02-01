@@ -148,6 +148,10 @@ static reactor_handle_t* reactor_dns_info_new(
 	return NULL;
 }
 
+static void reactor_dns_info_cancel(reactor_handle_t *handle)
+{
+}
+
 reactor_startup_t reactor_startup_fn = reactor_startup;
 reactor_shutdown_t reactor_shutdown_fn = reactor_shutdown;
 
@@ -170,5 +174,6 @@ reactor_signal_new_t reactor_signal_new_fn = reactor_signal_new;
 reactor_process_new_t reactor_process_new_fn = reactor_process_new;
 reactor_thread_new_t reactor_thread_new_fn = reactor_thread_new;
 reactor_dns_info_new_t reactor_dns_info_new_fn = reactor_dns_info_new;
+reactor_dns_info_cancel_t reactor_dns_info_cancel_fn = reactor_dns_info_cancel;
 
 reactor_file_system_new_t reactor_file_system_new_fn = reactor_file_system_new;
