@@ -53,7 +53,7 @@ Async\async(function() {
 Async\async(function() {
     echo "Client fiber start\n";
 
-    Async\sleep(1);
+    sleep(1);
 
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
     if (!$socket) {
@@ -61,13 +61,13 @@ Async\async(function() {
         return;
     }
 
-    if (!socket_connect($socket, PHP_CLI_SERVER_HOSTNAME, PHP_CLI_SERVER_PORT)) {
+    if (!socket_connect($socket, HOSTNAME, PORT)) {
         echo "Client socket connection failed\n";
         socket_close($socket);
         return;
     }
 
-    $request = "GET / HTTP/1.1\r\nHost: " . PHP_CLI_SERVER_HOSTNAME . "\r\nConnection: Close\r\n\r\n";
+    $request = "GET / HTTP/1.1\r\nHost: " . HOSTNAME . "\r\nConnection: Close\r\n\r\n";
     socket_write($socket, $request, strlen($request));
 
     $response = '';
