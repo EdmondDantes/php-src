@@ -108,14 +108,28 @@ static bool execute_next_fiber(void)
 	}
 
 	if (UNEXPECTED(resume->status == ASYNC_RESUME_IGNORED)) {
+
+		//
+		// This state triggers if the fiber has never been started;
+		// in this case, it is deallocated differently than usual.
+		// Finalizing handlers are called. Memory is freed in the correct order!
+		//
+
 		async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
 
 		if (state != NULL) {
 			state->resume = NULL;
 		}
 
+		// First release the reference to the resume object
+		zend_fiber * fiber = resume->fiber;
 		OBJ_RELEASE(&resume->std);
-		return false;
+
+		// And only then release the reference to the fiber object
+		resume->fiber = NULL;
+		zend_hash_index_del(&ASYNC_G(fibers_state), fiber->std.handle);
+		OBJ_RELEASE(&fiber->std);
+		return true;
 	}
 
 	if (UNEXPECTED(resume->status == ASYNC_RESUME_WAITING)) {
@@ -208,7 +222,9 @@ static bool resolve_deadlocks(void)
 
 		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
 
-		if (fiber_state->resume->filename != NULL) {
+		ZEND_ASSERT(fiber_state->resume != NULL && "Fiber state has no resume object");
+
+		if (fiber_state->resume != NULL && fiber_state->resume->filename != NULL) {
 
 			//Maybe we need to get the function name
 			//zend_string * function_name = NULL;
