@@ -191,6 +191,8 @@ zend_always_inline void zend_apply_current_filename_and_line(zend_string **filen
 void zend_exception_to_warning(const char * format, const bool clean);
 
 zend_string * zend_current_exception_get_message(const bool clean);
+zend_string * zend_current_exception_get_file(void);
+uint32_t zend_current_exception_get_line(void);
 
 /**
  * Creates a new weak reference to the given zval.

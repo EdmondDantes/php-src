@@ -79,6 +79,42 @@ zend_string * zend_current_exception_get_message(const bool clean)
 	}
 }
 
+zend_string * zend_current_exception_get_file(void)
+{
+	if (EG(exception) == NULL) {
+		return NULL;
+	}
+
+	zval rv;
+	const zval *file = zend_read_property_ex(
+		EG(exception)->ce, EG(exception), zend_known_strings[ZEND_STR_FILE], 0, &rv
+	);
+
+	if (file != NULL && Z_TYPE_P(file) == IS_STRING) {
+		return Z_STR_P(file);
+	} else {
+		return NULL;
+	}
+}
+
+uint32_t zend_current_exception_get_line(void)
+{
+	if (EG(exception) == NULL) {
+		return 0;
+	}
+
+	zval rv;
+	const zval *line = zend_read_property_ex(
+		EG(exception)->ce, EG(exception), zend_known_strings[ZEND_STR_LINE], 0, &rv
+	);
+
+	if (line != NULL && Z_TYPE_P(line) == IS_LONG) {
+		return Z_LVAL_P(line);
+	} else {
+		return 0;
+	}
+}
+
 void zend_new_weak_reference_from(const zval* referent, zval * retval)
 {
 	if (!create_fn) {

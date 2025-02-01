@@ -1,7 +1,7 @@
 --TEST--
 Get HTTP response without host resolution
 --EXTENSIONS--
-curl
+sockets
 --FILE--
 <?php
 // For IPv4
