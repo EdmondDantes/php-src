@@ -358,6 +358,8 @@ static void finally_shutdown(void)
 static void start_graceful_shutdown(void)
 {
 	ASYNC_G(graceful_shutdown) = true;
+
+	/*
 	zend_string * message = zend_current_exception_get_message(false);
 	zend_string * file = zend_current_exception_get_file();
 
@@ -368,6 +370,7 @@ static void start_graceful_shutdown(void)
 			zend_current_exception_get_line(),
 			message ? ZSTR_VAL(message) : "Unknown"
 	);
+	*/
 
 	cancel_deferred_fibers();
 }
