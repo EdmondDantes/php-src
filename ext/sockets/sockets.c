@@ -452,6 +452,7 @@ static int async_recv(php_socket *sock, void *buf, size_t maxlen, int flags)
 
 		if (bytes_received > 0) {
 			total_read += bytes_received;
+			return total_read;
 		} else if (bytes_received == 0) {
 			return total_read;
 		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {

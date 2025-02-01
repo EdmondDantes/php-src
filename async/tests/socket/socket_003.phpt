@@ -53,7 +53,7 @@ Async\async(function() {
 Async\async(function() {
     echo "Client fiber start\n";
 
-    sleep(1);
+    usleep(1);
 
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
     if (!$socket) {
@@ -89,10 +89,10 @@ echo "end\n";
 --EXPECT--
 start
 Server fiber start
-Server is listening...
 Client fiber start
+Server is listening...
 Server received request: GET / HTTP/1.1
-Host: 127.0.0.1
+Host: localhost
 Connection: Close
 
 
