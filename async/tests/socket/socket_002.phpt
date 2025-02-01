@@ -1,5 +1,5 @@
 --TEST--
-Get HTTP response from PHP CLI server using socket functions
+Get HTTP response with host resolution
 --EXTENSIONS--
 curl
 --FILE--
