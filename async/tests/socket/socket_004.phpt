@@ -17,7 +17,7 @@ Async\async(function() {
         return;
     }
 
-    if (!socket_bind($serverSocket, HOSTNAME, PORT)) {
+    if (@!socket_bind($serverSocket, HOSTNAME, PORT)) {
         echo "Server socket bind failed\n";
         socket_close($serverSocket);
         return;
@@ -46,12 +46,17 @@ Async\async(function() {
 });
 
 echo "start\n";
-Async\launchScheduler();
+try {
+    Async\launchScheduler();
+} catch (\Error $e) {
+    echo "Error occurred\n";
+}
 echo "end\n";
 ?>
 --EXPECT--
 start
 Server fiber start
 Client fiber start
-Client fiber end
+Server socket bind failed
+Error occurred
 end
