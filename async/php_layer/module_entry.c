@@ -15,6 +15,8 @@
 */
 #include "module_entry.h"
 
+#include <zend_closures.h>
+
 #include "async/php_reactor.h"
 #include "async/libuv/libuv_reactor.h"
 
@@ -28,6 +30,7 @@
 #include "notifier.h"
 #include "../php_async.h"
 #include "module_entry_arginfo.h"
+#include "for_each_arginfo.h"
 
 #define THROW_IF_REACTOR_DISABLED if (UNEXPECTED(false == reactor_is_enabled())) {			\
 		async_throw_error("The operation is not available without an enabled reactor");		\
@@ -257,8 +260,124 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
+PHP_METHOD(Async_ForEachExecutor, start)
+{
+	zval * iterable;
+	zval * function;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+	zval * defer;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3)
+		Z_PARAM_ITERABLE(iterable)
+		Z_PARAM_ZVAL(function)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL(defer)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!zend_is_callable(function, 0, NULL)) {
+		zend_argument_value_error(1, "Expected parameter to be a valid callable");
+		RETURN_THROWS();
+	}
+
+	if (Z_TYPE_P(iterable) == IS_ARRAY) {
+		zend_hash_internal_pointer_reset(Z_ARR_P(iterable));
+	} else {
+		zend_object_iterator *zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
+
+		if (UNEXPECTED(EG(exception) || zend_iterator == NULL)) {
+			RETURN_THROWS();
+		}
+
+		if (zend_iterator->funcs->rewind) {
+			zend_iterator->funcs->rewind(zend_iterator);
+		}
+	}
+
+	if (Z_TYPE_P(defer) != IS_NULL) {
+		if (!zend_is_callable(defer, 0, NULL)) {
+			zend_argument_value_error(3, "Expected parameter to be a valid callable");
+			RETURN_THROWS();
+		}
+	}
+
+	async_foreach_executor_t * executor = zend_object_alloc_ex(sizeof(async_foreach_executor_t), async_ce_foreach_executor);
+	zend_object_std_init(&executor->std, async_ce_foreach_executor);
+	object_properties_init(&executor->std, async_ce_foreach_executor);
+
+	ZVAL_COPY(&executor->iterator, iterable);
+	ZVAL_COPY(&executor->defer, defer);
+
+	if (UNEXPECTED(zend_fcall_info_init(function, 0, &executor->fci, &executor->fcc, NULL, NULL) != SUCCESS)) {
+		zend_throw_error(NULL, "Failed to initialize fcall info");
+		RETURN_THROWS();
+	}
+
+	zend_function * run_method = zend_hash_str_find_ptr(&async_ce_foreach_executor->function_table, "run", sizeof("run") - 1);
+
+	ZEND_ASSERT(run_method != NULL && "Method run not found");
+
+	zval run_closure;
+	zval this_ptr;
+	ZVAL_OBJ(&this_ptr, &executor->std);
+	zend_create_closure(&run_closure, run_method, async_ce_foreach_executor, async_ce_foreach_executor, &this_ptr);
+	executor->run_closure = Z_OBJ(run_closure);
+
+	zval zval_fiber;
+	zval params[1];
+
+	ZVAL_COPY_VALUE(&params[0], executor->run_closure);
+
+	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
+		RETURN_THROWS();
+	}
+
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
+}
+
+PHP_METHOD(Async_ForEachExecutor, run)
+{
+	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
+
+	zval * current;
+
+	do {
+		if (Z_TYPE(executor->iterator) == IS_ARRAY) {
+			current = zend_hash_get_current_data(Z_ARR(executor->iterator));
+		} else {
+			current = executor->zend_iterator->funcs->get_current_data(executor->zend_iterator);
+		}
+	} while (current != NULL);
+
+
+}
+
+PHP_METHOD(Async_ForEachExecutor, cancel)
+{
+
+}
+
+static void async_foreach_object_destroy(zend_object* object)
+{
+
+}
+
+static zend_object_handlers async_foreach_handlers;
+
+static void async_register_foreach_ce(void)
+{
+	async_ce_foreach_executor = register_class_Async_ForEachExecutor();
+
+	async_ce_callback->default_object_handlers = &async_foreach_handlers;
+
+	async_foreach_handlers = std_object_handlers;
+	async_foreach_handlers.dtor_obj = async_foreach_object_destroy;
+	async_foreach_handlers.clone_obj = NULL;
+}
+
 ZEND_MINIT_FUNCTION(async)
 {
+	async_register_foreach_ce();
 	async_register_callback_ce();
 	async_register_notifier_ce();
 	async_register_handlers_ce();

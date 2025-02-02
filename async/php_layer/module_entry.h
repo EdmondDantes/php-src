@@ -20,6 +20,28 @@
 
 #define PHP_ASYNC_VERSION "1.0.0-dev"
 
+ZEND_API zend_class_entry *async_ce_foreach_executor;
+
+typedef struct _async_foreach_s {
+	union
+	{
+		/* PHP std object */
+		zend_object std;
+		struct
+		{
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			zval is_finished;
+			zval iterator;
+			zval defer;
+		};
+	};
+
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+	zend_object_iterator * zend_iterator;
+	zend_object * run_closure;
+} async_foreach_executor_t;
+
 zend_result async_register_module(void);
 
 #endif //ASYNC_MODULE_ENTRY_H
