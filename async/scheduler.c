@@ -30,8 +30,23 @@
 static void invoke_microtask(zval *task)
 {
 	if (Z_TYPE_P(task) == IS_PTR) {
-		// Call the function directly
-		((void (*)(void)) Z_PTR_P(task))();
+
+		async_microtask_t *microtask = (async_microtask_t *) Z_PTR_P(task);
+
+		if (microtask->is_fci) {
+			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+
+			if (zend_call_function(&function->fci, &function->fci_cache) == SUCCESS) {
+				zval_ptr_dtor(function->fci.retval);
+			}
+		} else {
+			// Call the function directly
+			async_internal_microtask_t *internal = (async_internal_microtask_t *) microtask;
+			internal->handler((async_microtask_t *) internal);
+		}
+
+		efree(microtask);
+
 	} else {
 		zval retval;
 		ZVAL_UNDEF(&retval);
@@ -283,12 +298,30 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const a
 
 ZEND_API void async_scheduler_add_microtask(zval *microtask)
 {
-	if (EXPECTED(Z_TYPE_P(microtask) == IS_PTR || zend_is_callable(microtask, 0, NULL))) {
+	if (EXPECTED(zend_is_callable(microtask, 0, NULL))) {
 		zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), microtask);
 		return;
 	}
 
-	async_throw_error("Invalid microtask type: should be a callable or a internal pointer to a function");
+	async_throw_error("Invalid microtask type: should be a callable");
+}
+
+ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask)
+{
+	zval z_microtask;
+	ZVAL_PTR(&z_microtask, microtask);
+	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+}
+
+ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler)
+{
+	async_internal_microtask_t *microtask = emalloc(sizeof(async_internal_microtask_t));
+	microtask->task.is_fci = false;
+	microtask->handler = handler;
+
+	zval z_microtask;
+	ZVAL_PTR(&z_microtask, microtask);
+	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
 }
 
 zend_always_inline void execute_deferred_fibers(void)

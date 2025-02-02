@@ -20,7 +20,7 @@
 
 #define PHP_ASYNC_VERSION "1.0.0-dev"
 
-ZEND_API zend_class_entry *async_ce_foreach_executor;
+ZEND_API zend_class_entry *async_ce_walker;
 
 typedef struct _async_foreach_s {
 	union

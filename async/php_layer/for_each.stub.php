@@ -11,7 +11,7 @@ namespace Async;
  * @strict-properties
  * @not-serializable
  */
-final class ForEachExecutor
+final class Walker
 {
     public static function start(iterable $iterator, callable $function, ?callable $defer = null): void {}
 

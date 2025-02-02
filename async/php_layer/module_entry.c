@@ -260,7 +260,7 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
-PHP_METHOD(Async_ForEachExecutor, start)
+PHP_METHOD(Async_Walker, start)
 {
 	zval * iterable;
 	zval * function;
@@ -301,9 +301,9 @@ PHP_METHOD(Async_ForEachExecutor, start)
 		}
 	}
 
-	async_foreach_executor_t * executor = zend_object_alloc_ex(sizeof(async_foreach_executor_t), async_ce_foreach_executor);
-	zend_object_std_init(&executor->std, async_ce_foreach_executor);
-	object_properties_init(&executor->std, async_ce_foreach_executor);
+	async_foreach_executor_t * executor = zend_object_alloc_ex(sizeof(async_foreach_executor_t), async_ce_walker);
+	zend_object_std_init(&executor->std, async_ce_walker);
+	object_properties_init(&executor->std, async_ce_walker);
 
 	ZVAL_COPY(&executor->iterator, iterable);
 	ZVAL_COPY(&executor->defer, defer);
@@ -313,14 +313,14 @@ PHP_METHOD(Async_ForEachExecutor, start)
 		RETURN_THROWS();
 	}
 
-	zend_function * run_method = zend_hash_str_find_ptr(&async_ce_foreach_executor->function_table, "run", sizeof("run") - 1);
+	zend_function * run_method = zend_hash_str_find_ptr(&async_ce_walker->function_table, "run", sizeof("run") - 1);
 
 	ZEND_ASSERT(run_method != NULL && "Method run not found");
 
 	zval run_closure;
 	zval this_ptr;
 	ZVAL_OBJ(&this_ptr, &executor->std);
-	zend_create_closure(&run_closure, run_method, async_ce_foreach_executor, async_ce_foreach_executor, &this_ptr);
+	zend_create_closure(&run_closure, run_method, async_ce_walker, async_ce_walker, &this_ptr);
 	executor->run_closure = Z_OBJ(run_closure);
 
 	zval zval_fiber;
@@ -335,7 +335,7 @@ PHP_METHOD(Async_ForEachExecutor, start)
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 }
 
-PHP_METHOD(Async_ForEachExecutor, run)
+PHP_METHOD(Async_Walker, run)
 {
 	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
 
@@ -352,27 +352,27 @@ PHP_METHOD(Async_ForEachExecutor, run)
 
 }
 
-PHP_METHOD(Async_ForEachExecutor, cancel)
+PHP_METHOD(Async_Walker, cancel)
 {
 
 }
 
-static void async_foreach_object_destroy(zend_object* object)
+static void async_walker_object_destroy(zend_object* object)
 {
 
 }
 
-static zend_object_handlers async_foreach_handlers;
+static zend_object_handlers async_walker_handlers;
 
 static void async_register_foreach_ce(void)
 {
-	async_ce_foreach_executor = register_class_Async_ForEachExecutor();
+	async_ce_walker = register_class_Async_Walker();
 
-	async_ce_callback->default_object_handlers = &async_foreach_handlers;
+	async_ce_callback->default_object_handlers = &async_walker_handlers;
 
-	async_foreach_handlers = std_object_handlers;
-	async_foreach_handlers.dtor_obj = async_foreach_object_destroy;
-	async_foreach_handlers.clone_obj = NULL;
+	async_walker_handlers = std_object_handlers;
+	async_walker_handlers.dtor_obj = async_walker_object_destroy;
+	async_walker_handlers.clone_obj = NULL;
 }
 
 ZEND_MINIT_FUNCTION(async)

@@ -1,33 +1,33 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6acfda7b394008408eb775b22800cc0b5d17d189 */
+ * Stub hash: b8ac9bdf15b46c36479d9cde59e2729b90faea9c */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ForEachExecutor_start, 0, 2, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_start, 0, 2, IS_VOID, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, iterator, Traversable, MAY_BE_ARRAY, NULL)
 	ZEND_ARG_TYPE_INFO(0, function, IS_CALLABLE, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, defer, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ForEachExecutor_run, 0, 0, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_run, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Async_ForEachExecutor_cancel arginfo_class_Async_ForEachExecutor_run
+#define arginfo_class_Async_Walker_cancel arginfo_class_Async_Walker_run
 
-ZEND_METHOD(Async_ForEachExecutor, start);
-ZEND_METHOD(Async_ForEachExecutor, run);
-ZEND_METHOD(Async_ForEachExecutor, cancel);
+ZEND_METHOD(Async_Walker, start);
+ZEND_METHOD(Async_Walker, run);
+ZEND_METHOD(Async_Walker, cancel);
 
-static const zend_function_entry class_Async_ForEachExecutor_methods[] = {
-	ZEND_ME(Async_ForEachExecutor, start, arginfo_class_Async_ForEachExecutor_start, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	ZEND_ME(Async_ForEachExecutor, run, arginfo_class_Async_ForEachExecutor_run, ZEND_ACC_PRIVATE)
-	ZEND_ME(Async_ForEachExecutor, cancel, arginfo_class_Async_ForEachExecutor_cancel, ZEND_ACC_PUBLIC)
+static const zend_function_entry class_Async_Walker_methods[] = {
+	ZEND_ME(Async_Walker, start, arginfo_class_Async_Walker_start, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_Walker, run, arginfo_class_Async_Walker_run, ZEND_ACC_PRIVATE)
+	ZEND_ME(Async_Walker, cancel, arginfo_class_Async_Walker_cancel, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
-static zend_class_entry *register_class_Async_ForEachExecutor(void)
+static zend_class_entry *register_class_Async_Walker(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "Async", "ForEachExecutor", class_Async_ForEachExecutor_methods);
+	INIT_NS_CLASS_ENTRY(ce, "Async", "Walker", class_Async_Walker_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	zval property_isFinished_default_value;

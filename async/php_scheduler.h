@@ -18,6 +18,26 @@
 
 #include "php.h"
 
+typedef struct _async_microtask_s async_microtask_t;
+
+typedef void (*async_microtask_handler_t)(async_microtask_t *microtask);
+
+struct _async_microtask_s {
+	bool is_fci;
+	bool is_cancelled;
+};
+
+typedef struct _async_internal_microtask_s {
+	async_microtask_t task;
+	async_microtask_handler_t handler;
+} async_internal_microtask_t;
+
+typedef struct _async_function_microtask_s {
+	async_microtask_t task;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+} async_function_microtask_t;
+
 /**
  * async_run_callbacks_handler_t - Function pointer type for running pending IO-callbacks/timer-callbacks.
  * This function processes and completes all queued callbacks.
@@ -60,6 +80,8 @@ ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
 ZEND_API void async_scheduler_add_microtask(zval *microtask);
+ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask);
+ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 
