@@ -305,30 +305,30 @@ PHP_METHOD(Async_Walker, walk)
 		}
 	}
 
-	async_foreach_executor_t * executor = zend_object_alloc_ex(sizeof(async_foreach_executor_t), async_ce_walker);
-	zend_object_std_init(&executor->std, async_ce_walker);
-	object_properties_init(&executor->std, async_ce_walker);
+	async_walker_t * walker = zend_object_alloc_ex(sizeof(async_walker_t), async_ce_walker);
+	zend_object_std_init(&walker->std, async_ce_walker);
+	object_properties_init(&walker->std, async_ce_walker);
 
-	ZVAL_COPY(&executor->iterator, iterable);
+	ZVAL_COPY(&walker->iterator, iterable);
 
 	if (custom_data != NULL) {
-		ZVAL_COPY(&executor->custom_data, custom_data);
+		ZVAL_COPY(&walker->custom_data, custom_data);
 	} else {
-		ZVAL_NULL(&executor->custom_data);
+		ZVAL_NULL(&walker->custom_data);
 	}
 
 	if (defer != NULL) {
-		ZVAL_COPY(&executor->defer, defer);
+		ZVAL_COPY(&walker->defer, defer);
 	} else {
-		ZVAL_NULL(&executor->defer);
+		ZVAL_NULL(&walker->defer);
 	}
 
-	if (UNEXPECTED(zend_fcall_info_init(function, 0, &executor->fci, &executor->fcc, NULL, NULL) != SUCCESS)) {
+	if (UNEXPECTED(zend_fcall_info_init(function, 0, &walker->fci, &walker->fcc, NULL, NULL) != SUCCESS)) {
 		zend_throw_error(NULL, "Failed to initialize fcall info");
 		RETURN_THROWS();
 	}
 
-	if (UNEXPECTED(executor->fcc.function_handler->common.num_args < 1 || executor->fcc.function_handler->common.num_args > 3)) {
+	if (UNEXPECTED(walker->fcc.function_handler->common.num_args < 1 || walker->fcc.function_handler->common.num_args > 3)) {
 		zend_argument_value_error(1, "The callback function must have at least one parameter and at most three parameters");
 		RETURN_THROWS();
 	}
@@ -339,21 +339,21 @@ PHP_METHOD(Async_Walker, walk)
 
 	zval z_closure;
 	zval this_ptr;
-	ZVAL_OBJ(&this_ptr, &executor->std);
+	ZVAL_OBJ(&this_ptr, &walker->std);
 	zend_create_closure(&z_closure, run_method, async_ce_walker, async_ce_walker, &this_ptr);
-	executor->run_closure = Z_OBJ(z_closure);
+	walker->run_closure = Z_OBJ(z_closure);
 
 	zend_function * next_method = zend_hash_str_find_ptr(&async_ce_walker->function_table, "next", sizeof("next") - 1);
 
 	ZEND_ASSERT(run_method != NULL && "Method next not found");
 
 	zend_create_closure(&z_closure, next_method, async_ce_walker, async_ce_walker, &this_ptr);
-	executor->next_closure = Z_OBJ(z_closure);
+	walker->next_closure = Z_OBJ(z_closure);
 
 	zval zval_fiber;
 	zval params[1];
 
-	ZVAL_OBJ(&params[0], executor->run_closure);
+	ZVAL_OBJ(&params[0], walker->run_closure);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();
@@ -364,9 +364,9 @@ PHP_METHOD(Async_Walker, walk)
 
 PHP_METHOD(Async_Walker, run)
 {
-	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
+	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
-	if (Z_TYPE(executor->is_finished) == IS_TRUE) {
+	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
         return;
     }
 
@@ -381,41 +381,41 @@ PHP_METHOD(Async_Walker, run)
 	zval * current;
 	ZVAL_UNDEF(&args[0]);
 	ZVAL_UNDEF(&args[1]);
-	ZVAL_COPY_VALUE(&args[2], &executor->custom_data);
+	ZVAL_COPY_VALUE(&args[2], &walker->custom_data);
 
 	// Copy the fci to avoid overwriting the original
 	// Because the another fiber may be started in the callback function
-	zend_fcall_info fci = executor->fci;
+	zend_fcall_info fci = walker->fci;
 
 	fci.retval = &retval;
-	fci.param_count = executor->fcc.function_handler->common.num_args;
+	fci.param_count = walker->fcc.function_handler->common.num_args;
 	fci.params = args;
 
-	if (executor->next_microtask != NULL) {
-		async_scheduler_add_microtask_ex(executor->next_microtask);
+	if (walker->next_microtask != NULL) {
+		async_scheduler_add_microtask_ex(walker->next_microtask);
 	} else {
 		zval z_closure;
-		ZVAL_OBJ(&z_closure, executor->next_closure);
-		executor->next_microtask = async_scheduler_create_microtask(&z_closure);
+		ZVAL_OBJ(&z_closure, walker->next_closure);
+		walker->next_microtask = async_scheduler_create_microtask(&z_closure);
 
-		if (UNEXPECTED(executor->next_microtask == NULL)) {
+		if (UNEXPECTED(walker->next_microtask == NULL)) {
 			zend_throw_error(NULL, "Failed to create microtask");
 			RETURN_THROWS();
 		}
 
-		async_scheduler_add_microtask_ex(executor->next_microtask);
+		async_scheduler_add_microtask_ex(walker->next_microtask);
 	}
 
-	while (Z_TYPE(executor->is_finished) != IS_TRUE && is_continue) {
+	while (Z_TYPE(walker->is_finished) != IS_TRUE && is_continue) {
 
-		if (Z_TYPE(executor->iterator) == IS_ARRAY) {
-			current = zend_hash_get_current_data(Z_ARR(executor->iterator));
+		if (Z_TYPE(walker->iterator) == IS_ARRAY) {
+			current = zend_hash_get_current_data(Z_ARR(walker->iterator));
 		} else {
-			current = executor->zend_iterator->funcs->get_current_data(executor->zend_iterator);
+			current = walker->zend_iterator->funcs->get_current_data(walker->zend_iterator);
 		}
 
 		if (current == NULL) {
-			ZVAL_TRUE(&executor->is_finished);
+			ZVAL_TRUE(&walker->is_finished);
 			break;
 		}
 
@@ -423,10 +423,10 @@ PHP_METHOD(Async_Walker, run)
 		if (Z_TYPE_P(current) == IS_INDIRECT) {
 			current = Z_INDIRECT_P(current);
 			if (Z_TYPE_P(current) == IS_UNDEF) {
-				if (Z_TYPE(executor->iterator) == IS_ARRAY) {
-                    zend_hash_move_forward(Z_ARR(executor->iterator));
+				if (Z_TYPE(walker->iterator) == IS_ARRAY) {
+                    zend_hash_move_forward(Z_ARR(walker->iterator));
                 } else {
-                    executor->zend_iterator->funcs->move_forward(executor->zend_iterator);
+                    walker->zend_iterator->funcs->move_forward(walker->zend_iterator);
                 }
 
 				continue;
@@ -438,22 +438,22 @@ PHP_METHOD(Async_Walker, run)
 		ZVAL_COPY(&args[0], current);
 
 		/* Retrieve key */
-		if (Z_TYPE(executor->iterator) == IS_ARRAY) {
-            zend_hash_get_current_key_zval(Z_ARR(executor->iterator), &args[1]);
+		if (Z_TYPE(walker->iterator) == IS_ARRAY) {
+            zend_hash_get_current_key_zval(Z_ARR(walker->iterator), &args[1]);
         } else {
-            executor->zend_iterator->funcs->get_current_key(executor->zend_iterator, &args[1]);
+            walker->zend_iterator->funcs->get_current_key(walker->zend_iterator, &args[1]);
         }
 
 		/* Move to next element already now -- this mirrors the approach used by foreach
 		 * and ensures proper behavior with regard to modifications. */
-	    if (Z_TYPE(executor->iterator) == IS_ARRAY) {
-            zend_hash_move_forward(Z_ARR(executor->iterator));
+	    if (Z_TYPE(walker->iterator) == IS_ARRAY) {
+            zend_hash_move_forward(Z_ARR(walker->iterator));
         } else {
-            executor->zend_iterator->funcs->move_forward(executor->zend_iterator);
+            walker->zend_iterator->funcs->move_forward(walker->zend_iterator);
         }
 
 		/* Call the userland function */
-		result = zend_call_function(&fci, &executor->fcc);
+		result = zend_call_function(&fci, &walker->fcc);
 
 		if (result == SUCCESS) {
 
@@ -476,17 +476,17 @@ PHP_METHOD(Async_Walker, run)
         }
 	}
 
-	if (Z_TYPE(executor->defer) != IS_NULL) {
+	if (Z_TYPE(walker->defer) != IS_NULL) {
 
 		zval defer;
-		ZVAL_COPY_VALUE(&defer, &executor->defer);
-		ZVAL_NULL(&executor->defer);
+		ZVAL_COPY_VALUE(&defer, &walker->defer);
+		ZVAL_NULL(&walker->defer);
 
 		zend_exception_save();
 
 		// Call user callable function
 		ZVAL_UNDEF(&retval);
-		ZVAL_COPY_VALUE(&args[0], &executor->custom_data);
+		ZVAL_COPY_VALUE(&args[0], &walker->custom_data);
 		call_user_function(EG(function_table), NULL, &defer, &retval, 1, args);
 		zval_ptr_dtor(&args[0]);
 		zval_ptr_dtor(&retval);
@@ -499,9 +499,9 @@ PHP_METHOD(Async_Walker, run)
 PHP_METHOD(Async_Walker, next)
 {
 	// This method is called by the scheduler to continue the foreach loop
-	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
+	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
-	if (Z_TYPE(executor->is_finished) == IS_TRUE) {
+	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
 		return;
 	}
 
@@ -509,7 +509,7 @@ PHP_METHOD(Async_Walker, next)
 	zval zval_fiber;
 	zval params[1];
 
-	ZVAL_OBJ(&params[0], executor->run_closure);
+	ZVAL_OBJ(&params[0], walker->run_closure);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();
@@ -520,7 +520,7 @@ PHP_METHOD(Async_Walker, next)
 
 PHP_METHOD(Async_Walker, cancel)
 {
-	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
+	async_walker_t * executor = (async_walker_t *) Z_OBJ_P(getThis());
 
     if (Z_TYPE(executor->is_finished) == IS_TRUE) {
         return;
@@ -531,23 +531,23 @@ PHP_METHOD(Async_Walker, cancel)
 
 static void async_walker_object_destroy(zend_object* object)
 {
-	async_foreach_executor_t * executor = (async_foreach_executor_t *) object;
+	async_walker_t * walker = (async_walker_t *) object;
 
-	if (executor->zend_iterator != NULL) {
-		zend_iterator_dtor(executor->zend_iterator);
-		executor->zend_iterator = NULL;
+	if (walker->zend_iterator != NULL) {
+		zend_iterator_dtor(walker->zend_iterator);
+		walker->zend_iterator = NULL;
 	}
 
-	if (executor->run_closure != NULL) {
-        OBJ_RELEASE(executor->run_closure);
+	if (walker->run_closure != NULL) {
+        OBJ_RELEASE(walker->run_closure);
     }
 
-	if (executor->next_closure != NULL) {
-        OBJ_RELEASE(executor->next_closure);
+	if (walker->next_closure != NULL) {
+        OBJ_RELEASE(walker->next_closure);
     }
 
-	if (executor->next_microtask != NULL) {
-		async_scheduler_microtask_dtor(executor->next_microtask);
+	if (walker->next_microtask != NULL) {
+		async_scheduler_microtask_dtor(walker->next_microtask);
 	}
 }
 

@@ -23,7 +23,7 @@
 
 ZEND_API zend_class_entry *async_ce_walker;
 
-typedef struct _async_foreach_s {
+typedef struct _async_walker_s {
 	union
 	{
 		/* PHP std object */
@@ -44,7 +44,7 @@ typedef struct _async_foreach_s {
 	zend_object * run_closure;
 	zend_object * next_closure;
 	async_microtask_t * next_microtask;
-} async_foreach_executor_t;
+} async_walker_t;
 
 zend_result async_register_module(void);
 
