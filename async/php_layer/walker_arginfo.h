@@ -1,7 +1,7 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 24b8b3e534ccbc33eec3441181a66dc602639d98 */
+ * Stub hash: 4db5de0588ae2c48838d822166a76e89daf08755 */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_apply, 0, 3, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_walk, 0, 3, IS_VOID, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, iterator, Traversable, MAY_BE_ARRAY, NULL)
 	ZEND_ARG_TYPE_INFO(0, function, IS_CALLABLE, 0)
 	ZEND_ARG_TYPE_INFO(0, customData, IS_MIXED, 0)
@@ -15,13 +15,13 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Walker_cancel arginfo_class_Async_Walker_run
 
-ZEND_METHOD(Async_Walker, apply);
+ZEND_METHOD(Async_Walker, walk);
 ZEND_METHOD(Async_Walker, run);
 ZEND_METHOD(Async_Walker, next);
 ZEND_METHOD(Async_Walker, cancel);
 
 static const zend_function_entry class_Async_Walker_methods[] = {
-	ZEND_ME(Async_Walker, apply, arginfo_class_Async_Walker_apply, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_Walker, walk, arginfo_class_Async_Walker_walk, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Walker, run, arginfo_class_Async_Walker_run, ZEND_ACC_PRIVATE)
 	ZEND_ME(Async_Walker, next, arginfo_class_Async_Walker_next, ZEND_ACC_PRIVATE)
 	ZEND_ME(Async_Walker, cancel, arginfo_class_Async_Walker_cancel, ZEND_ACC_PUBLIC)

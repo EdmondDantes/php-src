@@ -260,12 +260,12 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
-PHP_METHOD(Async_Walker, apply)
+PHP_METHOD(Async_Walker, walk)
 {
 	zval * iterable;
 	zval * function;
-	zval * custom_data;
-	zval * defer;
+	zval * custom_data = NULL;
+	zval * defer = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(2, 4)
 		Z_PARAM_ITERABLE(iterable)
@@ -281,6 +281,7 @@ PHP_METHOD(Async_Walker, apply)
 	}
 
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
+		SEPARATE_ARRAY(iterable);
 		zend_hash_internal_pointer_reset(Z_ARR_P(iterable));
 	} else {
 		zend_object_iterator *zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
@@ -294,7 +295,7 @@ PHP_METHOD(Async_Walker, apply)
 		}
 	}
 
-	if (Z_TYPE_P(defer) != IS_NULL) {
+	if (defer != NULL && Z_TYPE_P(defer) != IS_NULL) {
 		if (!zend_is_callable(defer, 0, NULL)) {
 			zend_argument_value_error(3, "Expected parameter to be a valid callable");
 			RETURN_THROWS();
@@ -306,8 +307,18 @@ PHP_METHOD(Async_Walker, apply)
 	object_properties_init(&executor->std, async_ce_walker);
 
 	ZVAL_COPY(&executor->iterator, iterable);
-	ZVAL_COPY(&executor->custom_data, custom_data);
-	ZVAL_COPY(&executor->defer, defer);
+
+	if (custom_data != NULL) {
+		ZVAL_COPY(&executor->custom_data, custom_data);
+	} else {
+		ZVAL_NULL(&executor->custom_data);
+	}
+
+	if (defer != NULL) {
+		ZVAL_COPY(&executor->defer, defer);
+	} else {
+		ZVAL_NULL(&executor->defer);
+	}
 
 	if (UNEXPECTED(zend_fcall_info_init(function, 0, &executor->fci, &executor->fcc, NULL, NULL) != SUCCESS)) {
 		zend_throw_error(NULL, "Failed to initialize fcall info");
