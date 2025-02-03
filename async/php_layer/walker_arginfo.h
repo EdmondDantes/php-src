@@ -1,10 +1,10 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4db5de0588ae2c48838d822166a76e89daf08755 */
+ * Stub hash: 5445f211924e38856705fe6761544d2b8ab9e2f4 */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_walk, 0, 3, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_walk, 0, 2, IS_VOID, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, iterator, Traversable, MAY_BE_ARRAY, NULL)
 	ZEND_ARG_TYPE_INFO(0, function, IS_CALLABLE, 0)
-	ZEND_ARG_TYPE_INFO(0, customData, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, customData, IS_MIXED, 0, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, defer, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
 

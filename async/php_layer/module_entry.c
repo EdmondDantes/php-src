@@ -280,6 +280,13 @@ PHP_METHOD(Async_Walker, walk)
 		RETURN_THROWS();
 	}
 
+	if (defer != NULL && Z_TYPE_P(defer) != IS_NULL) {
+		if (!zend_is_callable(defer, 0, NULL)) {
+			zend_argument_value_error(3, "Expected parameter to be a valid callable");
+			RETURN_THROWS();
+		}
+	}
+
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
 		SEPARATE_ARRAY(iterable);
 		zend_hash_internal_pointer_reset(Z_ARR_P(iterable));
@@ -298,18 +305,15 @@ PHP_METHOD(Async_Walker, walk)
 		RETURN_THROWS();
 	}
 
-	if (defer != NULL && Z_TYPE_P(defer) != IS_NULL) {
-		if (!zend_is_callable(defer, 0, NULL)) {
-			zend_argument_value_error(3, "Expected parameter to be a valid callable");
-			RETURN_THROWS();
-		}
-	}
-
 	async_walker_t * walker = zend_object_alloc_ex(sizeof(async_walker_t), async_ce_walker);
 	zend_object_std_init(&walker->std, async_ce_walker);
 	object_properties_init(&walker->std, async_ce_walker);
 
-	ZVAL_COPY(&walker->iterator, iterable);
+	if (Z_TYPE_P(iterable) == IS_ARRAY) {
+		ZVAL_COPY_VALUE(&walker->iterator, iterable);
+	} else {
+		ZVAL_COPY(&walker->iterator, iterable);
+	}
 
 	if (custom_data != NULL) {
 		ZVAL_COPY(&walker->custom_data, custom_data);

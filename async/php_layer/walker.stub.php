@@ -13,7 +13,7 @@ namespace Async;
  */
 final class Walker
 {
-    public static function walk(iterable $iterator, callable $function, mixed $customData, ?callable $defer = null):
+    public static function walk(iterable $iterator, callable $function, mixed $customData = null, ?callable $defer = null):
     void {}
 
     public readonly bool $isFinished = false;
