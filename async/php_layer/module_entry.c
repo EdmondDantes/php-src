@@ -268,7 +268,7 @@ PHP_METHOD(Async_Walker, walk)
 	zval * defer = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(2, 4)
-		Z_PARAM_ITERABLE(iterable)
+		Z_PARAM_ZVAL(iterable)
 		Z_PARAM_ZVAL(function)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_ZVAL(custom_data)
@@ -283,7 +283,7 @@ PHP_METHOD(Async_Walker, walk)
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
 		SEPARATE_ARRAY(iterable);
 		zend_hash_internal_pointer_reset(Z_ARR_P(iterable));
-	} else {
+	} else if (Z_TYPE_P(iterable) == IS_OBJECT && Z_OBJCE_P(iterable)->get_iterator) {
 		zend_object_iterator *zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
 
 		if (UNEXPECTED(EG(exception) || zend_iterator == NULL)) {
@@ -293,6 +293,9 @@ PHP_METHOD(Async_Walker, walk)
 		if (zend_iterator->funcs->rewind) {
 			zend_iterator->funcs->rewind(zend_iterator);
 		}
+	} else {
+		zend_argument_value_error(1, "Expected parameter to be an array or an object implementing Traversable");
+		RETURN_THROWS();
 	}
 
 	if (defer != NULL && Z_TYPE_P(defer) != IS_NULL) {
