@@ -260,14 +260,14 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
-PHP_METHOD(Async_Walker, aplly)
+PHP_METHOD(Async_Walker, apply)
 {
 	zval * iterable;
 	zval * function;
 	zval * custom_data;
 	zval * defer;
 
-	ZEND_PARSE_PARAMETERS_START(2, 3)
+	ZEND_PARSE_PARAMETERS_START(2, 4)
 		Z_PARAM_ITERABLE(iterable)
 		Z_PARAM_ZVAL(function)
 		Z_PARAM_OPTIONAL
@@ -314,8 +314,8 @@ PHP_METHOD(Async_Walker, aplly)
 		RETURN_THROWS();
 	}
 
-	if (UNEXPECTED(executor->fcc.function_handler->common.num_args < 1)) {
-		zend_argument_value_error(1, "The callback function must have at least one parameter.");
+	if (UNEXPECTED(executor->fcc.function_handler->common.num_args < 1 || executor->fcc.function_handler->common.num_args > 3)) {
+		zend_argument_value_error(1, "The callback function must have at least one parameter and at most three parameters");
 		RETURN_THROWS();
 	}
 
