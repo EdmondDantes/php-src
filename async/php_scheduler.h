@@ -81,8 +81,8 @@ ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
 ZEND_API void async_scheduler_add_microtask(zval *microtask);
-ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask, const bool transfer);
-ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler);
+ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask);
+ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler);
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask);
 ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask);
 

@@ -339,7 +339,7 @@ PHP_METHOD(Async_Walker, apply)
 	zval zval_fiber;
 	zval params[1];
 
-	ZVAL_COPY_VALUE(&params[0], executor->run_closure);
+	ZVAL_OBJ(&params[0], executor->run_closure);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();
@@ -378,10 +378,10 @@ PHP_METHOD(Async_Walker, run)
 	fci.params = args;
 
 	if (executor->next_microtask != NULL) {
-		async_scheduler_add_microtask(executor->next_microtask, false);
+		async_scheduler_add_microtask_ex(executor->next_microtask);
 	} else {
 		zval z_closure;
-		ZVAL_COPY_VALUE(&z_closure, &executor->next_closure);
+		ZVAL_OBJ(&z_closure, executor->next_closure);
 		executor->next_microtask = async_scheduler_create_microtask(&z_closure);
 
 		if (UNEXPECTED(executor->next_microtask == NULL)) {
@@ -389,7 +389,7 @@ PHP_METHOD(Async_Walker, run)
 			RETURN_THROWS();
 		}
 
-		async_scheduler_add_microtask(executor->next_microtask, false);
+		async_scheduler_add_microtask_ex(executor->next_microtask);
 	}
 
 	while (Z_TYPE(executor->is_finished) != IS_TRUE && is_continue) {
@@ -495,7 +495,7 @@ PHP_METHOD(Async_Walker, next)
 	zval zval_fiber;
 	zval params[1];
 
-	ZVAL_COPY_VALUE(&params[0], executor->run_closure);
+	ZVAL_OBJ(&params[0], executor->run_closure);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();

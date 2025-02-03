@@ -306,18 +306,15 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 	async_throw_error("Invalid microtask type: should be a callable");
 }
 
-ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask, const bool transfer)
+ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
 {
 	zval z_microtask;
 	ZVAL_PTR(&z_microtask, microtask);
 	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
-
-	if (false == transfer) {
-		microtask->ref_count++;
-	}
+	microtask->ref_count++;
 }
 
-ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler)
+ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler)
 {
 	async_internal_microtask_t *microtask = emalloc(sizeof(async_internal_microtask_t));
 	microtask->task.is_fci = false;
