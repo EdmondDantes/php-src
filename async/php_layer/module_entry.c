@@ -30,7 +30,7 @@
 #include "notifier.h"
 #include "../php_async.h"
 #include "module_entry_arginfo.h"
-#include "for_each_arginfo.h"
+#include "walker_arginfo.h"
 
 #define THROW_IF_REACTOR_DISABLED if (UNEXPECTED(false == reactor_is_enabled())) {			\
 		async_throw_error("The operation is not available without an enabled reactor");		\
@@ -482,17 +482,57 @@ PHP_METHOD(Async_Walker, run)
 
 PHP_METHOD(Async_Walker, next)
 {
+	// This method is called by the scheduler to continue the foreach loop
+	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
 
+	if (Z_TYPE(executor->is_finished) == IS_TRUE) {
+		return;
+	}
+
+	// We just need to create a new fiber to continue the loop
+	zval zval_fiber;
+	zval params[1];
+
+	ZVAL_COPY_VALUE(&params[0], executor->run_closure);
+
+	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
+		RETURN_THROWS();
+	}
+
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 }
 
 PHP_METHOD(Async_Walker, cancel)
 {
+	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
 
+    if (Z_TYPE(executor->is_finished) == IS_TRUE) {
+        return;
+    }
+
+    ZVAL_TRUE(&executor->is_finished);
 }
 
 static void async_walker_object_destroy(zend_object* object)
 {
+	async_foreach_executor_t * executor = (async_foreach_executor_t *) object;
 
+	if (executor->zend_iterator != NULL) {
+		zend_iterator_dtor(executor->zend_iterator);
+		executor->zend_iterator = NULL;
+	}
+
+	if (executor->run_closure != NULL) {
+        OBJ_RELEASE(executor->run_closure);
+    }
+
+	if (executor->next_closure != NULL) {
+        OBJ_RELEASE(executor->next_closure);
+    }
+
+	if (executor->next_microtask != NULL) {
+		async_scheduler_microtask_dtor(executor->next_microtask);
+	}
 }
 
 static zend_object_handlers async_walker_handlers;

@@ -45,11 +45,7 @@ static void invoke_microtask(zval *task)
 			internal->handler((async_microtask_t *) internal);
 		}
 
-		microtask->ref_count--;
-		if (microtask->ref_count <= 0) {
-			microtask->ref_count = 0;
-			efree(microtask);
-		}
+		async_scheduler_microtask_dtor(microtask);
 
 	} else {
 		zval retval;
@@ -349,6 +345,26 @@ ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
 	function->fci_cache = fcc;
 
 	return (async_microtask_t *) function;
+}
+
+ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
+{
+	if (microtask->ref_count <= 0) {
+		return;
+	}
+
+	microtask->ref_count--;
+
+	if (microtask->ref_count > 0) {
+		return;
+	}
+
+	if (microtask->is_fci) {
+		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+		zend_fcall_info_args_clear(&function->fci, 1);
+	}
+
+	efree(microtask);
 }
 
 zend_always_inline void execute_deferred_fibers(void)
