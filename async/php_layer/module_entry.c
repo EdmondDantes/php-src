@@ -472,7 +472,9 @@ PHP_METHOD(Async_Walker, run)
 
 		// Call user callable function
 		ZVAL_UNDEF(&retval);
-		call_user_function(CG(function_table), NULL, &defer, &retval, 0, NULL);
+		ZVAL_COPY_VALUE(&args[0], &executor->custom_data);
+		call_user_function(EG(function_table), NULL, &defer, &retval, 1, args);
+		zval_ptr_dtor(&args[0]);
 		zval_ptr_dtor(&retval);
 		zval_ptr_dtor(&defer);
 
