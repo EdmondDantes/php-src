@@ -25,6 +25,7 @@ typedef void (*async_microtask_handler_t)(async_microtask_t *microtask);
 struct _async_microtask_s {
 	bool is_fci;
 	bool is_cancelled;
+	int ref_count;
 };
 
 typedef struct _async_internal_microtask_s {
@@ -80,8 +81,9 @@ ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
 ZEND_API void async_scheduler_add_microtask(zval *microtask);
-ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask);
+ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask, const bool transfer);
 ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler);
+ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 

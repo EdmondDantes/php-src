@@ -260,23 +260,23 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
-PHP_METHOD(Async_Walker, start)
+PHP_METHOD(Async_Walker, aplly)
 {
 	zval * iterable;
 	zval * function;
-	zend_fcall_info fci;
-	zend_fcall_info_cache fcc;
+	zval * custom_data;
 	zval * defer;
 
 	ZEND_PARSE_PARAMETERS_START(2, 3)
 		Z_PARAM_ITERABLE(iterable)
 		Z_PARAM_ZVAL(function)
 		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL(custom_data)
 		Z_PARAM_ZVAL(defer)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (!zend_is_callable(function, 0, NULL)) {
-		zend_argument_value_error(1, "Expected parameter to be a valid callable");
+		zend_argument_value_error(2, "Expected parameter to be a valid callable");
 		RETURN_THROWS();
 	}
 
@@ -306,6 +306,7 @@ PHP_METHOD(Async_Walker, start)
 	object_properties_init(&executor->std, async_ce_walker);
 
 	ZVAL_COPY(&executor->iterator, iterable);
+	ZVAL_COPY(&executor->custom_data, custom_data);
 	ZVAL_COPY(&executor->defer, defer);
 
 	if (UNEXPECTED(zend_fcall_info_init(function, 0, &executor->fci, &executor->fcc, NULL, NULL) != SUCCESS)) {
@@ -313,15 +314,27 @@ PHP_METHOD(Async_Walker, start)
 		RETURN_THROWS();
 	}
 
+	if (UNEXPECTED(executor->fcc.function_handler->common.num_args < 1)) {
+		zend_argument_value_error(1, "The callback function must have at least one parameter.");
+		RETURN_THROWS();
+	}
+
 	zend_function * run_method = zend_hash_str_find_ptr(&async_ce_walker->function_table, "run", sizeof("run") - 1);
 
 	ZEND_ASSERT(run_method != NULL && "Method run not found");
 
-	zval run_closure;
+	zval z_closure;
 	zval this_ptr;
 	ZVAL_OBJ(&this_ptr, &executor->std);
-	zend_create_closure(&run_closure, run_method, async_ce_walker, async_ce_walker, &this_ptr);
-	executor->run_closure = Z_OBJ(run_closure);
+	zend_create_closure(&z_closure, run_method, async_ce_walker, async_ce_walker, &this_ptr);
+	executor->run_closure = Z_OBJ(z_closure);
+
+	zend_function * next_method = zend_hash_str_find_ptr(&async_ce_walker->function_table, "next", sizeof("next") - 1);
+
+	ZEND_ASSERT(run_method != NULL && "Method next not found");
+
+	zend_create_closure(&z_closure, next_method, async_ce_walker, async_ce_walker, &this_ptr);
+	executor->next_closure = Z_OBJ(z_closure);
 
 	zval zval_fiber;
 	zval params[1];
@@ -339,16 +352,136 @@ PHP_METHOD(Async_Walker, run)
 {
 	async_foreach_executor_t * executor = (async_foreach_executor_t *) Z_OBJ_P(getThis());
 
-	zval * current;
+	if (Z_TYPE(executor->is_finished) == IS_TRUE) {
+        return;
+    }
 
-	do {
+	/**
+	 * callback function
+	 * function(mixed $value, mixed $key, mixed $custom_data) : bool {}
+	 **/
+
+	bool is_continue = true;
+	zend_result result = SUCCESS;
+	zval args[3], retval;
+	zval * current;
+	ZVAL_UNDEF(&args[0]);
+	ZVAL_UNDEF(&args[1]);
+	ZVAL_COPY_VALUE(&args[2], &executor->custom_data);
+
+	// Copy the fci to avoid overwriting the original
+	// Because the another fiber may be started in the callback function
+	zend_fcall_info fci = executor->fci;
+
+	fci.retval = &retval;
+	fci.param_count = executor->fcc.function_handler->common.num_args;
+	fci.params = args;
+
+	if (executor->next_microtask != NULL) {
+		async_scheduler_add_microtask(executor->next_microtask, false);
+	} else {
+		zval z_closure;
+		ZVAL_COPY_VALUE(&z_closure, &executor->next_closure);
+		executor->next_microtask = async_scheduler_create_microtask(&z_closure);
+
+		if (UNEXPECTED(executor->next_microtask == NULL)) {
+			zend_throw_error(NULL, "Failed to create microtask");
+			RETURN_THROWS();
+		}
+
+		async_scheduler_add_microtask(executor->next_microtask, false);
+	}
+
+	while (Z_TYPE(executor->is_finished) != IS_TRUE && is_continue) {
+
 		if (Z_TYPE(executor->iterator) == IS_ARRAY) {
 			current = zend_hash_get_current_data(Z_ARR(executor->iterator));
 		} else {
 			current = executor->zend_iterator->funcs->get_current_data(executor->zend_iterator);
 		}
-	} while (current != NULL);
 
+		if (current == NULL) {
+			ZVAL_TRUE(&executor->is_finished);
+			break;
+		}
+
+		/* Skip undefined indirect elements */
+		if (Z_TYPE_P(current) == IS_INDIRECT) {
+			current = Z_INDIRECT_P(current);
+			if (Z_TYPE_P(current) == IS_UNDEF) {
+				if (Z_TYPE(executor->iterator) == IS_ARRAY) {
+                    zend_hash_move_forward(Z_ARR(executor->iterator));
+                } else {
+                    executor->zend_iterator->funcs->move_forward(executor->zend_iterator);
+                }
+
+				continue;
+			}
+		}
+
+		/* Ensure the value is a reference. Otherwise, the location of the value may be freed. */
+		ZVAL_MAKE_REF(current);
+		ZVAL_COPY(&args[0], current);
+
+		/* Retrieve key */
+		if (Z_TYPE(executor->iterator) == IS_ARRAY) {
+            zend_hash_get_current_key_zval(Z_ARR(executor->iterator), &args[1]);
+        } else {
+            executor->zend_iterator->funcs->get_current_key(executor->zend_iterator, &args[1]);
+        }
+
+		/* Move to next element already now -- this mirrors the approach used by foreach
+		 * and ensures proper behavior with regard to modifications. */
+	    if (Z_TYPE(executor->iterator) == IS_ARRAY) {
+            zend_hash_move_forward(Z_ARR(executor->iterator));
+        } else {
+            executor->zend_iterator->funcs->move_forward(executor->zend_iterator);
+        }
+
+		/* Call the userland function */
+		result = zend_call_function(&fci, &executor->fcc);
+
+		if (result == SUCCESS) {
+
+			if (Z_TYPE(retval) == IS_FALSE) {
+                is_continue = false;
+            }
+
+			zval_ptr_dtor(&retval);
+		}
+
+		zval_ptr_dtor(&args[0]);
+
+		if (Z_TYPE(args[1]) != IS_UNDEF) {
+			zval_ptr_dtor(&args[1]);
+			ZVAL_UNDEF(&args[1]);
+		}
+
+		if (UNEXPECTED(result == FAILURE || EG(exception) != NULL)) {
+            break;
+        }
+	}
+
+	if (Z_TYPE(executor->defer) != IS_NULL) {
+
+		zval defer;
+		ZVAL_COPY_VALUE(&defer, &executor->defer);
+		ZVAL_NULL(&executor->defer);
+
+		zend_exception_save();
+
+		// Call user callable function
+		ZVAL_UNDEF(&retval);
+		call_user_function(CG(function_table), NULL, &defer, &retval, 0, NULL);
+		zval_ptr_dtor(&retval);
+		zval_ptr_dtor(&defer);
+
+		zend_exception_restore();
+	}
+}
+
+PHP_METHOD(Async_Walker, next)
+{
 
 }
 

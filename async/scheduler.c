@@ -45,7 +45,11 @@ static void invoke_microtask(zval *task)
 			internal->handler((async_microtask_t *) internal);
 		}
 
-		efree(microtask);
+		microtask->ref_count--;
+		if (microtask->ref_count <= 0) {
+			microtask->ref_count = 0;
+			efree(microtask);
+		}
 
 	} else {
 		zval retval;
@@ -306,11 +310,15 @@ ZEND_API void async_scheduler_add_microtask(zval *microtask)
 	async_throw_error("Invalid microtask type: should be a callable");
 }
 
-ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask)
+ZEND_API void async_scheduler_add_microtask(async_microtask_t *microtask, const bool transfer)
 {
 	zval z_microtask;
 	ZVAL_PTR(&z_microtask, microtask);
 	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+
+	if (false == transfer) {
+		microtask->ref_count++;
+	}
 }
 
 ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler)
@@ -318,10 +326,29 @@ ZEND_API void async_scheduler_add_microtask(async_microtask_handler_t handler)
 	async_internal_microtask_t *microtask = emalloc(sizeof(async_internal_microtask_t));
 	microtask->task.is_fci = false;
 	microtask->handler = handler;
+	microtask->task.ref_count = 1;
 
 	zval z_microtask;
 	ZVAL_PTR(&z_microtask, microtask);
 	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+}
+
+ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
+{
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+
+	if (UNEXPECTED(zend_fcall_info_init(microtask, 0, &fci, &fcc, NULL, NULL) != SUCCESS)) {
+		return NULL;
+	}
+
+	async_function_microtask_t *function = emalloc(sizeof(async_function_microtask_t));
+	function->task.is_fci = true;
+	function->task.ref_count = 1;
+	function->fci = fci;
+	function->fci_cache = fcc;
+
+	return (async_microtask_t *) function;
 }
 
 zend_always_inline void execute_deferred_fibers(void)

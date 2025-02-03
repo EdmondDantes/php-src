@@ -13,12 +13,15 @@ namespace Async;
  */
 final class Walker
 {
-    public static function start(iterable $iterator, callable $function, ?callable $defer = null): void {}
+    public static function apply(iterable $iterator, callable $function, mixed $customData, ?callable $defer = null):
+    void {}
 
     public readonly bool $isFinished = false;
     private iterable $iterator;
+    private mixed $customData;
     private mixed $defer;
 
     private function run(): void {}
+    private function next(): void {}
     public function cancel(): void {}
 }

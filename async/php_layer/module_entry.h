@@ -16,6 +16,7 @@
 #ifndef ASYNC_MODULE_ENTRY_H
 #define ASYNC_MODULE_ENTRY_H
 
+#include <async/php_scheduler.h>
 #include "zend_common.h"
 
 #define PHP_ASYNC_VERSION "1.0.0-dev"
@@ -32,6 +33,7 @@ typedef struct _async_foreach_s {
 			char _padding[sizeof(zend_object) - sizeof(zval)];
 			zval is_finished;
 			zval iterator;
+			zval custom_data;
 			zval defer;
 		};
 	};
@@ -40,6 +42,8 @@ typedef struct _async_foreach_s {
 	zend_fcall_info_cache fcc;
 	zend_object_iterator * zend_iterator;
 	zend_object * run_closure;
+	zend_object * next_closure;
+	async_microtask_t * next_microtask;
 } async_foreach_executor_t;
 
 zend_result async_register_module(void);
