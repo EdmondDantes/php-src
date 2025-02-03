@@ -543,7 +543,7 @@ static void async_register_foreach_ce(void)
 {
 	async_ce_walker = register_class_Async_Walker();
 
-	async_ce_callback->default_object_handlers = &async_walker_handlers;
+	async_ce_walker->default_object_handlers = &async_walker_handlers;
 
 	async_walker_handlers = std_object_handlers;
 	async_walker_handlers.dtor_obj = async_walker_object_destroy;
