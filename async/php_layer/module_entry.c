@@ -260,11 +260,6 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
-static void walker_on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * entry)
-{
-	OBJ_RELEASE(entry->object);
-}
-
 PHP_METHOD(Async_Walker, walk)
 {
 	zval * iterable;
@@ -389,12 +384,8 @@ PHP_METHOD(Async_Walker, walk)
 	}
 
 	GC_DELREF(walker->run_closure);
-
-	zend_fiber_defer(
-		(zend_fiber *) Z_OBJ(zval_fiber),
-		zend_fiber_create_defer_callback(walker_on_fiber_finished, walker->run_closure, true),
-		true
-	);
+	GC_DELREF(&walker->std);
+	GC_DELREF(&walker->std);
 
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 }
@@ -430,6 +421,9 @@ PHP_METHOD(Async_Walker, run)
 
 	if (walker->next_microtask != NULL) {
 		async_scheduler_add_microtask_ex(walker->next_microtask);
+		if (EXPECTED(EG(exception) == NULL)) {
+			GC_ADDREF(&walker->std);
+        }
 	}
 
 	/* Reload array and position */
@@ -547,6 +541,7 @@ PHP_METHOD(Async_Walker, next)
 	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
 	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
+		OBJ_RELEASE(&walker->std);
 		return;
 	}
 
@@ -560,13 +555,9 @@ PHP_METHOD(Async_Walker, next)
 		RETURN_THROWS();
 	}
 
-	zend_fiber_defer(
-		(zend_fiber *) Z_OBJ(zval_fiber),
-		zend_fiber_create_defer_callback(walker_on_fiber_finished, walker->run_closure, true),
-		true
-	);
-
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
+
+	GC_DELREF(&walker->std);
 }
 
 PHP_METHOD(Async_Walker, cancel)
