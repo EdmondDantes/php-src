@@ -383,6 +383,7 @@ PHP_METHOD(Async_Walker, walk)
 		RETURN_THROWS();
 	}
 
+	// Transfer run_closure ownership to the fiber
 	GC_DELREF(walker->run_closure);
 	GC_DELREF(&walker->std);
 	GC_DELREF(&walker->std);
@@ -513,6 +514,7 @@ PHP_METHOD(Async_Walker, run)
 	if (walker->hash_iterator != -1) {
         zend_hash_iterator_del(walker->hash_iterator);
 		walker->hash_iterator = -1;
+		walker->target_hash = NULL;
     }
 
 	if (Z_TYPE(walker->defer) != IS_NULL) {
@@ -585,9 +587,13 @@ static void async_walker_object_destroy(zend_object* object)
 	}
 
 	if (walker->run_closure != NULL) {
-		// Add fake reference to prevent double free
-		GC_ADDREF(&walker->std);
-        OBJ_RELEASE(walker->run_closure);
+		if (!(OBJ_FLAGS(walker->run_closure) & IS_OBJ_DESTRUCTOR_CALLED)) {
+			// Add fake reference to prevent double free
+			GC_ADDREF(&walker->std);
+			OBJ_RELEASE(walker->run_closure);
+		}
+
+		walker->run_closure = NULL;
     }
 
 	if (walker->next_microtask != NULL) {
