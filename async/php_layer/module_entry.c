@@ -287,9 +287,17 @@ PHP_METHOD(Async_Walker, walk)
 		}
 	}
 
+	HashPosition position	= 0;
+	uint32_t hash_iterator	= -1;
+
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
-		SEPARATE_ARRAY(iterable);
-		zend_hash_internal_pointer_reset(Z_ARR_P(iterable));
+		if (zend_hash_num_elements(Z_ARR_P(iterable)) == 0) {
+			return;
+		}
+
+		zend_hash_internal_pointer_reset_ex(Z_ARR_P(iterable), &position);
+		hash_iterator = zend_hash_iterator_add(Z_ARR_P(iterable), position);
+
 	} else if (Z_TYPE_P(iterable) == IS_OBJECT && Z_OBJCE_P(iterable)->get_iterator) {
 		zend_object_iterator *zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
 
@@ -310,7 +318,10 @@ PHP_METHOD(Async_Walker, walk)
 	object_properties_init(&walker->std, async_ce_walker);
 
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
-		ZVAL_COPY_VALUE(&walker->iterator, iterable);
+		ZVAL_COPY(&walker->iterator, iterable);
+		walker->target_hash = Z_ARRVAL_P(iterable);
+		walker->position = position;
+		walker->hash_iterator = hash_iterator;
 	} else {
 		ZVAL_COPY(&walker->iterator, iterable);
 	}
@@ -331,6 +342,9 @@ PHP_METHOD(Async_Walker, walk)
 		zend_throw_error(NULL, "Failed to initialize fcall info");
 		RETURN_THROWS();
 	}
+
+	// Keep a reference to closures or callable objects while the walker is running.
+	Z_TRY_ADDREF(walker->fci.function_name);
 
 	if (UNEXPECTED(walker->fcc.function_handler->common.num_args < 1 || walker->fcc.function_handler->common.num_args > 3)) {
 		zend_argument_value_error(1, "The callback function must have at least one parameter and at most three parameters");
@@ -410,10 +424,16 @@ PHP_METHOD(Async_Walker, run)
 		async_scheduler_add_microtask_ex(walker->next_microtask);
 	}
 
+	/* Reload array and position */
+	if (walker->target_hash != NULL) {
+		walker->position = zend_hash_iterator_pos_ex(walker->hash_iterator, &walker->iterator);
+		walker->target_hash = Z_ARRVAL(walker->iterator);
+	}
+
 	while (Z_TYPE(walker->is_finished) != IS_TRUE && is_continue) {
 
-		if (Z_TYPE(walker->iterator) == IS_ARRAY) {
-			current = zend_hash_get_current_data(Z_ARR(walker->iterator));
+		if (walker->target_hash != NULL) {
+			current = zend_hash_get_current_data_ex(walker->target_hash, &walker->position);
 		} else {
 			current = walker->zend_iterator->funcs->get_current_data(walker->zend_iterator);
 		}
@@ -442,16 +462,18 @@ PHP_METHOD(Async_Walker, run)
 		ZVAL_COPY(&args[0], current);
 
 		/* Retrieve key */
-		if (Z_TYPE(walker->iterator) == IS_ARRAY) {
-            zend_hash_get_current_key_zval(Z_ARR(walker->iterator), &args[1]);
+		if (walker->target_hash != NULL) {
+			zend_hash_get_current_key_zval_ex(walker->target_hash, &args[1], &walker->position);
         } else {
             walker->zend_iterator->funcs->get_current_key(walker->zend_iterator, &args[1]);
         }
 
 		/* Move to next element already now -- this mirrors the approach used by foreach
 		 * and ensures proper behavior with regard to modifications. */
-	    if (Z_TYPE(walker->iterator) == IS_ARRAY) {
-            zend_hash_move_forward(Z_ARR(walker->iterator));
+	    if (walker->target_hash != NULL) {
+            zend_hash_move_forward_ex(walker->target_hash, &walker->position);
+	    	// And update the iterator position
+	    	EG(ht_iterators)[walker->hash_iterator].pos = walker->position;
         } else {
             walker->zend_iterator->funcs->move_forward(walker->zend_iterator);
         }
@@ -466,6 +488,12 @@ PHP_METHOD(Async_Walker, run)
             }
 
 			zval_ptr_dtor(&retval);
+
+			/* Reload array and position */
+			if (walker->target_hash != NULL) {
+				walker->position = zend_hash_iterator_pos_ex(walker->hash_iterator, &walker->iterator);
+				walker->target_hash = Z_ARRVAL(walker->iterator);
+			}
 		}
 
 		zval_ptr_dtor(&args[0]);
@@ -479,6 +507,11 @@ PHP_METHOD(Async_Walker, run)
             break;
         }
 	}
+
+	if (walker->hash_iterator != -1) {
+        zend_hash_iterator_del(walker->hash_iterator);
+		walker->hash_iterator = -1;
+    }
 
 	if (Z_TYPE(walker->defer) != IS_NULL) {
 
@@ -537,6 +570,10 @@ static void async_walker_object_destroy(zend_object* object)
 {
 	async_walker_t * walker = (async_walker_t *) object;
 
+	/* Cleanup callback and unset field to prevent GC / duplicate dtor issues. */
+	zval_ptr_dtor(&walker->fci.function_name);
+	ZVAL_UNDEF(&walker->fci.function_name);
+
 	if (walker->zend_iterator != NULL) {
 		zend_iterator_dtor(walker->zend_iterator);
 		walker->zend_iterator = NULL;
@@ -553,6 +590,8 @@ static void async_walker_object_destroy(zend_object* object)
 	if (walker->next_microtask != NULL) {
 		async_scheduler_microtask_dtor(walker->next_microtask);
 	}
+
+	ZEND_ASSERT(walker->hash_iterator == -1 && "Iterator should be removed");
 }
 
 static zend_object_handlers async_walker_handlers;

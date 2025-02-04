@@ -44,6 +44,9 @@ typedef struct _async_walker_s {
 	zend_object * run_closure;
 	zend_object * next_closure;
 	async_microtask_t * next_microtask;
+	HashTable * target_hash;
+	HashPosition position;
+	uint32_t hash_iterator;
 } async_walker_t;
 
 zend_result async_register_module(void);
