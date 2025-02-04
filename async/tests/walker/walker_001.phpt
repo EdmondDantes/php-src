@@ -18,8 +18,8 @@ echo "end\n";
 ?>
 --EXPECT--
 start
-echo: value: 1
-echo: value: 2
-echo: value: 3
+value: 1
+value: 2
+value: 3
 async function 2
 end
