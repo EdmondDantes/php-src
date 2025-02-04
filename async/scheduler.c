@@ -36,9 +36,16 @@ static void invoke_microtask(zval *task)
 		if (microtask->is_fci) {
 			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
 
+			zval retval;
+			ZVAL_UNDEF(&retval);
+			function->fci.retval = &retval;
+
 			if (zend_call_function(&function->fci, &function->fci_cache) == SUCCESS) {
 				zval_ptr_dtor(function->fci.retval);
 			}
+
+			function->fci.retval = NULL;
+
 		} else {
 			// Call the function directly
 			async_internal_microtask_t *internal = (async_internal_microtask_t *) microtask;
@@ -316,7 +323,7 @@ ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
 
 ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler)
 {
-	async_internal_microtask_t *microtask = emalloc(sizeof(async_internal_microtask_t));
+	async_internal_microtask_t *microtask = pecalloc(1, sizeof(async_internal_microtask_t), 0);
 	microtask->task.is_fci = false;
 	microtask->handler = handler;
 	microtask->task.ref_count = 1;
@@ -335,11 +342,14 @@ ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
 		return NULL;
 	}
 
-	async_function_microtask_t *function = emalloc(sizeof(async_function_microtask_t));
+	async_function_microtask_t *function = pecalloc(1, sizeof(async_function_microtask_t), 0);
 	function->task.is_fci = true;
 	function->task.ref_count = 1;
 	function->fci = fci;
 	function->fci_cache = fcc;
+
+	// Keep a reference to closures or callable objects
+	Z_TRY_ADDREF(function->fci.function_name);
 
 	return (async_microtask_t *) function;
 }
@@ -358,10 +368,12 @@ ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
 
 	if (microtask->is_fci) {
 		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+		zval_ptr_dtor(&function->fci.function_name);
+		ZVAL_UNDEF(&function->fci.function_name);
 		zend_fcall_info_args_clear(&function->fci, 1);
 	}
 
-	efree(microtask);
+	pefree(microtask, 0);
 }
 
 zend_always_inline void execute_deferred_fibers(void)

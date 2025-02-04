@@ -1487,6 +1487,21 @@ void zend_fiber_finalize(zend_fiber *fiber)
 	}
 }
 
+ZEND_API zend_fiber_defer_callback * zend_fiber_create_defer_callback(zend_fiber_defer_func func, zend_object *object, bool without_dtor)
+{
+	zend_fiber_defer_callback *callback = emalloc(sizeof(zend_fiber_defer_callback));
+
+	callback->func = func;
+	callback->object = object;
+	callback->without_dtor = without_dtor;
+
+	if (object != NULL && without_dtor == false) {
+		GC_ADDREF(object);
+	}
+
+	return callback;
+}
+
 zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_callback * callback, const bool transfer_object)
 {
 	if (fiber->shutdown_handlers == NULL) {

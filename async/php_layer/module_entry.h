@@ -42,7 +42,6 @@ typedef struct _async_walker_s {
 	zend_fcall_info_cache fcc;
 	zend_object_iterator * zend_iterator;
 	zend_object * run_closure;
-	zend_object * next_closure;
 	async_microtask_t * next_microtask;
 	HashTable * target_hash;
 	HashPosition position;

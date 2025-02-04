@@ -106,11 +106,11 @@ METHOD(__construct)
 	THIS(notifier) = async_notifier_new_by_class(sizeof(reactor_notifier_t), async_ce_channel_notifier);
 
 	if (owner_fiber != NULL) {
-		zend_fiber_defer_callback * callback = emalloc(sizeof(zend_fiber_defer_callback));
-		callback->object = Z_OBJ_P(ZEND_THIS);
-		callback->func = on_fiber_finished;
-		callback->without_dtor = true;
-		THIS(fiber_callback_index) = zend_fiber_defer(owner_fiber, callback, true);
+		THIS(fiber_callback_index) = zend_fiber_defer(
+				owner_fiber,
+				zend_fiber_create_defer_callback(on_fiber_finished, Z_OBJ_P(ZEND_THIS), true),
+				true
+			);
 	} else {
 		THIS(fiber_callback_index) = -1;
 	}

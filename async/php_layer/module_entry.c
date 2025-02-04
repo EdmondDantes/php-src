@@ -260,6 +260,11 @@ PHP_FUNCTION(Async_onSignal)
 	}
 }
 
+static void walker_on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * entry)
+{
+	OBJ_RELEASE(entry->object);
+}
+
 PHP_METHOD(Async_Walker, walk)
 {
 	zval * iterable;
@@ -346,8 +351,8 @@ PHP_METHOD(Async_Walker, walk)
 	// Keep a reference to closures or callable objects while the walker is running.
 	Z_TRY_ADDREF(walker->fci.function_name);
 
-	if (UNEXPECTED(walker->fcc.function_handler->common.num_args < 1 || walker->fcc.function_handler->common.num_args > 3)) {
-		zend_argument_value_error(1, "The callback function must have at least one parameter and at most three parameters");
+	if (UNEXPECTED(walker->fcc.function_handler->common.num_args > 3)) {
+		zend_argument_value_error(1, "The callback function must have at most 3 parameters");
 		RETURN_THROWS();
 	}
 
@@ -366,7 +371,13 @@ PHP_METHOD(Async_Walker, walk)
 	ZEND_ASSERT(run_method != NULL && "Method next not found");
 
 	zend_create_closure(&z_closure, next_method, async_ce_walker, async_ce_walker, &this_ptr);
-	walker->next_closure = Z_OBJ(z_closure);
+	walker->next_microtask = async_scheduler_create_microtask(&z_closure);
+	zval_ptr_dtor(&z_closure);
+
+	if (UNEXPECTED(walker->next_microtask == NULL)) {
+		zend_throw_error(NULL, "Failed to create microtask for next method");
+		RETURN_THROWS();
+	}
 
 	zval zval_fiber;
 	zval params[1];
@@ -376,6 +387,14 @@ PHP_METHOD(Async_Walker, walk)
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();
 	}
+
+	GC_DELREF(walker->run_closure);
+
+	zend_fiber_defer(
+		(zend_fiber *) Z_OBJ(zval_fiber),
+		zend_fiber_create_defer_callback(walker_on_fiber_finished, walker->run_closure, true),
+		true
+	);
 
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 }
@@ -410,17 +429,6 @@ PHP_METHOD(Async_Walker, run)
 	fci.params = args;
 
 	if (walker->next_microtask != NULL) {
-		async_scheduler_add_microtask_ex(walker->next_microtask);
-	} else {
-		zval z_closure;
-		ZVAL_OBJ(&z_closure, walker->next_closure);
-		walker->next_microtask = async_scheduler_create_microtask(&z_closure);
-
-		if (UNEXPECTED(walker->next_microtask == NULL)) {
-			zend_throw_error(NULL, "Failed to create microtask");
-			RETURN_THROWS();
-		}
-
 		async_scheduler_add_microtask_ex(walker->next_microtask);
 	}
 
@@ -552,6 +560,12 @@ PHP_METHOD(Async_Walker, next)
 		RETURN_THROWS();
 	}
 
+	zend_fiber_defer(
+		(zend_fiber *) Z_OBJ(zval_fiber),
+		zend_fiber_create_defer_callback(walker_on_fiber_finished, walker->run_closure, true),
+		true
+	);
+
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 }
 
@@ -580,11 +594,9 @@ static void async_walker_object_destroy(zend_object* object)
 	}
 
 	if (walker->run_closure != NULL) {
+		// Add fake reference to prevent double free
+		GC_ADDREF(&walker->std);
         OBJ_RELEASE(walker->run_closure);
-    }
-
-	if (walker->next_closure != NULL) {
-        OBJ_RELEASE(walker->next_closure);
     }
 
 	if (walker->next_microtask != NULL) {
