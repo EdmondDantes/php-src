@@ -1,5 +1,5 @@
 --TEST--
-Nested async functions order
+Async\Walker::walk with array and one fiber
 --FILE--
 <?php
 

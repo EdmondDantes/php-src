@@ -422,9 +422,6 @@ PHP_METHOD(Async_Walker, run)
 
 	if (walker->next_microtask != NULL) {
 		async_scheduler_add_microtask_ex(walker->next_microtask);
-		if (EXPECTED(EG(exception) == NULL)) {
-			GC_ADDREF(&walker->std);
-        }
 	}
 
 	/* Reload array and position */
@@ -543,7 +540,6 @@ PHP_METHOD(Async_Walker, next)
 	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
 	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
-		OBJ_RELEASE(&walker->std);
 		return;
 	}
 
@@ -559,7 +555,7 @@ PHP_METHOD(Async_Walker, next)
 
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
 
-	GC_DELREF(&walker->std);
+	//GC_DELREF(&walker->std);
 }
 
 PHP_METHOD(Async_Walker, cancel)
@@ -587,17 +583,21 @@ static void async_walker_object_destroy(zend_object* object)
 	}
 
 	if (walker->run_closure != NULL) {
+		/*
 		if (!(OBJ_FLAGS(walker->run_closure) & IS_OBJ_DESTRUCTOR_CALLED)) {
 			// Add fake reference to prevent double free
 			GC_ADDREF(&walker->std);
 			OBJ_RELEASE(walker->run_closure);
 		}
+		*/
 
 		walker->run_closure = NULL;
     }
 
 	if (walker->next_microtask != NULL) {
-		async_scheduler_microtask_dtor(walker->next_microtask);
+		GC_ADDREF(&walker->std);
+		async_scheduler_microtask_free(walker->next_microtask);
+		walker->next_microtask = NULL;
 	}
 
 	ZEND_ASSERT(walker->hash_iterator == -1 && "Iterator should be removed");

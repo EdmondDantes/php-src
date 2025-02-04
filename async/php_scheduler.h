@@ -85,6 +85,7 @@ ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask);
 ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler);
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask);
 ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask);
+ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
 

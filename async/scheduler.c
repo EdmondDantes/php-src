@@ -33,6 +33,11 @@ static void invoke_microtask(zval *task)
 
 		async_microtask_t *microtask = (async_microtask_t *) Z_PTR_P(task);
 
+		if (microtask->is_cancelled) {
+			async_scheduler_microtask_dtor(microtask);
+			return;
+		}
+
 		if (microtask->is_fci) {
 			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
 
@@ -366,7 +371,7 @@ ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
 		return;
 	}
 
-	if (microtask->is_fci) {
+	if (microtask->is_fci && false == microtask->is_cancelled) {
 		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
 		zval_ptr_dtor(&function->fci.function_name);
 		ZVAL_UNDEF(&function->fci.function_name);
@@ -374,6 +379,27 @@ ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
 	}
 
 	pefree(microtask, 0);
+}
+
+ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
+{
+	if (microtask->ref_count <= 0) {
+		return;
+	}
+
+	if (microtask->ref_count > 1) {
+		microtask->ref_count--;
+		microtask->is_cancelled = 1;
+	} else {
+		async_scheduler_microtask_dtor(microtask);
+	}
+
+	if (microtask->is_fci) {
+		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+		zval_ptr_dtor(&function->fci.function_name);
+		ZVAL_UNDEF(&function->fci.function_name);
+		zend_fcall_info_args_clear(&function->fci, 1);
+	}
 }
 
 zend_always_inline void execute_deferred_fibers(void)
