@@ -23,7 +23,21 @@
 
 #include "../php_layer/exceptions.h"
 
+typedef struct
+{
+	uv_loop_t loop;
+#ifdef PHP_WIN32
+	uv_thread_t * processWatcherThread;
+	HANDLE ioCompletionPort;
+	HANDLE hWakeUpEvent;
+	bool isRunning;
+	uv_async_t async;
+#endif
+} libuv_reactor_t;
+
 #define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
+#define LIBUV_REACTOR ((libuv_reactor_t *) ASYNC_G(reactor))
+#define PROCESS_WATCHER ((libuv_reactor_t *) ASYNC_G(reactor))->processWatcherThread
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
 void libuv_startup(void);
@@ -457,15 +471,149 @@ static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const z
 	return (reactor_handle_t*) object;
 }
 
+#ifdef PHP_WIN32
+
+static void process_watcher_thread(void * args)
+{
+	libuv_reactor_t *reactor = (libuv_reactor_t *) args;
+
+	ULONG_PTR completionKey;
+
+	while (reactor->isRunning) {
+		GetQueuedCompletionStatus(reactor->ioCompletionPort, NULL, &completionKey, NULL, INFINITE);
+
+		if (completionKey == (ULONG_PTR) reactor->hWakeUpEvent) {
+			continue;
+		}
+
+		libuv_process_t * process = (libuv_process_t *) completionKey;
+
+	}
+}
+
+static void on_process_event(uv_async_t *handle)
+{
+
+}
+
+static void libuv_init_process_watcher(void)
+{
+	if (PROCESS_WATCHER != NULL) {
+		return;
+	}
+
+	uv_thread_t *thread = pecalloc(1, sizeof(uv_thread_t), 0);
+
+	if (thread == NULL) {
+		return;
+	}
+
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
+
+	// Create IoCompletionPort
+	reactor->ioCompletionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
+
+	if (reactor->ioCompletionPort == NULL) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create IO completion port: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	// Wake up event
+	reactor->hWakeUpEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+	if (reactor->hWakeUpEvent == NULL) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create wake up event: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	if (CreateIoCompletionPort(
+		reactor->hWakeUpEvent, reactor->ioCompletionPort, (ULONG_PTR)reactor->hWakeUpEvent, 0
+	) == NULL) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create IO completion port for wake up event: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	int error = uv_thread_create(thread, process_watcher_thread, reactor);
+
+	if (error < 0) {
+		pefree(thread, 0);
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create process watcher thread: %s", uv_strerror(error));
+		return;
+	}
+
+	PROCESS_WATCHER = thread;
+
+	error = uv_async_init(UVLOOP, &reactor->async, on_process_event);
+
+	if (error < 0) {
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to initialize async handle: %s", uv_strerror(error));
+	}
+}
+
 static void libuv_add_process_handle(reactor_handle_t *handle)
 {
+	libuv_process_t *process = (libuv_process_t *) handle;
+
+	if (process->hJob != NULL) {
+		return;
+	}
+
+	if (PROCESS_WATCHER == NULL) {
+		libuv_init_process_watcher();
+	}
+
+	process->hJob = CreateJobObject(NULL, NULL);
+
+	if (AssignProcessToJobObject(process->hJob, (HANDLE) process->pid) == 0) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		async_throw_error("Failed to assign process to job object: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	if (CreateIoCompletionPort(
+		process->hJob, LIBUV_REACTOR->ioCompletionPort, (ULONG_PTR)process, 0
+	) == NULL) {
+		CloseHandle(process->hJob);
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		async_throw_error("Failed to create IO completion port for process: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+	}
+}
+
+static void libuv_remove_process_handle(reactor_handle_t *handle)
+{
+	libuv_process_t *process = (libuv_process_t *) handle;
+
+	if (process->hJob != NULL) {
+		CloseHandle(process->hJob);
+		process->hJob = NULL;
+	}
+}
+
+#else
+
+// Unix process handle
+
+static void libuv_add_process_handle(reactor_handle_t *handle)
+{
+	libuv_process_t *process = (libuv_process_t *) handle;
 
 }
 
 static void libuv_remove_process_handle(reactor_handle_t *handle)
 {
+	libuv_process_t *process = (libuv_process_t *) handle;
 
 }
+
+#endif
 
 static void libuv_close_process_handle(reactor_handle_t *handle)
 {
@@ -780,7 +928,7 @@ static void libuv_startup(void)
 		return;
 	}
 
-	async_globals->reactor = pecalloc(1, sizeof(uv_loop_t), 1);
+	async_globals->reactor = pecalloc(1, sizeof(libuv_reactor_t), 1);
 	const int result = uv_loop_init(async_globals->reactor);
 
 	if (result != 0) {

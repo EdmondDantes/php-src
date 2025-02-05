@@ -77,7 +77,6 @@ struct _libuv_process_s {
 		reactor_process_t process;
 	};
 	async_process_id_t pid;
-	uv_process_t *uv_handle;
 #ifdef PHP_WIN32
 	HANDLE hJob;
 #endif
