@@ -286,7 +286,16 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 	 * But if we're freeing the resource because of GC, don't wait. */
 #ifdef PHP_WIN32
 	if (FG(pclose_wait)) {
+
+#ifdef PHP_ASYNC
+		if (IN_ASYNC_CONTEXT) {
+
+		} else {
+			WaitForSingleObject(proc->childHandle, INFINITE);
+		}
+#else
 		WaitForSingleObject(proc->childHandle, INFINITE);
+#endif
 	}
 	GetExitCodeProcess(proc->childHandle, &wstatus);
 	if (wstatus == STILL_ACTIVE) {

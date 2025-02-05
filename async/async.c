@@ -1339,3 +1339,26 @@ bool async_ensure_socket_nonblocking(php_socket_t socket)
 
 	return true;
 }
+
+ZEND_API void async_wait_process(async_process_id_t pid, const zend_ulong timeout)
+{
+#ifdef PHP_WIN32
+	HANDLE hJob = CreateJobObject(NULL, NULL);
+
+	if (hJob == NULL) {
+		php_error_docref(NULL, E_WARNING, "Failed to create job object for process synchronization");
+		return;
+	}
+
+	if (!AssignProcessToJobObject(hJob, (HANDLE) pid)) {
+		CloseHandle(hJob);
+		php_error_docref(NULL, E_WARNING, "Failed to assign process to job object for process synchronization");
+		return;
+	}
+
+
+
+#else
+
+#endif
+}

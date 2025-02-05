@@ -445,7 +445,31 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 
 static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const zend_ulong events)
 {
-	return NULL;
+	DEFINE_ZEND_INTERNAL_OBJECT(libuv_process_t, object, async_ce_process_handle);
+	async_notifier_object_init(&object->handle);
+
+	if (UNEXPECTED(object == NULL)) {
+		return NULL;
+	}
+
+	object->pid = pid;
+
+	return (reactor_handle_t*) object;
+}
+
+static void libuv_add_process_handle(reactor_handle_t *handle)
+{
+
+}
+
+static void libuv_remove_process_handle(reactor_handle_t *handle)
+{
+
+}
+
+static void libuv_close_process_handle(reactor_handle_t *handle)
+{
+
 }
 
 //=============================================================
@@ -552,7 +576,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
     	fs_event->reference_count = 1;
 
     } else if (object->ce == async_ce_process_handle) {
-
+    	libuv_add_process_handle(handle);
     } else if (object->ce == async_ce_thread_handle) {
 
     }
@@ -633,7 +657,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
     	fs_event->reference_count = 0;
 
     } else if (object->ce == async_ce_process_handle) {
-
+		libuv_remove_process_handle(handle);
     } else if (object->ce == async_ce_thread_handle) {
 
     }
@@ -708,7 +732,7 @@ static void libuv_close_handle(reactor_handle_t *handle)
 		uv_handle = (uv_handle_t *) fs_event->uv_handle;
 
 	} else if (object->ce == async_ce_process_handle) {
-
+		libuv_close_process_handle(handle);
 	} else if (object->ce == async_ce_thread_handle) {
 
 	} else if (object->ce == async_ce_dns_info) {

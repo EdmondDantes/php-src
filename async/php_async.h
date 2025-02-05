@@ -319,6 +319,8 @@ ZEND_API void async_free_addr_info(struct addrinfo *addr_info);
 
 ZEND_API bool async_ensure_socket_nonblocking(php_socket_t socket);
 
+ZEND_API void async_wait_process(async_process_id_t pid, const zend_ulong timeout);
+
 END_EXTERN_C()
 
 #endif //ASYNC_H
