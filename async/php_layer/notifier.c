@@ -111,7 +111,6 @@ void async_register_notifier_ce(void)
 
 	async_notifier_handlers = std_object_handlers;
 	async_notifier_handlers.dtor_obj = async_notifier_object_destroy;
-	//async_notifier_handlers.free_obj = async_notifier_object_free;
 	async_notifier_handlers.clone_obj = NULL;
 }
 

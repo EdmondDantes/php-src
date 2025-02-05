@@ -14,6 +14,8 @@
    +----------------------------------------------------------------------+
 */
 
+#include <zend_fibers.h>
+
 #include "php_http.h"
 #include "php_ini.h"
 #include "url.h"
@@ -385,6 +387,16 @@ PHP_FUNCTION(http_get_last_response_headers)
 		RETURN_THROWS();
 	}
 
+	if (EG(active_fiber)) {
+		zval * last_http_headers = zend_fiber_storage_find_zval(NULL, (zend_ulong) &BG(last_http_headers));
+
+		if (last_http_headers) {
+			RETURN_COPY(last_http_headers);
+		} else {
+			RETURN_NULL();
+		}
+	}
+
 	if (!Z_ISUNDEF(BG(last_http_headers))) {
 		RETURN_COPY(&BG(last_http_headers));
 	} else {
@@ -396,6 +408,10 @@ PHP_FUNCTION(http_clear_last_response_headers)
 {
 	if (zend_parse_parameters_none() == FAILURE) {
 		RETURN_THROWS();
+	}
+
+	if (EG(active_fiber)) {
+		zend_fiber_storage_unbind(NULL, (zend_ulong) &BG(last_http_headers));
 	}
 
 	zval_ptr_dtor(&BG(last_http_headers));

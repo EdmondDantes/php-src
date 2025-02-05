@@ -188,6 +188,7 @@ ZEND_API zend_class_entry *zend_ce_fiber;
 static zend_class_entry *zend_ce_fiber_error;
 #ifdef PHP_ASYNC
 ZEND_API zend_class_entry *zend_ce_fiber_context;
+static zend_object_handlers zend_fiber_context_handlers;
 #endif
 
 static zend_object_handlers zend_fiber_handlers;
@@ -1351,7 +1352,7 @@ ZEND_METHOD(FiberContext, findObject)
 		RETURN_THROWS();
 	}
 
-	zend_object * result = zend_fiber_storage_find_object(THIS_FIBER_CONTEXT, ce);
+	zend_object * result = zend_fiber_storage_find_object(THIS_FIBER_CONTEXT, (zend_ulong) ce);
 
 	if (result == NULL) {
 		RETURN_NULL();
@@ -1385,7 +1386,7 @@ ZEND_METHOD(FiberContext, bindObject)
 		RETURN_THROWS();
 	}
 
-	if (zend_fiber_storage_bind(THIS_FIBER_CONTEXT, object, ce, replace) == FAILURE) {
+	if (zend_fiber_storage_bind(THIS_FIBER_CONTEXT, object, (zend_ulong) ce, replace) == FAILURE) {
 		zend_throw_error(NULL, "Failed to bind object to fiber context");
 		RETURN_THROWS();
 	}
@@ -1406,7 +1407,7 @@ ZEND_METHOD(FiberContext, unbindObject)
 		RETURN_THROWS();
 	}
 
-	zend_fiber_storage_unbind(THIS_FIBER_CONTEXT, ce);
+	zend_fiber_storage_unbind(THIS_FIBER_CONTEXT, (zend_ulong) ce);
 }
 
 #endif
@@ -1420,6 +1421,13 @@ ZEND_METHOD(FiberError, __construct)
 	);
 }
 
+#ifdef PHP_ASYNC
+static void zend_fiber_context_destroy(zend_object *object)
+{
+	zend_fiber_storage *storage = (zend_fiber_storage *) object;
+	zend_hash_destroy(&storage->storage);
+}
+#endif
 
 void zend_register_fiber_ce(void)
 {
@@ -1437,6 +1445,11 @@ void zend_register_fiber_ce(void)
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
 #ifdef PHP_ASYNC
 	zend_ce_fiber_context = register_class_FiberContext();
+	zend_ce_fiber_context->default_object_handlers = &zend_fiber_context_handlers;
+
+	zend_fiber_context_handlers = std_object_handlers;
+	zend_fiber_context_handlers.dtor_obj = zend_fiber_context_destroy;
+	zend_fiber_context_handlers.clone_obj = NULL;
 #endif
 }
 
@@ -1544,15 +1557,42 @@ zend_fiber_storage * zend_fiber_storage_new(void)
 	const size_t size = sizeof(zend_fiber_storage) + zend_object_properties_size(zend_ce_fiber_context);
 	zend_fiber_storage *object = emalloc(size);
 	memset(object, 0, size);
+	zend_object_std_init(&object->std, zend_ce_fiber_context);
+	object_properties_init(&object->std, zend_ce_fiber_context);
 
 	zend_hash_init(&object->storage, 0, NULL, ZVAL_PTR_DTOR, 0);
 
 	return object;
 }
 
-zend_object * zend_fiber_storage_find_object(const zend_fiber_storage *storage, zend_class_entry * class_entry)
+ZEND_API zend_fiber_storage * zend_fiber_storage_get(zend_fiber *fiber)
 {
-	zval *value = zend_hash_index_find(&storage->storage, (zend_ulong) class_entry);
+	if (fiber == NULL) {
+		fiber = EG(active_fiber);
+	}
+
+	if (fiber == NULL) {
+		return NULL;
+	}
+
+	if (fiber->fiber_storage == NULL) {
+		fiber->fiber_storage = zend_fiber_storage_new();
+	}
+
+	return fiber->fiber_storage;
+}
+
+zend_object * zend_fiber_storage_find_object(zend_fiber_storage *storage, zend_ulong entry)
+{
+	if (storage == NULL) {
+		storage = zend_fiber_storage_get(NULL);
+	}
+
+	if (storage == NULL) {
+		return NULL;
+	}
+
+	zval *value = zend_hash_index_find(&storage->storage, entry);
 
 	if (value == NULL) {
 		return NULL;
@@ -1565,22 +1605,43 @@ zend_object * zend_fiber_storage_find_object(const zend_fiber_storage *storage, 
 	return Z_OBJ_P(value);
 }
 
-zend_result zend_fiber_storage_bind(zend_fiber_storage *storage, zend_object *object, zend_class_entry * class_entry, bool replace)
+ZEND_API zval * zend_fiber_storage_find_zval(zend_fiber_storage *storage, zend_ulong entry)
 {
-	if (class_entry == NULL) {
-		class_entry = object->ce;
+	if (storage == NULL) {
+		storage = zend_fiber_storage_get(NULL);
+	}
+
+	if (storage == NULL) {
+		return NULL;
+	}
+
+	return zend_hash_index_find(&storage->storage, entry);
+}
+
+zend_result zend_fiber_storage_bind(zend_fiber_storage *storage, zend_object *object, zend_ulong entry, bool replace)
+{
+	if (storage == NULL) {
+		storage = zend_fiber_storage_get(NULL);
+	}
+
+	if (storage == NULL) {
+		return FAILURE;
+	}
+
+	if (entry == 0) {
+		entry = (zend_ulong) object->ce;
 	}
 
 	// Class entry point as array int key.
-	zval *entry = zend_hash_index_find(&storage->storage, (zend_ulong) class_entry);
+	zval *z_entry = zend_hash_index_find(&storage->storage, entry);
 
-	if (entry != NULL && replace == false) {
+	if (z_entry != NULL && replace == false) {
 		return FAILURE;
 	}
 
 	zval z_object;
 	ZVAL_OBJ(&z_object, object);
-	if (zend_hash_index_update(&storage->storage, (zend_ulong) class_entry, &z_object) == NULL) {
+	if (zend_hash_index_update(&storage->storage, entry, &z_object) == NULL) {
 		return FAILURE;
 	}
 
@@ -1588,9 +1649,46 @@ zend_result zend_fiber_storage_bind(zend_fiber_storage *storage, zend_object *ob
 	return SUCCESS;
 }
 
-void zend_fiber_storage_unbind(zend_fiber_storage *storage, zend_class_entry * class_entry)
+ZEND_API zend_result zend_fiber_storage_bind_zval(zend_fiber_storage *storage, zval *value, zend_ulong entry, bool replace)
 {
-	zend_hash_index_del(&storage->storage, (zend_ulong) class_entry);
+	if (storage == NULL) {
+		storage = zend_fiber_storage_get(NULL);
+	}
+
+	if (storage == NULL) {
+		return FAILURE;
+	}
+
+	if (entry == 0) {
+		entry = (zend_ulong) value->value.obj->ce;
+	}
+
+	// Class entry point as array int key.
+	zval *z_entry = zend_hash_index_find(&storage->storage, entry);
+
+	if (z_entry != NULL && replace == false) {
+		return FAILURE;
+	}
+
+	if (zend_hash_index_update(&storage->storage, entry, value) == NULL) {
+		return FAILURE;
+	}
+
+	Z_TRY_ADDREF_P(value);
+	return SUCCESS;
+}
+
+void zend_fiber_storage_unbind(zend_fiber_storage *storage, zend_ulong entry)
+{
+	if (storage == NULL) {
+		storage = zend_fiber_storage_get(NULL);
+	}
+
+	if (storage == NULL) {
+		return;
+	}
+
+	zend_hash_index_del(&storage->storage, entry);
 }
 
 #endif
