@@ -27,17 +27,21 @@ typedef struct
 {
 	uv_loop_t loop;
 #ifdef PHP_WIN32
-	uv_thread_t * processWatcherThread;
+	uv_thread_t * watcherThread;
 	HANDLE ioCompletionPort;
 	HANDLE hWakeUpEvent;
 	bool isRunning;
 	uv_async_t async;
+	/* Circular buffer of pid */
+	ATOMIC_PTR(circular_buffer_t) pid_queue;
+	/* Lock for the events buffer */
+	zend_atomic_bool eventsLock;
 #endif
 } libuv_reactor_t;
 
 #define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
 #define LIBUV_REACTOR ((libuv_reactor_t *) ASYNC_G(reactor))
-#define PROCESS_WATCHER ((libuv_reactor_t *) ASYNC_G(reactor))->processWatcherThread
+#define WATCHER ((libuv_reactor_t *) ASYNC_G(reactor))->watcherThread
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
 void libuv_startup(void);
@@ -498,7 +502,7 @@ static void on_process_event(uv_async_t *handle)
 
 static void libuv_init_process_watcher(void)
 {
-	if (PROCESS_WATCHER != NULL) {
+	if (WATCHER != NULL) {
 		return;
 	}
 
@@ -547,7 +551,7 @@ static void libuv_init_process_watcher(void)
 		return;
 	}
 
-	PROCESS_WATCHER = thread;
+	WATCHER = thread;
 
 	error = uv_async_init(UVLOOP, &reactor->async, on_process_event);
 
@@ -564,7 +568,7 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		return;
 	}
 
-	if (PROCESS_WATCHER == NULL) {
+	if (WATCHER == NULL) {
 		libuv_init_process_watcher();
 	}
 

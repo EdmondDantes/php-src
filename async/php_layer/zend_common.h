@@ -27,6 +27,211 @@
 
 #define DEFINE_VAR(type, var) type *var = (type *) emalloc(sizeof(type));
 
+//
+// Atomic operations
+//
+
+/* Define atomic pointer type based on platform */
+#if defined(ZEND_WIN32)
+/* Windows: Use volatile pointer for atomicity */
+# define ATOMIC_PTR(T) T* volatile
+# define zend_atomic_ptr_t void* volatile
+#elif defined(HAVE_C11_ATOMICS)
+/* C11: Use standard atomic types */
+# include <stdatomic.h>
+# define ATOMIC_PTR(T) _Atomic(T*)
+# define zend_atomic_ptr_t _Atomic(void*)
+#elif defined(HAVE_GNUC_ATOMICS) || defined(HAVE_SYNC_ATOMICS)
+/* GCC or compatible: Use volatile pointer */
+# define ATOMIC_PTR(T) T* volatile
+# define zend_atomic_ptr_t void* volatile
+#else
+/* Fallback: Use volatile pointer (non-atomic) */
+# define ATOMIC_PTR(T) T* volatile
+# define zend_atomic_ptr_t void* volatile
+#endif
+
+/* Initialize an atomic pointer */
+#define ZEND_ATOMIC_PTR_INIT(ptr, val) (*(ptr) = (val))
+
+/* Windows implementation using Interlocked API */
+#ifdef ZEND_WIN32
+#include <windows.h>
+
+zend_always_inline
+void* zend_atomic_ptr_exchange(zend_atomic_ptr_t* target, void* value) {
+    // Use InterlockedExchangePointer with proper type casting
+    return InterlockedExchangePointer(
+        (PVOID volatile*)target,
+        value
+    );
+}
+
+zend_always_inline
+bool zend_atomic_ptr_compare_exchange(zend_atomic_ptr_t* target, void** expected, void* desired) {
+    // Use InterlockedCompareExchangePointer with proper type casting
+    void* prev = InterlockedCompareExchangePointer(
+        (PVOID volatile*)target,
+        desired,
+        *expected
+    );
+    if (prev == *expected) return true;
+    *expected = prev;
+    return false;
+}
+
+zend_always_inline
+void* zend_atomic_ptr_load(zend_atomic_ptr_t* target) {
+    // Load using exchange with itself
+    return InterlockedExchangePointer(
+        (PVOID volatile*)target,
+        *target
+    );
+}
+
+zend_always_inline
+void zend_atomic_ptr_store(zend_atomic_ptr_t* target, void* value) {
+    // Store using exchange
+    InterlockedExchangePointer(
+        (PVOID volatile*)target,
+        value
+    );
+}
+
+/* C11 atomic implementation */
+#elif defined(HAVE_C11_ATOMICS)
+
+zend_always_inline
+void* zend_atomic_ptr_exchange(zend_atomic_ptr_t* target, void* value) {
+    // Use standard atomic exchange
+    return atomic_exchange_explicit(target, value, memory_order_seq_cst);
+}
+
+zend_always_inline
+bool zend_atomic_ptr_compare_exchange(zend_atomic_ptr_t* target, void** expected, void* desired) {
+    // Use standard atomic compare-and-swap
+    return atomic_compare_exchange_strong_explicit(
+        target, expected, desired,
+        memory_order_seq_cst, memory_order_seq_cst
+    );
+}
+
+zend_always_inline
+void* zend_atomic_ptr_load(zend_atomic_ptr_t* target) {
+    // Use standard atomic load
+    return atomic_load_explicit(target, memory_order_seq_cst);
+}
+
+zend_always_inline
+void zend_atomic_ptr_store(zend_atomic_ptr_t* target, void* value) {
+    // Use standard atomic store
+    atomic_store_explicit(target, value, memory_order_seq_cst);
+}
+
+/* GCC atomic implementation */
+#elif defined(HAVE_GNUC_ATOMICS)
+
+zend_always_inline
+void* zend_atomic_ptr_exchange(zend_atomic_ptr_t* target, void* value) {
+    // Use GCC built-in atomic exchange
+    void* prev;
+    __atomic_exchange(target, &value, &prev, __ATOMIC_SEQ_CST);
+    return prev;
+}
+
+zend_always_inline
+bool zend_atomic_ptr_compare_exchange(zend_atomic_ptr_t* target, void** expected, void* desired) {
+    // Use GCC built-in compare-and-swap
+    return __atomic_compare_exchange(
+        target, expected, &desired,
+        0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST
+    );
+}
+
+zend_always_inline
+void* zend_atomic_ptr_load(zend_atomic_ptr_t* target) {
+    // Use GCC built-in atomic load
+    void* val;
+    __atomic_load(target, &val, __ATOMIC_SEQ_CST);
+    return val;
+}
+
+zend_always_inline
+void zend_atomic_ptr_store(zend_atomic_ptr_t* target, void* value) {
+    // Use GCC built-in atomic store
+    __atomic_store(target, &value, __ATOMIC_SEQ_CST);
+}
+
+/* Legacy GCC sync implementation */
+#elif defined(HAVE_SYNC_ATOMICS)
+
+zend_always_inline
+void* zend_atomic_ptr_exchange(zend_atomic_ptr_t* target, void* value) {
+    // Use GCC sync built-in exchange with memory barrier
+    void* prev = __sync_lock_test_and_set(target, value);
+    __sync_synchronize();
+    return prev;
+}
+
+zend_always_inline
+bool zend_atomic_ptr_compare_exchange(zend_atomic_ptr_t* target, void** expected, void* desired) {
+    // Use GCC sync built-in compare-and-swap
+    void* prev = __sync_val_compare_and_swap(target, *expected, desired);
+    if (prev == *expected) return true;
+    *expected = prev;
+    return false;
+}
+
+zend_always_inline
+void* zend_atomic_ptr_load(zend_atomic_ptr_t* target) {
+    // Use GCC sync built-in fetch-and-or with 0 to load
+    return __sync_fetch_and_or(target, 0);
+}
+
+zend_always_inline
+void zend_atomic_ptr_store(zend_atomic_ptr_t* target, void* value) {
+    // Use memory barriers for store
+    __sync_synchronize();
+    *target = value;
+    __sync_synchronize();
+}
+
+/* Fallback non-atomic implementation */
+#else
+
+zend_always_inline
+void* zend_atomic_ptr_exchange(zend_atomic_ptr_t* target, void* value) {
+    // Non-atomic exchange
+    void* prev = *target;
+    *target = value;
+    return prev;
+}
+
+zend_always_inline
+bool zend_atomic_ptr_compare_exchange(zend_atomic_ptr_t* target, void** expected, void* desired) {
+    // Non-atomic compare-and-swap
+    if (*target == *expected) {
+        *target = desired;
+        return true;
+    }
+    *expected = *target;
+    return false;
+}
+
+zend_always_inline
+void* zend_atomic_ptr_load(zend_atomic_ptr_t* target) {
+    // Non-atomic load
+    return *target;
+}
+
+zend_always_inline
+void zend_atomic_ptr_store(zend_atomic_ptr_t* target, void* value) {
+    // Non-atomic store
+    *target = value;
+}
+
+#endif
+
 void zend_always_inline zval_move(zval * destination, const zval * source)
 {
 	if (Z_ISREF_P(source)) {
