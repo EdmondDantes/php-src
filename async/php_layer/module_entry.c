@@ -289,6 +289,7 @@ PHP_METHOD(Async_Walker, walk)
 
 	HashPosition position	= 0;
 	uint32_t hash_iterator	= -1;
+	zend_object_iterator *zend_iterator = NULL;
 
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
 		if (zend_hash_num_elements(Z_ARR_P(iterable)) == 0) {
@@ -299,7 +300,7 @@ PHP_METHOD(Async_Walker, walk)
 		hash_iterator = zend_hash_iterator_add(Z_ARR_P(iterable), position);
 
 	} else if (Z_TYPE_P(iterable) == IS_OBJECT && Z_OBJCE_P(iterable)->get_iterator) {
-		zend_object_iterator *zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
+		zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
 
 		if (UNEXPECTED(EG(exception) || zend_iterator == NULL)) {
 			RETURN_THROWS();
@@ -324,6 +325,7 @@ PHP_METHOD(Async_Walker, walk)
 		walker->hash_iterator = hash_iterator;
 	} else {
 		ZVAL_COPY(&walker->iterator, iterable);
+		walker->zend_iterator = zend_iterator;
 	}
 
 	if (custom_data != NULL) {
@@ -434,8 +436,10 @@ PHP_METHOD(Async_Walker, run)
 
 		if (walker->target_hash != NULL) {
 			current = zend_hash_get_current_data_ex(walker->target_hash, &walker->position);
-		} else {
+		} else if (SUCCESS == walker->zend_iterator->funcs->valid(walker->zend_iterator)) {
 			current = walker->zend_iterator->funcs->get_current_data(walker->zend_iterator);
+		} else {
+			current = NULL;
 		}
 
 		if (current == NULL) {
