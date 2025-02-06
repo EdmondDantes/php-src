@@ -627,6 +627,8 @@ static void libuv_stop_process_watcher(void)
 
 	libuv_reactor_t * reactor = LIBUV_REACTOR;
 
+	reactor->isRunning = false;
+
 	// send wake up event to stop the thread
 	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)reactor->hWakeUpEvent, NULL);
 	uv_thread_detach(WATCHER);
