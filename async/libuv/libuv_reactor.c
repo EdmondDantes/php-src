@@ -482,8 +482,11 @@ static void process_watcher_thread(void * args)
 
 	ULONG_PTR completionKey;
 
-	while (reactor->isRunning) {
-		GetQueuedCompletionStatus(reactor->ioCompletionPort, NULL, &completionKey, NULL, INFINITE);
+	while (reactor->isRunning && reactor->ioCompletionPort != NULL) {
+
+		if (false == GetQueuedCompletionStatus(reactor->ioCompletionPort, NULL, &completionKey, NULL, INFINITE)) {
+			break;
+		}
 
 		if (completionKey == (ULONG_PTR) reactor->hWakeUpEvent) {
 			continue;
@@ -634,6 +637,18 @@ static void libuv_stop_process_watcher(void)
 	uv_thread_detach(WATCHER);
 	pefree(WATCHER, 0);
 	WATCHER = NULL;
+
+	// Stop IO completion port
+	CloseHandle(reactor->ioCompletionPort);
+	reactor->ioCompletionPort = NULL;
+
+	// Stop wake up event
+	CloseHandle(reactor->hWakeUpEvent);
+	reactor->hWakeUpEvent = NULL;
+
+	// Stop circular buffer
+	circular_buffer_destroy(reactor->pid_queue);
+	reactor->pid_queue = NULL;
 }
 
 static void libuv_add_process_handle(reactor_handle_t *handle)
