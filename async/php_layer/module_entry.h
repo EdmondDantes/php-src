@@ -21,6 +21,7 @@
 
 #define PHP_ASYNC_VERSION "1.0.0-dev"
 
+zend_module_entry async_module_entry;
 ZEND_API zend_class_entry *async_ce_walker;
 
 typedef struct _async_walker_s {

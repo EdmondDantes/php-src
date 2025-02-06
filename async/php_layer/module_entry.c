@@ -647,7 +647,7 @@ ZEND_MSHUTDOWN_FUNCTION(async)
 
 PHP_MINFO_FUNCTION(async_info) {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Module", "True Asynchrony");
+	php_info_print_table_header(2, "Module", "TrueAsync");
 	php_info_print_table_row(2, "Version", PHP_ASYNC_VERSION);
 	php_info_print_table_row(2, "Support", "Enabled");
 #ifdef PHP_ASYNC_LIBUV
@@ -696,9 +696,9 @@ PHP_RSHUTDOWN_FUNCTION(async) /* {{{ */
 	return SUCCESS;
 } /* }}} */
 
-static zend_module_entry async_module_entry = { /* {{{ */
+zend_module_entry async_module_entry = { /* {{{ */
 	STANDARD_MODULE_HEADER,
-	"PHP True Asynchrony",
+	"PHP TrueAsync",
 	ext_functions,
 	ZEND_MINIT(async),
 	ZEND_MSHUTDOWN(async),
@@ -713,7 +713,6 @@ static zend_module_entry async_module_entry = { /* {{{ */
 	STANDARD_MODULE_PROPERTIES_EX
 };
 /* }}} */
-
 
 zend_result async_register_module(void) /* {{{ */
 {

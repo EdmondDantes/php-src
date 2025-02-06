@@ -13,12 +13,14 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
+#include <zend_closures.h>
 #include <Zend/zend_fibers.h>
 #include "php_scheduler.h"
 #include "php_async.h"
 #include "php_reactor.h"
 #include "internal/zval_circular_buffer.h"
 #include "php_layer/exceptions.h"
+#include "php_layer/module_entry.h"
 #include "php_layer/zend_common.h"
 
 //
@@ -26,6 +28,50 @@
 // without suspicion of an infinite loop (a task that creates microtasks).
 //
 #define MICROTASK_CYCLE_THRESHOLD_C 4
+
+//static zend_function microtask_function = { ZEND_INTERNAL_FUNCTION };
+
+static ZEND_FUNCTION(microtask_function)
+{
+}
+
+ZEND_BEGIN_ARG_INFO_EX(microtask_function_arg_info, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+static zend_internal_function microtask_internal_function = {
+	ZEND_INTERNAL_FUNCTION,		/* type              */
+	{0, 0, 0},              /* arg_flags         */
+	0,							/* fn_flags          */
+	NULL,                  /* name              */
+	NULL,							/* scope             */
+	NULL,						/* prototype         */
+	0,							/* num_args          */
+	0,                  /* required_num_args */
+	(zend_internal_arg_info *) microtask_function_arg_info + 1, /* arg_info */
+	NULL,						/* attributes        */
+	NULL,              /* run_time_cache    */
+	NULL,                   /* doc_comment       */
+	0,								/* T                 */
+	NULL,						/* prop_info */
+	ZEND_FN(microtask_function),	/* handler           */
+	NULL,						/* module            */
+	NULL,           /* frameless_function_infos */
+	{NULL,NULL,NULL,NULL}	/* reserved          */
+};
+
+static void create_microtask_fiber(void)
+{
+	zval zval_closure, zval_fiber;
+	zend_create_closure(&zval_closure, (zend_function *) &microtask_internal_function, NULL, NULL, NULL);
+
+	zval params[1];
+
+	ZVAL_COPY_VALUE(&params[0], &zval_closure);
+
+	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
+
+	}
+}
 
 static void invoke_microtask(zval *task)
 {
