@@ -31,11 +31,9 @@ typedef struct
 	HANDLE ioCompletionPort;
 	HANDLE hWakeUpEvent;
 	bool isRunning;
-	uv_async_t async;
-	/* Circular buffer of pid */
-	ATOMIC_PTR(circular_buffer_t) pid_queue;
-	/* Lock for the events buffer */
-	zend_atomic_bool eventsLock;
+	uv_async_t uvloop_wakeup;
+	/* Circular buffer of libuv_process_t ptr */
+	circular_buffer_t * pid_queue;
 #endif
 } libuv_reactor_t;
 
@@ -490,14 +488,53 @@ static void process_watcher_thread(void * args)
 			continue;
 		}
 
+		if (reactor->isRunning == false) {
+            break;
+        }
+
 		libuv_process_t * process = (libuv_process_t *) completionKey;
 
+		if (UNEXPECTED(circular_buffer_is_full(reactor->pid_queue))) {
+
+			uv_async_send(&reactor->uvloop_wakeup);
+
+			unsigned int delay = 1;
+
+			while (reactor->isRunning && circular_buffer_is_full(reactor->pid_queue)) {
+				usleep(delay);
+				delay = MIN(delay << 1, 1000);
+			}
+
+			if (false == reactor->isRunning) {
+				break;
+			}
+        }
+
+		circular_buffer_push(reactor->pid_queue, &process, false);
+		uv_async_send(&reactor->uvloop_wakeup);
 	}
 }
 
 static void on_process_event(uv_async_t *handle)
 {
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
 
+	if (circular_buffer_is_empty(reactor->pid_queue)) {
+		return;
+	}
+
+	libuv_process_t * process;
+
+	while (circular_buffer_is_not_empty(reactor->pid_queue)) {
+		circular_buffer_pop(reactor->pid_queue, &process);
+
+		zval event, error;
+		ZVAL_NULL(&event);
+		ZVAL_UNDEF(&error);
+
+		async_notifier_notify(&process->handle, &event, &error);
+		IF_EXCEPTION_STOP;
+	}
 }
 
 static void libuv_init_process_watcher(void)
@@ -553,7 +590,8 @@ static void libuv_init_process_watcher(void)
 
 	WATCHER = thread;
 
-	error = uv_async_init(UVLOOP, &reactor->async, on_process_event);
+	error = uv_async_init(UVLOOP, &reactor->uvloop_wakeup, on_process_event);
+	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(libuv_process_t *), &zend_std_allocator);
 
 	if (error < 0) {
 		php_error_docref(NULL, E_CORE_ERROR, "Failed to initialize async handle: %s", uv_strerror(error));
