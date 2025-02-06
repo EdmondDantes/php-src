@@ -30,6 +30,7 @@ typedef struct
 	uv_thread_t * watcherThread;
 	HANDLE ioCompletionPort;
 	HANDLE hWakeUpEvent;
+	unsigned int countWaitingDescriptors;
 	bool isRunning;
 	uv_async_t uvloop_wakeup;
 	/* Circular buffer of libuv_process_t ptr */
@@ -515,6 +516,9 @@ static void process_watcher_thread(void * args)
 	}
 }
 
+static void libuv_start_process_watcher(void);
+static void libuv_stop_process_watcher(void);
+
 static void on_process_event(uv_async_t *handle)
 {
 	libuv_reactor_t * reactor = LIBUV_REACTOR;
@@ -532,12 +536,20 @@ static void on_process_event(uv_async_t *handle)
 		ZVAL_NULL(&event);
 		ZVAL_UNDEF(&error);
 
+		if (reactor->countWaitingDescriptors > 0) {
+			reactor->countWaitingDescriptors--;
+
+			if (reactor->countWaitingDescriptors == 0) {
+				libuv_stop_process_watcher();
+			}
+        }
+
 		async_notifier_notify(&process->handle, &event, &error);
 		IF_EXCEPTION_STOP;
 	}
 }
 
-static void libuv_init_process_watcher(void)
+static void libuv_start_process_watcher(void)
 {
 	if (WATCHER != NULL) {
 		return;
@@ -580,10 +592,15 @@ static void libuv_init_process_watcher(void)
 		return;
 	}
 
+	reactor->isRunning = true;
+	reactor->countWaitingDescriptors = 0;
+
 	int error = uv_thread_create(thread, process_watcher_thread, reactor);
 
 	if (error < 0) {
+		uv_thread_detach(thread);
 		pefree(thread, 0);
+		reactor->isRunning = false;
 		php_error_docref(NULL, E_CORE_ERROR, "Failed to create process watcher thread: %s", uv_strerror(error));
 		return;
 	}
@@ -594,8 +611,27 @@ static void libuv_init_process_watcher(void)
 	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(libuv_process_t *), &zend_std_allocator);
 
 	if (error < 0) {
+		uv_thread_detach(thread);
+		reactor->isRunning = false;
+		pefree(thread, 0);
+		WATCHER = NULL;
 		php_error_docref(NULL, E_CORE_ERROR, "Failed to initialize async handle: %s", uv_strerror(error));
 	}
+}
+
+static void libuv_stop_process_watcher(void)
+{
+	if (WATCHER == NULL) {
+		return;
+	}
+
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
+
+	// send wake up event to stop the thread
+	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)reactor->hWakeUpEvent, NULL);
+	uv_thread_detach(WATCHER);
+	pefree(WATCHER, 0);
+	WATCHER = NULL;
 }
 
 static void libuv_add_process_handle(reactor_handle_t *handle)
@@ -607,7 +643,7 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 	}
 
 	if (WATCHER == NULL) {
-		libuv_init_process_watcher();
+		libuv_start_process_watcher();
 	}
 
 	process->hJob = CreateJobObject(NULL, NULL);
@@ -627,6 +663,8 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		async_throw_error("Failed to create IO completion port for process: %s", error_msg);
 		php_win32_error_msg_free(error_msg);
 	}
+
+	LIBUV_REACTOR->countWaitingDescriptors++;
 }
 
 static void libuv_remove_process_handle(reactor_handle_t *handle)
