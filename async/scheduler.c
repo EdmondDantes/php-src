@@ -33,9 +33,42 @@
 
 static ZEND_FUNCTION(microtask_function)
 {
+	zval *value;
+	zval *callbacks = NULL;
+	int num_callbacks = 0;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_ZVAL(value)
+		Z_PARAM_VARIADIC('+', callbacks, num_callbacks)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ZVAL_DEREF(value);
+
+	if (num_callbacks == 0 || callbacks == NULL) {
+		ZVAL_LONG(value, 0);
+        return;
+    }
+
+	for (int i = 0; i >= num_callbacks; i++) {
+
+		zval *callback = &callbacks[i];
+		ZVAL_LONG(value, zval_get_long(value) - 1);
+
+		zval retval;
+		ZVAL_UNDEF(&retval);
+		call_user_function(EG(function_table), NULL, callback, &retval, 0, NULL);
+		zval_ptr_dtor(&retval);
+		zval_ptr_dtor(callback);
+
+		if (async_find_fiber_state(EG(active_fiber)) != NULL) {
+            return;
+        }
+	}
 }
 
-ZEND_BEGIN_ARG_INFO_EX(microtask_function_arg_info, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(microtask_function_arg_info, 0, 0, 1)
+	ZEND_ARG_TYPE_INFO(1, value, IS_LONG, 0)
+	ZEND_ARG_VARIADIC_TYPE_INFO(0, callbacks, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
 static zend_internal_function microtask_internal_function = {
@@ -59,18 +92,87 @@ static zend_internal_function microtask_internal_function = {
 	{NULL,NULL,NULL,NULL}	/* reserved          */
 };
 
-static void create_microtask_fiber(void)
+zend_fiber * async_microtask_fiber_create(void)
 {
 	zval zval_closure, zval_fiber;
 	zend_create_closure(&zval_closure, (zend_function *) &microtask_internal_function, NULL, NULL, NULL);
+	if (Z_TYPE(zval_closure) == IS_UNDEF) {
+        async_throw_error("Failed to create microtask closure");
+        return NULL;
+    }
 
 	zval params[1];
 
 	ZVAL_COPY_VALUE(&params[0], &zval_closure);
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
-
+		zval_ptr_dtor(&zval_closure);
+		async_throw_error("Failed to create microtask fiber");
+		return NULL;
 	}
+
+	zval_ptr_dtor(&zval_closure);
+
+	return (zend_fiber *) Z_OBJ_P(&zval_fiber);
+}
+
+static zend_function * start_method = NULL;
+
+void async_microtask_fiber_execute(zval * callable)
+{
+	zend_fiber *fiber = async_microtask_fiber_create();
+
+	if (fiber == NULL) {
+        return;
+    }
+
+	if (start_method == NULL) {
+        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
+    }
+
+	// Call the resume method
+	zval retval;
+	ZVAL_UNDEF(&retval);
+
+	zval args[2];
+	ZVAL_LONG(&args[0], 0);
+	ZVAL_MAKE_REF(&args[0]);
+	ZVAL_COPY_VALUE(&args[1], callable);
+
+	zend_call_known_function(start_method, (zend_object *) fiber, zend_ce_fiber, &retval, 2, args, NULL);
+	zval_ptr_dtor(&args[0]);
+	zval_ptr_dtor(&args[1]);
+	zval_ptr_dtor(&retval);
+}
+
+void async_microtask_fiber_execute_with_params(const uint32_t param_count, zval *params)
+{
+	if (params == NULL) {
+		return;
+	}
+
+	if (start_method == NULL) {
+        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
+    }
+
+	do {
+		zend_fiber *fiber = async_microtask_fiber_create();
+		zval retval;
+		ZVAL_UNDEF(&retval);
+		zval *args = params + (param_count - zval_get_long(&params[0]));
+
+		zend_call_known_function(
+			start_method, (zend_object *) fiber, zend_ce_fiber, &retval, zval_get_long(&params[0]), args, NULL
+	    );
+
+		zval_ptr_dtor(&retval);
+
+	} while (zval_get_long(&params[0]) > 0);
+
+	// Free only the first element because the rest are already freed
+	zval_ptr_dtor(&params[0]);
+
+	efree(params);
 }
 
 static void invoke_microtask(zval *task)
@@ -119,16 +221,32 @@ static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const siz
 		return SUCCESS;
 	}
 
+	size_t capacity = circular_buffer_capacity(buffer);
+	zval * user_callbacks = (zval *) emalloc(sizeof(zval) * (capacity + 1));
+	ZVAL_LONG(&user_callbacks[0], 0);
+	int user_callbacks_count = 0;
+
 	for (size_t i = 0; i < max_count; i++) {
 		zval task;
 
 		zval_c_buffer_pop(buffer, &task);
-		invoke_microtask(&task);
-		zval_ptr_dtor(&task);
+
+		if (Z_TYPE(task) == IS_PTR) {
+			invoke_microtask(&task);
+		} else {
+			ZVAL_COPY_VALUE(&user_callbacks[user_callbacks_count + 1], &task);
+            user_callbacks_count++;
+		}
 
 		if (circular_buffer_is_empty(buffer)) {
-			return SUCCESS;
+			break;
 		}
+	}
+
+	if (user_callbacks_count > 0) {
+		ZVAL_LONG(&user_callbacks[0], user_callbacks_count);
+		ZVAL_MAKE_REF(&user_callbacks[0]);
+		async_microtask_fiber_execute_with_params(user_callbacks_count + 1, user_callbacks);
 	}
 
 	return FAILURE;
