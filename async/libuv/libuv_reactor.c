@@ -460,7 +460,7 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 #pragma region Process handle
 //=============================================================
 
-static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const zend_ulong events)
+static reactor_handle_t* libuv_process_new(const async_process_t process_h, const zend_ulong events)
 {
 	DEFINE_ZEND_INTERNAL_OBJECT(libuv_process_t, object, async_ce_process_handle);
 	async_notifier_object_init(&object->handle);
@@ -469,7 +469,7 @@ static reactor_handle_t* libuv_process_new(const async_process_id_t pid, const z
 		return NULL;
 	}
 
-	object->pid = pid;
+	object->hProcess = process_h;
 
 	return (reactor_handle_t*) object;
 }
@@ -665,7 +665,7 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 
 	process->hJob = CreateJobObject(NULL, NULL);
 
-	if (AssignProcessToJobObject(process->hJob, (HANDLE) process->pid) == 0) {
+	if (AssignProcessToJobObject(process->hJob, process->hProcess) == 0) {
 		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
 		async_throw_error("Failed to assign process to job object: %s", error_msg);
 		php_win32_error_msg_free(error_msg);

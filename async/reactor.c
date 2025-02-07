@@ -125,7 +125,7 @@ static reactor_handle_t* reactor_file_system_new(const char *path, size_t length
 	return NULL;
 }
 
-static reactor_handle_t* reactor_process_new(async_process_id_t pid, zend_ulong events)
+static reactor_handle_t* reactor_process_new(async_file_descriptor_t process_h, zend_ulong events)
 {
 	async_throw_error("Reactor API method process_new not implemented");
 	return NULL;

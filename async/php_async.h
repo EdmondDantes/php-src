@@ -92,9 +92,11 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 #ifdef PHP_WIN32
 typedef HANDLE async_file_descriptor_t;
 typedef DWORD async_process_id_t;
+typedef HANDLE async_process_t;
 #else
 typedef int async_file_descriptor_t;
 typedef pid_t async_process_id_t;
+typedef pid_t async_process_t;
 #endif
 
 zend_always_inline void async_push_fiber_to_deferred_resume(async_resume_t *resume, const bool transfer_resume)
@@ -319,7 +321,7 @@ ZEND_API void async_free_addr_info(struct addrinfo *addr_info);
 
 ZEND_API bool async_ensure_socket_nonblocking(php_socket_t socket);
 
-ZEND_API void async_wait_process(async_process_id_t pid, const zend_ulong timeout);
+ZEND_API void async_wait_process(async_process_t pid, const zend_ulong timeout);
 
 END_EXTERN_C()
 

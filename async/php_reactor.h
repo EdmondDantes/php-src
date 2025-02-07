@@ -121,7 +121,7 @@ typedef reactor_handle_t* (*reactor_file_system_new_t)(const char *path, size_t 
  * reactor_process_new_t - Creates a new process event handle.
  * Monitors process ID for specified events.
  */
-typedef reactor_handle_t* (*reactor_process_new_t)(async_process_id_t pid, zend_ulong events);
+typedef reactor_handle_t* (*reactor_process_new_t)(async_process_t process_h, zend_ulong events);
 
 /**
  * reactor_thread_new_t - Creates a new thread event handle.
