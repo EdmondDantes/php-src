@@ -718,6 +718,22 @@ static void async_scheduler_dtor(void)
 	zend_exception_restore();
 }
 
+void async_scheduler_startup(void)
+{
+	if (microtask_internal_function.module == NULL) {
+		microtask_internal_function.module = &async_module_entry;
+		microtask_internal_function.function_name = zend_string_init(ZEND_STRL("microtask_internal_function"), 1);
+    }
+}
+
+void async_scheduler_shutdown(void)
+{
+	if (microtask_internal_function.function_name != NULL) {
+        zend_string_release(microtask_internal_function.function_name);
+        microtask_internal_function.function_name = NULL;
+    }
+}
+
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL && handle_exception_handler != NULL)) { \
 		handle_exception_handler(); \

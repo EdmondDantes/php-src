@@ -70,6 +70,9 @@ BEGIN_EXTERN_C()
 
 typedef struct _zend_async_globals zend_async_globals;
 
+void async_scheduler_startup(void);
+void async_scheduler_shutdown(void);
+
 /**
  * The method activates the Scheduler in the specified thread.
  * The method can only be called in the main Fiber (i.e., when there is no Fiber) of the thread.

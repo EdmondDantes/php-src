@@ -609,7 +609,7 @@ static void async_walker_object_destroy(zend_object* object)
 
 static zend_object_handlers async_walker_handlers;
 
-static void async_register_foreach_ce(void)
+static void async_register_walker_ce(void)
 {
 	async_ce_walker = register_class_Async_Walker();
 
@@ -622,13 +622,15 @@ static void async_register_foreach_ce(void)
 
 ZEND_MINIT_FUNCTION(async)
 {
-	async_register_foreach_ce();
+	async_register_walker_ce();
 	async_register_callback_ce();
 	async_register_notifier_ce();
 	async_register_handlers_ce();
 	async_register_resume_ce();
 	async_register_exceptions_ce();
 	async_register_channel_ce();
+
+	async_scheduler_startup();
 
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_startup();
@@ -639,6 +641,8 @@ ZEND_MINIT_FUNCTION(async)
 
 ZEND_MSHUTDOWN_FUNCTION(async)
 {
+	async_scheduler_shutdown();
+
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_shutdown();
 #endif
