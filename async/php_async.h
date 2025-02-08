@@ -49,6 +49,10 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	HashTable fibers_state;
 	/* List of deferred callbacks */
 	HashTable defer_callbacks;
+	/* Special fiber for the microtasks */
+	zend_fiber * microtask_fiber;
+	/* Special fiber for the callbacks */
+	zend_fiber * callbacks_fiber;
 	/* Link to the reactor structure */
 	void * reactor;
 	/* Handlers for the scheduler */

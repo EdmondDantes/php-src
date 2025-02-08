@@ -29,30 +29,28 @@
 //
 #define MICROTASK_CYCLE_THRESHOLD_C 4
 
-//static zend_function microtask_function = { ZEND_INTERNAL_FUNCTION };
-
-static ZEND_FUNCTION(microtask_function)
+static ZEND_FUNCTION(callbacks_executor)
 {
-	zval *value;
+	zval *count;
 	zval *callbacks = NULL;
 	int num_callbacks = 0;
 
 	ZEND_PARSE_PARAMETERS_START(1, -1)
-		Z_PARAM_ZVAL(value)
+		Z_PARAM_ZVAL(count)
 		Z_PARAM_VARIADIC('+', callbacks, num_callbacks)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_DEREF(value);
+	ZVAL_DEREF(count);
 
 	if (num_callbacks == 0 || callbacks == NULL) {
-		ZVAL_LONG(value, 0);
+		ZVAL_LONG(count, 0);
         return;
     }
 
 	for (int i = 0; i >= num_callbacks; i++) {
 
 		zval *callback = &callbacks[i];
-		ZVAL_LONG(value, zval_get_long(value) - 1);
+		ZVAL_LONG(count, zval_get_long(count) - 1);
 
 		zval retval;
 		ZVAL_UNDEF(&retval);
@@ -66,12 +64,12 @@ static ZEND_FUNCTION(microtask_function)
 	}
 }
 
-ZEND_BEGIN_ARG_INFO_EX(microtask_function_arg_info, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(1, value, IS_LONG, 0)
+ZEND_BEGIN_ARG_INFO_EX(callbacks_executor_arg_info, 0, 0, 1)
+	ZEND_ARG_TYPE_INFO(1, count, IS_LONG, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, callbacks, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-static zend_internal_function microtask_internal_function = {
+static zend_internal_function callbacks_internal_function = {
 	ZEND_INTERNAL_FUNCTION,		/* type              */
 	{0, 0, 0},              /* arg_flags         */
 	0,							/* fn_flags          */
@@ -80,24 +78,54 @@ static zend_internal_function microtask_internal_function = {
 	NULL,						/* prototype         */
 	0,							/* num_args          */
 	0,                  /* required_num_args */
-	(zend_internal_arg_info *) microtask_function_arg_info + 1, /* arg_info */
+	(zend_internal_arg_info *) callbacks_executor_arg_info + 1, /* arg_info */
 	NULL,						/* attributes        */
 	NULL,              /* run_time_cache    */
 	NULL,                   /* doc_comment       */
 	0,								/* T                 */
 	NULL,						/* prop_info */
-	ZEND_FN(microtask_function),	/* handler           */
+	ZEND_FN(callbacks_executor),	/* handler           */
 	NULL,						/* module            */
 	NULL,           /* frameless_function_infos */
 	{NULL,NULL,NULL,NULL}	/* reserved          */
 };
 
-zend_fiber * async_microtask_fiber_create(void)
+static ZEND_FUNCTION(microtasks_executor);
+
+ZEND_BEGIN_ARG_INFO_EX(microtasks_executor_arg_info, 0, 0, 3)
+	ZEND_ARG_TYPE_INFO(0, buffer, IS_PTR, 0)
+	ZEND_ARG_TYPE_INFO(0, count, IS_PTR, 0)
+	ZEND_ARG_TYPE_INFO(0, maxCount, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+static zend_internal_function microtasks_internal_function = {
+	ZEND_INTERNAL_FUNCTION,		/* type              */
+	{0, 0, 0},              /* arg_flags         */
+	0,							/* fn_flags          */
+	NULL,                  /* name              */
+	NULL,							/* scope             */
+	NULL,						/* prototype         */
+	0,							/* num_args          */
+	0,                  /* required_num_args */
+	(zend_internal_arg_info *) microtasks_executor_arg_info + 1, /* arg_info */
+	NULL,						/* attributes        */
+	NULL,              /* run_time_cache    */
+	NULL,                   /* doc_comment       */
+	0,								/* T                 */
+	NULL,						/* prop_info */
+	ZEND_FN(microtasks_executor),/* handler           */
+	NULL,						/* module            */
+	NULL,           /* frameless_function_infos */
+	{NULL,NULL,NULL,NULL}	/* reserved          */
+};
+
+
+zend_fiber * async_internal_fiber_create(zend_internal_function * function)
 {
 	zval zval_closure, zval_fiber;
-	zend_create_closure(&zval_closure, (zend_function *) &microtask_internal_function, NULL, NULL, NULL);
+	zend_create_closure(&zval_closure, (zend_function *) function, NULL, NULL, NULL);
 	if (Z_TYPE(zval_closure) == IS_UNDEF) {
-        async_throw_error("Failed to create microtask closure");
+        async_throw_error("Failed to create internal fiber closure");
         return NULL;
     }
 
@@ -107,7 +135,7 @@ zend_fiber * async_microtask_fiber_create(void)
 
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		zval_ptr_dtor(&zval_closure);
-		async_throw_error("Failed to create microtask fiber");
+		async_throw_error("Failed to create internal fiber");
 		return NULL;
 	}
 
@@ -118,16 +146,21 @@ zend_fiber * async_microtask_fiber_create(void)
 
 static zend_function * start_method = NULL;
 
-void async_microtask_fiber_execute(zval * callable)
+zend_always_inline zend_function * get_start_method(void)
 {
-	zend_fiber *fiber = async_microtask_fiber_create();
+    if (start_method == NULL) {
+        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
+    }
+
+    return start_method;
+}
+
+void async_callback_fiber_execute(zval * callable)
+{
+	zend_fiber *fiber = async_internal_fiber_create(&callbacks_internal_function);
 
 	if (fiber == NULL) {
         return;
-    }
-
-	if (start_method == NULL) {
-        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
     }
 
 	// Call the resume method
@@ -139,30 +172,28 @@ void async_microtask_fiber_execute(zval * callable)
 	ZVAL_MAKE_REF(&args[0]);
 	ZVAL_COPY_VALUE(&args[1], callable);
 
-	zend_call_known_function(start_method, (zend_object *) fiber, zend_ce_fiber, &retval, 2, args, NULL);
+	zend_call_known_function(get_start_method(), (zend_object *) fiber, zend_ce_fiber, &retval, 2, args, NULL);
 	zval_ptr_dtor(&args[0]);
 	zval_ptr_dtor(&args[1]);
 	zval_ptr_dtor(&retval);
 }
 
-void async_microtask_fiber_execute_with_params(const uint32_t param_count, zval *params)
+void async_execute_callbacks_in_internal_fiber(const uint32_t param_count, zval *params)
 {
 	if (params == NULL) {
 		return;
 	}
 
-	if (start_method == NULL) {
-        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
-    }
-
 	do {
-		zend_fiber *fiber = async_microtask_fiber_create();
+		zend_fiber *fiber = async_internal_fiber_create(&callbacks_internal_function);
 		zval retval;
 		ZVAL_UNDEF(&retval);
-		zval *args = params + (param_count - zval_get_long(&params[0]));
+		zend_long current_params_count = zval_get_long(&params[0]);
+		params = params + (param_count - current_params_count - 1);
+		ZVAL_LONG(&params[0], current_params_count);
 
 		zend_call_known_function(
-			start_method, (zend_object *) fiber, zend_ce_fiber, &retval, zval_get_long(&params[0]), args, NULL
+			get_start_method(), (zend_object *) fiber, zend_ce_fiber, &retval, current_params_count, params, NULL
 	    );
 
 		zval_ptr_dtor(&retval);
@@ -215,41 +246,123 @@ static void invoke_microtask(zval *task)
 	}
 }
 
+static ZEND_FUNCTION(microtasks_executor)
+{
+	zval *z_buffer;
+	zval *z_handled;
+	zend_long max_count;
+	zval next_max_count;
+	ZVAL_NULL(&next_max_count);
+
+	ZEND_PARSE_PARAMETERS_START(3, 3)
+		Z_PARAM_ZVAL(z_buffer)
+		Z_PARAM_ZVAL(z_handled)
+		Z_PARAM_LONG(max_count)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zend_fiber * fiber = EG(active_fiber);
+	circular_buffer_t *buffer = Z_PTR_P(z_buffer);
+	int * handled = Z_PTR_P(z_handled);
+
+	while (true) {
+
+		while (circular_buffer_is_not_empty(buffer)) {
+			zval task;
+			(*handled)++;
+			circular_buffer_pop(buffer, &task);
+			invoke_microtask(&task);
+			zval_ptr_dtor(&task);
+
+			if (UNEXPECTED(*handled < max_count) || EG(exception) != NULL || UNEXPECTED(async_find_fiber_state(fiber) != NULL)) {
+				return;
+			}
+		}
+
+		zend_fiber_suspend(fiber, NULL, &next_max_count);
+
+		if (Z_TYPE(next_max_count) == IS_LONG) {
+            max_count = zval_get_long(&next_max_count);
+            ZVAL_NULL(&next_max_count);
+        }
+
+		if (UNEXPECTED(max_count == 0 || Z_TYPE(next_max_count) == IS_NULL)) {
+            return;
+        }
+	}
+}
+
 static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const size_t max_count)
 {
 	if (circular_buffer_is_empty(buffer)) {
 		return SUCCESS;
 	}
 
-	size_t capacity = circular_buffer_capacity(buffer);
-	zval * user_callbacks = (zval *) emalloc(sizeof(zval) * (capacity + 1));
-	ZVAL_LONG(&user_callbacks[0], 0);
-	int user_callbacks_count = 0;
+	zend_fiber * fiber = ASYNC_G(microtask_fiber);
 
-	for (size_t i = 0; i < max_count; i++) {
-		zval task;
+	if (fiber == NULL || fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
 
-		zval_c_buffer_pop(buffer, &task);
+		if (fiber != NULL) {
+			OBJ_RELEASE(&fiber->std);
+		}
 
-		if (Z_TYPE(task) == IS_PTR) {
-			invoke_microtask(&task);
+        ASYNC_G(microtask_fiber) = async_internal_fiber_create(&microtasks_internal_function);
+		fiber = ASYNC_G(microtask_fiber);
+    }
+
+	// Define the fiber parameters
+	int handled = 0;
+	zval z_max_count;
+	ZVAL_LONG(&z_max_count, max_count);
+
+	zval params[3];
+	ZVAL_PTR(&params[0], buffer);
+	ZVAL_PTR(&params[1], &handled);
+	ZVAL_LONG(&params[2], max_count);
+
+	fiber->fci.params = params;
+	fiber->fci.param_count = 3;
+	bool is_not_empty = true;
+
+	do
+	{
+		if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+			zend_fiber_start(fiber, NULL);
+		} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+			zend_fiber_resume(fiber, &z_max_count, NULL);
 		} else {
-			ZVAL_COPY_VALUE(&user_callbacks[user_callbacks_count + 1], &task);
-            user_callbacks_count++;
+			ZEND_ASSERT(true && "Invalid fiber status");
 		}
 
-		if (circular_buffer_is_empty(buffer)) {
-			break;
-		}
-	}
+		is_not_empty = circular_buffer_is_not_empty(buffer);
 
-	if (user_callbacks_count > 0) {
-		ZVAL_LONG(&user_callbacks[0], user_callbacks_count);
-		ZVAL_MAKE_REF(&user_callbacks[0]);
-		async_microtask_fiber_execute_with_params(user_callbacks_count + 1, user_callbacks);
-	}
+		if (UNEXPECTED(handled >= max_count)) {
 
-	return FAILURE;
+			OBJ_RELEASE(&fiber->std);
+			ASYNC_G(microtask_fiber) = NULL;
+
+            async_throw_error("Possible infinite loop detected during microtask execution");
+			return FAILURE;
+
+        } else if (UNEXPECTED(async_find_fiber_state(fiber) != NULL)) {
+
+        	OBJ_RELEASE(&fiber->std);
+        	ASYNC_G(microtask_fiber) = NULL;
+
+        	if (is_not_empty) {
+        		ASYNC_G(microtask_fiber) = async_internal_fiber_create(&microtasks_internal_function);
+        		fiber = ASYNC_G(microtask_fiber);
+
+        		fiber->fci.params = params;
+        		fiber->fci.param_count = 3;
+        	}
+        }
+
+	} while (is_not_empty);
+
+	fiber->fci.params = NULL;
+	fiber->fci.param_count = 0;
+
+	return SUCCESS;
 }
 
 static void execute_microtasks(void)
@@ -720,17 +833,27 @@ static void async_scheduler_dtor(void)
 
 void async_scheduler_startup(void)
 {
-	if (microtask_internal_function.module == NULL) {
-		microtask_internal_function.module = &async_module_entry;
-		microtask_internal_function.function_name = zend_string_init(ZEND_STRL("microtask_internal_function"), 1);
+	if (callbacks_internal_function.module == NULL) {
+        callbacks_internal_function.module = &async_module_entry;
+        callbacks_internal_function.function_name = zend_string_init(ZEND_STRL("async_callbacks_internal_function"), 1);
+    }
+
+	if (microtasks_internal_function.module == NULL) {
+		microtasks_internal_function.module = &async_module_entry;
+		microtasks_internal_function.function_name = zend_string_init(ZEND_STRL("async_microtasks_internal_function"), 1);
     }
 }
 
 void async_scheduler_shutdown(void)
 {
-	if (microtask_internal_function.function_name != NULL) {
-        zend_string_release(microtask_internal_function.function_name);
-        microtask_internal_function.function_name = NULL;
+	if (microtasks_internal_function.function_name != NULL) {
+        zend_string_release(microtasks_internal_function.function_name);
+        microtasks_internal_function.function_name = NULL;
+    }
+
+	if (callbacks_internal_function.function_name != NULL) {
+        zend_string_release(callbacks_internal_function.function_name);
+        callbacks_internal_function.function_name = NULL;
     }
 }
 
