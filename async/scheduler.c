@@ -65,8 +65,7 @@ static ZEND_FUNCTION(callbacks_executor)
 }
 
 ZEND_BEGIN_ARG_INFO_EX(callbacks_executor_arg_info, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(1, count, IS_LONG, 0)
-	ZEND_ARG_VARIADIC_TYPE_INFO(0, callbacks, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, hash_table, IS_PTR, 0)
 ZEND_END_ARG_INFO()
 
 static zend_internal_function callbacks_internal_function = {
