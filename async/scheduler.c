@@ -65,7 +65,7 @@ static ZEND_FUNCTION(callbacks_executor)
 }
 
 ZEND_BEGIN_ARG_INFO_EX(callbacks_executor_arg_info, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, hash_table, IS_PTR, 0)
+	ZEND_ARG_TYPE_INFO(0, callable, 0, 0)
 ZEND_END_ARG_INFO()
 
 static zend_internal_function callbacks_internal_function = {
@@ -143,20 +143,26 @@ zend_fiber * async_internal_fiber_create(zend_internal_function * function)
 	return (zend_fiber *) Z_OBJ_P(&zval_fiber);
 }
 
-static zend_function * start_method = NULL;
-
-zend_always_inline zend_function * get_start_method(void)
+zend_always_inline zend_fiber * get_callback_fiber()
 {
-    if (start_method == NULL) {
-        start_method = zend_hash_str_find_ptr(&zend_ce_fiber->function_table, ZEND_STRL("start"));
+	if (ASYNC_G(callbacks_fiber) == NULL) {
+        ASYNC_G(callbacks_fiber) = async_internal_fiber_create(&callbacks_internal_function);
     }
 
-    return start_method;
+	return ASYNC_G(callbacks_fiber);
 }
 
-void async_callback_fiber_execute(zval * callable)
+zend_always_inline void separate_callback_fiber(void)
 {
-	zend_fiber *fiber = async_internal_fiber_create(&callbacks_internal_function);
+	if (ASYNC_G(callbacks_fiber) != NULL && async_find_fiber_state(ASYNC_G(callbacks_fiber)) != NULL) {
+		OBJ_RELEASE(&ASYNC_G(callbacks_fiber)->std);
+        ASYNC_G(callbacks_fiber) = NULL;
+	}
+}
+
+void async_execute_callback_in_fiber(zval * callable)
+{
+	zend_fiber *fiber = get_callback_fiber();
 
 	if (fiber == NULL) {
         return;
@@ -166,43 +172,78 @@ void async_callback_fiber_execute(zval * callable)
 	zval retval;
 	ZVAL_UNDEF(&retval);
 
-	zval args[2];
-	ZVAL_LONG(&args[0], 0);
-	ZVAL_MAKE_REF(&args[0]);
-	ZVAL_COPY_VALUE(&args[1], callable);
+	zval params[1];
+	ZVAL_COPY_VALUE(&params[0], callable);
 
-	zend_call_known_function(get_start_method(), (zend_object *) fiber, zend_ce_fiber, &retval, 2, args, NULL);
-	zval_ptr_dtor(&args[0]);
-	zval_ptr_dtor(&args[1]);
+	if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+		fiber->fci.params = params;
+		fiber->fci.param_count = 1;
+
+		zend_fiber_start(fiber, NULL);
+
+		fiber->fci.params = NULL;
+		fiber->fci.param_count = 0;
+
+	} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+		zend_fiber_resume(fiber, &params[0], NULL);
+	} else {
+		ZEND_ASSERT(true && "Invalid callback fiber status");
+	}
+
 	zval_ptr_dtor(&retval);
+
+	separate_callback_fiber();
 }
 
-void async_execute_callbacks_in_internal_fiber(const uint32_t param_count, zval *params)
+void async_execute_callbacks_in_fiber(HashTable * callbacks)
 {
-	if (params == NULL) {
+	struct {
+		HashTable * callbacks;
+		HashPosition position;
+	} iterator = {callbacks, 0};
+
+	if (zend_hash_num_elements(callbacks) == 0) {
 		return;
 	}
 
-	do {
-		zend_fiber *fiber = async_internal_fiber_create(&callbacks_internal_function);
-		zval retval;
-		ZVAL_UNDEF(&retval);
-		zend_long current_params_count = zval_get_long(&params[0]);
-		params = params + (param_count - current_params_count - 1);
-		ZVAL_LONG(&params[0], current_params_count);
+	zend_fiber *fiber = get_callback_fiber();
 
-		zend_call_known_function(
-			get_start_method(), (zend_object *) fiber, zend_ce_fiber, &retval, current_params_count, params, NULL
-	    );
+	if (fiber == NULL) {
+		return;
+	}
 
-		zval_ptr_dtor(&retval);
+	zend_hash_internal_pointer_reset_ex(callbacks, &iterator.position);
 
-	} while (zval_get_long(&params[0]) > 0);
+	zval retval;
+	ZVAL_UNDEF(&retval);
+	zval params[1];
+	ZVAL_PTR(&params[0], &iterator);
 
-	// Free only the first element because the rest are already freed
-	zval_ptr_dtor(&params[0]);
+	do
+	{
+		if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+			fiber->fci.params = params;
+			fiber->fci.param_count = 1;
 
-	efree(params);
+			zend_fiber_start(fiber, NULL);
+
+			fiber->fci.params = NULL;
+			fiber->fci.param_count = 0;
+
+		} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+			zend_fiber_resume(fiber, &params[0], NULL);
+		} else {
+			ZEND_ASSERT(true && "Invalid callback fiber status");
+		}
+
+		if (EG(exception != NULL)) {
+            break;
+        }
+
+		separate_callback_fiber();
+		fiber = get_callback_fiber();
+
+	} while (zend_hash_num_elements(callbacks) != 0);
 }
 
 static void invoke_microtask(zval *task)
