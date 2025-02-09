@@ -75,8 +75,8 @@ static zend_internal_function callbacks_internal_function = {
 	NULL,                  /* name              */
 	NULL,							/* scope             */
 	NULL,						/* prototype         */
-	0,							/* num_args          */
-	0,                  /* required_num_args */
+	1,							/* num_args          */
+	1,                  /* required_num_args */
 	(zend_internal_arg_info *) callbacks_executor_arg_info + 1, /* arg_info */
 	NULL,						/* attributes        */
 	NULL,              /* run_time_cache    */
@@ -104,8 +104,8 @@ static zend_internal_function microtasks_internal_function = {
 	NULL,                  /* name              */
 	NULL,							/* scope             */
 	NULL,						/* prototype         */
-	0,							/* num_args          */
-	0,                  /* required_num_args */
+	3,							/* num_args          */
+	3,                  /* required_num_args */
 	(zend_internal_arg_info *) microtasks_executor_arg_info + 1, /* arg_info */
 	NULL,						/* attributes        */
 	NULL,              /* run_time_cache    */
@@ -291,8 +291,14 @@ static ZEND_FUNCTION(microtasks_executor)
 	zval *z_buffer;
 	zval *z_handled;
 	zend_long max_count;
-	zval next_max_count;
-	ZVAL_NULL(&next_max_count);
+
+	struct {
+		int handled;
+		zend_long max_count;
+	} * next = NULL;
+
+	zval z_next;
+	ZVAL_NULL(&z_next);
 
 	ZEND_PARSE_PARAMETERS_START(3, 3)
 		Z_PARAM_ZVAL(z_buffer)
@@ -313,21 +319,25 @@ static ZEND_FUNCTION(microtasks_executor)
 			invoke_microtask(&task);
 			zval_ptr_dtor(&task);
 
-			if (UNEXPECTED(*handled < max_count) || EG(exception) != NULL || UNEXPECTED(async_find_fiber_state(fiber) != NULL)) {
+			if (UNEXPECTED(EG(exception) != NULL || async_find_fiber_state(fiber) != NULL)) {
 				return;
+			}
+
+			if (UNEXPECTED(*handled >= max_count)) {
+				break;
 			}
 		}
 
-		zend_fiber_suspend(fiber, NULL, &next_max_count);
+		ZVAL_NULL(&z_next);
+		zend_fiber_suspend(fiber, NULL, &z_next);
 
-		if (Z_TYPE(next_max_count) == IS_LONG) {
-            max_count = zval_get_long(&next_max_count);
-            ZVAL_NULL(&next_max_count);
-        }
-
-		if (UNEXPECTED(max_count == 0 || Z_TYPE(next_max_count) == IS_NULL)) {
+		if (UNEXPECTED(Z_TYPE(z_next) != IS_PTR)) {
             return;
         }
+
+		next = Z_PTR_P(&z_next);
+		handled = &next->handled;
+		max_count = next->max_count;
 	}
 }
 
@@ -351,6 +361,16 @@ static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const siz
 
 	// Define the fiber parameters
 	int handled = 0;
+
+	struct {
+		int handled;
+		zend_long max_count;
+	} current = {0, (zend_long) max_count};
+
+	zval z_current;
+	ZVAL_PTR(&z_current, &current);
+
+	const size_t count = circular_buffer_count(buffer);
 	zval z_max_count;
 	ZVAL_LONG(&z_max_count, max_count);
 
@@ -368,14 +388,19 @@ static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const siz
 		if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
 			zend_fiber_start(fiber, NULL);
 		} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zend_fiber_resume(fiber, &z_max_count, NULL);
+			zend_fiber_resume(fiber, &z_current, NULL);
+			handled = current.handled;
 		} else {
-			ZEND_ASSERT(true && "Invalid fiber status");
+			ZEND_ASSERT(true && "Invalid microtask fiber status");
 		}
 
 		is_not_empty = circular_buffer_is_not_empty(buffer);
 
-		if (UNEXPECTED(handled >= max_count)) {
+		if (handled <= count) {
+			return is_not_empty ? FAILURE : SUCCESS;
+		}
+
+		if (UNEXPECTED(handled > max_count)) {
 
 			OBJ_RELEASE(&fiber->std);
 			ASYNC_G(microtask_fiber) = NULL;
@@ -402,7 +427,7 @@ static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const siz
 	fiber->fci.params = NULL;
 	fiber->fci.param_count = 0;
 
-	return SUCCESS;
+	return is_not_empty;
 }
 
 static void execute_microtasks(void)
@@ -847,8 +872,6 @@ static void async_scheduler_dtor(void)
     }
 
 	if (ASYNC_G(microtask_fiber) != NULL) {
-
-		async_warning("Microtask fiber is not finished");
 
         if (ASYNC_G(microtask_fiber)->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
             zval parameter;

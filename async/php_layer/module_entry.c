@@ -677,6 +677,8 @@ static PHP_GINIT_FUNCTION(async)
 	async_globals->execute_callbacks_handler = NULL;
 	async_globals->execute_next_fiber_handler = NULL;
 	async_globals->execute_microtasks_handler = NULL;
+	async_globals->callbacks_fiber = NULL;
+	async_globals->microtask_fiber = NULL;
 
 	async_globals_ctor(async_globals);
 }
