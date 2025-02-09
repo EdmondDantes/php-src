@@ -150,6 +150,8 @@ struct _zend_fiber {
     /* Fiber shutdown_handlers */
 	HashTable *shutdown_handlers;
 
+	bool owned_params;
+
 #endif
 };
 
@@ -172,6 +174,48 @@ ZEND_API void zend_fiber_switch_unblock(void);
 ZEND_API bool zend_fiber_switch_blocked(void);
 
 #ifdef PHP_ASYNC
+
+zend_always_inline void zend_fiber_params_dtor(zend_fiber *fiber)
+{
+	if (fiber->owned_params && fiber->fci.params != NULL && fiber->fci.param_count > 0) {
+		for (uint32_t i = 0; i < fiber->fci.param_count; i++) {
+			zval_ptr_dtor(&fiber->fci.params[i]);
+		}
+
+		pefree(fiber->fci.params, 0);
+		fiber->fci.params = NULL;
+	}
+
+	if (fiber->owned_params && fiber->fci.named_params != NULL) {
+		zend_array_release(fiber->fci.named_params);
+		fiber->fci.named_params = NULL;
+	}
+}
+
+zend_always_inline void zend_fiber_params_ctor(
+	zend_fiber *fiber, zval *params, const uint32_t params_count, HashTable * named_params
+)
+{
+	zend_fiber_params_dtor(fiber);
+
+	if (params_count > 0) {
+		fiber->fci.param_count = params_count;
+		fiber->fci.params = pecalloc(params_count, sizeof(zval), 0);
+
+		for (uint32_t i = 0; i < params_count; i++) {
+			ZVAL_COPY(&fiber->fci.params[i], &params[i]);
+		}
+
+		fiber->fci.named_params = named_params;
+		GC_ADDREF(named_params);
+		fiber->owned_params = true;
+	} else {
+		fiber->fci.param_count = 0;
+		fiber->fci.params = NULL;
+		fiber->fci.named_params = NULL;
+		fiber->owned_params = false;
+	}
+}
 
 typedef struct _zend_fiber_defer_callback zend_fiber_defer_callback;
 typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_callback * callback);

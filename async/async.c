@@ -270,7 +270,7 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	return state;
 }
 
-void async_start_fiber(zend_fiber * fiber)
+void async_start_fiber(zend_fiber * fiber, zval *params, const uint32_t params_count, HashTable * named_params)
 {
 	if (UNEXPECTED(ASYNC_G(graceful_shutdown))) {
 		zend_error(E_CORE_WARNING, "Cannot start a new fiber during a graceful shutdown");
@@ -282,6 +282,8 @@ void async_start_fiber(zend_fiber * fiber)
 	if (resume == NULL) {
 		return;
 	}
+
+	zend_fiber_params_ctor(fiber, params, params_count, named_params);
 
 	async_fiber_state_t *state = async_find_fiber_state(fiber);
 

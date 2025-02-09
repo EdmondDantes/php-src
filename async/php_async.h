@@ -216,7 +216,7 @@ ZEND_API async_fiber_state_t * async_find_fiber_state(const zend_fiber *fiber);
  *
  * @throws Throws an error if the fiber cannot be added to the pending queue.
  */
-ZEND_API void async_start_fiber(zend_fiber * fiber);
+ZEND_API void async_start_fiber(zend_fiber * fiber, zval *params, const uint32_t params_count, HashTable * named_params);
 
 /**
  * Resumes an asynchronous fiber by enqueuing it into the pending queue.

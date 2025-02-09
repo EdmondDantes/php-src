@@ -75,8 +75,13 @@ PHP_FUNCTION(Async_run)
 
 	zval * callable;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	zval *args = NULL;
+	int args_count = 0;
+	HashTable *named_args = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
 		Z_PARAM_ZVAL(callable);
+		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
 	ZEND_PARSE_PARAMETERS_END();
 
 	zval zval_fiber;
@@ -90,7 +95,7 @@ PHP_FUNCTION(Async_run)
 
 	// Transfer fiber ownership to the scheduler
 	// (no need to release the fiber handle in this case)
-	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), args, args_count, named_args);
 }
 
 PHP_FUNCTION(Async_async)
@@ -99,8 +104,13 @@ PHP_FUNCTION(Async_async)
 
 	zval * callable;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	zval *args = NULL;
+	int args_count = 0;
+	HashTable *named_args = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
 		Z_PARAM_ZVAL(callable);
+		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
 	ZEND_PARSE_PARAMETERS_END();
 
 	zval zval_fiber;
@@ -121,7 +131,7 @@ PHP_FUNCTION(Async_async)
 
 	// Transfer fiber ownership to the scheduler
 	// (no need to release the fiber handle in this case)
-	async_start_fiber(fiber_handle->fiber);
+	async_start_fiber(fiber_handle->fiber, args, args_count, named_args);
 
 	RETURN_OBJ(&fiber_handle->handle.std);
 }
@@ -390,7 +400,7 @@ PHP_METHOD(Async_Walker, walk)
 	GC_DELREF(&walker->std);
 	GC_DELREF(&walker->std);
 
-	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), NULL, 0, NULL);
 }
 
 PHP_METHOD(Async_Walker, run)
@@ -557,9 +567,7 @@ PHP_METHOD(Async_Walker, next)
 		RETURN_THROWS();
 	}
 
-	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber));
-
-	//GC_DELREF(&walker->std);
+	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), NULL, 0, NULL);
 }
 
 PHP_METHOD(Async_Walker, cancel)

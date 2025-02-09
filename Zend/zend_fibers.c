@@ -674,6 +674,10 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		//
 #ifdef PHP_ASYNC
 
+		if (fiber->owned_params) {
+			zend_fiber_params_dtor(fiber);
+		}
+
 		//
 		// This code is related to zend_fiber_finalize.
 		// Please watch out for changes in that function.
@@ -857,6 +861,12 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 static void zend_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber *fiber = (zend_fiber *) object;
+
+#ifdef PHP_ASYNC
+	if (fiber->owned_params) {
+		zend_fiber_params_dtor(fiber);
+	}
+#endif
 
 	if (fiber->context.status != ZEND_FIBER_STATUS_SUSPENDED) {
 		return;

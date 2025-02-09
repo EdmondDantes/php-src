@@ -19,12 +19,12 @@ function wait(?Resume $resume = null): void {}
 /**
  * Create a new Fiber that will execute the specified task.
  */
-function run(callable $task): void {}
+function run(callable $task, mixed ... $args): void {}
 
 /**
  * Creates a coroutine (Fiber) that will execute as soon as an opportunity arises.
  */
-function async(callable $task): FiberHandle {}
+function async(callable $task, mixed ... $args): FiberHandle {}
 
 /**
  * Creates a microtask that is guaranteed to execute before events are processed, and other Fibers are started,
