@@ -1,5 +1,5 @@
 --TEST--
-Async\defer exception: Cannot await in the scheduler context
+Async\defer with Async\wait in the scheduler context
 --FILE--
 <?php
 
@@ -8,18 +8,17 @@ Async\defer(function() {
     Async\wait();
 });
 
-echo "start\n";
-try {
-    Async\launchScheduler();
-} catch (Exception $e) {
-    echo "Exception: ", $e->getMessage(), "\n";
-}
+Async\run(function() {
+    echo "async function 2\n";
+});
 
+echo "start\n";
+Async\launchScheduler();
 echo "end\n";
 
 ?>
 --EXPECT--
 start
 async function defer 1
-Exception: Cannot await in the scheduler context
+async function 2
 end

@@ -403,10 +403,12 @@ void async_wait(async_resume_t *resume)
 		return;
 	}
 
+	/*
 	if (ASYNC_G(in_scheduler_context)) {
 		async_throw_error("Cannot await in the scheduler context");
 		return;
 	}
+	*/
 
 	if (EG(active_fiber) == NULL) {
 		zend_error(E_CORE_WARNING, "Cannot await in a non-fiber context");
