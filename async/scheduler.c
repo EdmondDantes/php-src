@@ -160,7 +160,7 @@ zend_always_inline void separate_callback_fiber(void)
 	}
 }
 
-void async_execute_callback_in_fiber(zval * callable)
+void async_execute_callable_in_fiber(zval * callable)
 {
 	zend_fiber *fiber = get_callback_fiber();
 
@@ -832,6 +832,34 @@ static void start_graceful_shutdown(void)
 
 static void async_scheduler_dtor(void)
 {
+	ASYNC_G(in_scheduler_context) = true;
+
+	if (ASYNC_G(callbacks_fiber) != NULL) {
+
+		if (ASYNC_G(callbacks_fiber)->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+			zval parameter;
+			ZVAL_NULL(&parameter);
+			zend_fiber_resume(ASYNC_G(callbacks_fiber), &parameter, NULL);
+		}
+
+        OBJ_RELEASE(&ASYNC_G(callbacks_fiber)->std);
+        ASYNC_G(callbacks_fiber) = NULL;
+    }
+
+	if (ASYNC_G(microtask_fiber) != NULL) {
+
+		async_warning("Microtask fiber is not finished");
+
+        if (ASYNC_G(microtask_fiber)->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
+            zval parameter;
+            ZVAL_NULL(&parameter);
+            zend_fiber_resume(ASYNC_G(microtask_fiber), &parameter, NULL);
+        }
+
+        OBJ_RELEASE(&ASYNC_G(microtask_fiber)->std);
+        ASYNC_G(microtask_fiber) = NULL;
+    }
+
 	ASYNC_G(in_scheduler_context) = false;
 
 	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {

@@ -147,6 +147,8 @@ BEGIN_EXTERN_C()
 
 ZEND_API zend_bool reactor_is_enabled(void);
 ZEND_API void reactor_add_handle(reactor_handle_t *handle);
+ZEND_API void async_execute_callable_in_fiber(zval * callable);
+ZEND_API void async_execute_callbacks_in_fiber(HashTable * callbacks);
 
 ZEND_API reactor_stop_t reactor_stop_fn;
 ZEND_API reactor_loop_alive_t reactor_loop_alive_fn;
