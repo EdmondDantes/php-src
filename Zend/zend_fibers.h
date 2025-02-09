@@ -207,7 +207,11 @@ zend_always_inline void zend_fiber_params_ctor(
 		}
 
 		fiber->fci.named_params = named_params;
-		GC_ADDREF(named_params);
+
+		if (named_params != NULL) {
+			GC_ADDREF(named_params);
+		}
+
 		fiber->owned_params = true;
 	} else {
 		fiber->fci.param_count = 0;
