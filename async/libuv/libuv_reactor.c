@@ -535,8 +535,12 @@ static void on_process_event(uv_async_t *handle)
 	while (circular_buffer_is_not_empty(reactor->pid_queue)) {
 		circular_buffer_pop(reactor->pid_queue, &process);
 
+		DWORD exit_code;
+		GetExitCodeProcess(process->hProcess, &exit_code);
+
 		zval event, error;
-		ZVAL_NULL(&event);
+		ZVAL_LONG(&event, exit_code);
+		ZVAL_LONG(&process->process.exit_code, exit_code);
 		ZVAL_UNDEF(&error);
 
 		if (reactor->countWaitingDescriptors > 0) {
