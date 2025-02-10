@@ -29,7 +29,6 @@ typedef struct
 #ifdef PHP_WIN32
 	uv_thread_t * watcherThread;
 	HANDLE ioCompletionPort;
-	HANDLE hWakeUpEvent;
 	unsigned int countWaitingDescriptors;
 	bool isRunning;
 	uv_async_t uvloop_wakeup;
@@ -488,7 +487,7 @@ static void process_watcher_thread(void * args)
 			break;
 		}
 
-		if (completionKey == (ULONG_PTR) reactor->hWakeUpEvent) {
+		if (completionKey == 0) {
 			continue;
 		}
 
@@ -580,25 +579,6 @@ static void libuv_start_process_watcher(void)
 		return;
 	}
 
-	// Wake up event
-	reactor->hWakeUpEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-
-	if (reactor->hWakeUpEvent == NULL) {
-		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
-		php_error_docref(NULL, E_CORE_ERROR, "Failed to create wake up event: %s", error_msg);
-		php_win32_error_msg_free(error_msg);
-		return;
-	}
-
-	if (CreateIoCompletionPort(
-		reactor->hWakeUpEvent, reactor->ioCompletionPort, (ULONG_PTR)reactor->hWakeUpEvent, 0
-	) == NULL) {
-		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
-		php_error_docref(NULL, E_CORE_ERROR, "Failed to create IO completion port for wake up event: %s", error_msg);
-		php_win32_error_msg_free(error_msg);
-		return;
-	}
-
 	reactor->isRunning = true;
 	reactor->countWaitingDescriptors = 0;
 
@@ -615,7 +595,8 @@ static void libuv_start_process_watcher(void)
 	WATCHER = thread;
 
 	error = uv_async_init(UVLOOP, &reactor->uvloop_wakeup, on_process_event);
-	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(libuv_process_t *), &zend_std_allocator);
+	reactor->pid_queue = pecalloc(1, sizeof(circular_buffer_t), 0);
+	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(libuv_process_t *), NULL);
 
 	if (error < 0) {
 		uv_thread_detach(thread);
@@ -637,7 +618,7 @@ static void libuv_stop_process_watcher(void)
 	reactor->isRunning = false;
 
 	// send wake up event to stop the thread
-	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)reactor->hWakeUpEvent, NULL);
+	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)0, NULL);
 	uv_thread_detach(WATCHER);
 	pefree(WATCHER, 0);
 	WATCHER = NULL;
@@ -646,12 +627,9 @@ static void libuv_stop_process_watcher(void)
 	CloseHandle(reactor->ioCompletionPort);
 	reactor->ioCompletionPort = NULL;
 
-	// Stop wake up event
-	CloseHandle(reactor->hWakeUpEvent);
-	reactor->hWakeUpEvent = NULL;
-
 	// Stop circular buffer
 	circular_buffer_destroy(reactor->pid_queue);
+	efree(reactor->pid_queue);
 	reactor->pid_queue = NULL;
 }
 

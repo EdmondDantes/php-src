@@ -1346,6 +1346,18 @@ bool async_ensure_socket_nonblocking(php_socket_t socket)
 
 ZEND_API zend_long async_wait_process(async_process_t process_h, const zend_ulong timeout)
 {
+#ifdef PHP_WIN32
+	if (WaitForSingleObject(process_h, 0) == WAIT_OBJECT_0) {
+		return -1;
+	}
+#else
+	int status = 0;
+
+	if (waitpid(process_h, &status, WNOHANG) > 0) {
+		return -1;
+	}
+#endif
+
 	reactor_handle_t * handle = reactor_process_new_fn(process_h, 0);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
