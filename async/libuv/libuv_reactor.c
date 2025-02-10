@@ -483,7 +483,14 @@ static void process_watcher_thread(void * args)
 
 	while (reactor->isRunning && reactor->ioCompletionPort != NULL) {
 
-		if (false == GetQueuedCompletionStatus(reactor->ioCompletionPort, NULL, &completionKey, NULL, INFINITE)) {
+		DWORD lpNumberOfBytesTransferred;
+		//OVERLAPPED overlapped = {0};
+		LPOVERLAPPED lpOverlapped = NULL;
+
+		if (false == GetQueuedCompletionStatus(
+			reactor->ioCompletionPort, &lpNumberOfBytesTransferred, &completionKey, &lpOverlapped, INFINITE)
+			)
+		{
 			break;
 		}
 
@@ -654,12 +661,20 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		return;
 	}
 
-	if (CreateIoCompletionPort(
-		process->hJob, LIBUV_REACTOR->ioCompletionPort, (ULONG_PTR)process, 0
-	) == NULL) {
+	JOBOBJECT_ASSOCIATE_COMPLETION_PORT info = {0};
+	info.CompletionKey = (PVOID)process;
+	info.CompletionPort = LIBUV_REACTOR->ioCompletionPort;
+
+	if (!SetInformationJobObject(
+		process->hJob,
+		JobObjectAssociateCompletionPortInformation,
+		&info, sizeof(info)
+		)
+		)
+	{
 		CloseHandle(process->hJob);
 		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
-		async_throw_error("Failed to create IO completion port for process: %s", error_msg);
+		async_throw_error("Failed to associate IO completion port with Job for process: %s", error_msg);
 		php_win32_error_msg_free(error_msg);
 	}
 
