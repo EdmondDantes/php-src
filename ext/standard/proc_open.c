@@ -243,7 +243,17 @@ static pid_t waitpid_cached(php_process_handle *proc, int *wait_status, int opti
 		return proc->child;
 	}
 
-	pid_t wait_pid = waitpid(proc->child, wait_status, options);
+	pid_t wait_pid;
+
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT) {
+		wait_pid = async_waitpid(proc->child, wait_status, options);
+	} else {
+		wait_pid = waitpid(proc->child, wait_status, options);
+	}
+#else
+	wait_pid = waitpid(proc->child, wait_status, options);
+#endif
 
 	/* The "exit" status is the final status of the process.
 	 * If we were to cache the status unconditionally,
@@ -289,7 +299,7 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 
 #ifdef PHP_ASYNC
 		if (IN_ASYNC_CONTEXT) {
-
+			async_wait_process(proc->childHandle, 0);
 		} else {
 			WaitForSingleObject(proc->childHandle, INFINITE);
 		}

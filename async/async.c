@@ -1344,24 +1344,41 @@ bool async_ensure_socket_nonblocking(php_socket_t socket)
 	return true;
 }
 
-ZEND_API void async_wait_process(async_process_t process_h, const zend_ulong timeout)
+ZEND_API zend_long async_wait_process(async_process_t process_h, const zend_ulong timeout)
 {
-#ifdef PHP_WIN32
-	HANDLE hJob = CreateJobObject(NULL, NULL);
+	reactor_handle_t * handle = reactor_process_new_fn(process_h, 0);
 
-	if (hJob == NULL) {
-		php_error_docref(NULL, E_WARNING, "Failed to create job object for process synchronization");
-		return;
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return -1;
 	}
 
-	if (!AssignProcessToJobObject(hJob, process_h)) {
-		CloseHandle(hJob);
-		php_error_docref(NULL, E_WARNING, "Failed to assign process to job object for process synchronization");
-		return;
+	reactor_process_t *process = (reactor_process_t *) handle;
+
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, NULL);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return -1;
 	}
 
+	async_resume_when(resume, handle, true, async_resume_when_callback_resolve);
 
-#else
+	async_wait(resume);
 
-#endif
+	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
+	OBJ_RELEASE(&resume->std);
+
+	return Z_TYPE(process->exit_code) == IS_LONG ? Z_LVAL(process->exit_code) : -1;
+}
+
+ZEND_API pid_t async_waitpid(pid_t pid, int *status, int options)
+{
+	zend_long process_status = async_wait_process((async_process_t) pid, 0);
+
+	*status = (int) process_status;
+
+	if (EG(exception) != NULL) {
+		return -1;
+	}
+
+	return pid;
 }
