@@ -862,7 +862,7 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 	fd_set aread, awrite, aexcept;
 
 	/* As max_fd is unsigned, non socket might overflow. */
-	if (max_fd > (php_socket_t)FD_SETSIZE) {
+	if (max_fd > (php_socket_t)INT_MAX) {
 		return -1;
 	}
 
@@ -921,6 +921,10 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 
 		if (SAFE_FD_ISSET(i, efds)) {
 			events |= ASYNC_PRIORITIZED;
+		}
+
+		if (events == 0) {
+			continue;
 		}
 
 		if (is_socket) {
