@@ -66,8 +66,11 @@ echo "end\n";
 
 ?>
 --EXPECT--
+start
 bool(true)
 bool(true)
+async function 2
 PIPE 1 << hello
 PIPE 2 << SOME ERROR
 PIPE 1 << world
+end

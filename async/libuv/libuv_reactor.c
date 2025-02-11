@@ -657,6 +657,12 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		return;
 	}
 
+	DWORD exitCode;
+	if (GetExitCodeProcess(process->hProcess, &exitCode) && exitCode != STILL_ACTIVE) {
+		async_throw_error("Process has already terminated: %d", exitCode);
+		return;
+	}
+
 	process->hJob = CreateJobObject(NULL, NULL);
 
 	if (AssignProcessToJobObject(process->hJob, process->hProcess) == 0) {

@@ -1,7 +1,7 @@
 <?php
 
 echo "hello";
-sleep(1);
+usleep(1000);
 fwrite(STDERR, "SOME ERROR");
-sleep(1);
+usleep(1000);
 echo "world";

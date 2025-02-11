@@ -61,10 +61,11 @@ ZEND_API ZEND_COLD zend_object * async_throw_error(const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-
-	zend_object *obj = zend_throw_exception_ex(async_ce_async_exception, 0, format, args);
-
+	zend_string *message = zend_vstrpprintf(0, format, args);
 	va_end(args);
+
+	zend_object *obj = zend_throw_exception(async_ce_async_exception, ZSTR_VAL(message), 0);
+	zend_string_release(message);
 	return obj;
 }
 

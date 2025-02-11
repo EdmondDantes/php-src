@@ -1375,8 +1375,9 @@ bool async_ensure_socket_nonblocking(php_socket_t socket)
 ZEND_API zend_long async_wait_process(async_process_t process_h, const zend_ulong timeout)
 {
 #ifdef PHP_WIN32
-	if (WaitForSingleObject(process_h, 0) == WAIT_OBJECT_0) {
-		return -1;
+	DWORD exitCode;
+	if (GetExitCodeProcess(process_h, &exitCode) && exitCode != STILL_ACTIVE) {
+		return exitCode;
 	}
 #else
 	int status = 0;
