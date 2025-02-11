@@ -532,13 +532,13 @@ static void on_process_event(uv_async_t *handle)
 {
 	libuv_reactor_t * reactor = LIBUV_REACTOR;
 
-	if (circular_buffer_is_empty(reactor->pid_queue)) {
+	if (reactor->pid_queue == NULL || circular_buffer_is_empty(reactor->pid_queue)) {
 		return;
 	}
 
 	libuv_process_t * process;
 
-	while (circular_buffer_is_not_empty(reactor->pid_queue)) {
+	while (reactor->pid_queue && circular_buffer_is_not_empty(reactor->pid_queue)) {
 		circular_buffer_pop(reactor->pid_queue, &process);
 
 		DWORD exit_code;
