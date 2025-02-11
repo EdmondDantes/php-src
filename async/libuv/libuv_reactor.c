@@ -657,10 +657,6 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		return;
 	}
 
-	if (WATCHER == NULL) {
-		libuv_start_process_watcher();
-	}
-
 	process->hJob = CreateJobObject(NULL, NULL);
 
 	if (AssignProcessToJobObject(process->hJob, process->hProcess) == 0) {
@@ -668,6 +664,10 @@ static void libuv_add_process_handle(reactor_handle_t *handle)
 		async_throw_error("Failed to assign process to job object: %s", error_msg);
 		php_win32_error_msg_free(error_msg);
 		return;
+	}
+
+	if (WATCHER == NULL) {
+		libuv_start_process_watcher();
 	}
 
 	JOBOBJECT_ASSOCIATE_COMPLETION_PORT info = {0};
