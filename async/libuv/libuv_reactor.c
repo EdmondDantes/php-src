@@ -31,7 +31,7 @@ typedef struct
 	HANDLE ioCompletionPort;
 	unsigned int countWaitingDescriptors;
 	bool isRunning;
-	uv_async_t uvloop_wakeup;
+	uv_async_t * uvloop_wakeup;
 	/* Circular buffer of libuv_process_t ptr */
 	circular_buffer_t * pid_queue;
 #endif
@@ -506,7 +506,7 @@ static void process_watcher_thread(void * args)
 
 		if (UNEXPECTED(circular_buffer_is_full(reactor->pid_queue))) {
 
-			uv_async_send(&reactor->uvloop_wakeup);
+			uv_async_send(reactor->uvloop_wakeup);
 
 			unsigned int delay = 1;
 
@@ -521,7 +521,7 @@ static void process_watcher_thread(void * args)
         }
 
 		circular_buffer_push(reactor->pid_queue, &process, false);
-		uv_async_send(&reactor->uvloop_wakeup);
+		uv_async_send(reactor->uvloop_wakeup);
 	}
 }
 
@@ -600,8 +600,9 @@ static void libuv_start_process_watcher(void)
 	}
 
 	WATCHER = thread;
+	reactor->uvloop_wakeup = pecalloc(1, sizeof(uv_async_t), 0);
 
-	error = uv_async_init(UVLOOP, &reactor->uvloop_wakeup, on_process_event);
+	error = uv_async_init(UVLOOP, reactor->uvloop_wakeup, on_process_event);
 	reactor->pid_queue = pecalloc(1, sizeof(circular_buffer_t), 0);
 	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(libuv_process_t *), NULL);
 
@@ -614,6 +615,11 @@ static void libuv_start_process_watcher(void)
 	}
 }
 
+static void libuv_wakeup_close_cb(uv_handle_t *handle)
+{
+    pefree(handle, 0);
+}
+
 static void libuv_stop_process_watcher(void)
 {
 	if (WATCHER == NULL) {
@@ -623,6 +629,9 @@ static void libuv_stop_process_watcher(void)
 	libuv_reactor_t * reactor = LIBUV_REACTOR;
 
 	reactor->isRunning = false;
+
+	uv_close((uv_handle_t *) reactor->uvloop_wakeup, libuv_wakeup_close_cb);
+	reactor->uvloop_wakeup = NULL;
 
 	// send wake up event to stop the thread
 	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)0, NULL);

@@ -1,5 +1,5 @@
 --TEST--
-proc_open
+proc_open() inside fiber
 --SKIPIF--
 <?php
 if (!function_exists("proc_open")) echo "skip proc_open() is not available";
