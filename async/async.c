@@ -72,6 +72,33 @@ void async_globals_dtor(zend_async_globals *async_globals)
 
 	ZEND_ASSERT(async_globals->exit_exception == NULL && "Exit exception must be NULL.");
 
+	while (circular_buffer_is_not_empty(&async_globals->microtasks)) {
+		// Remove all microtasks from the queue
+		async_microtask_t *microtask;
+		circular_buffer_pop(&async_globals->microtasks, &microtask);
+		async_scheduler_microtask_free(microtask);
+	}
+
+	while (circular_buffer_is_not_empty(&async_globals->deferred_resumes)) {
+		// Remove all deferred resumes from the queue
+		async_resume_t *resume;
+		circular_buffer_pop(&async_globals->deferred_resumes, &resume);
+		OBJ_RELEASE(&resume->std);
+	}
+
+	async_fiber_state_t *fiber_state;
+
+	ZEND_HASH_FOREACH_PTR(&async_globals->fibers_state, fiber_state) {
+		if (fiber_state->resume != NULL) {
+			//OBJ_RELEASE(&fiber_state->resume->std);
+		}
+
+		if (fiber_state->fiber != NULL) {
+			zend_fiber_finalize(fiber_state->fiber);
+			OBJ_RELEASE(&fiber_state->fiber->std);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->deferred_resumes);
 	zend_hash_destroy(&async_globals->fibers_state);
@@ -253,10 +280,7 @@ static async_fiber_state_t * async_add_fiber_state(zend_fiber * fiber, async_res
 	state->fiber = fiber;
 	state->resume = resume;
 
-	zval zv;
-	ZVAL_PTR(&zv, state);
-
-	if (zend_hash_index_update(&ASYNC_G(fibers_state), fiber->std.handle, &zv) != NULL) {
+	if (zend_hash_index_update_ptr(&ASYNC_G(fibers_state), fiber->std.handle, state) != NULL) {
 		//
 		// From this point, the Fiber belongs to the Scheduler.
 		// The reference count will be decremented in the execute_next_fiber method

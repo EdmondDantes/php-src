@@ -695,7 +695,6 @@ static PHP_GINIT_FUNCTION(async)
 /* {{{ PHP_GSHUTDOWN_FUNCTION */
 static PHP_GSHUTDOWN_FUNCTION(async)
 {
-	async_globals_dtor(async_globals);
 }
 
 PHP_RINIT_FUNCTION(async) /* {{{ */
@@ -706,6 +705,7 @@ PHP_RINIT_FUNCTION(async) /* {{{ */
 
 PHP_RSHUTDOWN_FUNCTION(async) /* {{{ */
 {
+	async_globals_dtor(ASYNC_GLOBAL);
 	async_host_name_list_dtor();
 	return SUCCESS;
 } /* }}} */
