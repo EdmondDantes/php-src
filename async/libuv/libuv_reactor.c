@@ -850,6 +850,13 @@ static void libuv_add_handle(reactor_handle_t *handle)
     	libuv_add_process_handle(handle);
     } else if (object->ce == async_ce_thread_handle) {
 
+    } else if (object->ce == async_ce_dns_info) {
+    	libuv_dns_info_t *dns_info = (libuv_dns_info_t *)object;
+
+    	if (false == dns_info->has_reference) {
+    		dns_info->has_reference = true;
+    		ASYNC_G(event_handle_count)++;
+    	}
     }
 }
 
@@ -984,6 +991,13 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		libuv_remove_process_handle(handle);
     } else if (object->ce == async_ce_thread_handle) {
 
+    } else if (object->ce == async_ce_dns_info) {
+    	libuv_dns_info_t *dns_info = (libuv_dns_info_t *)object;
+
+    	if (dns_info->has_reference) {
+    		DECREASE_EVENT_HANDLE_COUNT;
+    		dns_info->has_reference = false;
+    	}
     }
 }
 
@@ -1121,6 +1135,12 @@ static void libuv_shutdown(void)
 	zend_async_globals *async_globals = ASYNC_GLOBAL;
 
 	if (EXPECTED(async_globals->reactor != NULL)) {
+
+		if (uv_loop_alive(UVLOOP) != 0) {
+			// need to finish handlers
+			uv_run(UVLOOP, UV_RUN_ONCE);
+		}
+
 		uv_loop_close(async_globals->reactor);
 		pefree(async_globals->reactor, 1);
 		async_globals->reactor = NULL;
@@ -1150,7 +1170,7 @@ static zend_bool libuv_loop_alive(void)
 		return false;
 	}
 
-	return ASYNC_G(event_handle_count) > 0 && uv_loop_alive(UVLOOP) != 0;
+	return uv_loop_alive(UVLOOP);
 }
 
 //=============================================================
