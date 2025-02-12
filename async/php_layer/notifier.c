@@ -57,6 +57,17 @@ METHOD(removeCallback)
 
 METHOD(__toString)
 {
+	reactor_notifier_t * notifier = (reactor_notifier_t *) Z_OBJ_P(ZEND_THIS);
+
+	if (Z_TYPE(notifier->to_string) == IS_PTR) {
+		const reactor_notifier_to_string_t to_string = Z_PTR(notifier->to_string);
+		RETURN_STR(zend_string_copy(to_string(notifier)));
+	} else if (Z_TYPE(notifier->to_string) != IS_UNDEF && zend_is_callable(&notifier->to_string, 0, NULL)) {
+		zval retval;
+		call_user_function(EG(function_table), NULL, &notifier->to_string, &retval, 0, NULL);
+		RETURN_ZVAL(&retval, 1, 1);
+	}
+
 	// By default, this method returns the class name.
 	RETURN_STR(zend_string_copy(Z_OBJCE_P(ZEND_THIS)->name));
 }

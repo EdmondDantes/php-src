@@ -15,6 +15,11 @@ class Notifier
     private array $callbacks = [];
 
     /**
+     * The string representation of the Notifier.
+     */
+    private mixed $toString;
+
+    /**
      * Reserved for internal use:
      * reactor_notifier_notify_t notify_fn
      * reactor_remove_callback_t remove_callback_fn

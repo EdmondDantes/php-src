@@ -1414,6 +1414,7 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value)
 {
 
+
 	return 0;
 }
 

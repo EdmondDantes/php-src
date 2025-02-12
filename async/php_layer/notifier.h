@@ -42,6 +42,7 @@ typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
 
 typedef void (* reactor_notifier_handler_t) (reactor_notifier_t* notifier, zval* event, zval* error);
+typedef  zend_string* (* reactor_notifier_to_string_t) (reactor_notifier_t* notifier);
 typedef bool (* reactor_remove_callback_t) (reactor_notifier_t * notifier, zval * callback);
 
 struct _reactor_handle_s {
@@ -58,13 +59,19 @@ struct _reactor_handle_s {
 			 */
 			zval callbacks;
 
+			/**
+			 * toString handler function.
+			 * CALLABLE or ZVAL_PTR to reactor_notifier_to_string_t
+			 */
+			zval to_string;
+
 			// Padding memory zone for notify_fn, user_data
 			zval _padding2;
 		};
 		struct
 		{
 			// zend object std + callbacks
-			char _padding3[sizeof(zend_object)];
+			char _padding3[sizeof(zend_object) + sizeof(zval)];
 
 			// padding2 + padding3 memory zone
 
