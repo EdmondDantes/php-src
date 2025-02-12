@@ -55,6 +55,9 @@ static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
 static zend_object_handlers libuv_object_handlers;
 
+static void libuv_normalize_handle_refcount_to_one(reactor_handle_t *handle);
+static void libuv_remove_handle(reactor_handle_t *handle);
+
 static void libuv_close_cb(uv_handle_t *handle)
 {
 	pefree(handle, 1);
@@ -274,6 +277,11 @@ static void on_timer_event(uv_timer_t *handle)
 	ZVAL_NULL(&events);
 
 	async_notifier_notify(&timer->handle, &events, &error);
+
+	if (Z_TYPE(timer->timer.is_periodic) == IS_FALSE) {
+		libuv_normalize_handle_refcount_to_one(&timer->handle);
+		libuv_remove_handle(&timer->handle);
+	}
 	IF_EXCEPTION_STOP;
 }
 
@@ -845,7 +853,7 @@ static void libuv_add_handle(reactor_handle_t *handle)
     }
 }
 
-static void libuv_normalize_handle_refcount_for_destroy(reactor_handle_t *handle)
+static void libuv_normalize_handle_refcount_to_one(reactor_handle_t *handle)
 {
 	zend_object *object = &handle->std;
 
@@ -1075,7 +1083,7 @@ static void libuv_close_handle(reactor_handle_t *handle)
 
 static void libuv_object_destroy(zend_object *object)
 {
-	libuv_normalize_handle_refcount_for_destroy((reactor_handle_t *) object);
+	libuv_normalize_handle_refcount_to_one((reactor_handle_t *) object);
 	libuv_remove_handle((reactor_handle_t *) object);
 	libuv_close_handle((reactor_handle_t *) object);
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
