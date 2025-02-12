@@ -1226,6 +1226,11 @@ static void addr_on_resolved(uv_getaddrinfo_t *req, const int status, struct add
 
 	ZVAL_NULL(&dns_handle->dns_info.address);
 
+	if (dns_handle->has_reference) {
+		DECREASE_EVENT_HANDLE_COUNT;
+		dns_handle->has_reference = false;
+	}
+
 	if (status == UV_ECANCELED) {
 		// No need to call async_notifier_notify if the request is canceled.
 		uv_freeaddrinfo(res);
@@ -1256,6 +1261,11 @@ static void host_on_resolved(const uv_getnameinfo_t* req, const int status, cons
 
 	zval error;
 	ZVAL_NULL(&error);
+
+	if (dns_handle->has_reference) {
+		DECREASE_EVENT_HANDLE_COUNT;
+		dns_handle->has_reference = false;
+	}
 
 	if (status == UV_ECANCELED) {
 		// No need to call async_notifier_notify if the request is canceled.
@@ -1371,6 +1381,11 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 	}
 
 	dns_handle->is_cancelled = true;
+
+	if (dns_handle->has_reference) {
+		DECREASE_EVENT_HANDLE_COUNT;
+		dns_handle->has_reference = false;
+	}
 
 	if (dns_handle->is_addr_info) {
 		uv_cancel((uv_req_t *)dns_handle->addr_info);
