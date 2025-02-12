@@ -1404,8 +1404,16 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 #pragma region Exec
 //=============================================================
 
+/* {{{ php_exec
+ * If type==0, only last line of output is returned (exec)
+ * If type==1, all lines will be printed and last lined returned (system)
+ * If type==2, all lines will be saved to given array (exec with &$array)
+ * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
+ *
+ */
 static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value)
 {
+
 	return 0;
 }
 

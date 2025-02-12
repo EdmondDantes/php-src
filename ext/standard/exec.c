@@ -124,13 +124,13 @@ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value)
 
 #ifdef PHP_WIN32
 
-#ifdef PHP_ASYNC
-	if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
-        return reactor_exec_fn(type, cmd, array, return_value);
-    }
-#else
-	fp = VCWD_POPEN(cmd, "rb");
-#endif
+	#ifdef PHP_ASYNC
+		if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
+	        return reactor_exec_fn(type, cmd, array, return_value);
+	    }
+	#else
+		fp = VCWD_POPEN(cmd, "rb");
+	#endif
 
 #else
 	fp = VCWD_POPEN(cmd, "r");
