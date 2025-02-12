@@ -1170,7 +1170,7 @@ static zend_bool libuv_loop_alive(void)
 		return false;
 	}
 
-	return uv_loop_alive(UVLOOP);
+	return ASYNC_G(event_handle_count) > 0 && uv_loop_alive(UVLOOP) != 0;
 }
 
 //=============================================================
