@@ -1206,6 +1206,8 @@ static reactor_thread_new_t prev_reactor_thread_new_fn = NULL;
 static reactor_dns_info_new_t prev_reactor_dns_info_new_fn = NULL;
 static reactor_dns_info_cancel_t prev_reactor_dns_info_cancel_fn = NULL;
 
+static reactor_exec_t prev_reactor_exec_fn = NULL;
+
 //=============================================================
 #pragma endregion
 //=============================================================
@@ -1398,6 +1400,19 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 #pragma endregion
 //=============================================================
 
+//=============================================================
+#pragma region Exec
+//=============================================================
+
+static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value)
+{
+	return 0;
+}
+
+//=============================================================
+#pragma endregion
+//=============================================================
+
 static void setup_handlers(void)
 {
 	async_scheduler_set_callbacks_handler(execute_callbacks);
@@ -1461,6 +1476,9 @@ static void setup_handlers(void)
 
 	prev_reactor_file_system_new_fn = reactor_file_system_new_fn;
 	reactor_file_system_new_fn = libuv_file_system_new;
+
+	prev_reactor_exec_fn = reactor_exec_fn;
+	reactor_exec_fn = libuv_exec;
 }
 
 static void restore_handlers(void)
@@ -1490,6 +1508,7 @@ static void restore_handlers(void)
 	reactor_dns_info_cancel_fn = prev_reactor_dns_info_cancel_fn;
 
 	reactor_file_system_new_fn = prev_reactor_file_system_new_fn;
+	reactor_exec_fn = prev_reactor_exec_fn;
 }
 
 void async_libuv_startup(void)

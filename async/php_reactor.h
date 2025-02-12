@@ -143,6 +143,8 @@ typedef reactor_handle_t * (*reactor_dns_info_new_t)
 
 typedef void (*reactor_dns_info_cancel_t)(reactor_handle_t *handle);
 
+typedef int (* reactor_exec_t)(int type, const char *cmd, zval *array, zval *return_value);
+
 BEGIN_EXTERN_C()
 
 ZEND_API zend_bool reactor_is_enabled(void);
@@ -173,6 +175,7 @@ ZEND_API reactor_process_new_t reactor_process_new_fn;
 ZEND_API reactor_thread_new_t reactor_thread_new_fn;
 ZEND_API reactor_dns_info_new_t reactor_dns_info_new_fn;
 ZEND_API reactor_dns_info_cancel_t reactor_dns_info_cancel_fn;
+ZEND_API reactor_exec_t reactor_exec_fn;
 
 END_EXTERN_C()
 

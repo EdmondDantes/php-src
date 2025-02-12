@@ -45,6 +45,7 @@
 #endif
 
 #include <limits.h>
+#include <async/php_reactor.h>
 
 #ifdef PHP_WIN32
 # include "win32/nice.h"
@@ -122,7 +123,15 @@ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value)
 #endif
 
 #ifdef PHP_WIN32
+
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
+        return reactor_exec_fn(type, cmd, array, return_value);
+    }
+#else
 	fp = VCWD_POPEN(cmd, "rb");
+#endif
+
 #else
 	fp = VCWD_POPEN(cmd, "r");
 #endif
