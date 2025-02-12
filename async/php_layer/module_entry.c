@@ -679,6 +679,7 @@ static PHP_GINIT_FUNCTION(async)
 	async_globals->is_async = false;
 	async_globals->in_scheduler_context = false;
 	async_globals->graceful_shutdown = false;
+	async_globals->event_handle_count = 0;
 	async_globals->exit_exception = NULL;
 	async_globals->reactor = NULL;
 	async_globals->exception_handler = NULL;

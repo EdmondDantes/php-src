@@ -234,11 +234,11 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		ZEND_HASH_FOREACH_END();
 
 	} zend_catch {
-		GC_DELREF(&notifier->std);
+		OBJ_RELEASE(&notifier->std);
 		zend_bailout();
 	} zend_end_try();
 
 finally:
 
-	GC_DELREF(&notifier->std);
+	OBJ_RELEASE(&notifier->std);
 }
