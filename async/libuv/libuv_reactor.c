@@ -551,7 +551,7 @@ static void on_process_event(uv_async_t *handle)
 
 		if (reactor->countWaitingDescriptors > 0) {
 			reactor->countWaitingDescriptors--;
-			ASYNC_G(event_handle_count)--;
+			DECREASE_EVENT_HANDLE_COUNT;
 
 			if (reactor->countWaitingDescriptors == 0) {
 				libuv_stop_process_watcher();
@@ -782,7 +782,6 @@ static void libuv_add_handle(reactor_handle_t *handle)
     	libuv_timer_t *timer = (libuv_timer_t *)object;
 
     	if (timer->uv_handle == NULL || timer->reference_count > 0) {
-    		printf("Timer add ref = %d - %i \n", timer->reference_count, timer->std.handle);
 			timer->reference_count++;
     		return;
     	}
@@ -856,16 +855,30 @@ static void libuv_normalize_handle_refcount_for_destroy(reactor_handle_t *handle
 		|| object->ce == async_ce_tty_handle) {
 
 		libuv_poll_t *poll = (libuv_poll_t *)object;
-		poll->reference_count = 1;
+
+		if (poll->reference_count > 0) {
+			poll->reference_count = 1;
+		}
     } else if (object->ce == async_ce_timer_handle) {
     	libuv_timer_t *timer = (libuv_timer_t *)object;
-    	timer->reference_count = 1;
+
+    	if (timer->reference_count > 0) {
+    		timer->reference_count = 1;
+    	}
+
     } else if (object->ce == async_ce_signal_handle) {
 		libuv_signal_t *signal = (libuv_signal_t *)object;
-    	signal->reference_count = 1;
+
+		if (signal->reference_count > 0) {
+        	signal->reference_count = 1;
+        }
+
     } else if (object->ce == async_ce_file_system_handle) {
 		libuv_fs_event_t *fs_event = (libuv_fs_event_t *)object;
-    	fs_event->reference_count = 1;
+
+		if (fs_event->reference_count > 0) {
+        	fs_event->reference_count = 1;
+        }
     }
 }
 
@@ -892,7 +905,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		}
 
 		if (poll->reference_count > 0) {
-			ASYNC_G(event_handle_count)--;
+			DECREASE_EVENT_HANDLE_COUNT;
         }
 
 		poll->reference_count = 0;
@@ -913,7 +926,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
 		}
 
     	if (timer->reference_count > 0) {
-    		ASYNC_G(event_handle_count)--;
+    		DECREASE_EVENT_HANDLE_COUNT;
     	}
 
     	timer->reference_count = 0;
@@ -934,7 +947,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
         }
 
     	if (signal->reference_count > 0) {
-    		ASYNC_G(event_handle_count)--;
+    		DECREASE_EVENT_HANDLE_COUNT;
     	}
 
     	signal->reference_count = 0;
@@ -954,7 +967,7 @@ static void libuv_remove_handle(reactor_handle_t *handle)
         }
 
     	if (fs_event->reference_count > 0) {
-    		ASYNC_G(event_handle_count)--;
+    		DECREASE_EVENT_HANDLE_COUNT;
     	}
 
     	fs_event->reference_count = 0;

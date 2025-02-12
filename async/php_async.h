@@ -92,6 +92,12 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 
 #define IN_ASYNC_CONTEXT EG(active_fiber) != NULL && IS_ASYNC_ON
 
+#define DECREASE_EVENT_HANDLE_COUNT  if (ASYNC_G(event_handle_count) > 0) { \
+        ASYNC_G(event_handle_count)--; \
+    } else { \
+		ZEND_ASSERT("The event handle count is already zero."); \
+	} \
+
 //
 // Definitions compatibles with proc_open()
 //
