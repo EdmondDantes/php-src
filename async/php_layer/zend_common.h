@@ -49,6 +49,16 @@ void zend_always_inline zval_copy(zval * destination, zval * source)
 	Z_TRY_ADDREF_P(source);
 }
 
+void zend_always_inline zval_assign(zval * destination, zval * source)
+{
+	if (Z_ISREF_P(source)) {
+		source = Z_REFVAL_P(source);
+	}
+
+	zval_ptr_dtor(destination);
+	ZVAL_COPY_VALUE(destination, source);
+}
+
 void zend_always_inline zval_null(zval * destination)
 {
 	zval_ptr_dtor(destination);

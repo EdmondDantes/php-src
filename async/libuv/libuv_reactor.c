@@ -1457,11 +1457,13 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 	if (nread > 0) {
 		switch (exec->type) {
 			case 0: // exec - save only last line
+				zval_ptr_dtor(exec->return_value);
 				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
 				break;
 
 			case 1: // system - output all lines and save last
 				PHPWRITE(buf->base, nread);
+				zval_ptr_dtor(exec->return_value);
 				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
 				break;
 
@@ -1538,13 +1540,13 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 
 	options.exit_cb = exec_on_exit;
 	options.file = "cmd.exe";
-	options.args = (char*[]) { "cmd.exe", "/s /c", (char *)cmd, NULL };
+	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)cmd, NULL };
 
 	options.stdio = (uv_stdio_container_t[]) {
 	        { UV_IGNORE },
 			{
 				.data.stream = (uv_stream_t*) exec->stdout_pipe,
-				.flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE
+				.flags = UV_CREATE_PIPE | UV_READABLE_PIPE
 			},
 			{ UV_IGNORE }
 	};
