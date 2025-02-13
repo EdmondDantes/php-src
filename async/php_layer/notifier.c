@@ -126,7 +126,10 @@ void async_register_notifier_ce(void)
 }
 
 reactor_notifier_t * async_notifier_new_ex(
-	size_t size, reactor_notifier_handler_t handler_fn, reactor_remove_callback_t remove_callback_fn
+	size_t size,
+	reactor_notifier_handler_t handler_fn,
+	reactor_remove_callback_t remove_callback_fn,
+	reactor_notifier_to_string_t to_string_fn
 )
 {
 	if (size == 0) {
@@ -141,6 +144,10 @@ reactor_notifier_t * async_notifier_new_ex(
 
 	notifier->handler_fn = handler_fn;
 	notifier->remove_callback_fn = remove_callback_fn;
+
+	if (to_string_fn) {
+		ZVAL_PTR(&notifier->to_string, to_string_fn);
+	}
 
 	return notifier;
 }

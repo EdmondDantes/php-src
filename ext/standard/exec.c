@@ -126,7 +126,7 @@ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value)
 
 	#ifdef PHP_ASYNC
 		if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
-	        return reactor_exec_fn(type, cmd, array, return_value);
+	        return reactor_exec_fn(type, cmd, array, return_value, NULL, NULL);
 	    }
 	#else
 		fp = VCWD_POPEN(cmd, "rb");

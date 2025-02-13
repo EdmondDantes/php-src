@@ -1403,21 +1403,144 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 //=============================================================
 #pragma region Exec
 //=============================================================
+#ifdef PHP_WIN32
 
-/* {{{ php_exec
+typedef struct
+{
+	reactor_notifier_t notifier;
+	uv_process_t * process;
+	uv_pipe_t * stdout_pipe;
+	uv_buf_t * buffer;
+	int type;
+	char *cmd;
+	zval * array;
+	zval * return_value;
+} libuv_exec_t;
+
+static void exec_handle_output(libuv_exec_t *exec, const char* buf, size_t len)
+{
+	switch(exec->type) {
+		case 0: // exec()
+			break;
+		case 1: // system()
+			PHPWRITE(buf, len);
+			break;
+		case 2: // exec() with &$array
+			add_to_array(exec->array, buf, len);
+			break;
+		case 3: // passthru()
+			PHPWRITE(buf, len);
+			break;
+		default: ;
+	}
+}
+
+static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+	libuv_exec_t *exec = handle->data;
+	buf->base = exec->output + exec->output_len;
+	buf->len = EXEC_INPUT_BUF;
+}
+
+static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
+{
+	return true;
+}
+
+static zend_string* exec_to_string(reactor_notifier_t * notifier)
+{
+	libuv_exec_t * exec = (libuv_exec_t *) notifier;
+	return zend_strpprintf(255, "Shell command: %s", exec->cmd);
+}
+
+static void exec_on_exit(uv_process_t* req, int64_t exit_status, int term_signal)
+{
+	libuv_exec_t *exec = req->data;
+
+	finalize_output(exec);
+}
+
+/**
+ * {{{ php_exec
  * If type==0, only last line of output is returned (exec)
  * If type==1, all lines will be printed and last lined returned (system)
  * If type==2, all lines will be saved to given array (exec with &$array)
  * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
- *
  */
-static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value)
+static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value, const char *cwd, const char *env)
 {
+	uv_process_options_t options = {0};
 
+	async_resume_t *resume = async_resume_new(NULL);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return FAILURE;
+	}
+
+	libuv_exec_t * exec = (libuv_exec_t *) async_notifier_new_ex(
+		sizeof(libuv_exec_t), NULL, exec_remove_callback, exec_to_string
+    );
+
+	if (exec == NULL || EG(exception)) {
+		OBJ_RELEASE(&resume->std);
+        return FAILURE;
+    }
+
+	exec->type = type;
+	exec->cmd = estrdup(cmd);
+	exec->array = array;
+	exec->return_value = return_value;
+
+	if (array != NULL) {
+        Z_ADDREF_P(array);
+    }
+
+	exec->process = pecalloc(sizeof(uv_process_t), 1, 1);
+	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
+	exec->buffer = pecalloc(sizeof(uv_buf_t), 1, 1);
+
+	uv_pipe_init(UVLOOP, exec->stdout_pipe, 0);
+
+	options.exit_cb = exec_on_exit;
+	options.file = "cmd.exe";
+	options.args = (char*[]) { "cmd.exe", "/s /c", (char *)cmd, NULL };
+
+	options.stdio = (uv_stdio_container_t[]) {
+	        { UV_IGNORE },
+			{
+				.data.stream = (uv_stream_t*) exec->stdout_pipe,
+				.flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE
+			},
+			{ UV_IGNORE }
+	};
+	options.stdio_count = 3;
+
+	int result;
+
+	result = uv_spawn(UVLOOP, exec->process, &options);
+
+	if (result) {
+		php_error_docref(NULL, E_WARNING, "Failed to spawn process: %s", uv_strerror(result));
+		uv_close((uv_handle_t *) exec->stdout_pipe, libuv_close_cb);
+		uv_close((uv_handle_t *) exec->process, libuv_close_cb);
+		exec->process = NULL;
+		exec->stdout_pipe = NULL;
+		OBJ_RELEASE(&exec->notifier.std);
+		OBJ_RELEASE(&resume->std);
+		return FAILURE;
+	}
+
+	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
+
+	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
+	async_wait(resume);
+
+	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
+	OBJ_RELEASE(&resume->std);
 
 	return 0;
 }
 
+#endif
 //=============================================================
 #pragma endregion
 //=============================================================

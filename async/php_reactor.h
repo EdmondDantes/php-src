@@ -143,7 +143,7 @@ typedef reactor_handle_t * (*reactor_dns_info_new_t)
 
 typedef void (*reactor_dns_info_cancel_t)(reactor_handle_t *handle);
 
-typedef int (* reactor_exec_t)(int type, const char *cmd, zval *array, zval *return_value);
+typedef int (* reactor_exec_t)(int type, const char *cmd, zval *array, zval *return_value, const char *cwd, const char *env);
 
 BEGIN_EXTERN_C()
 
