@@ -1410,35 +1410,17 @@ typedef struct
 	reactor_notifier_t notifier;
 	uv_process_t * process;
 	uv_pipe_t * stdout_pipe;
-	uv_buf_t * buffer;
 	int type;
 	char *cmd;
+	bool terminated;
 	zval * array;
 	zval * return_value;
 } libuv_exec_t;
 
-static void exec_handle_output(libuv_exec_t *exec, const char* buf, size_t len)
+static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
-	switch(exec->type) {
-		case 0: // exec()
-			break;
-		case 1: // system()
-			PHPWRITE(buf, len);
-			break;
-		case 2: // exec() with &$array
-			add_to_array(exec->array, buf, len);
-			break;
-		case 3: // passthru()
-			PHPWRITE(buf, len);
-			break;
-		default: ;
-	}
-}
-
-static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-	libuv_exec_t *exec = handle->data;
-	buf->base = exec->output + exec->output_len;
-	buf->len = EXEC_INPUT_BUF;
+	buf->base = emalloc(suggested_size);
+	buf->len = suggested_size;
 }
 
 static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
@@ -1452,11 +1434,65 @@ static zend_string* exec_to_string(reactor_notifier_t * notifier)
 	return zend_strpprintf(255, "Shell command: %s", exec->cmd);
 }
 
-static void exec_on_exit(uv_process_t* req, int64_t exit_status, int term_signal)
+static void exec_on_exit(uv_process_t* process, int64_t exit_status, int term_signal)
 {
-	libuv_exec_t *exec = req->data;
+	libuv_exec_t *exec = process->data;
+	ZVAL_LONG(exec->return_value, exit_status);
 
-	finalize_output(exec);
+	exec->process->data = NULL;
+	exec->process = NULL;
+
+	uv_close((uv_handle_t*)process, libuv_close_cb);
+
+	if (exec->terminated != true) {
+		exec->terminated = true;
+		async_notifier_notify(&exec->notifier, NULL, NULL);
+	}
+}
+
+static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+{
+	libuv_exec_t *exec = (libuv_exec_t *)stream->data;
+
+	if (nread > 0) {
+		switch (exec->type) {
+			case 0: // exec - save only last line
+				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
+				break;
+
+			case 1: // system - output all lines and save last
+				PHPWRITE(buf->base, nread);
+				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
+				break;
+
+			case 2: // exec - save all lines to array
+				add_next_index_stringl(exec->array, buf->base, nread);
+				break;
+
+			case 3: // passthru - output binary
+				PHPWRITE(buf->base, nread);
+				break;
+			default:
+				php_error_docref(NULL, E_WARNING, "Unknown exec type: %d", exec->type);
+		}
+	} else if (nread < 0) {
+		if (nread != UV_EOF) {
+			php_error_docref(NULL, E_WARNING, "Process pipe read error: %s", uv_strerror((int) nread));
+		}
+
+		exec->stdout_pipe->data = NULL;
+		exec->stdout_pipe = NULL;
+
+		uv_read_stop(stream);
+		uv_close((uv_handle_t *)stream, libuv_close_cb);
+
+		if (exec->terminated != true) {
+			exec->terminated = true;
+			async_notifier_notify(&exec->notifier, NULL, NULL);
+		}
+	}
+
+	efree(buf->base);
 }
 
 /**
@@ -1489,6 +1525,7 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 	exec->cmd = estrdup(cmd);
 	exec->array = array;
 	exec->return_value = return_value;
+	ZVAL_UNDEF(return_value);
 
 	if (array != NULL) {
         Z_ADDREF_P(array);
@@ -1496,7 +1533,6 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 
 	exec->process = pecalloc(sizeof(uv_process_t), 1, 1);
 	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
-	exec->buffer = pecalloc(sizeof(uv_buf_t), 1, 1);
 
 	uv_pipe_init(UVLOOP, exec->stdout_pipe, 0);
 
@@ -1514,9 +1550,15 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 	};
 	options.stdio_count = 3;
 
-	int result;
+	if(cwd != NULL && cwd[0] != '\0') {
+		options.cwd = cwd;
+	}
 
-	result = uv_spawn(UVLOOP, exec->process, &options);
+	if(env != NULL) {
+		options.env = (char **)env;
+	}
+
+	const int result = uv_spawn(UVLOOP, exec->process, &options);
 
 	if (result) {
 		php_error_docref(NULL, E_WARNING, "Failed to spawn process: %s", uv_strerror(result));
@@ -1532,7 +1574,10 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
 
 	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
+
+	ASYNC_G(event_handle_count)++;
 	async_wait(resume);
+	ASYNC_G(event_handle_count)--;
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 	OBJ_RELEASE(&resume->std);
