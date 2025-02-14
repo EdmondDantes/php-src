@@ -1425,7 +1425,28 @@ static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_
 
 static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
 {
-	return true;
+	if (Z_TYPE_P(callback) != IS_NULL) {
+		return true;
+	}
+
+	// It's destructor, we need to close all handles
+	libuv_exec_t * exec = (libuv_exec_t *) notifier;
+
+	if (exec->stdout_pipe != NULL) {
+		uv_read_stop((uv_stream_t *) exec->stdout_pipe);
+        uv_close((uv_handle_t *) exec->stdout_pipe, libuv_close_cb);
+        exec->stdout_pipe = NULL;
+    }
+
+	if (exec->process != NULL) {
+        uv_close((uv_handle_t *) exec->process, libuv_close_cb);
+        exec->process = NULL;
+    }
+
+	zval_ptr_dtor(exec->return_value);
+	efree(exec->cmd);
+
+	return false;
 }
 
 static zend_string* exec_to_string(reactor_notifier_t * notifier)
@@ -1579,7 +1600,7 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 
 	ASYNC_G(event_handle_count)++;
 	async_wait(resume);
-	ASYNC_G(event_handle_count)--;
+	DECREASE_EVENT_HANDLE_COUNT;
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 	OBJ_RELEASE(&resume->std);
