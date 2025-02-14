@@ -1408,6 +1408,7 @@ typedef struct
 	reactor_notifier_t notifier;
 	uv_process_t * process;
 	uv_pipe_t * stdout_pipe;
+	uv_pipe_t * stderr_pipe;
 	REACTOR_EXEC_MODE type;
 	char *cmd;
 	bool terminated;
@@ -1415,24 +1416,8 @@ typedef struct
 	zval * return_value;
 	size_t output_len;
 	char * output_buffer;
+	zval * std_error;
 } libuv_exec_t;
-
-static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
-{
-	libuv_exec_t * exec = (libuv_exec_t *) handle;
-
-	if (exec->output_len == 0)
-	{
-	    exec->output_len = suggested_size;
-        exec->output_buffer = emalloc(suggested_size);
-	} else if (exec->output_len < suggested_size) {
-        exec->output_len = suggested_size;
-        exec->output_buffer = erealloc(exec->output_buffer, suggested_size);
-    }
-
-	buf->base = exec->output_buffer;
-	buf->len = exec->output_len;
-}
 
 static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
 {
@@ -1455,12 +1440,19 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
         exec->stdout_pipe = NULL;
     }
 
+	if (exec->stderr_pipe != NULL) {
+		uv_read_stop((uv_stream_t *) exec->stderr_pipe);
+		uv_close((uv_handle_t *) exec->stderr_pipe, libuv_close_cb);
+		exec->stderr_pipe = NULL;
+	}
+
 	if (exec->process != NULL) {
         uv_close((uv_handle_t *) exec->process, libuv_close_cb);
         exec->process = NULL;
     }
 
 	zval_ptr_dtor(exec->return_value);
+	zval_ptr_dtor(exec->std_error);
 	efree(exec->cmd);
 
 	return false;
@@ -1484,8 +1476,26 @@ static void exec_on_exit(uv_process_t* process, const int64_t exit_status, int t
 
 	if (exec->terminated != true) {
 		exec->terminated = true;
+		DECREASE_EVENT_HANDLE_COUNT;
 		async_notifier_notify(&exec->notifier, NULL, NULL);
 	}
+}
+
+static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+{
+	libuv_exec_t * exec = (libuv_exec_t *) handle;
+
+	if (exec->output_len == 0)
+	{
+		exec->output_len = suggested_size;
+		exec->output_buffer = emalloc(suggested_size);
+	} else if (exec->output_len < suggested_size) {
+		exec->output_len = suggested_size;
+		exec->output_buffer = erealloc(exec->output_buffer, suggested_size);
+	}
+
+	buf->base = exec->output_buffer;
+	buf->len = exec->output_len;
 }
 
 static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
@@ -1550,9 +1560,42 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 
 		if (exec->terminated != true) {
 			exec->terminated = true;
+			DECREASE_EVENT_HANDLE_COUNT;
 			async_notifier_notify(&exec->notifier, NULL, NULL);
 		}
 	}
+}
+
+static void exec_std_err_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+{
+	buf->base = emalloc(suggested_size);
+	buf->len = suggested_size;
+}
+
+static void exec_std_err_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+{
+	libuv_exec_t *exec = (libuv_exec_t *)stream->data;
+
+	if (nread > 0) {
+		if (Z_TYPE_P(exec->std_error) == IS_STRING) {
+			ZVAL_NEW_STR(exec->std_error, zend_string_init(buf->base, nread, 0));
+		} else {
+			zend_string * string = Z_STR_P(exec->std_error);
+			string = zend_string_extend(string, ZSTR_LEN(string) + nread, 0);
+			memcpy(ZSTR_VAL(string) + ZSTR_LEN(string) - nread, buf->base, nread);
+			ZVAL_STR(exec->std_error, string);
+		}
+
+	} else if (nread < 0) {
+
+		exec->stderr_pipe->data = NULL;
+		exec->stderr_pipe = NULL;
+
+		uv_read_stop(stream);
+		uv_close((uv_handle_t *)stream, libuv_close_cb);
+	}
+
+	efree(buf->base);
 }
 
 static int libuv_exec(
@@ -1589,19 +1632,25 @@ static int libuv_exec(
 	exec->type = type;
 	exec->cmd = estrdup(cmd);
 	exec->result_buffer = return_buffer != NULL ? return_buffer : &tmp_return_buffer;
-	exec->return_value = return_value != NULL ? return_value : &tmp_return_value;
-	ZVAL_UNDEF(return_value);
+	exec->return_value = return_value != NULL ? return_value : &tmp_return_value;	
 
 	exec->process = pecalloc(sizeof(uv_process_t), 1, 1);
 	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
+	exec->stderr_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
+
+	exec->process->data = exec;
+	exec->stdout_pipe->data = exec;
+	exec->stderr_pipe->data = exec;
 
 	uv_pipe_init(UVLOOP, exec->stdout_pipe, 0);
+	uv_pipe_init(UVLOOP, exec->stderr_pipe, 0);
 
 	options.exit_cb = exec_on_exit;
-	options.file = "cmd.exe";
 #ifdef PHP_WIN32
+	options.file = "cmd.exe";
 	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)cmd, NULL };
 #else
+	options.file = "/bin/sh";
 	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
 #endif
 
@@ -1611,8 +1660,12 @@ static int libuv_exec(
 				.data.stream = (uv_stream_t*) exec->stdout_pipe,
 				.flags = UV_CREATE_PIPE | UV_READABLE_PIPE
 			},
-			{ UV_IGNORE }
+			{
+				.data.stream = (uv_stream_t*) exec->stderr_pipe,
+				.flags = UV_CREATE_PIPE | UV_READABLE_PIPE
+			}
 	};
+
 	options.stdio_count = 3;
 
 	if(cwd != NULL && cwd[0] != '\0') {
@@ -1637,12 +1690,14 @@ static int libuv_exec(
 	}
 
 	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
+	uv_read_start((uv_stream_t*) exec->stderr_pipe, exec_std_err_alloc_cb, exec_std_err_read_cb);
 
 	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
 
 	ASYNC_G(event_handle_count)++;
+
 	async_wait(resume);
-	DECREASE_EVENT_HANDLE_COUNT;
+
 	zval_ptr_dtor(&tmp_return_value);
 	zval_ptr_dtor(&tmp_return_buffer);
 
