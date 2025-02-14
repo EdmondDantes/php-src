@@ -63,7 +63,7 @@ function onSignal(int $sigNumber, Callback $callback): void {}
  */
 function exec(
     string $command,
-    array &$output      = null,
+    array|string &$output = null,
     int &$result_code   = null,
     int $timeout        = 0,
     string $cwd         = null,
