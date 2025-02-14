@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6381cfdb18141a72953132f6e45a5c58e67cb88e */
+ * Stub hash: 1b991fa5e495ab4c066d04f993a7cd690aebf0e3 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_addCallback, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
@@ -40,6 +40,12 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_string *property_callbacks_name = zend_string_init("callbacks", sizeof("callbacks") - 1, 1);
 	zend_declare_typed_property(class_entry, property_callbacks_name, &property_callbacks_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_callbacks_name);
+
+	zval property_toString_default_value;
+	ZVAL_UNDEF(&property_toString_default_value);
+	zend_string *property_toString_name = zend_string_init("toString", sizeof("toString") - 1, 1);
+	zend_declare_typed_property(class_entry, property_toString_name, &property_toString_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_string_release(property_toString_name);
 
 	zval property_reserved_default_value;
 	ZVAL_LONG(&property_reserved_default_value, 0);
