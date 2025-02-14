@@ -1,0 +1,37 @@
+@startuml
+
+skinparam backgroundColor #f9f9f9
+skinparam packageBorderColor #4A90EA
+skinparam packageBackgroundColor #D0E6F9
+skinparam rectangleBorderColor #7B8E98
+skinparam rectangleBackgroundColor #E3F2FD
+skinparam queueBorderColor #546E7A
+skinparam queueBackgroundColor #CFD8DC
+skinparam arrowColor #455A64
+skinparam noteBorderColor #546E7A
+skinparam noteBackgroundColor #ECEFF1
+
+package "Scheduler" {
+    rectangle MainLoop #E3F2FD
+    rectangle Resume #D0E6F9
+    rectangle Fiber #CFD8DC
+    queue "Microtasks queue" as MicrotasksQueue #F9E79F
+    queue "Deferred fibers queue" as DeferredFibersQueue #A3E4D7
+}
+
+package "Reactor" {
+    rectangle EventLoop #F5B7B1
+    rectangle Notifiers #D7BDE2
+}
+
+interface "Main flow" as MainFlow
+
+MainFlow -> MainLoop: Start execute
+MainLoop ---> MicrotasksQueue: execute
+MainLoop ---> DeferredFibersQueue: execute
+EventLoop ...> Notifiers
+Resume <.. Notifiers: notify
+Fiber --> Resume: stopped by
+Resume .. DeferredFibersQueue: resolve/reject
+
+@enduml
