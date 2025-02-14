@@ -8,8 +8,9 @@ if (!function_exists("shell_exec")) echo "skip shell_exec() is not available";
 <?php
 
 Async\run(function () {
+    echo "fiber1 start\n";
     $php = getenv("TEST_PHP_EXECUTABLE");
-    $cat = shell_exec("$php -r \"sleep(1); echo 'hello';\"");
+    $cat = shell_exec("$php -r \"usleep(1); echo 'hello';\"");
     echo "fiber1 end\n";
 });
 
