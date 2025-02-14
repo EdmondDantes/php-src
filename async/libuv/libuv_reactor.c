@@ -1453,7 +1453,6 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
 
 	zval_ptr_dtor(exec->return_value);
 	zval_ptr_dtor(exec->std_error);
-	//efree(exec->cmd);
 
 	return false;
 }
@@ -1558,13 +1557,6 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 		uv_read_stop(stream);
 		uv_close((uv_handle_t *)stream, libuv_close_cb);
 
-		if (exec->stderr_pipe != NULL) {
-			uv_read_stop((uv_stream_t*) exec->stderr_pipe);
-			uv_close((uv_handle_t *) exec->stderr_pipe, libuv_close_cb);
-			exec->stderr_pipe->data = NULL;
-			exec->stderr_pipe = NULL;
-		}
-
 		if (exec->terminated != true) {
 			exec->terminated = true;
 			DECREASE_EVENT_HANDLE_COUNT;
@@ -1656,11 +1648,12 @@ static int libuv_exec(
 
 	options.exit_cb = exec_on_exit;
 #ifdef PHP_WIN32
+	options.flags = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 	options.file = "cmd.exe";
 	size_t cmd_buffer_size = strlen(cmd) + 2;
 	char * quoted_cmd = emalloc(cmd_buffer_size);
 	snprintf(quoted_cmd, cmd_buffer_size, "\"%s\"", cmd);
-	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)quoted_cmd, NULL };
+	options.args = (char*[]) { "cmd.exe", "/s", "/c", quoted_cmd, NULL };
 #else
 	options.file = "/bin/sh";
 	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
@@ -1706,13 +1699,13 @@ static int libuv_exec(
 
 	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
 
-#ifdef PHP_WIN32
-	efree(quoted_cmd);
-#endif
-
 	ASYNC_G(event_handle_count)++;
 
 	async_wait(resume);
+
+#ifdef PHP_WIN32
+	efree(quoted_cmd);
+#endif
 
 	zval_ptr_dtor(&tmp_return_value);
 	zval_ptr_dtor(&tmp_return_buffer);
