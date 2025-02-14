@@ -1453,7 +1453,7 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
 
 	zval_ptr_dtor(exec->return_value);
 	zval_ptr_dtor(exec->std_error);
-	efree(exec->cmd);
+	//efree(exec->cmd);
 
 	return false;
 }
@@ -1483,7 +1483,7 @@ static void exec_on_exit(uv_process_t* process, const int64_t exit_status, int t
 
 static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
-	libuv_exec_t * exec = (libuv_exec_t *) handle;
+	libuv_exec_t * exec = handle->data;
 
 	if (exec->output_len == 0)
 	{
@@ -1527,7 +1527,7 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 
 			case REACTOR_EXEC_MODE_SHELL_EXEC: // shell - output all lines
 
-				if (Z_TYPE_P(exec->result_buffer) == IS_STRING) {
+				if (Z_TYPE_P(exec->result_buffer) != IS_STRING) {
 					ZVAL_NEW_STR(exec->result_buffer, zend_string_init(buf->base, nread, 0));
 				} else {
 					zend_string * string = Z_STR_P(exec->result_buffer);
@@ -1558,6 +1558,13 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 		uv_read_stop(stream);
 		uv_close((uv_handle_t *)stream, libuv_close_cb);
 
+		if (exec->stderr_pipe != NULL) {
+			uv_read_stop((uv_stream_t*) exec->stderr_pipe);
+			uv_close((uv_handle_t *) exec->stderr_pipe, libuv_close_cb);
+			exec->stderr_pipe->data = NULL;
+			exec->stderr_pipe = NULL;
+		}
+
 		if (exec->terminated != true) {
 			exec->terminated = true;
 			DECREASE_EVENT_HANDLE_COUNT;
@@ -1577,7 +1584,7 @@ static void exec_std_err_read_cb(uv_stream_t *stream, ssize_t nread, const uv_bu
 	libuv_exec_t *exec = (libuv_exec_t *)stream->data;
 
 	if (nread > 0) {
-		if (Z_TYPE_P(exec->std_error) == IS_STRING) {
+		if (Z_TYPE_P(exec->std_error) != IS_STRING) {
 			ZVAL_NEW_STR(exec->std_error, zend_string_init(buf->base, nread, 0));
 		} else {
 			zend_string * string = Z_STR_P(exec->std_error);
@@ -1608,9 +1615,10 @@ static int libuv_exec(
 	zend_long timeout
 )
 {
-	zval tmp_return_value, tmp_return_buffer;
+	zval tmp_return_value, tmp_return_buffer, tmp_std_error;
 	ZVAL_UNDEF(&tmp_return_value);
 	ZVAL_UNDEF(&tmp_return_buffer);
+	ZVAL_UNDEF(&tmp_std_error);
 
 	uv_process_options_t options = {0};
 
@@ -1630,9 +1638,10 @@ static int libuv_exec(
     }
 
 	exec->type = type;
-	exec->cmd = estrdup(cmd);
+	exec->cmd = (char *) cmd;
 	exec->result_buffer = return_buffer != NULL ? return_buffer : &tmp_return_buffer;
-	exec->return_value = return_value != NULL ? return_value : &tmp_return_value;	
+	exec->return_value = return_value != NULL ? return_value : &tmp_return_value;
+	exec->std_error = &tmp_std_error;
 
 	exec->process = pecalloc(sizeof(uv_process_t), 1, 1);
 	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
@@ -1648,7 +1657,10 @@ static int libuv_exec(
 	options.exit_cb = exec_on_exit;
 #ifdef PHP_WIN32
 	options.file = "cmd.exe";
-	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)cmd, NULL };
+	size_t cmd_buffer_size = strlen(cmd) + 2;
+	char * quoted_cmd = emalloc(cmd_buffer_size);
+	snprintf(quoted_cmd, cmd_buffer_size, "\"%s\"", cmd);
+	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)quoted_cmd, NULL };
 #else
 	options.file = "/bin/sh";
 	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
@@ -1658,11 +1670,11 @@ static int libuv_exec(
 	        { UV_IGNORE },
 			{
 				.data.stream = (uv_stream_t*) exec->stdout_pipe,
-				.flags = UV_CREATE_PIPE | UV_READABLE_PIPE
+				.flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE
 			},
 			{
 				.data.stream = (uv_stream_t*) exec->stderr_pipe,
-				.flags = UV_CREATE_PIPE | UV_READABLE_PIPE
+				.flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE
 			}
 	};
 
@@ -1694,12 +1706,17 @@ static int libuv_exec(
 
 	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
 
+#ifdef PHP_WIN32
+	efree(quoted_cmd);
+#endif
+
 	ASYNC_G(event_handle_count)++;
 
 	async_wait(resume);
 
 	zval_ptr_dtor(&tmp_return_value);
 	zval_ptr_dtor(&tmp_return_buffer);
+	zval_ptr_dtor(&tmp_std_error);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 	OBJ_RELEASE(&resume->std);
