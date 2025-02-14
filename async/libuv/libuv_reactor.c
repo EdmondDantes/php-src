@@ -1403,24 +1403,35 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 //=============================================================
 #pragma region Exec
 //=============================================================
-#ifdef PHP_WIN32
-
 typedef struct
 {
 	reactor_notifier_t notifier;
 	uv_process_t * process;
 	uv_pipe_t * stdout_pipe;
-	int type;
+	REACTOR_EXEC_MODE type;
 	char *cmd;
 	bool terminated;
-	zval * array;
+	zval * result_buffer;
 	zval * return_value;
+	size_t output_len;
+	char * output_buffer;
 } libuv_exec_t;
 
 static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
-	buf->base = emalloc(suggested_size);
-	buf->len = suggested_size;
+	libuv_exec_t * exec = (libuv_exec_t *) handle;
+
+	if (exec->output_len == 0)
+	{
+	    exec->output_len = suggested_size;
+        exec->output_buffer = emalloc(suggested_size);
+	} else if (exec->output_len < suggested_size) {
+        exec->output_len = suggested_size;
+        exec->output_buffer = erealloc(exec->output_buffer, suggested_size);
+    }
+
+	buf->base = exec->output_buffer;
+	buf->len = exec->output_len;
 }
 
 static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
@@ -1431,6 +1442,12 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
 
 	// It's destructor, we need to close all handles
 	libuv_exec_t * exec = (libuv_exec_t *) notifier;
+
+	if (exec->output_len > 0) {
+        efree(exec->output_buffer);
+		exec->output_len = 0;
+		exec->output_buffer = NULL;
+    }
 
 	if (exec->stdout_pipe != NULL) {
 		uv_read_stop((uv_stream_t *) exec->stdout_pipe);
@@ -1455,7 +1472,7 @@ static zend_string* exec_to_string(reactor_notifier_t * notifier)
 	return zend_strpprintf(255, "Shell command: %s", exec->cmd);
 }
 
-static void exec_on_exit(uv_process_t* process, int64_t exit_status, int term_signal)
+static void exec_on_exit(uv_process_t* process, const int64_t exit_status, int term_signal)
 {
 	libuv_exec_t *exec = process->data;
 	ZVAL_LONG(exec->return_value, exit_status);
@@ -1477,24 +1494,40 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 
 	if (nread > 0) {
 		switch (exec->type) {
-			case 0: // exec - save only last line
+			case REACTOR_EXEC_MODE_EXEC: // exec - save only last line
 				zval_ptr_dtor(exec->return_value);
 				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
 				break;
 
-			case 1: // system - output all lines and save last
+			case REACTOR_EXEC_MODE_SYSTEM: // system - output all lines and save last
 				PHPWRITE(buf->base, nread);
 				zval_ptr_dtor(exec->return_value);
 				ZVAL_STR(exec->return_value, zend_string_init(buf->base, nread, 0));
 				break;
 
-			case 2: // exec - save all lines to array
-				add_next_index_stringl(exec->array, buf->base, nread);
+			case REACTOR_EXEC_MODE_EXEC_ARRAY: // exec - save all lines to array
+				if (Z_TYPE_P(exec->result_buffer) == IS_ARRAY) {
+					add_next_index_stringl(exec->result_buffer, buf->base, nread);
+				}
 				break;
 
-			case 3: // passthru - output binary
+			case REACTOR_EXEC_MODE_PASSTHRU: // passthru - output binary
 				PHPWRITE(buf->base, nread);
 				break;
+
+			case REACTOR_EXEC_MODE_SHELL_EXEC: // shell - output all lines
+
+				if (Z_TYPE_P(exec->result_buffer) == IS_STRING) {
+					ZVAL_NEW_STR(exec->result_buffer, zend_string_init(buf->base, nread, 0));
+				} else {
+					zend_string * string = Z_STR_P(exec->result_buffer);
+					string = zend_string_extend(string, ZSTR_LEN(string) + nread, 0);
+					memcpy(ZSTR_VAL(string) + ZSTR_LEN(string) - nread, buf->base, nread);
+					ZVAL_STR(exec->result_buffer, string);
+				}
+
+				break;
+
 			default:
 				php_error_docref(NULL, E_WARNING, "Unknown exec type: %d", exec->type);
 		}
@@ -1506,6 +1539,12 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 		exec->stdout_pipe->data = NULL;
 		exec->stdout_pipe = NULL;
 
+		if (exec->output_len > 0) {
+			efree(exec->output_buffer);
+			exec->output_len = 0;
+			exec->output_buffer = NULL;
+		}
+
 		uv_read_stop(stream);
 		uv_close((uv_handle_t *)stream, libuv_close_cb);
 
@@ -1514,22 +1553,25 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 			async_notifier_notify(&exec->notifier, NULL, NULL);
 		}
 	}
-
-	efree(buf->base);
 }
 
-/**
- * {{{ php_exec
- * If type==0, only last line of output is returned (exec)
- * If type==1, all lines will be printed and last lined returned (system)
- * If type==2, all lines will be saved to given array (exec with &$array)
- * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
- */
-static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value, const char *cwd, const char *env)
+static int libuv_exec(
+	REACTOR_EXEC_MODE type,
+	const char *cmd,
+	zval *return_buffer,
+	zval *return_value,
+	const char *cwd,
+	const char *env,
+	zend_long timeout
+)
 {
+	zval tmp_return_value, tmp_return_buffer;
+	ZVAL_UNDEF(&tmp_return_value);
+	ZVAL_UNDEF(&tmp_return_buffer);
+
 	uv_process_options_t options = {0};
 
-	async_resume_t *resume = async_resume_new(NULL);
+	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, NULL);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		return FAILURE;
@@ -1546,13 +1588,9 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 
 	exec->type = type;
 	exec->cmd = estrdup(cmd);
-	exec->array = array;
-	exec->return_value = return_value;
+	exec->result_buffer = return_buffer != NULL ? return_buffer : &tmp_return_buffer;
+	exec->return_value = return_value != NULL ? return_value : &tmp_return_value;
 	ZVAL_UNDEF(return_value);
-
-	if (array != NULL) {
-        Z_ADDREF_P(array);
-    }
 
 	exec->process = pecalloc(sizeof(uv_process_t), 1, 1);
 	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 1);
@@ -1561,7 +1599,11 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 
 	options.exit_cb = exec_on_exit;
 	options.file = "cmd.exe";
+#ifdef PHP_WIN32
 	options.args = (char*[]) { "cmd.exe", "/s", "/c", (char *)cmd, NULL };
+#else
+	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
+#endif
 
 	options.stdio = (uv_stdio_container_t[]) {
 	        { UV_IGNORE },
@@ -1601,14 +1643,14 @@ static int libuv_exec(int type, const char *cmd, zval *array, zval *return_value
 	ASYNC_G(event_handle_count)++;
 	async_wait(resume);
 	DECREASE_EVENT_HANDLE_COUNT;
+	zval_ptr_dtor(&tmp_return_value);
+	zval_ptr_dtor(&tmp_return_buffer);
 
 	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
 	OBJ_RELEASE(&resume->std);
 
 	return 0;
 }
-
-#endif
 //=============================================================
 #pragma endregion
 //=============================================================

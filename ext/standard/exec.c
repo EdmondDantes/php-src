@@ -126,14 +126,29 @@ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value)
 
 	#ifdef PHP_ASYNC
 		if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
-	        return reactor_exec_fn(type, cmd, array, return_value, NULL, NULL);
+	        return reactor_exec_fn(type, cmd, array, return_value, NULL, NULL, 0);
+	    } else {
+		    fp = VCWD_POPEN(cmd, "rb");
 	    }
 	#else
 		fp = VCWD_POPEN(cmd, "rb");
 	#endif
 
 #else
-	fp = VCWD_POPEN(cmd, "r");
+	#ifdef PHP_ASYNC
+		if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
+			#if PHP_SIGCHILD
+			if (sig_handler) {
+				signal(SIGCHLD, sig_handler);
+			}
+			#endif
+			return reactor_exec_fn(type, cmd, array, return_value, NULL, NULL, 0);
+		} else {
+			fp = VCWD_POPEN(cmd, "r");
+		}
+	#else
+		fp = VCWD_POPEN(cmd, "r");
+	#endif
 #endif
 	if (!fp) {
 		php_error_docref(NULL, E_WARNING, "Unable to fork [%s]", cmd);
@@ -525,6 +540,21 @@ PHP_FUNCTION(shell_exec)
 		zend_argument_must_not_be_empty_error(1);
 		RETURN_THROWS();
 	}
+
+#ifdef PHP_ASYNC
+	if (IN_ASYNC_CONTEXT && reactor_exec_fn) {
+		reactor_exec_fn(
+			REACTOR_EXEC_MODE_SHELL_EXEC,
+			command,
+			return_value,
+			NULL,
+			NULL,
+			NULL,
+			0
+		);
+		return;
+	}
+#endif
 
 #ifdef PHP_WIN32
 	if ((in=VCWD_POPEN(command, "rt"))==NULL) {

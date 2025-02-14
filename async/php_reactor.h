@@ -143,7 +143,31 @@ typedef reactor_handle_t * (*reactor_dns_info_new_t)
 
 typedef void (*reactor_dns_info_cancel_t)(reactor_handle_t *handle);
 
-typedef int (* reactor_exec_t)(int type, const char *cmd, zval *array, zval *return_value, const char *cwd, const char *env);
+/**
+ * {{{ php_exec
+ * If type==0, only last line of output is returned (exec)
+ * If type==1, all lines will be printed and last lined returned (system)
+ * If type==2, all lines will be saved to given array (exec with &$array)
+ * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
+ * If type==4, output will be saved to a memory buffer (shell_exec)
+ */
+typedef enum {
+	REACTOR_EXEC_MODE_EXEC = 0,
+	REACTOR_EXEC_MODE_SYSTEM = 1,
+	REACTOR_EXEC_MODE_EXEC_ARRAY = 2,
+	REACTOR_EXEC_MODE_PASSTHRU = 3,
+	REACTOR_EXEC_MODE_SHELL_EXEC = 4
+} REACTOR_EXEC_MODE;
+
+typedef int (* reactor_exec_t)(
+	REACTOR_EXEC_MODE type,
+	const char *cmd,
+	zval *return_buffer,
+	zval *return_value,
+	const char *cwd,
+	const char *env,
+	zend_long timeout
+);
 
 BEGIN_EXTERN_C()
 
