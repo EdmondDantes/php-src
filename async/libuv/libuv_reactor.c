@@ -1451,9 +1451,6 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
         exec->process = NULL;
     }
 
-	zval_ptr_dtor(exec->return_value);
-	zval_ptr_dtor(exec->std_error);
-
 	return false;
 }
 
