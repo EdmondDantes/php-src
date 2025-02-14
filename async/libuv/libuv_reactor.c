@@ -1417,7 +1417,7 @@ typedef struct
 	char * output_buffer;
 } libuv_exec_t;
 
-static static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+static void exec_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
 	libuv_exec_t * exec = (libuv_exec_t *) handle;
 
