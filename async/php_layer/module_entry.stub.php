@@ -57,3 +57,17 @@ function repeat(int $interval, Callback $callback): void {}
  * if the Callback object is destroyed by the garbage collector or goes out of scope.
  */
 function onSignal(int $sigNumber, Callback $callback): void {}
+
+/**
+ * Execute an external program.
+ */
+function exec(
+    string $command,
+    array &$output      = null,
+    int &$result_code   = null,
+    int $timeout        = 0,
+    string $cwd         = null,
+    array $env          = null,
+    array $options      = null
+): string {}
+void {}
