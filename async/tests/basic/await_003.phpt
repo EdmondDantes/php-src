@@ -1,5 +1,5 @@
 --TEST--
-Await function
+Await function: The result of a fiber's execution is available in several others.
 --FILE--
 <?php
 

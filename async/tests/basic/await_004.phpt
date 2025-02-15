@@ -1,5 +1,5 @@
 --TEST--
-Await function
+Await function: The exception thrown in a fiber is available in several others.
 --FILE--
 <?php
 
