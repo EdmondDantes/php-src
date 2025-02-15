@@ -145,6 +145,7 @@ PHP_FUNCTION(Async_await)
 {
 	THROW_IF_SHUTDOWN;
 
+	bool is_fiber_handle_owned = false;
 	zval * callable;
 	reactor_fiber_handle_t * fiber_handle = NULL;
 
@@ -159,6 +160,7 @@ PHP_FUNCTION(Async_await)
 
 	if (Z_OBJCE_P(callable) == zend_ce_fiber) {
 		fiber_handle = async_fiber_handle_new((zend_fiber *) Z_OBJ_P(callable));
+		is_fiber_handle_owned = true;
 	} else if (Z_OBJCE_P(callable) == async_ce_fiber_handle) {
 		fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(callable);
     } else {
@@ -168,6 +170,8 @@ PHP_FUNCTION(Async_await)
     		fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(return_value);
     		ZVAL_UNDEF(return_value);
     	}
+
+    	is_fiber_handle_owned = true;
     }
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
@@ -183,7 +187,7 @@ PHP_FUNCTION(Async_await)
 
 	async_resume_when(resume, &fiber_handle->handle, false, async_resume_when_callback_resolve);
 
-	async_wait(resume);	
+	async_wait(resume);
 
 	// Return the result of the fiber execution
 	if (EXPECTED(EG(exception) == NULL)) {
@@ -191,7 +195,10 @@ PHP_FUNCTION(Async_await)
 	}
 
 	OBJ_RELEASE(&resume->std);
-	OBJ_RELEASE(&fiber_handle->handle.std);
+
+	if (is_fiber_handle_owned && fiber_handle != NULL) {
+        OBJ_RELEASE(&fiber_handle->handle.std);
+    }
 }
 
 PHP_FUNCTION(Async_defer)
