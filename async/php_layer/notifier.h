@@ -60,6 +60,13 @@ struct _reactor_handle_s {
 			zval callbacks;
 
 			/**
+			 * Equals to TRUE if the Notifier is terminated.
+			 * If the Notifier is in the Terminated state, it will never generate any events again.
+			 * Attempting to add such a Notifier to the Resume object will result in an error.
+			 */
+			zval is_terminated;
+
+			/**
 			 * toString handler function.
 			 * CALLABLE or ZVAL_PTR to reactor_notifier_to_string_t
 			 */
@@ -71,7 +78,7 @@ struct _reactor_handle_s {
 		struct
 		{
 			// zend object std + callbacks
-			char _padding3[sizeof(zend_object) + sizeof(zval)];
+			char _padding3[sizeof(zend_object) + sizeof(zval) * 2];
 
 			// padding2 + padding3 memory zone
 

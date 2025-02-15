@@ -18,6 +18,9 @@
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
 #include "notifier.h"
+
+#include <ext/spl/spl_exceptions.h>
+
 #include "callback.h"
 #include "notifier_arginfo.h"
 #include "../php_reactor.h"
@@ -84,6 +87,11 @@ METHOD(notify)
 	ZEND_PARSE_PARAMETERS_END();
 
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
+}
+
+METHOD(terminate)
+{
+	ZVAL_BOOL(&((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS))->is_terminated, true);
 }
 
 static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
@@ -213,6 +221,11 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 
 void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error)
 {
+	if (UNEXPECTED(Z_TYPE(notifier->is_terminated) == IS_TRUE)) {
+		zend_throw_error(spl_ce_LogicException, "The notifier cannot be triggered after it has been terminated");
+		return;
+	}
+
 	const zval* callbacks = async_notifier_get_callbacks(&notifier->std);
 
 	zend_try

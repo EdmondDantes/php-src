@@ -15,6 +15,13 @@ class Notifier
     private array $callbacks = [];
 
     /**
+     * Equals to TRUE if the Notifier is terminated.
+     * If the Notifier is in the Terminated state, it will never generate any events again.
+     * Attempting to add such a Notifier to the Resume object will result in an error.
+     */
+    public readonly bool $isTerminated = false;
+
+    /**
      * The string representation of the Notifier.
      */
     private mixed $toString;
@@ -46,6 +53,11 @@ class Notifier
      * Notifies all registered callbacks about the event.
      */
     final protected function notify(mixed $event, ?\Throwable $error = null): void {}
+
+    /**
+     * Terminates the Notifier.
+     */
+    final protected function terminate(): void {}
 
     /**
      * Returns a string representation of the Notifier that can be used for debugging purposes.
