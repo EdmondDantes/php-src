@@ -19,6 +19,7 @@
 #include "resume.h"
 
 #include <async/php_async.h>
+#include <ext/spl/spl_exceptions.h>
 
 #include "notifier.h"
 #include "reactor_handles.h"
@@ -391,6 +392,11 @@ ZEND_API void async_resume_when(
 		const async_resume_when_callback_t callback
 	)
 {
+	if (UNEXPECTED(Z_TYPE(notifier->is_terminated) == IS_TRUE)) {
+		zend_throw_error(spl_ce_LogicException, "The notifier cannot be used after it has been terminated");
+		return;
+	}
+
 	if (UNEXPECTED(callback == NULL)) {
 		async_warning("Callback cannot be NULL");
 

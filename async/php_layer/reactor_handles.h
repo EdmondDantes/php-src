@@ -69,6 +69,7 @@ typedef struct _reactor_file_system_s reactor_file_system_t;
 struct _reactor_fiber_handle_s {
 	reactor_handle_t handle;
 	zend_fiber *fiber;
+	zend_object * exception;
 	zend_long callback_index;
 };
 

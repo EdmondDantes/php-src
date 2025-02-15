@@ -159,6 +159,12 @@ PHP_FUNCTION(Async_await)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (Z_OBJCE_P(callable) == zend_ce_fiber) {
+
+		if (((zend_fiber *) Z_OBJ_P(callable))->context.status == ZEND_FIBER_STATUS_DEAD) {
+            async_throw_error("Cannot await a terminated fiber. Use FiberHandle instead");
+            RETURN_THROWS();
+        }
+
 		fiber_handle = async_fiber_handle_new((zend_fiber *) Z_OBJ_P(callable));
 		is_fiber_handle_owned = true;
 	} else if (Z_OBJCE_P(callable) == async_ce_fiber_handle) {
@@ -177,6 +183,14 @@ PHP_FUNCTION(Async_await)
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		RETURN_THROWS();
 	}
+
+	if (Z_TYPE(fiber_handle->handle.is_terminated) == IS_TRUE) {
+		if (fiber_handle->exception != NULL) {
+			zend_throw_exception_internal(fiber_handle->exception);
+		} else {
+			RETURN_ZVAL(&fiber_handle->fiber->result, 1, 0);
+		}
+    }
 
 	async_resume_t * resume = async_resume_new(NULL);
 

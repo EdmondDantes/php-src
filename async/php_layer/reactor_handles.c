@@ -497,6 +497,11 @@ static void reactor_fiber_handle_destroy(zend_object* object)
 
 	handle->fiber = NULL;
 
+	if (handle->exception != NULL) {
+		OBJ_RELEASE(handle->exception);
+		handle->exception = NULL;
+	}
+
 	// call parent dtor function
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
@@ -575,27 +580,26 @@ static void async_fiber_handle_defer_cb(
 	/**
 	 * FiberHandle handlers can capture an exception
 	 * that was thrown after the Fiber completed its work.
-	 *
-	 * Exception capturing is determined by an increase in references to the exception object.
-     * If the exception is captured, the Fiber does not propagate it to the call site but instead discards it.
 	 **/
 
-	int exception_ref_count = 0;
+	if (exception != NULL) {
+		*capture_exception = true;
+		((reactor_fiber_handle_t *) callback)->exception = exception;
+		GC_ADDREF(exception);
+	}
+
 	zval event, error;
 	ZVAL_OBJ(&event, (zend_object *) fiber);
 
 	if (exception != NULL) {
 		ZVAL_OBJ(&error, exception);
-		exception_ref_count = GC_REFCOUNT(exception);
 	} else {
 		ZVAL_NULL(&error);
 	}
 
 	async_notifier_notify((reactor_notifier_t *) callback->object, &event, &error);
 
-	if (exception != NULL && exception_ref_count < GC_REFCOUNT(exception)) {
-		*capture_exception = true;
-	}
+	ZVAL_TRUE(&((reactor_fiber_handle_t *) callback)->handle.is_terminated);
 }
 
 reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
