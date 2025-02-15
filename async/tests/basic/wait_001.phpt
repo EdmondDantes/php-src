@@ -1,5 +1,5 @@
 --TEST--
-Testing the await() function
+Testing the wait() function
 --FILE--
 <?php
 

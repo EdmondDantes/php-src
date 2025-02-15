@@ -1,5 +1,5 @@
 --TEST--
-Cannot await a resume object outside of an async context
+Cannot wait a resume object outside of an async context
 --FILE--
 <?php
 

@@ -181,13 +181,16 @@ PHP_FUNCTION(Async_await)
         RETURN_THROWS();
     }
 
-	async_wait(resume);
+	async_resume_when(resume, &fiber_handle->handle, false, async_resume_when_callback_resolve);
+
+	async_wait(resume);	
 
 	// Return the result of the fiber execution
 	if (EXPECTED(EG(exception) == NULL)) {
-		ZVAL_COPY(return_value, &resume->result);
+		ZVAL_COPY(return_value, &fiber_handle->fiber->result);
 	}
 
+	OBJ_RELEASE(&resume->std);
 	OBJ_RELEASE(&fiber_handle->handle.std);
 }
 

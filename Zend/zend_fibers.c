@@ -432,6 +432,7 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
 		zend_exception_save();
 		zend_exception_restore();
 		exception = EG(exception);
+		GC_ADDREF(exception);
 		zend_clear_exception();
 	}
 
