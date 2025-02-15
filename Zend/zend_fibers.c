@@ -415,7 +415,25 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
         return;
     }
 
-	zend_exception_save();
+	/**
+	* Fiber termination handlers have the right to capture an exception after the Fiber has completed execution.
+	* In this case, they must set the capture_exception flag. If the exception is captured,
+	* `zend_fiber_invoke_shutdown_handlers` does not return it to EG(exception),
+	* relying on the assumption that the exception will be handled elsewhere.
+	*
+	* If the exception is **not captured**, `zend_fiber_invoke_shutdown_handlers` returns it to `EG(exception)`,
+	* causing the exception to be thrown at the Fiber call site.
+	*/
+
+	zend_object * exception = NULL;
+	bool capture_exception = false;
+
+	if (EG(exception) != NULL) {
+		zend_exception_save();
+		zend_exception_restore();
+		exception = EG(exception);
+		zend_clear_exception();
+	}
 
     zval *callback;
 	zval retval;
@@ -425,7 +443,7 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
 
     	if (Z_TYPE_P(callback) == IS_PTR) {
     		zend_fiber_defer_callback *defer_callback = Z_PTR_P(callback);
-    		defer_callback->func(fiber, defer_callback);
+    		defer_callback->func(fiber, defer_callback, exception, &capture_exception);
     		continue;
     	}
 
@@ -453,6 +471,21 @@ static void zend_fiber_invoke_shutdown_handlers(zend_fiber *fiber)
     fiber->shutdown_handlers = NULL;
 
 	zend_exception_restore();
+
+	// If the exception is not captured, return it to EG(exception).
+	if (exception != NULL && false == capture_exception) {
+
+		if (EG(exception)) {
+			zend_exception_save();
+			EG(exception) = exception;
+			zend_exception_restore();
+		} else {
+			EG(exception) = exception;
+		}
+	} else if (exception != NULL && true == capture_exception) {
+		// Free the exception if it is captured.
+        OBJ_RELEASE(exception);
+    }
 }
 
 #endif

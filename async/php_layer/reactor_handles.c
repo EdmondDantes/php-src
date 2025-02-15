@@ -568,11 +568,34 @@ void async_register_handlers_ce(void)
 	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers;
 }
 
-static void async_fiber_handle_defer_cb(zend_fiber * fiber, zend_fiber_defer_callback * callback)
+static void async_fiber_handle_defer_cb(
+	zend_fiber * fiber, zend_fiber_defer_callback * callback, zend_object * exception, bool * capture_exception
+)
 {
-	zval event;
+	/**
+	 * FiberHandle handlers can capture an exception
+	 * that was thrown after the Fiber completed its work.
+	 *
+	 * Exception capturing is determined by an increase in references to the exception object.
+     * If the exception is captured, the Fiber does not propagate it to the call site but instead discards it.
+	 **/
+
+	int exception_ref_count = 0;
+	zval event, error;
 	ZVAL_OBJ(&event, (zend_object *) fiber);
-	async_notifier_notify((reactor_notifier_t *) callback->object, &event, NULL);
+
+	if (exception != NULL) {
+		ZVAL_OBJ(&error, exception);
+		exception_ref_count = GC_REFCOUNT(exception);
+	} else {
+		ZVAL_NULL(&error);
+	}
+
+	async_notifier_notify((reactor_notifier_t *) callback->object, &event, &error);
+
+	if (exception != NULL && exception_ref_count < GC_REFCOUNT(exception)) {
+		*capture_exception = true;
+	}
 }
 
 reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)

@@ -27,6 +27,15 @@ function run(callable $task, mixed ... $args): void {}
 function async(callable $task, mixed ... $args): FiberHandle {}
 
 /**
+ * Suspends the execution of the current Fiber until $awaitable completes its work.
+ * The result of $awaitable is returned as the function's return value.
+ *
+ * If an unhandled exception occurs during the
+ * execution of $awaitable, it will be thrown at the call site of this function.
+ */
+function await(callable|FiberHandle|\Fiber $awaitable, mixed ... $args): mixed {}
+
+/**
  * Creates a microtask that is guaranteed to execute before events are processed, and other Fibers are started,
  * and immediately after the Scheduler takes control.
  */
@@ -63,11 +72,24 @@ function onSignal(int $sigNumber, Callback $callback): void {}
  */
 function exec(
     string $command,
-    array|string &$output = null,
-    int &$result_code   = null,
+    array|string|null &$output = null,
+    ?int &$result_code  = null,
     int $timeout        = 0,
-    string $cwd         = null,
-    array $env          = null,
-    array $options      = null
-): string {}
-void {}
+    ?string $cwd        = null,
+    ?array $env         = null,
+    ?array $options     = null
+): void {}
+
+/**
+ * Returns a list of all fibers registered in the Scheduler.
+ *
+ * @return \Fiber[]
+ */
+function getFibers(): array {}
+
+/**
+ * Returns a list of all Resume objects that have currently suspended Fibers.
+ *
+ * @return Resume[]
+ */
+function getResumes(): array {}

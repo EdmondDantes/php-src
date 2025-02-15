@@ -98,7 +98,7 @@ PHP_FUNCTION(Async_run)
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), args, args_count, named_args);
 }
 
-PHP_FUNCTION(Async_async)
+zend_always_inline void create_fiber_with_handle(INTERNAL_FUNCTION_PARAMETERS)
 {
 	THROW_IF_SHUTDOWN;
 
@@ -134,6 +134,61 @@ PHP_FUNCTION(Async_async)
 	async_start_fiber(fiber_handle->fiber, args, args_count, named_args);
 
 	RETURN_OBJ(&fiber_handle->handle.std);
+}
+
+PHP_FUNCTION(Async_async)
+{
+    create_fiber_with_handle(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(Async_await)
+{
+	THROW_IF_SHUTDOWN;
+
+	zval * callable;
+	reactor_fiber_handle_t * fiber_handle = NULL;
+
+	zval *args = NULL;
+	int args_count = 0;
+	HashTable *named_args = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_ZVAL(callable);
+		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (Z_OBJCE_P(callable) == zend_ce_fiber) {
+		fiber_handle = async_fiber_handle_new((zend_fiber *) Z_OBJ_P(callable));
+	} else if (Z_OBJCE_P(callable) == async_ce_fiber_handle) {
+		fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(callable);
+    } else {
+    	create_fiber_with_handle(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    	if (EG(exception) == NULL && Z_TYPE_P(return_value) == IS_OBJECT && Z_OBJCE_P(return_value) == async_ce_fiber_handle) {
+    		fiber_handle = (reactor_fiber_handle_t *) Z_OBJ_P(return_value);
+    		ZVAL_UNDEF(return_value);
+    	}
+    }
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
+	}
+
+	async_resume_t * resume = async_resume_new(NULL);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		OBJ_RELEASE(&fiber_handle->handle.std);
+        RETURN_THROWS();
+    }
+
+	async_wait(resume);
+
+	// Return the result of the fiber execution
+	if (EXPECTED(EG(exception) == NULL)) {
+		ZVAL_COPY(return_value, &resume->result);
+	}
+
+	OBJ_RELEASE(&fiber_handle->handle.std);
 }
 
 PHP_FUNCTION(Async_defer)
@@ -268,6 +323,21 @@ PHP_FUNCTION(Async_onSignal)
 	if (EG(exception) != NULL) {
 		RETURN_THROWS();
 	}
+}
+
+PHP_FUNCTION(Async_exec)
+{
+
+}
+
+PHP_FUNCTION(Async_getFibers)
+{
+
+}
+
+PHP_FUNCTION(Async_getResumes)
+{
+
 }
 
 PHP_METHOD(Async_Walker, walk)

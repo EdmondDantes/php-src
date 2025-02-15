@@ -222,7 +222,12 @@ zend_always_inline void zend_fiber_params_ctor(
 }
 
 typedef struct _zend_fiber_defer_callback zend_fiber_defer_callback;
-typedef void (*zend_fiber_defer_func)(zend_fiber * fiber, zend_fiber_defer_callback * callback);
+typedef void (*zend_fiber_defer_func)(
+	zend_fiber * fiber,
+	zend_fiber_defer_callback * callback,
+	zend_object * exception,
+	bool * capture_exception
+);
 
 struct _zend_fiber_defer_callback {
 	zend_fiber_defer_func func;
