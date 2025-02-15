@@ -599,7 +599,7 @@ static void async_fiber_handle_defer_cb(
 
 	async_notifier_notify((reactor_notifier_t *) callback->object, &event, &error);
 
-	if (exception != NULL && exception_ref_count > GC_REFCOUNT(exception)) {
+	if (exception != NULL && exception_ref_count < GC_REFCOUNT(exception)) {
         *capture_exception = true;
     }
 
