@@ -3,9 +3,9 @@ skinparam linetype ortho
 
 |Fiber1|
 start
-:Fiber create DeferredResume object;
-:Scheduler links DeferredResume to the current Fiber1;
-:Fiber calls await(DeferredResume);
+:Fiber create Resume object;
+:Scheduler links Resume to the current Fiber1;
+:Fiber calls wait(Resume);
 :Scheduler switches control to its Fiber;
 
 
@@ -16,12 +16,12 @@ start
 
 |#LightGreen|Fiber2|
 :Some work...;
-:Calls **DeferredResume.resolve()/reject()**;
+:Calls **Resume.resolve()/reject()**;
 :Scheduler blocks Fiber switching;
 :Scheduler marks the associated Fiber1 as **resumed**;
 :Scheduler executes all CompletionPublisherInterface handlers;
 :Scheduler returns control to the current Fiber;
-:Fiber2 call await();
+:Fiber2 call wait();
 
 |Scheduler|
 :Execution of microtasks;

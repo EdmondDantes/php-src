@@ -6,7 +6,10 @@ ARG_WITH('async_libuv', 'Build True Async API with libuv support', 'no');
 if (PHP_ASYNC == "yes") {
     ADD_SOURCES("async", "async.c reactor.c scheduler.c");
     ADD_SOURCES("async/internal", "allocator.c circular_buffer.c");
-    ADD_SOURCES("async/php_layer", "callback.c channel.c reactor_handles.c exceptions.c module_entry.c notifier.c resume.c zend_common.c");
+    ADD_SOURCES(
+        "async/php_layer",
+        "callback.c channel.c notifier.c resume.c reactor_handles.c exceptions.c module_entry.c zend_common.c future.c"
+    );
 
     ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
 
@@ -21,6 +24,7 @@ if (PHP_ASYNC == "yes") {
     PHP_INSTALL_HEADERS("async/php_layer", "module_entry.h");
     PHP_INSTALL_HEADERS("async/php_layer", "notifier.h");
     PHP_INSTALL_HEADERS("async/php_layer", "resume.h");
+    PHP_INSTALL_HEADERS("async/php_layer", "future.h");
 }
 
 if (PHP_ASYNC_LIBUV == "yes") {
