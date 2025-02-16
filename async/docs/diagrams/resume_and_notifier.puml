@@ -1,0 +1,51 @@
+
+@startuml
+
+skinparam backgroundColor #fcfcfc
+skinparam packageBackgroundColor #f0f0f0
+skinparam objectBackgroundColor #fafafa
+skinparam objectBorderColor #aaaaaa
+skinparam arrowColor #444444
+
+package "Scheduler" #d3e3fc {
+    object Resume1 {
+        Fiber fiber1;
+    }
+
+    object Resume2 {
+        Fiber fiber2;
+    }
+
+    object ExecutionQueue {
+        void enqueue();
+    }
+}
+
+package "Reactor" #f9e79f {
+    object Notifier1
+    object Notifier2
+
+    object EventLoop {
+        void addHandle(Notifier notifier);
+        void removeHandle(Notifier notifier);
+    }
+}
+
+package "User-land" #d4efdf {
+    object Callback1
+    object Callback2
+}
+
+Callback1 <.. Notifier1 : triggers
+Resume1 <.. Callback1 : resolve or reject
+Resume1 --> ExecutionQueue
+
+Callback2 <.. Notifier2 : triggers
+Resume2 <.. Callback2 : resolve or reject
+Resume2 --> ExecutionQueue
+
+Callback1 <.. Notifier2 : triggers
+
+@enduml
+
+
