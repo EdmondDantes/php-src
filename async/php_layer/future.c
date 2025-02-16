@@ -18,6 +18,7 @@
 #include <async/php_async.h>
 #include <async/php_scheduler.h>
 
+#include "callback.h"
 #include "exceptions.h"
 #include "future_arginfo.h"
 #include "zend_common.h"
@@ -29,7 +30,97 @@
 static zend_object_handlers async_future_state_handlers;
 static zend_object_handlers async_future_handlers;
 
-static void invoke_future_state_callbacks(async_microtask_t *microtask);
+typedef struct {
+    async_internal_microtask_t task;
+	async_future_state_t *future_state;
+	bool started;
+	HashPosition position;
+} future_state_callbacks_task;
+
+static void future_state_callbacks_task_handler(async_microtask_t *microtask)
+{
+	future_state_callbacks_task *task = (future_state_callbacks_task *) microtask;
+	HashTable * callbacks = Z_ARR(task->future_state->notifier.callbacks);
+	reactor_notifier_t * notifier = &task->future_state->notifier;
+
+	if (task->started == false) {
+		task->started = true;
+		zend_hash_internal_pointer_reset_ex(callbacks, &task->position);
+	}
+
+	zval result, error;
+	ZVAL_NULL(&result);
+	ZVAL_NULL(&error);
+
+	zval resolved_callback;
+	ZVAL_UNDEF(&resolved_callback);
+
+	if (task->future_state->throwable != NULL) {
+		ZVAL_OBJ(&error, task->future_state->throwable);
+	} else {
+		ZVAL_COPY_VALUE(&result, &task->future_state->result);
+	}
+
+	// Add a microtask to the queue for execution if the Fiber unexpectedly stops due to an asynchronous operation.
+	// In this case, we will continue execution in a different Fiber.
+	async_scheduler_add_microtask_ex(microtask);
+
+	while (false == microtask->is_cancelled) {
+		zval *current = zend_hash_get_current_data_ex(callbacks, &task->position);
+
+		if (current == NULL) {
+			microtask->is_cancelled = true;
+			break;
+		}
+
+		zend_hash_move_forward_ex(callbacks, &task->position);
+
+		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
+			zend_resolve_weak_reference(current, &resolved_callback);
+
+			// Resume object and Callback object use different handlers.
+			if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {
+				async_resume_notify((async_resume_t *) Z_OBJ(resolved_callback), notifier, &result, &error);
+			} else if (Z_TYPE(resolved_callback) == IS_OBJECT) {
+				async_callback_notify(Z_OBJ(resolved_callback), &notifier->std, &result, &error);
+			}
+
+			zval_ptr_dtor(&resolved_callback);
+
+			if (EG(exception) != NULL) {
+				zend_exception_save();
+			}
+		}
+	}
+}
+
+static void future_state_callbacks_task_dtor(async_microtask_t *microtask)
+{
+	future_state_callbacks_task *task = (future_state_callbacks_task *) microtask;
+
+	if (task->future_state != NULL) {
+		OBJ_RELEASE(&task->future_state->notifier.std);
+		task->future_state = NULL;
+	}
+}
+
+zend_always_inline void add_future_state_callbacks_microtask(async_future_state_t *future_state)
+{
+	future_state_callbacks_task *microtask = pecalloc(1, sizeof(future_state_callbacks_task), 0);
+	microtask->task.task.is_fci = false;
+	microtask->task.handler = future_state_callbacks_task_handler;
+	microtask->task.task.dtor = future_state_callbacks_task_dtor;
+	microtask->future_state = future_state;
+	microtask->position = -1;
+	microtask->started = false;
+
+	if (ASYNC_G(in_scheduler_context)) {
+		future_state_callbacks_task_handler((async_microtask_t *) microtask);
+		async_scheduler_microtask_free((async_microtask_t *) microtask);
+	} else {
+		async_scheduler_add_microtask_ex((async_microtask_t *) microtask);
+	}
+}
 
 zend_always_inline bool throw_if_future_state_completed(async_future_state_t *future_state)
 {
@@ -68,8 +159,7 @@ FUTURE_STATE_METHOD(complete)
 	zval_copy(&THIS_FUTURE_STATE->result, result);
 	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
 
-	// Call all callbacks in the microtask.
-	async_scheduler_add_microtask_handler(invoke_future_state_callbacks, Z_OBJ_P(ZEND_THIS));
+	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
 }
 
 FUTURE_STATE_METHOD(error)
@@ -83,7 +173,7 @@ FUTURE_STATE_METHOD(error)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
-	async_scheduler_add_microtask_handler(invoke_future_state_callbacks, Z_OBJ_P(ZEND_THIS));
+	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
 }
 
 FUTURE_STATE_METHOD(isComplete)
