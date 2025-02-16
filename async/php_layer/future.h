@@ -30,6 +30,15 @@ typedef struct _async_future_state_s
 	zval result;
 	zend_object * throwable;
 	bool is_handled;
+	/* Filename of the future object creation point. */
+	zend_string *filename;
+	/* Line number of the future object creation point. */
+	uint32_t lineno;
+	/* Filename of the future object completion point. */
+	zend_string *completed_filename;
+	/* Line number of the future object completion point. */
+	uint32_t completed_lineno;
+
 } async_future_state_t;
 
 typedef struct _async_future_s

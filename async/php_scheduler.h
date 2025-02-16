@@ -26,12 +26,25 @@ struct _async_microtask_s {
 	bool is_fci;
 	bool is_cancelled;
 	int ref_count;
+	async_microtask_handler_t dtor;
 };
 
 typedef struct _async_internal_microtask_s {
 	async_microtask_t task;
 	async_microtask_handler_t handler;
 } async_internal_microtask_t;
+
+typedef struct _async_internal_microtask_with_object_s {
+	async_microtask_t task;
+	async_microtask_handler_t handler;
+	zend_object * object;
+} async_internal_microtask_with_object_t;
+
+typedef struct _async_microtask_with_exception_s {
+	async_microtask_t task;
+	async_microtask_handler_t handler;
+	zend_object * exception;
+} async_microtask_with_exception_t;
 
 typedef struct _async_function_microtask_s {
 	async_microtask_t task;
@@ -85,8 +98,9 @@ ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
 ZEND_API void async_scheduler_add_microtask(zval *microtask);
 ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask);
-ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler);
+ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler, zend_object * object);
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask);
+ZEND_API void async_scheduler_transfer_exception(zend_object * exception);
 ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask);
 ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask);
 
