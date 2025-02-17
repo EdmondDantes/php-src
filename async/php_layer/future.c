@@ -143,6 +143,53 @@ static void notifier_handler(reactor_notifier_t* notifier, zval* event, zval* er
 	add_future_state_callbacks_microtask((async_future_state_t *) notifier);
 }
 
+static void future_state_callback(zend_object * callback, zend_object *notifier, zval* z_event, zval* error)
+{
+	async_future_state_t * future_state = (async_future_state_t *) ((async_callback_t *) callback)->owner;
+	async_future_state_t * from_future_state = (async_future_state_t *) notifier;
+
+	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+		async_warning(
+			"The Future state has already been completed at %s:%d (called from other Future state created at %s:%d)",
+			future_state->completed_filename != NULL ? ZSTR_VAL(future_state->completed_filename) : "<unknown>",
+			future_state->completed_lineno,
+			from_future_state->filename != NULL ? ZSTR_VAL(from_future_state->filename) : "<unknown>",
+			from_future_state->lineno
+		);
+
+		return;
+	}
+
+	ZVAL_TRUE(&future_state->notifier.is_closed);
+
+	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+		future_state->throwable = Z_OBJ_P(error);
+		GC_ADDREF(future_state->throwable);
+	} else if (Z_TYPE_P(z_event) != IS_UNDEF) {
+		zval_copy(&future_state->result, z_event);
+		future_state->throwable = NULL;
+	} else {
+		ZVAL_NULL(&future_state->result);
+		future_state->throwable = NULL;
+	}
+
+	add_future_state_callbacks_microtask(future_state);
+}
+
+zend_always_inline void future_state_subscribe_to(async_future_state_t * from_future_state, async_future_state_t * to_future_state)
+{
+	if (from_future_state->callback == NULL) {
+		from_future_state->callback = (zend_object *) async_callback_new_with_owner(
+			future_state_callback, (zend_object *)from_future_state
+		);
+	}
+
+	zval callback;
+	ZVAL_OBJ(&callback, &from_future_state->callback);
+
+	async_notifier_add_callback(&to_future_state->notifier.std, &callback);
+}
+
 FUTURE_STATE_METHOD(__construct)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
@@ -232,16 +279,39 @@ FUTURE_METHOD(ignore)
 	future_state->is_handled = true;
 }
 
+static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER mapper_type)
+{
+	zval* callable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(callable)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (!zend_is_callable(callable, 0, NULL)) {
+		zend_argument_value_error(1, "Expected parameter to be a valid callable");
+		RETURN_THROWS();
+	}
+
+	async_future_state_t * future_state = (async_future_state_t *)async_future_state_new();
+	zval_copy(&future_state->mapper, callable);
+	future_state->mapper_type = mapper_type;
+
+	future_state_subscribe_to(future_state, (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state));
+}
+
 FUTURE_METHOD(map)
 {
+	new_mapper(INTERNAL_FUNCTION_PARAM_PASSTHRU, ASYNC_FUTURE_MAPPER_SUCCESS);
 }
 
 FUTURE_METHOD(catch)
 {
+	new_mapper(INTERNAL_FUNCTION_PARAM_PASSTHRU, ASYNC_FUTURE_MAPPER_CATCH);
 }
 
 FUTURE_METHOD(finally)
 {
+	new_mapper(INTERNAL_FUNCTION_PARAM_PASSTHRU, ASYNC_FUTURE_MAPPER_FINALLY);
 }
 
 FUTURE_METHOD(await)
@@ -297,4 +367,31 @@ void async_register_future_ce(void)
 
 	async_future_handlers = std_object_handlers;
 	async_future_handlers.clone_obj = NULL;
+}
+
+zend_object * async_future_state_new(void)
+{
+	zval object;
+
+	// Create a new object without calling the constructor
+	if (object_init_ex(&object, async_ce_future_state) == FAILURE) {
+		return NULL;
+	}
+
+	return Z_OBJ_P(&object);
+}
+
+zend_object * async_future_new(zend_object * future_state)
+{
+	zval object;
+
+	// Create a new object without calling the constructor
+	if (object_init_ex(&object, async_ce_future) == FAILURE) {
+		return NULL;
+	}
+
+	ZVAL_OBJ(&((async_future_t *)Z_OBJ_P(&object))->future_state, future_state);
+	GC_ADDREF(future_state);
+
+	return Z_OBJ_P(&object);
 }

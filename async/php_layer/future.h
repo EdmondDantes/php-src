@@ -24,11 +24,23 @@ BEGIN_EXTERN_C()
 ZEND_API zend_class_entry *async_ce_future_state;
 ZEND_API zend_class_entry *async_ce_future;
 
+typedef enum {
+	ASYNC_FUTURE_MAPPER_SUCCESS,
+	ASYNC_FUTURE_MAPPER_CATCH,
+	ASYNC_FUTURE_MAPPER_FINALLY
+} ASYNC_FUTURE_MAPPER;
+
 typedef struct _async_future_state_s
 {
 	reactor_notifier_t notifier;
 	zval result;
 	zend_object * throwable;
+	/* Function that processes the result of FutureState */
+	zval mapper;
+	/* Type of mapper */
+	ASYNC_FUTURE_MAPPER mapper_type;
+	/** Callback for listen other future states */
+	zend_object * callback;
 	bool is_handled;
 	/* Filename of the future object creation point. */
 	zend_string *filename;
@@ -56,6 +68,9 @@ typedef struct _async_future_s
 } async_future_t;
 
 void async_register_future_ce(void);
+
+zend_object * async_future_state_new(void);
+zend_object * async_future_new(zend_object * future_state);
 
 END_EXTERN_C()
 

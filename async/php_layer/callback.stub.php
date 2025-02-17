@@ -10,7 +10,7 @@ namespace Async;
  * @strict-properties
  * @not-serializable
  */
-class Callback
+final class Callback
 {
     /**
      * @param callable $callback

@@ -123,6 +123,16 @@ zend_object * async_callback_new(const async_callback_function_t callback)
 	return Z_OBJ_P(&object);
 }
 
+async_callback_t * async_callback_new_with_owner(const async_callback_function_t callback, zend_object * owner)
+{
+	async_callback_t * object = (async_callback_t *) zend_object_internal_create(sizeof(async_callback_t), async_ce_callback);
+
+	ZVAL_PTR(&object->callback, callback);
+	object->owner = owner;
+
+	return object;
+}
+
 /**
  * This method is used to bind the Callback and Resume object.
  *

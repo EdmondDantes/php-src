@@ -19,6 +19,29 @@
 
 ZEND_API zend_class_entry *async_ce_callback;
 
+typedef struct {
+	union
+	{
+		/* PHP object handle. */
+		zend_object std;
+		/* The properties table is used to store the object properties. */
+		struct {
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			zval callback;
+			zval fiber;
+			zval notifiers;
+			zval resume;
+
+			/**
+			 * Internal link to the owning object.
+			 * This object does not affect the REFCOUNT in any way,
+			 * so the lifetime of the owner must be strictly equal to the lifetime of the callback object.
+			 */
+			zend_object * owner;
+		};
+	};
+} async_callback_t;
+
 static zend_always_inline zval* async_callback_get_callback(zend_object* callback)
 {
 	return &callback->properties_table[0];
@@ -64,6 +87,7 @@ typedef void (*async_callback_function_t)(zend_object * callback, zend_object * 
 
 void async_register_callback_ce(void);
 zend_object * async_callback_new(async_callback_function_t callback);
+async_callback_t * async_callback_new_with_owner(async_callback_function_t callback, zend_object * owner);
 void async_callback_notify(zend_object *callback, zend_object *notifier, zval *event, zval *error);
 zend_result async_callback_bind_resume(zend_object* callback, const zval* resume);
 void async_callback_registered(zend_object* callback, zend_object* notifier);
