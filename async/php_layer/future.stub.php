@@ -43,6 +43,8 @@ final class FutureState extends Notifier
      * Suppress the exception thrown to the loop error handler if and operation error is not handled by a callback.
      */
     public function ignore(): void {}
+
+    public function __toString(): string {}
 }
 
 /**

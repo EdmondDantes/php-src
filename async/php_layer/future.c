@@ -26,6 +26,7 @@
 #define FUTURE_STATE_METHOD(name) PHP_METHOD(Async_FutureState, name)
 #define FUTURE_METHOD(name) PHP_METHOD(Async_Future, name)
 #define THIS_FUTURE_STATE ((async_future_state_t *) Z_OBJ_P(ZEND_THIS))
+#define THIS_FUTURE ((async_future_t *) Z_OBJ_P(ZEND_THIS))
 
 static zend_object_handlers async_future_state_handlers;
 static zend_object_handlers async_future_handlers;
@@ -137,10 +138,20 @@ zend_always_inline bool throw_if_future_state_completed(async_future_state_t *fu
 	return false;
 }
 
+static void notifier_handler(reactor_notifier_t* notifier, zval* event, zval* error)
+{
+	add_future_state_callbacks_microtask((async_future_state_t *) notifier);
+}
+
 FUTURE_STATE_METHOD(__construct)
 {
+	ZEND_PARSE_PARAMETERS_NONE();
+
 	async_future_state_t* future_state = THIS_FUTURE_STATE;
 	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
+
+	// Redefine the notifier handler: change behavior async_notifier_notify to future_state_callbacks_task_handler
+	future_state->notifier.handler_fn = notifier_handler;
 }
 
 FUTURE_STATE_METHOD(complete)
@@ -172,6 +183,7 @@ FUTURE_STATE_METHOD(error)
 		Z_PARAM_OBJ_OF_CLASS(THIS_FUTURE_STATE->throwable, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
+	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_terminated);
 	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
 	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
 }
@@ -183,7 +195,57 @@ FUTURE_STATE_METHOD(isComplete)
 
 FUTURE_STATE_METHOD(ignore)
 {
+	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_terminated);
 	THIS_FUTURE_STATE->is_handled = true;
+}
+
+FUTURE_STATE_METHOD(__toString)
+{
+	RETURN_STR(zend_strpprintf(0,
+		"FutureObject started at %s:%d",
+		THIS_FUTURE_STATE->filename != NULL ? ZSTR_VAL(THIS_FUTURE_STATE->filename) : "<unknown>",
+		THIS_FUTURE_STATE->lineno)
+    );
+}
+
+FUTURE_METHOD(__construct)
+{
+	zval* future_state;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS(future_state, async_ce_future_state)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zval_copy(&THIS_FUTURE->future_state, future_state);
+}
+
+FUTURE_METHOD(isComplete)
+{
+	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
+	RETURN_BOOL(Z_TYPE(future_state->notifier.is_terminated) == IS_TRUE);
+}
+
+FUTURE_METHOD(ignore)
+{
+	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
+	ZVAL_TRUE(&future_state->notifier.is_terminated);
+	future_state->is_handled = true;
+}
+
+FUTURE_METHOD(map)
+{
+}
+
+FUTURE_METHOD(catch)
+{
+}
+
+FUTURE_METHOD(finally)
+{
+}
+
+FUTURE_METHOD(await)
+{
 }
 
 static void async_future_state_object_destroy(zend_object *object)
