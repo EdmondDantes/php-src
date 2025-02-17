@@ -1,11 +1,11 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 472b97fd2c7fed1a199b68003a8a7b5ac2aa11d7 */
+ * Stub hash: b4d16d34b5b0727f15519661d7d58f1f98ed13ae */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Pool___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, factory, IS_CALLABLE, 0)
 	ZEND_ARG_TYPE_INFO(0, maxPoolSize, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, minPoolSize, IS_LONG, 0, "0")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_LONG, 0, "0")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_LONG, 0, "-1")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, delayPoolReduction, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -79,7 +79,7 @@ static zend_class_entry *register_class_Async_Pool(void)
 	zend_string_release(property_minPoolSize_name);
 
 	zval property_timeout_default_value;
-	ZVAL_LONG(&property_timeout_default_value, 0);
+	ZVAL_LONG(&property_timeout_default_value, -1);
 	zend_string *property_timeout_name = zend_string_init("timeout", sizeof("timeout") - 1, 1);
 	zend_declare_typed_property(class_entry, property_timeout_name, &property_timeout_default_value, ZEND_ACC_PROTECTED, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_timeout_name);
