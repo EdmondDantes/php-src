@@ -12,7 +12,7 @@ class Pool
     protected callable   $factory;
     protected int        $maxPoolSize;
     protected int        $minPoolSize        = 0;
-    protected int        $timeout            = 0;
+    protected int        $timeout            = -1;
     protected int        $delayPoolReduction = 0;
 
     /**
@@ -22,7 +22,7 @@ class Pool
         callable    $factory,
         int         $maxPoolSize,
         int         $minPoolSize        = 0,
-        int         $timeout            = 0,
+        int         $timeout            = -1,
         int         $delayPoolReduction = 0,
     ) {}
 
