@@ -162,15 +162,81 @@ static void future_state_callback(zend_object * callback, zend_object *notifier,
 
 	ZVAL_TRUE(&future_state->notifier.is_closed);
 
-	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
-		future_state->throwable = Z_OBJ_P(error);
-		GC_ADDREF(future_state->throwable);
-	} else if (Z_TYPE_P(z_event) != IS_UNDEF) {
-		zval_copy(&future_state->result, z_event);
-		future_state->throwable = NULL;
-	} else {
+	if (Z_TYPE(future_state->mapper) != IS_UNDEF && Z_TYPE(future_state->mapper) != IS_NULL) {
+
+		switch (future_state->mapper_type) {
+			case ASYNC_FUTURE_MAPPER_SUCCESS:
+				if (error == NULL || Z_TYPE_P(error) != IS_OBJECT) {
+					zval retval;
+					zval args[1];
+					ZVAL_COPY(&args[0], z_event);
+					call_user_function(EG(function_table), NULL, &future_state->mapper, &retval, 1, args);
+
+					if (EG(exception) == NULL) {
+						zval_copy(&future_state->result, &retval);
+					} else {
+						future_state->throwable = EG(exception);
+						GC_ADDREF(future_state->throwable);
+						zend_clear_exception();
+					}
+
+					zval_ptr_dtor(&retval);
+				} else {
+					future_state->throwable = Z_OBJ_P(error);
+					GC_ADDREF(future_state->throwable);
+				}
+
+				break;
+
+			case ASYNC_FUTURE_MAPPER_CATCH: {
+
+				if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+					zval retval;
+					zval args[1];
+					ZVAL_OBJ(&args[0], error);
+					call_user_function(EG(function_table), NULL, &future_state->mapper, &retval, 1, args);
+
+					if (EG(exception) == NULL) {
+						zval_copy(&future_state->result, &retval);
+					} else {
+						future_state->throwable = EG(exception);
+						GC_ADDREF(future_state->throwable);
+						zend_clear_exception();
+					}
+
+					zval_ptr_dtor(&retval);
+				} else {
+					zval_copy(&future_state->result, z_event);
+					future_state->throwable = NULL;
+				}
+
+				break;
+			}
+
+			case ASYNC_FUTURE_MAPPER_FINALLY: {
+				zval retval;
+				call_user_function(EG(function_table), NULL, &future_state->mapper, &retval, 0, NULL);
+
+				if (EG(exception) != NULL) {
+					future_state->throwable = EG(exception);
+					GC_ADDREF(future_state->throwable);
+					zend_clear_exception();
+				} else if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
+					future_state->throwable = Z_OBJ_P(error);
+					GC_ADDREF(future_state->throwable);
+				} else if (Z_TYPE_P(z_event) != IS_UNDEF) {
+					zval_copy(&future_state->result, z_event);
+					future_state->throwable = NULL;
+				}
+
+				break;
+			}
+		}
+
+	}
+
+	if (Z_TYPE(future_state->result) == IS_UNDEF && future_state->throwable == NULL) {
 		ZVAL_NULL(&future_state->result);
-		future_state->throwable = NULL;
 	}
 
 	add_future_state_callbacks_microtask(future_state);
