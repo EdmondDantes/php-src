@@ -52,7 +52,7 @@ class Channel implements ChannelInterface
 {
     public readonly ?\Fiber $owner = null;
 
-    public function __construct(int $capacity = 8, ?\Fiber $owner = null, bool $expandable = false) {}
+    public function __construct(int $capacity = 1, ?\Fiber $owner = null, bool $expandable = false) {}
 
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void {}
 
