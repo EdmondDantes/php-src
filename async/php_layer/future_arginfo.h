@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 921b8ccd30229d07e25c85115a950d4289927061 */
+ * Stub hash: ce85409ac38a418c2cc065b274f4084f2ac96ce1 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FutureState___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -100,13 +100,6 @@ static zend_class_entry *register_class_Async_FutureState(zend_class_entry *clas
 	zend_string *property_result_name = zend_string_init("result", sizeof("result") - 1, 1);
 	zend_declare_typed_property(class_entry, property_result_name, &property_result_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
 	zend_string_release(property_result_name);
-
-	zval property_throwable_default_value;
-	ZVAL_NULL(&property_throwable_default_value);
-	zend_string *property_throwable_name = zend_string_init("throwable", sizeof("throwable") - 1, 1);
-	zend_string *property_throwable_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
-	zend_declare_typed_property(class_entry, property_throwable_name, &property_throwable_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_throwable_class_Throwable, 0, MAY_BE_NULL));
-	zend_string_release(property_throwable_name);
 
 	return class_entry;
 }
