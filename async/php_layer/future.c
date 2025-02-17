@@ -125,7 +125,7 @@ zend_always_inline void add_future_state_callbacks_microtask(async_future_state_
 
 zend_always_inline bool throw_if_future_state_completed(async_future_state_t *future_state)
 {
-	if (Z_TYPE(future_state->notifier.is_terminated) == IS_TRUE) {
+	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
 		async_throw_error(
 			"The Future has already been completed at %s:%d",
 			future_state->filename ? ZSTR_VAL(future_state->filename) : "<unknown>",
@@ -166,7 +166,7 @@ FUTURE_STATE_METHOD(complete)
 		Z_PARAM_ZVAL(result)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_terminated);
+	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
 	zval_copy(&THIS_FUTURE_STATE->result, result);
 	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
 
@@ -183,19 +183,19 @@ FUTURE_STATE_METHOD(error)
 		Z_PARAM_OBJ_OF_CLASS(THIS_FUTURE_STATE->throwable, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_terminated);
+	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
 	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
 	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
 }
 
 FUTURE_STATE_METHOD(isComplete)
 {
-	RETURN_BOOL(Z_TYPE(THIS_FUTURE_STATE->notifier.is_terminated) == IS_TRUE);
+	RETURN_BOOL(Z_TYPE(THIS_FUTURE_STATE->notifier.is_closed) == IS_TRUE);
 }
 
 FUTURE_STATE_METHOD(ignore)
 {
-	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_terminated);
+	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
 	THIS_FUTURE_STATE->is_handled = true;
 }
 
@@ -222,13 +222,13 @@ FUTURE_METHOD(__construct)
 FUTURE_METHOD(isComplete)
 {
 	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
-	RETURN_BOOL(Z_TYPE(future_state->notifier.is_terminated) == IS_TRUE);
+	RETURN_BOOL(Z_TYPE(future_state->notifier.is_closed) == IS_TRUE);
 }
 
 FUTURE_METHOD(ignore)
 {
 	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
-	ZVAL_TRUE(&future_state->notifier.is_terminated);
+	ZVAL_TRUE(&future_state->notifier.is_closed);
 	future_state->is_handled = true;
 }
 
@@ -254,7 +254,7 @@ static void async_future_state_object_destroy(zend_object *object)
 
 	// Add exception if the future state is not handled but was completed.
 	// Ignore if the shutdown is in progress.
-	if (Z_TYPE(future_state->notifier.is_terminated) == IS_TRUE
+	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE
 		&& future_state->is_handled == false
 		&& ASYNC_G(graceful_shutdown) == false
 		) {

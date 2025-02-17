@@ -60,11 +60,11 @@ struct _reactor_handle_s {
 			zval callbacks;
 
 			/**
-			 * Equals to TRUE if the Notifier is terminated.
-			 * If the Notifier is in the Terminated state, it will never generate any events again.
+			 * Equals to TRUE if the Notifier is closed.
+			 * If the Notifier is in the closed state, it will never generate any events again.
 			 * Attempting to add such a Notifier to the Resume object will result in an error.
 			 */
-			zval is_terminated;
+			zval is_closed;
 
 			/**
 			 * toString handler function.

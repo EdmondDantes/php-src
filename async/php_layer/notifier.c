@@ -89,9 +89,9 @@ METHOD(notify)
 	async_notifier_notify((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS), event, error);
 }
 
-METHOD(terminate)
+METHOD(close)
 {
-	ZVAL_BOOL(&((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS))->is_terminated, true);
+	ZVAL_BOOL(&((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS))->is_closed, true);
 }
 
 static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
@@ -221,7 +221,7 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 
 void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error)
 {
-	if (UNEXPECTED(Z_TYPE(notifier->is_terminated) == IS_TRUE)) {
+	if (UNEXPECTED(Z_TYPE(notifier->is_closed) == IS_TRUE)) {
 		zend_throw_error(spl_ce_LogicException, "The notifier cannot be triggered after it has been terminated");
 		return;
 	}

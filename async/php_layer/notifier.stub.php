@@ -34,6 +34,11 @@ class Notifier
     private int $reserved = 0;
 
     /**
+     * Returns the number of registered callbacks.
+     */
+    final public function getCallbacks(): array {}
+
+    /**
      * Adds a callback to the event.
      *
      * @param Callback $callback The callback to add.
@@ -55,9 +60,9 @@ class Notifier
     final protected function notify(mixed $event, ?\Throwable $error = null): void {}
 
     /**
-     * Terminates the Notifier.
+     * Close the Notifier.
      */
-    final protected function terminate(): void {}
+    final protected function close(): void {}
 
     /**
      * Returns a string representation of the Notifier that can be used for debugging purposes.

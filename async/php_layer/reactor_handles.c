@@ -609,7 +609,7 @@ static void async_fiber_handle_defer_cb(
 		GC_ADDREF(exception);
 	}
 
-	ZVAL_TRUE(&((reactor_fiber_handle_t *) callback->object)->handle.is_terminated);
+	ZVAL_TRUE(&((reactor_fiber_handle_t *) callback->object)->handle.is_closed);
 }
 
 reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)

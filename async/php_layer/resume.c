@@ -392,7 +392,7 @@ ZEND_API void async_resume_when(
 		const async_resume_when_callback_t callback
 	)
 {
-	if (UNEXPECTED(Z_TYPE(notifier->is_terminated) == IS_TRUE)) {
+	if (UNEXPECTED(Z_TYPE(notifier->is_closed) == IS_TRUE)) {
 		zend_throw_error(spl_ce_LogicException, "The notifier cannot be used after it has been terminated");
 		return;
 	}

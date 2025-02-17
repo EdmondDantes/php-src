@@ -184,7 +184,7 @@ PHP_FUNCTION(Async_await)
 		RETURN_THROWS();
 	}
 
-	if (Z_TYPE(fiber_handle->handle.is_terminated) == IS_TRUE) {
+	if (Z_TYPE(fiber_handle->handle.is_closed) == IS_TRUE) {
 		if (fiber_handle->exception != NULL) {
 			zend_throw_exception_internal(fiber_handle->exception);
 		} else {
