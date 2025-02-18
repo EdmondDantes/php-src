@@ -194,9 +194,11 @@ PHP_METHOD(Async_Walker, run)
 	fci.param_count = walker->fcc.function_handler->common.num_args;
 	fci.params = args;
 
-	if (walker->next_microtask != NULL) {
+	if (walker->next_microtask != NULL && (walker->concurrency > 0 && walker->concurrency < walker->active_fibers)) {
 		async_scheduler_add_microtask_ex(walker->next_microtask);
 	}
+
+	walker->active_fibers++;
 
 	/* Reload array and position */
 	if (walker->target_hash != NULL) {
@@ -282,6 +284,10 @@ PHP_METHOD(Async_Walker, run)
 		if (UNEXPECTED(result == FAILURE || EG(exception) != NULL)) {
             break;
         }
+	}
+
+	if (walker->active_fibers != 0) {
+		walker->active_fibers--;
 	}
 
 	if (walker->hash_iterator != -1) {

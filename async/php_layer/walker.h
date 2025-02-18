@@ -45,7 +45,8 @@ typedef struct _async_walker_s {
 	HashTable * target_hash;
 	HashPosition position;
 	uint32_t hash_iterator;
-	int concurrency;
+	unsigned int concurrency;
+	unsigned int active_fibers;
 } async_walker_t;
 
 ZEND_API zend_class_entry *async_ce_walker;
