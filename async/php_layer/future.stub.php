@@ -5,7 +5,9 @@
 namespace Async;
 
 /**
- * The
+ * A back-end class for the Future class.
+ * The owner of this object can resolve the state of the Future. The class is a descendant of Notifier and can
+ * participate in the EventLoop.
  *
  * @strict-properties
  * @not-serializable

@@ -36,6 +36,72 @@ function async(callable $task, mixed ... $args): FiberHandle {}
 function await(callable|FiberHandle|Future|\Fiber $awaitable, mixed ... $args): mixed {}
 
 /**
+ * Unwraps the first completed future.
+ *
+ * If you want the first future completed without an error, use {@see awaitAny()} instead.
+ *
+ * @template T
+ *
+ * @param iterable<Future<T>> $futures
+ * @param Notifier|null $cancellation Optional cancellation.
+ *
+ * @return T
+ *
+ * @throws CompositeLengthException If {@code $futures} is empty.
+ */
+function awaitFirst(iterable $futures, ?Notifier $cancellation = null): mixed {};
+
+/**
+ * Awaits the first successfully completed future, ignoring errors.
+ *
+ * If you want the first future completed, successful or not, use {@see awaitFirst()} instead.
+ *
+ * @template Tk of array-key
+ * @template Tv
+ *
+ * @param iterable<Tk, Future<Tv>> $futures
+ * @param Cancellation|null $cancellation Optional cancellation.
+ *
+ * @return Tv
+ *
+ * @throws CompositeException If all futures errored.
+ * @throws CompositeLengthException If {@code $futures} is empty.
+ */
+function awaitAny(iterable $futures, ?Notifier $cancellation = null): mixed {};
+
+/**
+ * Awaits the first N successfully completed futures, ignoring errors.
+ *
+ * @template Tk of array-key
+ * @template Tv
+ *
+ * @param positive-int $count
+ * @param iterable<Tk, Future<Tv>> $futures
+ * @param Cancellation|null $cancellation Optional cancellation.
+ *
+ * @return non-empty-array<Tk, Tv>
+ *
+ * @throws CompositeException If too many futures errored.
+ * @throws CompositeLengthException If {@code $futures} is empty.
+ */
+function awaitAnyN(int $count, iterable $futures, ?Notifier $cancellation = null): array {};
+
+/**
+ * Awaits all futures to complete or error.
+ *
+ * This awaits all futures without aborting on first error (unlike {@see await()}).
+ *
+ * @template Tk of array-key
+ * @template Tv
+ *
+ * @param iterable<Tk, Future<Tv>> $futures
+ * @param Cancellation|null $cancellation Optional cancellation.
+ *
+ * @return array{array<Tk, \Throwable>, array<Tk, Tv>}
+ */
+function awaitAll(iterable $futures, bool $ignoreErrors = false, ?Notifier $cancellation = null): array {};
+
+/**
  * Creates a microtask that is guaranteed to execute before events are processed, and other Fibers are started,
  * and immediately after the Scheduler takes control.
  */
