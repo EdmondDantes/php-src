@@ -608,12 +608,24 @@ ZEND_API void async_await_future_list(
 				if (errors != NULL) {
 					zval error;
 					ZVAL_OBJ(&error, future_state->throwable);
-                    zend_hash_index_update(errors, index, &error);
+
+					if (key != NULL) {
+						zend_hash_update(errors, key, &error);
+					} else {
+						zend_hash_index_update(errors, index, &error);
+					}
+
 					GC_ADDREF(future_state->throwable);
                 }
             } else {
                 if (results != NULL) {
-                    zend_hash_index_update(results, index, &future_state->result);
+                    if (key != NULL) {
+                    	zend_hash_update(errors, key, &future_state->result);
+                    } else {
+                    	zend_hash_index_update(results, index, &future_state->result);
+                    }
+
+                	Z_TRY_ADDREF_P(&future_state->result);
                 }
 			}
 		}
