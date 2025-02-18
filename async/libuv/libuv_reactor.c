@@ -1618,7 +1618,7 @@ static int libuv_exec(
 	}
 
 	libuv_exec_t * exec = (libuv_exec_t *) async_notifier_new_ex(
-		sizeof(libuv_exec_t), NULL, exec_remove_callback, exec_to_string
+		sizeof(libuv_exec_t), NULL, exec_remove_callback, exec_to_string, NULL
     );
 
 	if (exec == NULL || EG(exception)) {

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 293fe4948dceaca3ccc14e6cbecfcbca5db97a42 */
+ * Stub hash: 74d39d0fad12d9605dda897f5ce2ea9d0d8ff34f */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FutureState___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()

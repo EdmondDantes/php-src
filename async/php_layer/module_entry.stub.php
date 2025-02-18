@@ -42,12 +42,10 @@ function await(callable|FiberHandle|Future|\Fiber $awaitable, mixed ... $args): 
  *
  * @template T
  *
- * @param iterable<Future<T>> $futures
- * @param Notifier|null $cancellation Optional cancellation.
+ * param iterable<Future<T>> $futures
+ * param Notifier|null $cancellation Optional cancellation.
  *
  * @return T
- *
- * @throws CompositeLengthException If {@code $futures} is empty.
  */
 function awaitFirst(iterable $futures, ?Notifier $cancellation = null): mixed {};
 
@@ -59,13 +57,10 @@ function awaitFirst(iterable $futures, ?Notifier $cancellation = null): mixed {}
  * @template Tk of array-key
  * @template Tv
  *
- * @param iterable<Tk, Future<Tv>> $futures
- * @param Cancellation|null $cancellation Optional cancellation.
+ * param iterable<Tk, Future<Tv>> $futures
+ * param Cancellation|null $cancellation Optional cancellation.
  *
  * @return Tv
- *
- * @throws CompositeException If all futures errored.
- * @throws CompositeLengthException If {@code $futures} is empty.
  */
 function awaitAny(iterable $futures, ?Notifier $cancellation = null): mixed {};
 
@@ -75,14 +70,11 @@ function awaitAny(iterable $futures, ?Notifier $cancellation = null): mixed {};
  * @template Tk of array-key
  * @template Tv
  *
- * @param positive-int $count
- * @param iterable<Tk, Future<Tv>> $futures
- * @param Cancellation|null $cancellation Optional cancellation.
+ * param positive-int $count
+ * param iterable<Tk, Future<Tv>> $futures
+ * param Notifier|null $cancellation Optional cancellation.
  *
  * @return non-empty-array<Tk, Tv>
- *
- * @throws CompositeException If too many futures errored.
- * @throws CompositeLengthException If {@code $futures} is empty.
  */
 function awaitAnyN(int $count, iterable $futures, ?Notifier $cancellation = null): array {};
 
@@ -94,8 +86,8 @@ function awaitAnyN(int $count, iterable $futures, ?Notifier $cancellation = null
  * @template Tk of array-key
  * @template Tv
  *
- * @param iterable<Tk, Future<Tv>> $futures
- * @param Cancellation|null $cancellation Optional cancellation.
+ * param iterable<Tk, Future<Tv>> $futures
+ * param Notifier|null $cancellation Optional cancellation.
  *
  * @return array{array<Tk, \Throwable>, array<Tk, Tv>}
  */

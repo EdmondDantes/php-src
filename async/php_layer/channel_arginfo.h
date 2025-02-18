@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 0c6001a7bef3605c730fd58fa308e887d10dd87c */
+ * Stub hash: ca87ad163423c61f3c71ecdfa288d17060a9caf5 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ChannelStateInterface_isClosed, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -195,13 +195,13 @@ static zend_class_entry *register_class_Async_ProducerInterface(zend_class_entry
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_ConsumerInterface(zend_class_entry *class_entry_Async_ChannelStateInterface)
+static zend_class_entry *register_class_Async_ConsumerInterface(zend_class_entry *class_entry_Async_ChannelStateInterface, zend_class_entry *class_entry_Iterator)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ConsumerInterface", class_Async_ConsumerInterface_methods);
 	class_entry = zend_register_internal_interface(&ce);
-	zend_class_implements(class_entry, 1, class_entry_Async_ChannelStateInterface);
+	zend_class_implements(class_entry, 2, class_entry_Async_ChannelStateInterface, class_entry_Iterator);
 
 	return class_entry;
 }

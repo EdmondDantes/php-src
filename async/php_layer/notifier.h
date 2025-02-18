@@ -22,6 +22,7 @@
 BEGIN_EXTERN_C()
 
 ZEND_API zend_class_entry *async_ce_notifier;
+ZEND_API zend_class_entry *async_ce_notifier_ex;
 
 typedef enum {
 	REACTOR_H_UNKNOWN = 0,
@@ -40,10 +41,12 @@ typedef enum {
 
 typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
+typedef struct _reactor_notifier_ex_s reactor_notifier_ex_t;
 
 typedef void (* reactor_notifier_handler_t) (reactor_notifier_t* notifier, zval* event, zval* error);
 typedef  zend_string* (* reactor_notifier_to_string_t) (reactor_notifier_t* notifier);
-typedef bool (* reactor_remove_callback_t) (reactor_notifier_t * notifier, zval * callback);
+typedef bool (* reactor_remove_callback_t) (reactor_notifier_ex_t * notifier, zval * callback);
+typedef void (* reactor_notifier_ex_dtor_t) (reactor_notifier_ex_t * notifier);
 
 struct _reactor_handle_s {
 	union
@@ -71,29 +74,31 @@ struct _reactor_handle_s {
 			 * CALLABLE or ZVAL_PTR to reactor_notifier_to_string_t
 			 */
 			zval to_string;
-
-			// Padding memory zone for notify_fn, user_data
-			zval _padding2;
-		};
-		struct
-		{
-			// zend object std + callbacks
-			char _padding3[sizeof(zend_object) + sizeof(zval) * 2];
-
-			// padding2 + padding3 memory zone
-
-			/**
-			 * Notify function.
-			 * Called when the notifier is triggered.
-			 */
-			reactor_notifier_handler_t handler_fn;
-			/**
-			 * Remove callback function.
-			 * Called when a callback is should be removed or when the notifier is destroyed.
-			 */
-			reactor_remove_callback_t remove_callback_fn;
 		};
 	};
+};
+
+/**
+ * The Notifier object for C extensions
+ * allows flexible overriding of key methods without creating separate classes.
+ */
+struct _reactor_notifier_ex_s
+{
+	reactor_notifier_t notifier;
+	/**
+	 * Notify function.
+	 * Called when the notifier is triggered.
+	 */
+	reactor_notifier_handler_t handler_fn;
+	/**
+	 * Remove callback function.
+	 * Called when a callback is should be removed or when the notifier is destroyed.
+	 */
+	reactor_remove_callback_t remove_callback_fn;
+	/**
+	 * Extra destructor function.
+	 */
+	reactor_notifier_ex_dtor_t dtor_fn;
 };
 
 static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
@@ -110,15 +115,14 @@ void async_register_notifier_ce(void);
 
 zend_always_inline void async_notifier_object_init(reactor_notifier_t * notifier)
 {
-	notifier->handler_fn = NULL;
-	notifier->remove_callback_fn = NULL;
 }
 
-ZEND_API reactor_notifier_t * async_notifier_new_ex(
+ZEND_API reactor_notifier_ex_t * async_notifier_new_ex(
 	size_t size,
 	reactor_notifier_handler_t handler_fn,
 	reactor_remove_callback_t remove_callback_fn,
-	reactor_notifier_to_string_t to_string_fn
+	reactor_notifier_to_string_t to_string_fn,
+	reactor_notifier_ex_dtor_t dtor_fn
 );
 ZEND_API reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_entry *class_entry);
 ZEND_API void async_notifier_add_callback(zend_object* notifier, zval* callback);

@@ -69,3 +69,14 @@ class Notifier
      */
     public function __toString(): string {}
 }
+
+/**
+ * Class for internal use. Implements custom handlers for C code.
+ *
+ * @strict-properties
+ * @not-serializable
+ */
+final class NotifierEx extends Notifier
+{
+    private function __construct() {}
+}

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4694dea14dbce78c2d9b4c543fd82489618d43c4 */
+ * Stub hash: 1cb093a93219f5e789e109ca8dbbe47dd8d2f81b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -21,12 +21,16 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier___toString, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_NotifierEx___construct, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_METHOD(Async_Notifier, getCallbacks);
 ZEND_METHOD(Async_Notifier, addCallback);
 ZEND_METHOD(Async_Notifier, removeCallback);
 ZEND_METHOD(Async_Notifier, notify);
 ZEND_METHOD(Async_Notifier, close);
 ZEND_METHOD(Async_Notifier, __toString);
+ZEND_METHOD(Async_NotifierEx, __construct);
 
 static const zend_function_entry class_Async_Notifier_methods[] = {
 	ZEND_ME(Async_Notifier, getCallbacks, arginfo_class_Async_Notifier_getCallbacks, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
@@ -35,6 +39,11 @@ static const zend_function_entry class_Async_Notifier_methods[] = {
 	ZEND_ME(Async_Notifier, notify, arginfo_class_Async_Notifier_notify, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, close, arginfo_class_Async_Notifier_close, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, __toString, arginfo_class_Async_Notifier___toString, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_Async_NotifierEx_methods[] = {
+	ZEND_ME(Async_NotifierEx, __construct, arginfo_class_Async_NotifierEx___construct, ZEND_ACC_PRIVATE)
 	ZEND_FE_END
 };
 
@@ -68,6 +77,16 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_string *property_reserved_name = zend_string_init("reserved", sizeof("reserved") - 1, 1);
 	zend_declare_typed_property(class_entry, property_reserved_name, &property_reserved_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_reserved_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_Async_NotifierEx(zend_class_entry *class_entry_Async_Notifier)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "Async", "NotifierEx", class_Async_NotifierEx_methods);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
 	return class_entry;
 }
