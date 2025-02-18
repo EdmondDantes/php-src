@@ -33,7 +33,7 @@ function async(callable $task, mixed ... $args): FiberHandle {}
  * If an unhandled exception occurs during the
  * execution of $awaitable, it will be thrown at the call site of this function.
  */
-function await(callable|FiberHandle|\Fiber $awaitable, mixed ... $args): mixed {}
+function await(callable|FiberHandle|Future|\Fiber $awaitable, mixed ... $args): mixed {}
 
 /**
  * Creates a microtask that is guaranteed to execute before events are processed, and other Fibers are started,

@@ -13,16 +13,44 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef ASYNC_MODULE_ENTRY_H
-#define ASYNC_MODULE_ENTRY_H
+#ifndef WALKER_H
+#define WALKER_H
 
 #include <async/php_scheduler.h>
-#include "zend_common.h"
 
-#define PHP_ASYNC_VERSION "1.0.0-dev"
+#include "php.h"
 
-zend_module_entry async_module_entry;
+BEGIN_EXTERN_C()
 
-zend_result async_register_module(void);
+typedef struct _async_walker_s {
+	union
+	{
+		/* PHP std object */
+		zend_object std;
+		struct
+		{
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			zval is_finished;
+			zval iterator;
+			zval custom_data;
+			zval defer;
+		};
+	};
 
-#endif //ASYNC_MODULE_ENTRY_H
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+	zend_object_iterator * zend_iterator;
+	zend_object * run_closure;
+	async_microtask_t * next_microtask;
+	HashTable * target_hash;
+	HashPosition position;
+	uint32_t hash_iterator;
+	int concurrency;
+} async_walker_t;
+
+ZEND_API zend_class_entry *async_ce_walker;
+void async_register_walker_ce();
+
+END_EXTERN_C()
+
+#endif //WALKER_H
