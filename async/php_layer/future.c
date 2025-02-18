@@ -484,6 +484,43 @@ void async_await_future(async_future_state_t *future_state, zval * retval)
 	async_future_state_to_retval(future_state, retval);
 }
 
+typedef struct
+{
+	int total;
+	int waiting_count;
+	int resolved_count;
+	bool ignore_errors;
+} future_await_conditions_t;
+
+typedef struct
+{
+	async_resume_notifier_t * resume_notifier;
+	future_await_conditions_t * conditions;
+} future_resume_callback_t;
+
+static void future_resume_callback(
+	async_resume_t *resume,
+	reactor_notifier_t *notifier,
+	zval* event,
+	zval* error,
+	async_resume_notifier_t *resume_notifier
+)
+{
+	future_resume_callback_t * callback = (future_resume_callback_t *) resume_notifier;
+
+	callback->conditions->resolved_count++;
+
+	if (Z_TYPE_P(error) == IS_OBJECT && callback->conditions->ignore_errors == false) {
+		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
+		return;
+	}
+
+	if (callback->conditions->resolved_count >= callback->conditions->total
+		|| callback->conditions->resolved_count >= callback->conditions->waiting_count) {
+        async_resume_fiber(resume, NULL, NULL);
+    }
+}
+
 ZEND_API void async_await_future_list(
 	HashTable * futures,
 	int count,
@@ -508,6 +545,12 @@ ZEND_API void async_await_future_list(
 		return;
 	}
 
+	future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
+	conditions->total = (int) zend_hash_num_elements(futures);
+	conditions->waiting_count = count > 0 ? count : conditions->total;
+	conditions->resolved_count = 0;
+	conditions->ignore_errors = ignore_errors;
+
 	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
         if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
             continue;
@@ -526,16 +569,54 @@ ZEND_API void async_await_future_list(
         async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
 
         if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
-            if (errors != NULL && future_state->throwable != NULL) {
-                zend_hash_index_update(errors, index, future_state->throwable);
-            }
-
             continue;
         }
 
-        async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
+		future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
+		ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
+		callback->conditions = conditions;
+
+        async_resume_when_ex(resume, &future_state->notifier, false, (async_resume_notifier_t *)callback);
+
     } ZEND_HASH_FOREACH_END();
 
 	async_wait(resume);
 
+	// Save the results and errors.
+
+	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
+
+		if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
+			continue;
+		}
+
+		// Resolve the Future object to the FutureState object.
+		if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
+
+			if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
+				ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+			} else {
+				continue;
+			}
+		}
+
+		async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
+
+		if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+
+			if (future_state->throwable != NULL) {
+				if (errors != NULL) {
+					zval error;
+					ZVAL_OBJ(&error, future_state->throwable);
+                    zend_hash_index_update(errors, index, &error);
+					GC_ADDREF(future_state->throwable);
+                }
+            } else {
+                if (results != NULL) {
+                    zend_hash_index_update(results, index, &future_state->result);
+                }
+			}
+		}
+
+	} ZEND_HASH_FOREACH_END();
 }

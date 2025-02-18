@@ -443,6 +443,52 @@ ZEND_API void async_resume_when(
 	}
 }
 
+ZEND_API void async_resume_when_ex(
+		async_resume_t				*resume,
+		reactor_notifier_t			*notifier,
+		const bool					trans_notifier,
+		async_resume_notifier_t		*resume_notifier
+	)
+{
+	if (UNEXPECTED(Z_TYPE(notifier->is_closed) == IS_TRUE)) {
+		zend_throw_error(spl_ce_LogicException, "The notifier cannot be used after it has been terminated");
+		return;
+	}
+
+	if (UNEXPECTED(zend_hash_index_find(&resume->notifiers, notifier->std.handle) != NULL)) {
+		async_warning("Callback or notifier already registered");
+
+		if (trans_notifier) {
+			OBJ_RELEASE(&notifier->std);
+		}
+
+		return;
+	}
+
+	zval zval_notifier;
+	ZVAL_PTR(&zval_notifier, resume_notifier);
+	zend_hash_index_update(&resume->notifiers, notifier->std.handle, &zval_notifier);
+
+	if (false == trans_notifier) {
+		GC_ADDREF(&notifier->std);
+	}
+
+	resume_notifier->notifier = notifier;
+
+	zval z_callback;
+	ZVAL_OBJ(&z_callback, &resume->std);
+
+	async_notifier_add_callback(&notifier->std, &z_callback);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		zend_hash_index_del(&resume->notifiers, notifier->std.handle);
+
+		if (trans_notifier) {
+			OBJ_RELEASE(&notifier->std);
+		}
+	}
+}
+
 ZEND_API void async_resume_remove_notifier(async_resume_t *resume, reactor_notifier_t *notifier)
 {
 	if (UNEXPECTED(notifier == NULL)) {
@@ -462,7 +508,9 @@ ZEND_API void async_resume_remove_notifier(async_resume_t *resume, reactor_notif
 	OBJ_RELEASE(&notifier->std);
 }
 
-ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+ZEND_API void async_resume_when_callback_resolve(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+)
 {
 	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -471,7 +519,9 @@ ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor
 	}
 }
 
-ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+ZEND_API void async_resume_when_callback_cancel(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+)
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -489,7 +539,9 @@ ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_
 	}
 }
 
-ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+ZEND_API void async_resume_when_callback_timeout(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+)
 {
 	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -544,7 +596,7 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, z
 	if (Z_TYPE(resume_notifier->callback) == IS_PTR) {
 
 		const async_resume_when_callback_t resume_callback = Z_PTR(resume_notifier->callback);
-		resume_callback(resume, notifier, event, error);
+		resume_callback(resume, notifier, event, error, resume_notifier);
 
 	} else if (zend_is_callable(&resume_notifier->callback, 0, NULL)) {
 

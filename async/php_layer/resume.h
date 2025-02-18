@@ -28,9 +28,15 @@ typedef enum {
 } ASYNC_RESUME_STATUS;
 
 typedef struct _async_resume_s async_resume_t;
-typedef void (*async_resume_when_callback_t)(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
-
 typedef struct _async_resume_notifier_s async_resume_notifier_t;
+
+typedef void (*async_resume_when_callback_t)(
+	async_resume_t *resume,
+	reactor_notifier_t *notifier,
+	zval* event,
+	zval* error,
+	async_resume_notifier_t *resume_notifier
+);
 
 /**
  * async_resume_t structure.
@@ -95,10 +101,22 @@ ZEND_API void async_resume_when(
 		const bool					trans_notifier,
 		const async_resume_when_callback_t callback
 	);
+ZEND_API void async_resume_when_ex(
+		async_resume_t				*resume,
+		reactor_notifier_t			*notifier,
+		const bool					trans_notifier,
+		async_resume_notifier_t * resume_notifier
+	);
 ZEND_API void async_resume_remove_notifier(async_resume_t *resume, reactor_notifier_t *notifier);
-ZEND_API void async_resume_when_callback_resolve(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
-ZEND_API void async_resume_when_callback_cancel(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
-ZEND_API void async_resume_when_callback_timeout(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+ZEND_API void async_resume_when_callback_resolve(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+);
+ZEND_API void async_resume_when_callback_cancel(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+);
+ZEND_API void async_resume_when_callback_timeout(
+	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+);
 ZEND_API void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, zval* event, zval* error);
 ZEND_API void async_resume_waiting(async_resume_t *resume);
 ZEND_API int async_resume_get_ready_poll_handles(const async_resume_t *resume);
