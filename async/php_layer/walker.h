@@ -18,6 +18,7 @@
 
 #include <async/php_scheduler.h>
 
+#include "future.h"
 #include "php.h"
 
 BEGIN_EXTERN_C()
@@ -47,6 +48,7 @@ typedef struct _async_walker_s {
 	uint32_t hash_iterator;
 	unsigned int concurrency;
 	unsigned int active_fibers;
+	async_future_state_t * future_state;
 } async_walker_t;
 
 ZEND_API zend_class_entry *async_ce_walker;

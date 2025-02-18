@@ -352,13 +352,20 @@ PHP_METHOD(Async_Walker, cancel)
 
 PHP_METHOD(Async_Walker, getFuture)
 {
-	async_future_state_t * state = (async_future_state_t *) async_future_state_new();
 	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
-	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
-		state->
+	if (walker->future_state != NULL) {
+		RETURN_OBJ(async_future_new(&walker->future_state->notifier.std));
 	}
 
+	async_future_state_t * state = (async_future_state_t *) async_future_state_new();
+	walker->future_state = state;
+
+	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
+		async_future_state_resolve(state, &walker->is_finished);
+	}
+
+	RETURN_OBJ(async_future_new(&state->notifier.std));
 }
 
 static void async_walker_object_destroy(zend_object* object)
