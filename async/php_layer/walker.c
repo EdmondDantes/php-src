@@ -391,6 +391,10 @@ static void async_walker_object_destroy(zend_object* object)
 		walker->next_microtask = NULL;
 	}
 
+	if (walker->future_state != NULL) {
+		OBJ_RELEASE(&walker->future_state->notifier.std);
+	}
+
 	ZEND_ASSERT(walker->hash_iterator == -1 && "Iterator should be removed");
 }
 
