@@ -30,8 +30,8 @@
 #define GET_PROPERTY_CALLBACKS() async_notifier_get_callbacks(Z_OBJ_P(ZEND_THIS));
 
 
-static zend_object_handlers async_notifier_handlers;
-static zend_object_handlers async_notifier_ex_handlers;
+static reactor_notifier_handlers_t async_notifier_handlers;
+static reactor_notifier_handlers_t async_notifier_ex_handlers;
 
 METHOD(getCallbacks)
 {
@@ -141,20 +141,26 @@ void async_register_notifier_ce(void)
 	async_ce_notifier->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_notifier->create_object = async_notifier_object_create;
 
-	async_ce_notifier->default_object_handlers = &async_notifier_handlers;
+	async_ce_notifier->default_object_handlers = &async_notifier_handlers.std;
 
-	async_notifier_handlers = std_object_handlers;
-	async_notifier_handlers.clone_obj = NULL;
+	async_notifier_handlers.std = std_object_handlers;
+	async_notifier_handlers.std.clone_obj = NULL;
+	async_notifier_handlers.handler_fn = NULL;
+	async_notifier_handlers.remove_callback_fn = NULL;
+	async_notifier_handlers.dtor_fn = NULL;
 
 	async_ce_notifier_ex = register_class_Async_Notifier();
 	async_ce_notifier_ex->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_notifier_ex->create_object = async_notifier_ex_object_create;
 
-	async_ce_notifier_ex->default_object_handlers = &async_notifier_ex_handlers;
+	async_ce_notifier_ex->default_object_handlers = &async_notifier_ex_handlers.std;
 
-	async_notifier_ex_handlers = std_object_handlers;
-	async_notifier_ex_handlers.dtor_obj = async_notifier_ex_object_destroy;
-	async_notifier_ex_handlers.clone_obj = NULL;
+	async_notifier_ex_handlers.std = std_object_handlers;
+	async_notifier_ex_handlers.std.dtor_obj = async_notifier_ex_object_destroy;
+	async_notifier_ex_handlers.std.clone_obj = NULL;
+	async_notifier_ex_handlers.handler_fn = NULL;
+	async_notifier_ex_handlers.remove_callback_fn = NULL;
+	async_notifier_ex_handlers.dtor_fn = NULL;
 }
 
 reactor_notifier_ex_t * async_notifier_new_ex(
@@ -192,9 +198,6 @@ reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_e
 	zend_object_std_init(&notifier->std, class_entry);
 	object_properties_init(&notifier->std, class_entry);
 
-	notifier->handler_fn = NULL;
-	notifier->remove_callback_fn = NULL;
-
 	return notifier;
 }
 
@@ -230,8 +233,14 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 {
 	// If the notifier has a custom remove callback function, then we call it
 	// and if it returns false, then we do not remove the callback.
-	if (((reactor_handle_t *) notifier)->remove_callback_fn
-		&& false == ((reactor_handle_t *) notifier)->remove_callback_fn((reactor_notifier_t *) notifier, callback)) {
+	if (notifier->ce == async_ce_notifier_ex
+		&& ((reactor_notifier_ex_t *) notifier)->remove_callback_fn
+		&& false == ((reactor_notifier_ex_t *) notifier)->remove_callback_fn((reactor_notifier_t *) notifier, callback)) {
+		return;
+	}
+
+	if (((reactor_notifier_handlers_t * )notifier->handlers)->remove_callback_fn
+		&& false == ((reactor_notifier_handlers_t * )notifier->handlers)->remove_callback_fn((reactor_notifier_t *) notifier, callback)) {
 		return;
 	}
 

@@ -1419,12 +1419,8 @@ typedef struct
 	zval * std_error;
 } libuv_exec_t;
 
-static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
+static void exec_remove_callback(reactor_notifier_t * notifier)
 {
-	if (Z_TYPE_P(callback) != IS_NULL) {
-		return true;
-	}
-
 	// It's destructor, we need to close all handles
 	libuv_exec_t * exec = (libuv_exec_t *) notifier;
 
@@ -1450,8 +1446,6 @@ static bool exec_remove_callback(reactor_notifier_t * notifier, zval * callback)
         uv_close((uv_handle_t *) exec->process, libuv_close_cb);
         exec->process = NULL;
     }
-
-	return false;
 }
 
 static zend_string* exec_to_string(reactor_notifier_t * notifier)
@@ -1618,7 +1612,7 @@ static int libuv_exec(
 	}
 
 	libuv_exec_t * exec = (libuv_exec_t *) async_notifier_new_ex(
-		sizeof(libuv_exec_t), NULL, exec_remove_callback, exec_to_string, NULL
+		sizeof(libuv_exec_t), NULL, NULL, exec_to_string, exec_remove_callback
     );
 
 	if (exec == NULL || EG(exception)) {

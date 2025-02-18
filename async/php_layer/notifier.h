@@ -45,8 +45,31 @@ typedef struct _reactor_notifier_ex_s reactor_notifier_ex_t;
 
 typedef void (* reactor_notifier_handler_t) (reactor_notifier_t* notifier, zval* event, zval* error);
 typedef  zend_string* (* reactor_notifier_to_string_t) (reactor_notifier_t* notifier);
-typedef bool (* reactor_remove_callback_t) (reactor_notifier_ex_t * notifier, zval * callback);
-typedef void (* reactor_notifier_ex_dtor_t) (reactor_notifier_ex_t * notifier);
+typedef bool (* reactor_remove_callback_t) (reactor_notifier_t * notifier, zval * callback);
+typedef void (* reactor_notifier_ex_dtor_t) (reactor_notifier_t * notifier);
+
+typedef struct _reactor_notifier_handlers_s reactor_notifier_handlers_t;
+
+struct _reactor_notifier_handlers_s {
+	/**
+	 * Zend object handlers.
+	 */
+	zend_object_handlers std;
+	/**
+	 * Notify function.
+	 * Called when the notifier is triggered.
+	 */
+	reactor_notifier_handler_t handler_fn;
+	/**
+	 * Remove callback function.
+	 * Called when a callback is should be removed or when the notifier is destroyed.
+	 */
+	reactor_remove_callback_t remove_callback_fn;
+	/**
+	 * Extra destructor function.
+	 */
+	reactor_notifier_ex_dtor_t dtor_fn;
+};
 
 struct _reactor_handle_s {
 	union
