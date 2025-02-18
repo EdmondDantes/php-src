@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 68b118df0036cefbea78203ca5f6e9572dfa5b57 */
+ * Stub hash: b4a0c4a9f0e62095ca504ed086f51055519b7e54 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -35,6 +35,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FiberHandle_removeDeferHandler, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, callable, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FiberHandle_getFuture, 0, 0, Async\\Future, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileHandle_fromResource, 0, 1, Async\\FileHandle, 0)
@@ -111,6 +114,7 @@ ZEND_METHOD(Async_FiberHandle, cancel);
 ZEND_METHOD(Async_FiberHandle, cancelWith);
 ZEND_METHOD(Async_FiberHandle, defer);
 ZEND_METHOD(Async_FiberHandle, removeDeferHandler);
+ZEND_METHOD(Async_FiberHandle, getFuture);
 ZEND_METHOD(Async_FileHandle, fromResource);
 ZEND_METHOD(Async_SocketHandle, fromResource);
 ZEND_METHOD(Async_SocketHandle, fromSocket);
@@ -150,6 +154,7 @@ static const zend_function_entry class_Async_FiberHandle_methods[] = {
 	ZEND_ME(Async_FiberHandle, cancelWith, arginfo_class_Async_FiberHandle_cancelWith, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, defer, arginfo_class_Async_FiberHandle_defer, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, removeDeferHandler, arginfo_class_Async_FiberHandle_removeDeferHandler, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FiberHandle, getFuture, arginfo_class_Async_FiberHandle_getFuture, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 

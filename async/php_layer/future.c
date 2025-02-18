@@ -49,6 +49,8 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 		zend_hash_internal_pointer_reset_ex(callbacks, &task->position);
 	}
 
+	task->future_state->in_microtask_queue = false;
+
 	zval result, error;
 	ZVAL_NULL(&result);
 	ZVAL_NULL(&error);
@@ -74,10 +76,22 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 			break;
 		}
 
+		zend_string * key;
+		zend_ulong index;
+
+		zend_hash_get_current_key_ex(callbacks, &key, &index, &task->position);
+
 		zend_hash_move_forward_ex(callbacks, &task->position);
 
 		if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
 			zend_resolve_weak_reference(current, &resolved_callback);
+
+			// Remove from the callbacks array.
+			if (key != NULL) {
+				zend_hash_del(callbacks, key);
+			} else {
+				zend_hash_index_del(callbacks, index);
+			}
 
 			// Resume object and Callback object use different handlers.
 			if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {
@@ -107,6 +121,10 @@ static void future_state_callbacks_task_dtor(async_microtask_t *microtask)
 
 zend_always_inline void add_future_state_callbacks_microtask(async_future_state_t *future_state)
 {
+	if (future_state->in_microtask_queue) {
+		return;
+	}
+
 	future_state_callbacks_task *microtask = pecalloc(1, sizeof(future_state_callbacks_task), 0);
 	microtask->task.task.is_fci = false;
 	microtask->task.handler = future_state_callbacks_task_handler;
@@ -279,11 +297,7 @@ FUTURE_STATE_METHOD(complete)
 		Z_PARAM_ZVAL(result)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
-	zval_copy(&THIS_FUTURE_STATE->result, result);
-	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
-
-	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
+	async_future_state_resolve(THIS_FUTURE_STATE, result);
 }
 
 FUTURE_STATE_METHOD(error)
@@ -292,18 +306,35 @@ FUTURE_STATE_METHOD(error)
 		RETURN_THROWS();
 	}
 
+	zend_object * throwable;
+
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_OBJ_OF_CLASS(THIS_FUTURE_STATE->throwable, zend_ce_throwable)
+		Z_PARAM_OBJ_OF_CLASS(throwable, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
-	zend_apply_current_filename_and_line(&THIS_FUTURE_STATE->completed_filename, &THIS_FUTURE_STATE->completed_lineno);
-	add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
+	async_future_state_reject(THIS_FUTURE_STATE, throwable);
 }
 
 FUTURE_STATE_METHOD(isComplete)
 {
 	RETURN_BOOL(Z_TYPE(THIS_FUTURE_STATE->notifier.is_closed) == IS_TRUE);
+}
+
+FUTURE_STATE_METHOD(addCallback)
+{
+	zval* callback;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_notifier_add_callback(Z_OBJ_P(ZEND_THIS), callback);
+
+	if (Z_TYPE(THIS_FUTURE_STATE->notifier.is_closed) == IS_TRUE) {
+		add_future_state_callbacks_microtask(THIS_FUTURE_STATE);
+	}
+
+	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 FUTURE_STATE_METHOD(ignore)
@@ -461,6 +492,33 @@ zend_object * async_future_new(zend_object * future_state)
 	GC_ADDREF(future_state);
 
 	return Z_OBJ_P(&object);
+}
+
+void async_future_state_resolve(async_future_state_t *future_state, zval * retval)
+{
+	if (UNEXPECTED(Z_TYPE(future_state->notifier.is_closed) == IS_TRUE)) {
+		return;
+	}
+
+	ZVAL_TRUE(&future_state->notifier.is_closed);
+	zval_copy(&future_state->result, retval);
+	zend_apply_current_filename_and_line(&future_state->completed_filename, &future_state->completed_lineno);
+
+	add_future_state_callbacks_microtask(future_state);
+}
+
+void async_future_state_reject(async_future_state_t *future_state, zend_object * error)
+{
+	if (UNEXPECTED(Z_TYPE(future_state->notifier.is_closed) == IS_TRUE)) {
+		return;
+	}
+
+	future_state->throwable = error;
+	GC_ADDREF(error);
+	ZVAL_TRUE(&future_state->notifier.is_closed);
+	zend_apply_current_filename_and_line(&future_state->completed_filename, &future_state->completed_lineno);
+
+	add_future_state_callbacks_microtask(future_state);
 }
 
 void async_await_future(async_future_state_t *future_state, zval * retval)

@@ -44,6 +44,12 @@ final class FutureState extends Notifier
      */
     public function ignore(): void {}
 
+    /**
+     * @param Callback $callback The callback to add.
+     * @return static
+     */
+    public function addCallback(Callback $callback): static {}
+
     public function __toString(): string {}
 }
 

@@ -29,4 +29,6 @@ final class Walker
     private function run(): void {}
     private function next(): void {}
     public function cancel(): void {}
+
+    public function getFuture(): Future {}
 }

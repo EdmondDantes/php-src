@@ -20,6 +20,7 @@
 #include <async/php_scheduler.h>
 #include <async/php_async.h>
 
+#include "future.h"
 #include "walker_arginfo.h"
 #include "zend_common.h"
 
@@ -349,6 +350,17 @@ PHP_METHOD(Async_Walker, cancel)
     ZVAL_TRUE(&executor->is_finished);
 }
 
+PHP_METHOD(Async_Walker, getFuture)
+{
+	async_future_state_t * state = (async_future_state_t *) async_future_state_new();
+	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
+
+	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
+		state->
+	}
+
+}
+
 static void async_walker_object_destroy(zend_object* object)
 {
 	async_walker_t * walker = (async_walker_t *) object;
@@ -363,14 +375,6 @@ static void async_walker_object_destroy(zend_object* object)
 	}
 
 	if (walker->run_closure != NULL) {
-		/*
-		if (!(OBJ_FLAGS(walker->run_closure) & IS_OBJ_DESTRUCTOR_CALLED)) {
-			// Add fake reference to prevent double free
-			GC_ADDREF(&walker->std);
-			OBJ_RELEASE(walker->run_closure);
-		}
-		*/
-
 		walker->run_closure = NULL;
     }
 

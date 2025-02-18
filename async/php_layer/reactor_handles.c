@@ -120,7 +120,7 @@ PHP_METHOD(Async_FiberHandle, cancelWith)
 	async_cancel_fiber(fiber, Z_OBJ_P(error), false);
 }
 
-ZEND_METHOD(Async_FiberHandle, defer)
+PHP_METHOD(Async_FiberHandle, defer)
 {
 	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
 
@@ -140,7 +140,7 @@ ZEND_METHOD(Async_FiberHandle, defer)
 	zend_fiber_defer_callable(fiber, callback);
 }
 
-ZEND_METHOD(Async_FiberHandle, removeDeferHandler)
+PHP_METHOD(Async_FiberHandle, removeDeferHandler)
 {
 	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
 
@@ -166,6 +166,11 @@ ZEND_METHOD(Async_FiberHandle, removeDeferHandler)
 			return;
 		}
 	} ZEND_HASH_FOREACH_END();
+}
+
+PHP_METHOD(Async_FiberHandle, getFuture)
+{
+	// TODO: Implement getFuture method
 }
 
 PHP_METHOD(Async_PollHandle, __construct) {}

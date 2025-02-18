@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: c8540a2f8219a4947d518d4f2aa9d51d3805628e */
+ * Stub hash: 293fe4948dceaca3ccc14e6cbecfcbca5db97a42 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FutureState___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -16,6 +16,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FutureState_isComple
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FutureState_ignore, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FutureState_addCallback, 0, 1, IS_STATIC, 0)
+	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_FutureState___toString, 0, 0, IS_STRING, 0)
@@ -59,6 +63,7 @@ ZEND_METHOD(Async_FutureState, complete);
 ZEND_METHOD(Async_FutureState, error);
 ZEND_METHOD(Async_FutureState, isComplete);
 ZEND_METHOD(Async_FutureState, ignore);
+ZEND_METHOD(Async_FutureState, addCallback);
 ZEND_METHOD(Async_FutureState, __toString);
 ZEND_METHOD(Async_Future, complete);
 ZEND_METHOD(Async_Future, error);
@@ -76,6 +81,7 @@ static const zend_function_entry class_Async_FutureState_methods[] = {
 	ZEND_ME(Async_FutureState, error, arginfo_class_Async_FutureState_error, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FutureState, isComplete, arginfo_class_Async_FutureState_isComplete, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FutureState, ignore, arginfo_class_Async_FutureState_ignore, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FutureState, addCallback, arginfo_class_Async_FutureState_addCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FutureState, __toString, arginfo_class_Async_FutureState___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };

@@ -52,7 +52,8 @@ typedef struct _async_future_state_s
 	zend_string *completed_filename;
 	/* Line number of the future object completion point. */
 	uint32_t completed_lineno;
-
+	/* The flag indicates that the future state is in the microtask queue. */
+	bool in_microtask_queue;
 } async_future_state_t;
 
 typedef struct _async_future_s
@@ -88,6 +89,9 @@ void async_register_future_ce(void);
 
 zend_object * async_future_state_new(void);
 zend_object * async_future_new(zend_object * future_state);
+
+void async_future_state_resolve(async_future_state_t *future_state, zval * retval);
+void async_future_state_reject(async_future_state_t *future_state, zend_object * error);
 
 ZEND_API void async_await_future(async_future_state_t *future_state, zval * retval);
 

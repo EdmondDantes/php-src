@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e1f57776dae26039221ddc141e3a7b0ed0d0e0bd */
+ * Stub hash: 7e64363d56f68baa20c0445f98ca4ff097046553 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_launchScheduler, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -19,7 +19,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Async_async, 0, 1, Async\\FiberHa
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_await, 0, 1, IS_MIXED, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, awaitable, Async\\FiberHandle|Fiber, MAY_BE_CALLABLE, NULL)
+	ZEND_ARG_OBJ_TYPE_MASK(0, awaitable, Async\\FiberHandle|Async\\Future|Fiber, MAY_BE_CALLABLE, NULL)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
@@ -57,6 +57,10 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_Async_getResumes arginfo_Async_getFibers
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_gracefulShutdown, 0, 0, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, throwable, Throwable, 1, "null")
+ZEND_END_ARG_INFO()
+
 ZEND_FUNCTION(Async_launchScheduler);
 ZEND_FUNCTION(Async_wait);
 ZEND_FUNCTION(Async_run);
@@ -69,6 +73,7 @@ ZEND_FUNCTION(Async_onSignal);
 ZEND_FUNCTION(Async_exec);
 ZEND_FUNCTION(Async_getFibers);
 ZEND_FUNCTION(Async_getResumes);
+ZEND_FUNCTION(Async_gracefulShutdown);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "launchScheduler"), zif_Async_launchScheduler, arginfo_Async_launchScheduler, 0, NULL, NULL)
@@ -83,5 +88,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "exec"), zif_Async_exec, arginfo_Async_exec, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "getFibers"), zif_Async_getFibers, arginfo_Async_getFibers, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "getResumes"), zif_Async_getResumes, arginfo_Async_getResumes, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "gracefulShutdown"), zif_Async_gracefulShutdown, arginfo_Async_gracefulShutdown, 0, NULL, NULL)
 	ZEND_FE_END
 };

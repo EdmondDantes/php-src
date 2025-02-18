@@ -67,6 +67,10 @@ final class FiberHandle extends Notifier
      */
     public function removeDeferHandler(callable $callable): void {}
 
+    /**
+     * The method will return a Future object that will return the result of the Fiber execution.
+     */
+    public function getFuture(): Future {}
 }
 
 /**

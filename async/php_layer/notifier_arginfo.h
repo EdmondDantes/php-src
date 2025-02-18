@@ -1,5 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5876d08e97b5df7936406a1c77b493b28446bc87 */
+ * Stub hash: 4694dea14dbce78c2d9b4c543fd82489618d43c4 */
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_addCallback, 0, 1, IS_STATIC, 0)
 	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
@@ -12,23 +15,25 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_notify, 0, 
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, error, Throwable, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_terminate, 0, 0, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_close, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier___toString, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_METHOD(Async_Notifier, getCallbacks);
 ZEND_METHOD(Async_Notifier, addCallback);
 ZEND_METHOD(Async_Notifier, removeCallback);
 ZEND_METHOD(Async_Notifier, notify);
-ZEND_METHOD(Async_Notifier, terminate);
+ZEND_METHOD(Async_Notifier, close);
 ZEND_METHOD(Async_Notifier, __toString);
 
 static const zend_function_entry class_Async_Notifier_methods[] = {
+	ZEND_ME(Async_Notifier, getCallbacks, arginfo_class_Async_Notifier_getCallbacks, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, addCallback, arginfo_class_Async_Notifier_addCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, removeCallback, arginfo_class_Async_Notifier_removeCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, notify, arginfo_class_Async_Notifier_notify, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
-	ZEND_ME(Async_Notifier, terminate, arginfo_class_Async_Notifier_terminate, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
+	ZEND_ME(Async_Notifier, close, arginfo_class_Async_Notifier_close, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, __toString, arginfo_class_Async_Notifier___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };

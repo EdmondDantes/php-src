@@ -1,11 +1,12 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5445f211924e38856705fe6761544d2b8ab9e2f4 */
+ * Stub hash: fcc015d2a1623411baf4245980176ff5e0abcdcd */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_walk, 0, 2, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Walker_walk, 0, 2, Async\\Walker, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, iterator, Traversable, MAY_BE_ARRAY, NULL)
 	ZEND_ARG_TYPE_INFO(0, function, IS_CALLABLE, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, customData, IS_MIXED, 0, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, defer, IS_CALLABLE, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, concurrency, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Walker_run, 0, 0, IS_VOID, 0)
@@ -15,16 +16,21 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Walker_cancel arginfo_class_Async_Walker_run
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Walker_getFuture, 0, 0, Async\\Future, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_METHOD(Async_Walker, walk);
 ZEND_METHOD(Async_Walker, run);
 ZEND_METHOD(Async_Walker, next);
 ZEND_METHOD(Async_Walker, cancel);
+ZEND_METHOD(Async_Walker, getFuture);
 
 static const zend_function_entry class_Async_Walker_methods[] = {
 	ZEND_ME(Async_Walker, walk, arginfo_class_Async_Walker_walk, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Walker, run, arginfo_class_Async_Walker_run, ZEND_ACC_PRIVATE)
 	ZEND_ME(Async_Walker, next, arginfo_class_Async_Walker_next, ZEND_ACC_PRIVATE)
 	ZEND_ME(Async_Walker, cancel, arginfo_class_Async_Walker_cancel, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Walker, getFuture, arginfo_class_Async_Walker_getFuture, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
