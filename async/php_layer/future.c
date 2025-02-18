@@ -382,6 +382,7 @@ FUTURE_METHOD(finally)
 
 FUTURE_METHOD(await)
 {
+	async_await_future((async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state), return_value);
 }
 
 static void async_future_state_object_destroy(zend_object *object)
@@ -460,4 +461,81 @@ zend_object * async_future_new(zend_object * future_state)
 	GC_ADDREF(future_state);
 
 	return Z_OBJ_P(&object);
+}
+
+void async_await_future(async_future_state_t *future_state, zval * retval)
+{
+	future_state->is_handled = true;
+
+	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+		async_future_state_to_retval(future_state, retval);
+		return;
+	}
+
+	async_resume_t * resume = async_resume_new(NULL);
+
+	if (resume == NULL) {
+		return;
+	}
+
+	async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
+	async_wait(resume);
+
+	async_future_state_to_retval(future_state, retval);
+}
+
+ZEND_API void async_await_future_list(
+	HashTable * futures,
+	int count,
+	bool ignore_errors,
+	reactor_notifier_t *cancellation,
+	zend_ulong timeout,
+	HashTable * results,
+	HashTable * errors
+)
+{
+	if (zend_hash_num_elements(futures) == 0) {
+        return;
+    }
+
+	zend_ulong index;
+	zend_string *key;
+	zval * z_future_state;
+
+	async_resume_t * resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
+
+	if (resume == NULL) {
+		return;
+	}
+
+	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
+        if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
+            continue;
+        }
+
+		// Resolve the Future object to the FutureState object.
+		if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
+
+			if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
+				ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+			} else {
+                continue;
+            }
+		}
+
+        async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
+
+        if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+            if (errors != NULL && future_state->throwable != NULL) {
+                zend_hash_index_update(errors, index, future_state->throwable);
+            }
+
+            continue;
+        }
+
+        async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
+    } ZEND_HASH_FOREACH_END();
+
+	async_wait(resume);
+
 }

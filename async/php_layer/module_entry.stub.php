@@ -93,3 +93,8 @@ function getFibers(): array {}
  * @return Resume[]
  */
 function getResumes(): array {}
+
+/**
+ * Start the graceful shutdown of the Scheduler.
+ */
+function gracefulShutdown(\Throwable|null $throwable = null): void {}

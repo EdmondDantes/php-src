@@ -16,6 +16,8 @@
 #ifndef FUTURE_H
 #define FUTURE_H
 
+#include <zend_exceptions.h>
+
 #include "php.h"
 #include "notifier.h"
 
@@ -67,10 +69,37 @@ typedef struct _async_future_s
 
 } async_future_t;
 
+zend_always_inline void async_future_state_to_retval(async_future_state_t * future_state, zval * retval)
+{
+	ZVAL_UNDEF(retval);
+
+	if (EG(exception) != NULL) {
+		return;
+	}
+
+	if (future_state->throwable != NULL) {
+		zend_throw_exception_internal(future_state->throwable);
+	} else {
+        ZVAL_COPY(retval, &future_state->result);
+    }
+}
+
 void async_register_future_ce(void);
 
 zend_object * async_future_state_new(void);
 zend_object * async_future_new(zend_object * future_state);
+
+ZEND_API void async_await_future(async_future_state_t *future_state, zval * retval);
+
+ZEND_API void async_await_future_list(
+	HashTable *futures,
+	int count,
+	bool ignore_errors,
+	reactor_notifier_t *cancellation,
+	zend_ulong timeout,
+	HashTable * results,
+	HashTable * errors
+);
 
 END_EXTERN_C()
 
