@@ -365,6 +365,11 @@ PHP_FUNCTION(Async_getResumes)
 
 }
 
+PHP_FUNCTION(Async_gracefulShutdown)
+{
+
+}
+
 ZEND_MINIT_FUNCTION(async)
 {
 	async_register_walker_ce();

@@ -352,6 +352,16 @@ FUTURE_STATE_METHOD(__toString)
     );
 }
 
+FUTURE_METHOD(complete)
+{
+
+}
+
+FUTURE_METHOD(error)
+{
+
+}
+
 FUTURE_METHOD(__construct)
 {
 	zval* future_state;

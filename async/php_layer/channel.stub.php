@@ -23,7 +23,7 @@ interface ProducerInterface extends ChannelStateInterface
     public function finishProducing(): void;
 }
 
-interface ConsumerInterface extends ChannelStateInterface
+interface ConsumerInterface extends ChannelStateInterface, \Iterator
 {
     public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed;
     public function tryReceive(): mixed;

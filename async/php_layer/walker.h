@@ -52,7 +52,7 @@ typedef struct _async_walker_s {
 } async_walker_t;
 
 ZEND_API zend_class_entry *async_ce_walker;
-void async_register_walker_ce();
+void async_register_walker_ce(void);
 
 END_EXTERN_C()
 

@@ -32,6 +32,11 @@
 
 static zend_object_handlers async_notifier_handlers;
 
+METHOD(getCallbacks)
+{
+
+}
+
 METHOD(addCallback)
 {
 	zval* callback;

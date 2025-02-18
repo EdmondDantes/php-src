@@ -400,7 +400,7 @@ static void async_walker_object_destroy(zend_object* object)
 
 static zend_object_handlers async_walker_handlers;
 
-static void async_register_walker_ce(void)
+void async_register_walker_ce(void)
 {
 	async_ce_walker = register_class_Async_Walker();
 
