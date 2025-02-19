@@ -904,4 +904,10 @@ ZEND_API void async_await_future_list(
 		}
 
 	} ZEND_HASH_FOREACH_END();
+
+	OBJ_RELEASE(&resume->std);
+
+	if (zend_iterator != NULL) {
+		zend_array_release(futures);
+	}
 }
