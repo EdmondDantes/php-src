@@ -23,7 +23,7 @@ interface ProducerInterface extends ChannelStateInterface
     public function finishProducing(): void;
 }
 
-interface ConsumerInterface extends ChannelStateInterface, \Iterator
+interface ConsumerInterface extends ChannelStateInterface, \Iterator, \Countable
 {
     public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed;
     public function tryReceive(): mixed;
@@ -89,6 +89,18 @@ class Channel implements ChannelInterface
     public function getUsed(): int {}
 
     public function getNotifier(): Notifier {}
+
+    public current(): mixed {};
+
+    public key(): mixed {};
+
+    public next(): void {};
+
+    public rewind(): void {};
+
+    public valid(): bool {};
+
+    public count(): int {}
 }
 
 /**
