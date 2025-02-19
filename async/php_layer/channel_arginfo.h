@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: ca87ad163423c61f3c71ecdfa288d17060a9caf5 */
+ * Stub hash: 5f21a6c039049a5d9de10ec4981d86a104e55c8e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ChannelStateInterface_isClosed, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -97,6 +97,18 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Channel_getNotifier arginfo_class_Async_ChannelInterface_getNotifier
 
+#define arginfo_class_Async_Channel_current arginfo_class_Async_ConsumerInterface_tryReceive
+
+#define arginfo_class_Async_Channel_key arginfo_class_Async_ConsumerInterface_tryReceive
+
+#define arginfo_class_Async_Channel_next arginfo_class_Async_ProducerInterface_finishProducing
+
+#define arginfo_class_Async_Channel_rewind arginfo_class_Async_ProducerInterface_finishProducing
+
+#define arginfo_class_Async_Channel_valid arginfo_class_Async_ChannelStateInterface_isClosed
+
+#define arginfo_class_Async_Channel_count arginfo_class_Async_ChannelStateInterface_getCapacity
+
 ZEND_METHOD(Async_Channel, __construct);
 ZEND_METHOD(Async_Channel, send);
 ZEND_METHOD(Async_Channel, trySend);
@@ -116,6 +128,12 @@ ZEND_METHOD(Async_Channel, isProducingFinished);
 ZEND_METHOD(Async_Channel, getCapacity);
 ZEND_METHOD(Async_Channel, getUsed);
 ZEND_METHOD(Async_Channel, getNotifier);
+ZEND_METHOD(Async_Channel, current);
+ZEND_METHOD(Async_Channel, key);
+ZEND_METHOD(Async_Channel, next);
+ZEND_METHOD(Async_Channel, rewind);
+ZEND_METHOD(Async_Channel, valid);
+ZEND_METHOD(Async_Channel, count);
 
 static const zend_function_entry class_Async_ChannelStateInterface_methods[] = {
 	ZEND_RAW_FENTRY("isClosed", NULL, arginfo_class_Async_ChannelStateInterface_isClosed, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
@@ -171,6 +189,12 @@ static const zend_function_entry class_Async_Channel_methods[] = {
 	ZEND_ME(Async_Channel, getCapacity, arginfo_class_Async_Channel_getCapacity, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, getUsed, arginfo_class_Async_Channel_getUsed, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, getNotifier, arginfo_class_Async_Channel_getNotifier, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, current, arginfo_class_Async_Channel_current, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, key, arginfo_class_Async_Channel_key, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, next, arginfo_class_Async_Channel_next, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, rewind, arginfo_class_Async_Channel_rewind, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, valid, arginfo_class_Async_Channel_valid, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, count, arginfo_class_Async_Channel_count, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -195,13 +219,13 @@ static zend_class_entry *register_class_Async_ProducerInterface(zend_class_entry
 	return class_entry;
 }
 
-static zend_class_entry *register_class_Async_ConsumerInterface(zend_class_entry *class_entry_Async_ChannelStateInterface, zend_class_entry *class_entry_Iterator)
+static zend_class_entry *register_class_Async_ConsumerInterface(zend_class_entry *class_entry_Async_ChannelStateInterface, zend_class_entry *class_entry_Iterator, zend_class_entry *class_entry_Countable)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "ConsumerInterface", class_Async_ConsumerInterface_methods);
 	class_entry = zend_register_internal_interface(&ce);
-	zend_class_implements(class_entry, 2, class_entry_Async_ChannelStateInterface, class_entry_Iterator);
+	zend_class_implements(class_entry, 3, class_entry_Async_ChannelStateInterface, class_entry_Iterator, class_entry_Countable);
 
 	return class_entry;
 }

@@ -90,17 +90,17 @@ class Channel implements ChannelInterface
 
     public function getNotifier(): Notifier {}
 
-    public current(): mixed {};
+    public function current(): mixed {}
 
-    public key(): mixed {};
+    public function key(): mixed {}
 
-    public next(): void {};
+    public function next(): void {}
 
-    public rewind(): void {};
+    public function rewind(): void {}
 
-    public valid(): bool {};
+    public function valid(): bool {}
 
-    public count(): int {}
+    public function count(): int {}
 }
 
 /**

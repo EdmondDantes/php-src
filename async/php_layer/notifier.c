@@ -64,7 +64,7 @@ METHOD(removeCallback)
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
-METHOD(__toString)
+METHOD(toString)
 {
 	reactor_notifier_t * notifier = (reactor_notifier_t *) Z_OBJ_P(ZEND_THIS);
 
@@ -117,9 +117,27 @@ static void async_notifier_ex_object_create(zend_class_entry *class_entry)
 	zend_object_std_init(&object->notifier.std, class_entry);
 	object_properties_init(&object->notifier.std, class_entry);
 
-	object->notifier.handler_fn = NULL;
-	object->notifier.remove_callback_fn = NULL;
+	object->handler_fn = NULL;
+	object->remove_callback_fn = NULL;
 	object->dtor_fn = NULL;
+}
+
+static zend_string* cancellation_to_string(reactor_notifier_t* notifier)
+{
+	return zend_string_init("Cancellation", sizeof("Cancellation") - 1, 0);
+}
+
+static void async_cancellation_object_create(zend_class_entry *class_entry)
+{
+	DEFINE_ZEND_RAW_OBJECT(reactor_cancellation_t, object, class_entry);
+	zend_object_std_init(&object->std, class_entry);
+	object_properties_init(&object->std, class_entry);
+
+	reactor_notifier_ex_t *notifier = async_notifier_new_ex(
+		sizeof(reactor_notifier_ex_t), NULL, NULL, cancellation_to_string, NULL
+	);
+
+	ZVAL_OBJ(&object->notifier, &notifier->notifier.std);
 }
 
 static void async_notifier_ex_object_destroy(zend_object *object)
@@ -127,7 +145,7 @@ static void async_notifier_ex_object_destroy(zend_object *object)
 	reactor_notifier_ex_t *notifier = (reactor_notifier_ex_t *) object;
 
 	if (notifier->dtor_fn) {
-		notifier->dtor_fn(notifier);
+		notifier->dtor_fn((reactor_notifier_t *) notifier);
 	}
 
 	notifier->handler_fn = NULL;
@@ -161,6 +179,9 @@ void async_register_notifier_ce(void)
 	async_notifier_ex_handlers.handler_fn = NULL;
 	async_notifier_ex_handlers.remove_callback_fn = NULL;
 	async_notifier_ex_handlers.dtor_fn = NULL;
+
+	async_ce_cancellation = register_class_Async_Notifier();
+	async_ce_cancellation->create_object = async_cancellation_object_create;
 }
 
 reactor_notifier_ex_t * async_notifier_new_ex(
@@ -269,9 +290,16 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		// to prevent the object from being deleted during the execution of this function.
 		GC_ADDREF(&notifier->std);
 
-		if (notifier->handler_fn != NULL) {
-			notifier->handler_fn(notifier, event, error);
+		// If the notifier has a custom handler function, then we call it.
 
+		if (notifier->std.ce == async_ce_notifier_ex
+			&& ((reactor_notifier_ex_t *) notifier)->handler_fn
+			&& ((reactor_notifier_ex_t *) notifier)->handler_fn(notifier, event, error)) {
+			IF_THROW_FINALLY;
+		}
+
+		if (((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn
+			&& ((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn(notifier, event, error)) {
 			IF_THROW_FINALLY;
 		}
 

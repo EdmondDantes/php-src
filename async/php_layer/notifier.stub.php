@@ -67,7 +67,7 @@ class Notifier
     /**
      * Returns a string representation of the Notifier that can be used for debugging purposes.
      */
-    public function __toString(): string {}
+    public function toString(): string {}
 }
 
 /**
@@ -79,4 +79,19 @@ class Notifier
 final class NotifierEx extends Notifier
 {
     private function __construct() {}
+}
+
+/**
+ * Trigger object for canceling pending operations.
+ *
+ * @strict-properties
+ * @not-serializable
+ */
+final class Cancellation
+{
+    public readonly Notifier $notifier;
+
+    public function isCancelled(): bool {}
+
+    public function cancel(\Throwable $error): void {}
 }

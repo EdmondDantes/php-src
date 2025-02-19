@@ -23,6 +23,7 @@ BEGIN_EXTERN_C()
 
 ZEND_API zend_class_entry *async_ce_notifier;
 ZEND_API zend_class_entry *async_ce_notifier_ex;
+ZEND_API zend_class_entry *async_ce_cancellation;
 
 typedef enum {
 	REACTOR_H_UNKNOWN = 0,
@@ -42,6 +43,7 @@ typedef enum {
 typedef struct _reactor_handle_s reactor_handle_t;
 typedef struct _reactor_handle_s reactor_notifier_t;
 typedef struct _reactor_notifier_ex_s reactor_notifier_ex_t;
+typedef struct _reactor_cancellation_s reactor_cancellation_t;
 
 typedef void (* reactor_notifier_handler_t) (reactor_notifier_t* notifier, zval* event, zval* error);
 typedef  zend_string* (* reactor_notifier_to_string_t) (reactor_notifier_t* notifier);
@@ -122,6 +124,22 @@ struct _reactor_notifier_ex_s
 	 * Extra destructor function.
 	 */
 	reactor_notifier_ex_dtor_t dtor_fn;
+};
+
+struct _reactor_cancellation_s {
+	union
+	{
+		/* PHP std object Async\Cancellation */
+		zend_object std;
+		struct
+		{
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			/**
+			 * Notifier object.
+			 */
+			zval notifier;
+		};
+	};
 };
 
 static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
