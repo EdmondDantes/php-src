@@ -656,7 +656,7 @@ void async_register_channel_ce(void)
 	// interfaces
 	async_ce_channel_state_i = register_class_Async_ChannelStateInterface();
 	async_ce_producer_i = register_class_Async_ProducerInterface(async_ce_channel_state_i);
-	async_ce_consumer_i = register_class_Async_ConsumerInterface(async_ce_channel_state_i);
+	async_ce_consumer_i = register_class_Async_ConsumerInterface(async_ce_channel_state_i, zend_ce_iterator, zend_ce_countable);
 	async_ce_channel_i = register_class_Async_ChannelInterface(async_ce_producer_i, async_ce_consumer_i);
 
 	async_ce_channel_exception = register_class_Async_ChannelException(zend_ce_exception);

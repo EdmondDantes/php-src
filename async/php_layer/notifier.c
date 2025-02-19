@@ -26,16 +26,13 @@
 #include "../php_reactor.h"
 
 #define METHOD(name) PHP_METHOD(Async_Notifier, name)
-#define PROPERTY_CALLBACKS "callbacks"
-#define GET_PROPERTY_CALLBACKS() async_notifier_get_callbacks(Z_OBJ_P(ZEND_THIS));
-
 
 static reactor_notifier_handlers_t async_notifier_handlers;
 static reactor_notifier_handlers_t async_notifier_ex_handlers;
 
 METHOD(getCallbacks)
 {
-
+	RETURN_ZVAL(&((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS))->callbacks, 1, 0);
 }
 
 METHOD(addCallback)
@@ -222,25 +219,25 @@ reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_e
 	return notifier;
 }
 
-void async_notifier_add_callback(zend_object* notifier, zval* callback)
+void async_notifier_add_callback(zend_object* object, zval* callback)
 {
-	zval* callbacks = async_notifier_get_callbacks(notifier);
+	reactor_notifier_t * notifier = (reactor_notifier_t *) object;
 
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
 		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
 
-	if (zend_hash_index_find(Z_ARRVAL_P(callbacks), Z_OBJ_P(callback)->handle) != NULL) {
+	if (zend_hash_index_find(Z_ARRVAL(notifier->callbacks), Z_OBJ_P(callback)->handle) != NULL) {
 		return;
 	}
 
 	// Add the weak reference to the callbacks array.
 	zval weak_reference;
 	zend_new_weak_reference_from(callback, &weak_reference);
-	zend_property_array_index_update(callbacks, Z_OBJ_P(callback)->handle, &weak_reference, true);
+	zend_property_array_index_update(&notifier->callbacks, Z_OBJ_P(callback)->handle, &weak_reference, true);
 
 	// Link the callback and the notifier together.
 	if (Z_OBJ_P(callback)->ce != async_ce_resume) {
-		async_callback_registered(Z_OBJ_P(callback), notifier);
+		async_callback_registered(Z_OBJ_P(callback), object);
     }
 }
 
@@ -268,7 +265,7 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
 		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
 
-	HashTable * callbacks = Z_ARRVAL_P(async_notifier_get_callbacks(notifier));
+	HashTable * callbacks = Z_ARRVAL(((reactor_notifier_t * )notifier)->callbacks);
 
 	if (EXPECTED(HT_IS_INITIALIZED(callbacks))) {
 		zend_hash_index_del(callbacks, Z_OBJ_P(callback)->handle);
@@ -281,8 +278,6 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		zend_throw_error(spl_ce_LogicException, "The notifier cannot be triggered after it has been terminated");
 		return;
 	}
-
-	const zval* callbacks = async_notifier_get_callbacks(&notifier->std);
 
 	zend_try
 	{
@@ -307,7 +302,7 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 		zval resolved_callback;
 		ZVAL_UNDEF(&resolved_callback);
 
-		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(callbacks), current)
+		ZEND_HASH_FOREACH_VAL(Z_ARRVAL(notifier->callbacks), current)
 
 			if (EXPECTED(Z_TYPE_P(current) == IS_OBJECT)) {
 				zend_resolve_weak_reference(current, &resolved_callback);

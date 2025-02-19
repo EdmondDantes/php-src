@@ -142,16 +142,6 @@ struct _reactor_cancellation_s {
 	};
 };
 
-static zend_always_inline zval* async_notifier_get_callbacks(zend_object* notifier)
-{
-	return &notifier->properties_table[0];
-}
-
-static zend_always_inline HashTable* async_notifier_get_callbacks_hash(const zend_object* notifier)
-{
-	return Z_ARRVAL_P(&notifier->properties_table[0]);
-}
-
 void async_register_notifier_ce(void);
 
 zend_always_inline void async_notifier_object_init(reactor_notifier_t * notifier)
