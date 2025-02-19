@@ -96,7 +96,7 @@ void async_future_state_reject(async_future_state_t *future_state, zend_object *
 ZEND_API void async_await_future(async_future_state_t *future_state, zval * retval);
 
 ZEND_API void async_await_future_list(
-	HashTable *futures,
+	zval *iterable,
 	int count,
 	bool ignore_errors,
 	reactor_notifier_t *cancellation,

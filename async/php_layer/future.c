@@ -38,6 +38,32 @@ typedef struct {
 	HashPosition position;
 } future_state_callbacks_task;
 
+typedef struct
+{
+	int total;
+	int waiting_count;
+	int resolved_count;
+	bool ignore_errors;
+} future_await_conditions_t;
+
+typedef struct
+{
+	async_resume_notifier_t * resume_notifier;
+	future_await_conditions_t * conditions;
+} future_resume_callback_t;
+
+typedef struct {
+	async_internal_microtask_t task;
+	async_future_state_t *future_state;
+	async_resume_t *resume;
+	zend_object_iterator *zend_iterator;
+	HashTable *futures;
+	future_await_conditions_t * conditions;
+	bool started;
+	unsigned int concurrency;
+	unsigned int active_fibers;
+} concurrent_iterator_task;
+
 static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 {
 	future_state_callbacks_task *task = (future_state_callbacks_task *) microtask;
@@ -119,6 +145,124 @@ static void future_state_callbacks_task_dtor(async_microtask_t *microtask)
 	}
 }
 
+static void concurrent_iterator_task_handler(async_microtask_t *microtask)
+{
+	concurrent_iterator_task *iterator_task = (concurrent_iterator_task *) microtask;
+
+	if (iterator_task->started == false)
+	{
+		if (iterator_task->zend_iterator->funcs->rewind) {
+			iterator_task->zend_iterator->funcs->rewind(iterator_task->zend_iterator);
+
+			if (EG(exception) != NULL) {
+				microtask->is_cancelled = true;
+				async_future_state_reject(iterator_task->future_state, EG(exception));
+				zend_clear_exception();
+				return;
+			}
+		}
+	}
+
+	async_scheduler_add_microtask_ex(microtask);
+
+	zval *current;
+
+	do
+	{
+		if (EXPECTED(SUCCESS == iterator_task->zend_iterator->funcs->valid(iterator_task->zend_iterator))) {
+			current = iterator_task->zend_iterator->funcs->get_current_data(iterator_task->zend_iterator);
+		} else {
+			current = NULL;
+		}
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			microtask->is_cancelled = true;
+			async_future_state_reject(iterator_task->future_state, EG(exception));
+			zend_clear_exception();
+			return;
+		}
+
+		if (EXPECTED(current != NULL)) {
+
+			zval key;
+			iterator_task->zend_iterator->funcs->get_current_key(iterator_task->zend_iterator, &key);
+			iterator_task->zend_iterator->funcs->move_forward(iterator_task->zend_iterator);
+
+			if (Z_TYPE_P(current) != IS_OBJECT || instanceof_function(Z_OBJCE_P(current), async_ce_future) == 0) {
+                async_throw_error("The iterator must return only Async\\Future objects");
+                microtask->is_cancelled = true;
+                async_future_state_reject(iterator_task->future_state, EG(exception));
+                zend_clear_exception();
+                return;
+            }
+
+			zval * res = NULL;
+
+			if (Z_TYPE(key) == IS_LONG) {
+				res = zend_hash_index_update(iterator_task->futures, Z_LVAL(key), current);
+			} else if(Z_TYPE(key) == IS_STRING) {
+                res = zend_hash_update(iterator_task->futures, Z_STR(key), current);
+            } else {
+	            res = zend_hash_next_index_insert(iterator_task->futures, current);
+            }
+
+			if (EXPECTED(res != NULL)) {
+				Z_TRY_ADDREF(current);
+			} else {
+			    async_throw_error("Failed to add Future to the array");
+                microtask->is_cancelled = true;
+                async_future_state_reject(iterator_task->future_state, EG(exception));
+                zend_clear_exception();
+                return;
+			}
+
+			async_future_state_t * state = (async_future_state_t *) Z_OBJ(((async_future_t *) Z_OBJ_P(current))->future_state);
+
+			future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
+			ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
+			callback->conditions = iterator_task->conditions;
+
+			async_resume_when_ex(iterator_task->resume, (reactor_notifier_t *) state, true, (async_resume_notifier_t *) callback);
+		}
+
+	} while (current != NULL && microtask->is_cancelled == false);
+
+	if (microtask->is_cancelled == false) {
+		microtask->is_cancelled = true;
+		async_future_state_resolve(iterator_task->future_state, NULL);
+	}
+}
+
+static void concurrent_iterator_task_dtor(async_microtask_t *microtask)
+{
+	concurrent_iterator_task *iterator_task = (concurrent_iterator_task *) microtask;
+
+	if (iterator_task->zend_iterator != NULL) {
+		zend_iterator_dtor(iterator_task->zend_iterator);
+		iterator_task->zend_iterator = NULL;
+	}
+
+	if (iterator_task->future_state != NULL) {
+		OBJ_RELEASE(&iterator_task->future_state->notifier.std);
+		iterator_task->future_state = NULL;
+	}
+
+	if (iterator_task->resume != NULL) {
+        OBJ_RELEASE(&iterator_task->resume->std);
+		iterator_task->resume = NULL;
+    }
+
+	if (iterator_task->futures != NULL) {
+		zend_hash_release(iterator_task->futures);
+		iterator_task->futures = NULL;
+	}
+
+	if (iterator_task->conditions != NULL) {
+		efree(iterator_task->conditions);
+		iterator_task->conditions = NULL;
+	}
+}
+
 zend_always_inline void add_future_state_callbacks_microtask(async_future_state_t *future_state)
 {
 	if (future_state->in_microtask_queue) {
@@ -154,6 +298,31 @@ zend_always_inline bool throw_if_future_state_completed(async_future_state_t *fu
 	}
 
 	return false;
+}
+
+zend_always_inline void start_concurrent_iterator(
+	async_future_state_t *future_state,
+	zend_object_iterator *zend_iterator,
+	async_resume_t *resume,
+	HashTable *futures,
+	future_await_conditions_t * conditions
+)
+{
+	concurrent_iterator_task *microtask = pecalloc(1, sizeof(concurrent_iterator_task), 0);
+
+	microtask->task.task.is_fci = false;
+	microtask->task.handler = concurrent_iterator_task_handler;
+	microtask->task.task.dtor = concurrent_iterator_task_dtor;
+	microtask->future_state = future_state;
+	microtask->zend_iterator = zend_iterator;
+	microtask->resume = resume;
+	GC_ADDREF(&resume->std);
+	microtask->conditions = conditions;
+	microtask->futures = futures;
+	GC_ADDREF(futures);
+	microtask->started = false;
+
+	async_scheduler_add_microtask_ex((async_microtask_t *) microtask);
 }
 
 static void notifier_handler(reactor_notifier_t* notifier, zval* event, zval* error)
@@ -511,7 +680,13 @@ void async_future_state_resolve(async_future_state_t *future_state, zval * retva
 	}
 
 	ZVAL_TRUE(&future_state->notifier.is_closed);
-	zval_copy(&future_state->result, retval);
+
+	if (retval != NULL) {
+		zval_copy(&future_state->result, retval);
+	} else {
+		ZVAL_NULL(&future_state->result);
+	}
+
 	zend_apply_current_filename_and_line(&future_state->completed_filename, &future_state->completed_lineno);
 
 	add_future_state_callbacks_microtask(future_state);
@@ -552,20 +727,6 @@ void async_await_future(async_future_state_t *future_state, zval * retval)
 	async_future_state_to_retval(future_state, retval);
 }
 
-typedef struct
-{
-	int total;
-	int waiting_count;
-	int resolved_count;
-	bool ignore_errors;
-} future_await_conditions_t;
-
-typedef struct
-{
-	async_resume_notifier_t * resume_notifier;
-	future_await_conditions_t * conditions;
-} future_resume_callback_t;
-
 static void future_resume_callback(
 	async_resume_t *resume,
 	reactor_notifier_t *notifier,
@@ -590,7 +751,7 @@ static void future_resume_callback(
 }
 
 ZEND_API void async_await_future_list(
-	HashTable * futures,
+	zval * iterable,
 	int count,
 	bool ignore_errors,
 	reactor_notifier_t *cancellation,
@@ -599,54 +760,98 @@ ZEND_API void async_await_future_list(
 	HashTable * errors
 )
 {
-	if (zend_hash_num_elements(futures) == 0) {
-        return;
+	HashTable * futures = NULL;
+	zend_object_iterator *zend_iterator = NULL;
+
+	if (Z_TYPE_P(iterable) == IS_ARRAY) {
+		futures = Z_ARR_P(iterable);
+	} else if (Z_TYPE_P(iterable) == IS_OBJECT && Z_OBJCE_P(iterable)->get_iterator) {
+		zend_iterator = Z_OBJCE_P(iterable)->get_iterator(Z_OBJCE_P(iterable), iterable, 0);
+
+		if (EG(exception) == NULL && zend_iterator == NULL) {
+			async_throw_error("Failed to create iterator");
+		}
+
+    } else {
+	    async_throw_error("Expected parameter 'iterable' to be an array or an object implementing Traversable");
     }
+
+	if (UNEXPECTED(EG(exception))) {
+		return;
+	}
 
 	zend_ulong index;
 	zend_string *key;
 	zval * z_future_state;
 
-	async_resume_t * resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
+	async_resume_t * resume;
 
-	if (resume == NULL) {
-		return;
-	}
-
-	future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
-	conditions->total = (int) zend_hash_num_elements(futures);
-	conditions->waiting_count = count > 0 ? count : conditions->total;
-	conditions->resolved_count = 0;
-	conditions->ignore_errors = ignore_errors;
-
-	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
-        if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
-            continue;
-        }
-
-		// Resolve the Future object to the FutureState object.
-		if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
-
-			if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
-				ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
-			} else {
-                continue;
-            }
+	if (futures != NULL)
+	{
+		if (zend_hash_num_elements(futures) == 0) {
+			return;
 		}
 
-        async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
+		resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
 
-        if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
-            continue;
-        }
+		if (resume == NULL) {
+			return;
+		}
 
-		future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
-		ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
-		callback->conditions = conditions;
+		future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
+		conditions->total = (int) zend_hash_num_elements(futures);
+		conditions->waiting_count = count > 0 ? count : conditions->total;
+		conditions->resolved_count = 0;
+		conditions->ignore_errors = ignore_errors;
 
-        async_resume_when_ex(resume, &future_state->notifier, false, (async_resume_notifier_t *)callback);
+		ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
+			if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
+				continue;
+			}
 
-    } ZEND_HASH_FOREACH_END();
+			// Resolve the Future object to the FutureState object.
+			if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
+
+				if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
+					ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+				} else {
+					continue;
+				}
+			}
+
+			async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
+
+			if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+				continue;
+			}
+
+			future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
+			ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
+			callback->conditions = conditions;
+
+			async_resume_when_ex(resume, &future_state->notifier, false, (async_resume_notifier_t *)callback);
+
+		} ZEND_HASH_FOREACH_END();
+	} else {
+
+		resume = async_new_resume_with_timeout(NULL, timeout, cancellation);
+
+		if (resume == NULL) {
+			return;
+		}
+
+		futures = zend_new_array(8);
+		async_future_state_t * future_state = (async_future_state_t *) async_future_state_new();
+		async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
+
+		future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
+		conditions->total = (int) zend_hash_num_elements(futures);
+		conditions->waiting_count = count > 0 ? count : conditions->total;
+		conditions->resolved_count = 0;
+		conditions->ignore_errors = ignore_errors;
+
+		start_concurrent_iterator(future_state, zend_iterator, resume, futures, conditions);
+	}
 
 	async_wait(resume);
 
