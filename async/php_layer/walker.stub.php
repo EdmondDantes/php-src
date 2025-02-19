@@ -21,6 +21,21 @@ final class Walker
         int $concurrency = 0
     ): Walker {}
 
+    /**
+     * Iterates over the given iterable asynchronously.
+     *
+     * @param iterable $iterator The iterable to iterate over.
+     * @param bool $returnArray Whether to return the result as an array.
+     * @param int $concurrency The number of concurrent operations.
+     *
+     * @return Future
+     */
+    public static function iterate(
+        \Iterator|\IteratorAggregate $iterator,
+        bool $returnArray = false,
+        int $concurrency = 0
+    ): Future {}
+
     public readonly bool $isFinished = false;
     private iterable $iterator;
     private mixed $customData;

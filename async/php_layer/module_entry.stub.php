@@ -38,50 +38,35 @@ function await(callable|FiberHandle|Future|\Fiber $awaitable, mixed ... $args): 
 /**
  * Unwraps the first completed future.
  *
- * If you want the first future completed without an error, use {@see awaitAny()} instead.
- *
  * @template T
  *
  * param iterable<Future<T>> $futures
+ * param bool $ignoreErrors Optional flag to ignore errors.
  * param Notifier|null $cancellation Optional cancellation.
  *
  * @return T
  */
-function awaitFirst(iterable $futures, ?Notifier $cancellation = null): mixed {};
+function awaitFirst(iterable $futures, bool $ignoreErrors = false, ?Notifier $cancellation = null): mixed {};
 
 /**
- * Awaits the first successfully completed future, ignoring errors.
- *
- * If you want the first future completed, successful or not, use {@see awaitFirst()} instead.
- *
- * @template Tk of array-key
- * @template Tv
- *
- * param iterable<Tk, Future<Tv>> $futures
- * param Cancellation|null $cancellation Optional cancellation.
- *
- * @return Tv
- */
-function awaitAny(iterable $futures, ?Notifier $cancellation = null): mixed {};
-
-/**
- * Awaits the first N successfully completed futures, ignoring errors.
+ * Awaits the first N successfully completed futures.
  *
  * @template Tk of array-key
  * @template Tv
  *
  * param positive-int $count
  * param iterable<Tk, Future<Tv>> $futures
+ * param bool $ignoreErrors Optional flag to ignore errors.
  * param Notifier|null $cancellation Optional cancellation.
  *
- * @return non-empty-array<Tk, Tv>
+ * @return array{array<Tk, Tv>, array<Tk, \Throwable>}
  */
-function awaitAnyN(int $count, iterable $futures, ?Notifier $cancellation = null): array {};
+function awaitAnyN(int $count, iterable $futures, bool $ignoreErrors = false, ?Notifier $cancellation = null):array{};
 
 /**
  * Awaits all futures to complete or error.
  *
- * This awaits all futures without aborting on first error (unlike {@see await()}).
+ * This awaits all futures.
  *
  * @template Tk of array-key
  * @template Tv
@@ -89,7 +74,7 @@ function awaitAnyN(int $count, iterable $futures, ?Notifier $cancellation = null
  * param iterable<Tk, Future<Tv>> $futures
  * param Notifier|null $cancellation Optional cancellation.
  *
- * @return array{array<Tk, \Throwable>, array<Tk, Tv>}
+ * @return array{array<Tk, Tv>, array<Tk, \Throwable>}
  */
 function awaitAll(iterable $futures, bool $ignoreErrors = false, ?Notifier $cancellation = null): array {};
 
