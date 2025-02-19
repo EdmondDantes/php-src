@@ -40,8 +40,8 @@ static bool emit_data_pushed(async_channel_t *channel);
 static void emit_data_popped(async_channel_t *channel);
 static void emit_channel_closed(async_channel_t *channel);
 
-static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
-static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error);
+static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier);
+static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier);
 
 zend_always_inline void close_channel(async_channel_t *channel)
 {
@@ -489,6 +489,39 @@ METHOD(getNotifier)
 	RETURN_OBJ_COPY((zend_object *) THIS(notifier));
 }
 
+///
+/// Iterator methods
+///
+
+METHOD(current)
+{
+	ZEND_MN(Async_Channel_receive)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+METHOD(key)
+{
+	RETURN_NULL();
+}
+
+METHOD(next)
+{
+}
+
+METHOD(rewind)
+{
+}
+
+METHOD(valid)
+{
+	RETURN_BOOL(false == (THIS(closed) && circular_buffer_is_empty(&THIS(buffer))));
+}
+
+METHOD(count)
+{
+	RETURN_LONG(circular_buffer_count(&THIS(buffer)));
+}
+
+
 static bool emit_data_pushed(async_channel_t *channel)
 {
 	channel->data_popped = false;
@@ -587,7 +620,7 @@ static void async_channel_object_destroy(zend_object* object)
 	circular_buffer_dtor(&channel->buffer);
 }
 
-static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier)
 {
 	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
@@ -599,7 +632,7 @@ static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *
     }
 }
 
-static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier)
 {
 	if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
 		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
