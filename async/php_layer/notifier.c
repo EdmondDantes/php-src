@@ -120,7 +120,7 @@ PHP_METHOD(Async_Cancellation, cancel)
 
 	if (Z_TYPE(THIS_CANCELLATION_NOTIFIER->is_closed) != IS_TRUE) {
 		async_notifier_notify(THIS_CANCELLATION_NOTIFIER, NULL, throwable);
-		ZVAL_TRUE(&THIS_CANCELLATION_NOTIFIER->is_closed, true);
+		ZVAL_TRUE(&THIS_CANCELLATION_NOTIFIER->is_closed);
 	}
 }
 
