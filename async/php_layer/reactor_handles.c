@@ -510,29 +510,29 @@ static void reactor_fiber_handle_destroy(zend_object* object)
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
-static zend_object_handlers reactor_object_handlers;
-static zend_object_handlers reactor_fiber_handle_handlers;
+static reactor_notifier_handlers_t reactor_object_handlers;
+static reactor_notifier_handlers_t reactor_fiber_handle_handlers;
 
 void async_register_handlers_ce(void)
 {
 	// Create common handlers for reactor classes
 	// Copy the notifier object handlers and replace the clone_obj method with NULL
-	reactor_object_handlers = *async_ce_notifier->default_object_handlers;
-	reactor_object_handlers.clone_obj = NULL;
+	reactor_object_handlers = * (reactor_notifier_handlers_t *) async_ce_notifier->default_object_handlers;
+	reactor_object_handlers.std.clone_obj = NULL;
 
 	async_ce_poll_handle = register_class_Async_PollHandle(async_ce_notifier);
 	async_ce_poll_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_poll_handle->create_object = NULL;
-	async_ce_poll_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_poll_handle->default_object_handlers = &reactor_object_handlers.std;
 
-	reactor_fiber_handle_handlers = *async_ce_notifier->default_object_handlers;
-	reactor_fiber_handle_handlers.clone_obj = NULL;
-	reactor_fiber_handle_handlers.dtor_obj = reactor_fiber_handle_destroy;
+	reactor_fiber_handle_handlers = * (reactor_notifier_handlers_t *) async_ce_notifier->default_object_handlers;
+	reactor_fiber_handle_handlers.std.clone_obj = NULL;
+	reactor_fiber_handle_handlers.std.dtor_obj = reactor_fiber_handle_destroy;
 
 	async_ce_fiber_handle = register_class_Async_FiberHandle(async_ce_notifier);
 	async_ce_fiber_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_fiber_handle->create_object = async_fiber_object_create;
-	async_ce_fiber_handle->default_object_handlers = &reactor_fiber_handle_handlers;
+	async_ce_fiber_handle->default_object_handlers = &reactor_fiber_handle_handlers.std;
 
 	async_ce_file_handle = register_class_Async_FileHandle(async_ce_poll_handle);
 	async_ce_file_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -549,32 +549,32 @@ void async_register_handlers_ce(void)
 	async_ce_timer_handle = register_class_Async_TimerHandle(async_ce_notifier);
 	async_ce_timer_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_timer_handle->create_object = NULL;
-	async_ce_timer_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_timer_handle->default_object_handlers = &reactor_object_handlers.std;
 
 	async_ce_signal_handle = register_class_Async_SignalHandle(async_ce_notifier);
 	async_ce_signal_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_signal_handle->create_object = NULL;
-	async_ce_signal_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_signal_handle->default_object_handlers = &reactor_object_handlers.std;
 
 	async_ce_process_handle = register_class_Async_ProcessHandle(async_ce_notifier);
 	async_ce_process_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_process_handle->create_object = NULL;
-	async_ce_process_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_process_handle->default_object_handlers = &reactor_object_handlers.std;
 
 	async_ce_thread_handle = register_class_Async_ThreadHandle(async_ce_notifier);
 	async_ce_thread_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_thread_handle->create_object = NULL;
-	async_ce_thread_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_thread_handle->default_object_handlers = &reactor_object_handlers.std;
 
 	async_ce_dns_info = register_class_Async_DnsInfoHandle(async_ce_notifier);
 	async_ce_dns_info->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_dns_info->create_object = NULL;
-	async_ce_dns_info->default_object_handlers = &reactor_object_handlers;
+	async_ce_dns_info->default_object_handlers = &reactor_object_handlers.std;
 
 	async_ce_file_system_handle = register_class_Async_FileSystemHandle(async_ce_notifier);
 	async_ce_file_system_handle->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_file_system_handle->create_object = NULL;
-	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers;
+	async_ce_file_system_handle->default_object_handlers = &reactor_object_handlers.std;
 }
 
 static void async_fiber_handle_defer_cb(

@@ -53,7 +53,7 @@ void libuv_startup(void);
 
 static async_microtasks_handler_t microtask_handler = NULL;
 static async_next_fiber_handler_t next_fiber_handler = NULL;
-static zend_object_handlers libuv_object_handlers;
+static reactor_notifier_handlers_t libuv_object_handlers;
 
 static void libuv_normalize_handle_refcount_to_one(reactor_handle_t *handle);
 static void libuv_remove_handle(reactor_handle_t *handle);
@@ -232,7 +232,7 @@ static zend_always_inline libuv_poll_t * libuv_poll_new(
 		return NULL;
 	}
 
-	object->std.handlers = &libuv_object_handlers;
+	object->std.handlers = &libuv_object_handlers.std;
 
 	return object;
 }
@@ -322,7 +322,7 @@ static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const zend_bo
 	ZVAL_LONG(&object->timer.microseconds, timeout);
 	ZVAL_BOOL(&object->timer.is_periodic, is_periodic);
 
-	object->std.handlers = &libuv_object_handlers;
+	object->std.handlers = &libuv_object_handlers.std;
 
 	return (reactor_handle_t *) object;
 }
@@ -384,7 +384,7 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 
 	ZVAL_LONG(&object->signal.number, sig_number);
 
-	object->std.handlers = &libuv_object_handlers;
+	object->std.handlers = &libuv_object_handlers.std;
 
 	return (reactor_handle_t *) object;
 }
@@ -450,7 +450,7 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 	ZVAL_STRINGL(&object->fs_event.path, path, length);
 	ZVAL_LONG(&object->fs_event.flags, flags);
 
-	object->std.handlers = &libuv_object_handlers;
+	object->std.handlers = &libuv_object_handlers.std;
 
 	return (reactor_handle_t *) object;
 }
@@ -1308,7 +1308,7 @@ static reactor_handle_t * libuv_dns_info_new(
 	}
 
 	DEFINE_NOTIFIER(libuv_dns_info_t, dns_handle, async_ce_dns_info);
-	dns_handle->std.handlers = &libuv_object_handlers;
+	dns_handle->std.handlers = &libuv_object_handlers.std;
 
 	bool hints_owned = false;
 
@@ -1807,8 +1807,8 @@ void async_libuv_startup(void)
 {
 	setup_handlers();
 
-	libuv_object_handlers = *async_ce_notifier->default_object_handlers;
-	libuv_object_handlers.dtor_obj = libuv_object_destroy;
+	libuv_object_handlers = * (reactor_notifier_handlers_t *) async_ce_notifier->default_object_handlers;
+	libuv_object_handlers.std.dtor_obj = libuv_object_destroy;
 }
 
 void async_libuv_shutdown(void)

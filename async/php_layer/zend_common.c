@@ -127,6 +127,12 @@ uint32_t zend_current_exception_get_line(void)
 
 void zend_new_weak_reference_from(const zval* referent, zval * retval)
 {
+	if (UNEXPECTED(EG(exception))) {
+		ZVAL_UNDEF(retval);
+		zend_exception_to_warning("Unexpected exception in zend_new_weak_reference_from: %s", false);
+		return;
+	}
+
 	if (!create_fn) {
 
 		async_get_weak_reference_ce();
