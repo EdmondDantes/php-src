@@ -287,7 +287,10 @@ void async_callback_notify(zend_object* callback, zend_object* notifier, zval* e
 	//
 	const zval * fiber = async_callback_get_fiber(callback);
 
-	if (UNEXPECTED(EG(exception) != NULL && Z_TYPE_P(fiber) == IS_OBJECT)) {
+	if (UNEXPECTED(EG(exception) != NULL
+		&& Z_TYPE_P(fiber) == IS_OBJECT
+		&& EG(active_fiber) != (zend_fiber *)Z_OBJ_P(fiber)
+	)) {
 		async_transfer_throw_to_fiber((zend_fiber *) Z_OBJ_P(async_callback_get_fiber(callback)), EG(exception));
 		zend_clear_exception();
 	}

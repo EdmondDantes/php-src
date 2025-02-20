@@ -402,8 +402,12 @@ void async_transfer_throw_to_fiber(zend_fiber *fiber, zend_object *error)
 	const async_fiber_state_t *state = async_find_fiber_state(fiber);
 
 	if (state == NULL) {
-		// TODO: async_resume_new???
 		state = async_add_fiber_state(fiber, async_resume_new(fiber), false);
+	}
+
+	if (state->resume == NULL) {
+		ZEND_ASSERT("Fiber state must have a resume object.");
+		return;
 	}
 
 	// Inherit exception from state-fiber if exists.

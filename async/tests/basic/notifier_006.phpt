@@ -16,7 +16,7 @@ class CustomNotifier extends Async\Notifier
 Async\async(function() {
     $notifier = new CustomNotifier("event data");
     $callback = new Async\Callback(function(Async\Notifier $notifier, mixed $data) {
-                        echo "callback from $notifier: $data\n";
+                        echo "callback from {$notifier->toString()}: $data\n";
                     });
 
     $notifier->addCallback($callback);
