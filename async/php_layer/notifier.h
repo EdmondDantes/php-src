@@ -144,9 +144,10 @@ struct _reactor_cancellation_s {
 
 void async_register_notifier_ce(void);
 
-zend_always_inline void async_notifier_object_init(reactor_notifier_t * notifier)
-{
-}
+/**
+ * Create a new Notifier object.
+ */
+#define DEFINE_NOTIFIER(type, var, class_entry) DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry);
 
 ZEND_API reactor_notifier_ex_t * async_notifier_new_ex(
 	size_t size,

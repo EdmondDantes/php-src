@@ -125,27 +125,9 @@ zend_always_inline void async_warning(const char * format, ...)
 	zend_string_release(message);
 }
 
-/**
- * Allocates memory for a new object instance.
- * The difference from the standard zend_object_alloc function
- * is that this function is intended for custom structures where zend_object starts the structure.
- * Therefore, the entire data structure is zeroed out, not just part of it.
- *
- * This function allocates memory for a new object instance of the specified size.
- * The function initializes the memory block with zero bytes and returns a pointer to the allocated memory.
- *
- * @param obj_size  The size of the object instance to allocate.
- * @param ce        The class entry of the object instance.
- *
- * @return A pointer to the allocated memory block.
- */
 zend_always_inline void *zend_object_alloc_ex(const size_t obj_size, zend_class_entry *ce)
 {
-	ZEND_ASSERT(zend_object_properties_size(ce) >= 0);
-	const size_t size = obj_size + zend_object_properties_size(ce);
-	void *obj = emalloc(size);
-	memset(obj, 0, size);
-	return obj;
+	return pecalloc(1, obj_size, 0);
 }
 
 #define DEFINE_ZEND_RAW_OBJECT(type, var, class_entry) type *var = (type *) zend_object_alloc_ex(sizeof(type), class_entry)

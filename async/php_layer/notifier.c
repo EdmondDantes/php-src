@@ -126,20 +126,17 @@ PHP_METHOD(Async_Cancellation, cancel)
 
 static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
-	// Allocate memory for the object and initialize it with zero bytes.
-	DEFINE_ZEND_RAW_OBJECT(reactor_notifier_t, object, class_entry);
-	zend_object_std_init(&object->std, class_entry);
-	object_properties_init(&object->std, class_entry);
-	async_notifier_object_init(object);
+	zend_object * object = zend_object_alloc(sizeof(zend_object), class_entry);
 
-	return &object->std;
+	zend_object_std_init(object, class_entry);
+	object_properties_init(object, class_entry);
+
+	return object;
 }
 
 static zend_object * async_notifier_ex_object_create(zend_class_entry *class_entry)
 {
-	DEFINE_ZEND_RAW_OBJECT(reactor_notifier_ex_t, object, class_entry);
-	zend_object_std_init(&object->notifier.std, class_entry);
-	object_properties_init(&object->notifier.std, class_entry);
+	DEFINE_NOTIFIER(reactor_notifier_ex_t, object, class_entry)
 
 	object->handler_fn = NULL;
 	object->remove_callback_fn = NULL;
@@ -155,9 +152,7 @@ static zend_string* cancellation_to_string(reactor_notifier_t* notifier)
 
 static zend_object * async_cancellation_object_create(zend_class_entry *class_entry)
 {
-	DEFINE_ZEND_RAW_OBJECT(reactor_cancellation_t, object, class_entry);
-	zend_object_std_init(&object->std, class_entry);
-	object_properties_init(&object->std, class_entry);
+	DEFINE_NOTIFIER(reactor_cancellation_t, object, class_entry)
 
 	reactor_notifier_ex_t *notifier = async_notifier_new_ex(
 		sizeof(reactor_notifier_ex_t), NULL, NULL, cancellation_to_string, NULL
@@ -195,7 +190,7 @@ void async_register_notifier_ce(void)
 	async_notifier_handlers.remove_callback_fn = NULL;
 	async_notifier_handlers.dtor_fn = NULL;
 
-	async_ce_notifier_ex = register_class_Async_Notifier();
+	async_ce_notifier_ex = register_class_Async_NotifierEx(async_ce_notifier);
 	async_ce_notifier_ex->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_notifier_ex->create_object = async_notifier_ex_object_create;
 
@@ -208,7 +203,7 @@ void async_register_notifier_ce(void)
 	async_notifier_ex_handlers.remove_callback_fn = NULL;
 	async_notifier_ex_handlers.dtor_fn = NULL;
 
-	async_ce_cancellation = register_class_Async_Notifier();
+	async_ce_cancellation = register_class_Async_Cancellation();
 	async_ce_cancellation->create_object = async_cancellation_object_create;
 }
 

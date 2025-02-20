@@ -375,8 +375,7 @@ async_resume_t * async_resume_new_ex(zend_fiber * fiber, const size_t size)
 
 	ZEND_ASSERT(sizeof(async_resume_t) < size && "Extra size must be at least the size of the async_resume_t structure");
 
-	async_resume_t * resume = zend_object_alloc_ex(size, async_ce_resume);
-
+	DEFINE_ZEND_RAW_OBJECT(async_resume_t, resume, async_ce_resume);
 	async_resume_object_init(resume, async_ce_resume);
 
 	resume->fiber = fiber;

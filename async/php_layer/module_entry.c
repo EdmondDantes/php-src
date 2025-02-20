@@ -515,13 +515,13 @@ PHP_FUNCTION(Async_gracefulShutdown)
 
 ZEND_MINIT_FUNCTION(async)
 {
-	async_register_walker_ce();
 	async_register_callback_ce();
 	async_register_notifier_ce();
 	async_register_handlers_ce();
 	async_register_resume_ce();
 	async_register_exceptions_ce();
 	async_register_channel_ce();
+	async_register_walker_ce();
 
 	async_scheduler_startup();
 

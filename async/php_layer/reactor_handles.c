@@ -481,12 +481,11 @@ PHP_METHOD(Async_FileSystemHandle, fromPath)
  */
 static zend_object* async_fiber_object_create(zend_class_entry *class_entry)
 {
-	reactor_fiber_handle_t * object = zend_object_alloc_ex(sizeof(reactor_fiber_handle_t), class_entry);
-	object->fiber = NULL;
+	DEFINE_NOTIFIER(reactor_fiber_handle_t, object, class_entry);
 
-	zend_object_std_init(&object->handle.std, class_entry);
-	object_properties_init(&object->handle.std, class_entry);
-	async_notifier_object_init(&object->handle);
+	object->fiber = NULL;
+	object->exception = NULL;
+	object->callback_index = -1;
 
 	return &object->handle.std;
 }
@@ -627,11 +626,13 @@ reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber)
 		return NULL;
 	}
 
-	DEFINE_ZEND_INTERNAL_OBJECT(reactor_fiber_handle_t, handle, async_ce_fiber_handle);
-	async_notifier_object_init(&handle->handle);
+	DEFINE_NOTIFIER(reactor_fiber_handle_t, handle, async_ce_fiber_handle);
 
 	handle->fiber = fiber;
 	GC_ADDREF(&fiber->std);
+
+	handle->exception = NULL;
+	handle->callback_index = -1;
 
 	zend_fiber_defer_callback * callback = emalloc(sizeof(zend_fiber_defer_callback));
 	callback->object = &handle->handle.std;
