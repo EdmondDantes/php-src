@@ -103,7 +103,7 @@ static void poll_callback(zend_object * callback, zend_object * notifier, const 
 	process_curl_completed_handles();
 }
 
-static void curl_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+static void curl_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier)
 {
 	const reactor_poll_t * handle = (reactor_poll_t *) notifier;
 	const zend_long events = Z_LVAL_P(event);
@@ -369,7 +369,7 @@ CURLcode curl_async_perform(CURL* curl)
 #pragma region curl_async_select + curl_multi_perform
 //=============================================================
 
-static void multi_timer_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+static void multi_timer_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier)
 {
 	curl_multi_socket_action(((curl_async_context *) resume)->curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, NULL);
 }
@@ -423,7 +423,7 @@ static int multi_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	return 0;
 }
 
-static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error)
+static void multi_poll_callback(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier)
 {
 	curl_async_context * context = (curl_async_context *) resume;
 

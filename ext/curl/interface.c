@@ -214,6 +214,7 @@ void _php_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 PHP_RSHUTDOWN_FUNCTION(curl)
 {
 	curl_async_shutdown();
+	return SUCCESS;
 }
 /* }}} */
 #endif
