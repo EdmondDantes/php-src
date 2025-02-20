@@ -49,13 +49,15 @@ zend_always_inline void close_channel(async_channel_t *channel)
 	emit_channel_closed(channel);
 }
 
-static void on_fiber_finished(zend_fiber * fiber, zend_fiber_defer_callback * entry)
+static void on_fiber_finished(
+	zend_fiber * fiber, zend_fiber_defer_callback * callback, zend_object * exception, bool * capture_exception
+)
 {
-	async_channel_t * channel = CHANNEL_FROM_ZEND_OBJ(entry->object);
+	async_channel_t * channel = CHANNEL_FROM_ZEND_OBJ(callback->object);
 	channel->fiber_callback_index = -1;
 	close_channel(channel);
 
-	ZEND_ASSERT(async_channel_get_owner_fiber(entry->object) == fiber && "Fiber is not the owner of the channel");
+	ZEND_ASSERT(async_channel_get_owner_fiber(callback->object) == fiber && "Fiber is not the owner of the channel");
 }
 
 METHOD(__construct)

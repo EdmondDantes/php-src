@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 74d39d0fad12d9605dda897f5ce2ea9d0d8ff34f */
+ * Stub hash: 8104da3ad0f1830d7195eb46d53dbd45d09bab69 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_FutureState___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -106,12 +106,6 @@ static zend_class_entry *register_class_Async_FutureState(zend_class_entry *clas
 	INIT_NS_CLASS_ENTRY(ce, "Async", "FutureState", class_Async_FutureState_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Async_Notifier, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
 
-	zval property_result_default_value;
-	ZVAL_NULL(&property_result_default_value);
-	zend_string *property_result_name = zend_string_init("result", sizeof("result") - 1, 1);
-	zend_declare_typed_property(class_entry, property_result_name, &property_result_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
-	zend_string_release(property_result_name);
-
 	return class_entry;
 }
 
@@ -121,13 +115,6 @@ static zend_class_entry *register_class_Async_Future(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "Async", "Future", class_Async_Future_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
-
-	zval property_state_default_value;
-	ZVAL_UNDEF(&property_state_default_value);
-	zend_string *property_state_name = zend_string_init("state", sizeof("state") - 1, 1);
-	zend_string *property_state_class_Async_FutureState = zend_string_init("Async\\FutureState", sizeof("Async\\FutureState")-1, 1);
-	zend_declare_typed_property(class_entry, property_state_name, &property_state_default_value, ZEND_ACC_PRIVATE|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_state_class_Async_FutureState, 0, 0));
-	zend_string_release(property_state_name);
 
 	return class_entry;
 }

@@ -28,7 +28,7 @@
 #define THIS_FUTURE_STATE ((async_future_state_t *) Z_OBJ_P(ZEND_THIS))
 #define THIS_FUTURE ((async_future_t *) Z_OBJ_P(ZEND_THIS))
 
-static zend_object_handlers async_future_state_handlers;
+static reactor_notifier_handlers_t async_future_state_handlers;
 static zend_object_handlers async_future_handlers;
 
 typedef struct {
@@ -63,6 +63,14 @@ typedef struct {
 	unsigned int concurrency;
 	unsigned int active_fibers;
 } concurrent_iterator_task;
+
+static void future_resume_callback(
+	async_resume_t *resume,
+	reactor_notifier_t *notifier,
+	zval* event,
+	zval* error,
+	async_resume_notifier_t *resume_notifier
+);
 
 static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 {
@@ -207,7 +215,7 @@ static void concurrent_iterator_task_handler(async_microtask_t *microtask)
             }
 
 			if (EXPECTED(res != NULL)) {
-				Z_TRY_ADDREF(current);
+				Z_TRY_ADDREF_P(current);
 			} else {
 			    async_throw_error("Failed to add Future to the array");
                 microtask->is_cancelled = true;
@@ -216,7 +224,7 @@ static void concurrent_iterator_task_handler(async_microtask_t *microtask)
                 return;
 			}
 
-			async_future_state_t * state = (async_future_state_t *) Z_OBJ(((async_future_t *) Z_OBJ_P(current))->future_state);
+			async_future_state_t * state = (async_future_state_t *) ((async_future_t *) Z_OBJ_P(current))->future_state;
 
 			future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
 			ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
@@ -380,7 +388,7 @@ static void future_state_callback(zend_object * callback, zend_object *notifier,
 				if (error != NULL && Z_TYPE_P(error) == IS_OBJECT) {
 					zval retval;
 					zval args[1];
-					ZVAL_OBJ(&args[0], error);
+					ZVAL_COPY_VALUE(&args[0], error);
 					call_user_function(EG(function_table), NULL, &future_state->mapper, &retval, 1, args);
 
 					if (EG(exception) == NULL) {
@@ -438,7 +446,7 @@ zend_always_inline void future_state_subscribe_to(async_future_state_t * from_fu
 	}
 
 	zval callback;
-	ZVAL_OBJ(&callback, &from_future_state->callback);
+	ZVAL_OBJ(&callback, from_future_state->callback);
 
 	async_notifier_add_callback(&to_future_state->notifier.std, &callback);
 }
@@ -449,9 +457,6 @@ FUTURE_STATE_METHOD(__construct)
 
 	async_future_state_t* future_state = THIS_FUTURE_STATE;
 	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
-
-	// Redefine the notifier handler: change behavior async_notifier_notify to future_state_callbacks_task_handler
-	future_state->notifier.handler_fn = notifier_handler;
 }
 
 FUTURE_STATE_METHOD(complete)
@@ -539,18 +544,19 @@ FUTURE_METHOD(__construct)
 		Z_PARAM_OBJECT_OF_CLASS(future_state, async_ce_future_state)
 	ZEND_PARSE_PARAMETERS_END();
 
-	zval_copy(&THIS_FUTURE->future_state, future_state);
+	THIS_FUTURE->future_state = Z_OBJ_P(future_state);
+	GC_ADDREF(THIS_FUTURE->future_state);
 }
 
 FUTURE_METHOD(isComplete)
 {
-	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
+	async_future_state_t * future_state = (async_future_state_t *) THIS_FUTURE->future_state;
 	RETURN_BOOL(Z_TYPE(future_state->notifier.is_closed) == IS_TRUE);
 }
 
 FUTURE_METHOD(ignore)
 {
-	async_future_state_t * future_state = (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state);
+	async_future_state_t * future_state = (async_future_state_t *) THIS_FUTURE->future_state;
 	ZVAL_TRUE(&future_state->notifier.is_closed);
 	future_state->is_handled = true;
 }
@@ -572,7 +578,7 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 	zval_copy(&future_state->mapper, callable);
 	future_state->mapper_type = mapper_type;
 
-	future_state_subscribe_to(future_state, (async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state));
+	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
 }
 
 FUTURE_METHOD(map)
@@ -592,7 +598,7 @@ FUTURE_METHOD(finally)
 
 FUTURE_METHOD(await)
 {
-	async_await_future((async_future_state_t *) Z_OBJ(THIS_FUTURE->future_state), return_value);
+	async_await_future((async_future_state_t *) THIS_FUTURE->future_state, return_value);
 }
 
 static void async_future_state_object_destroy(zend_object *object)
@@ -616,6 +622,8 @@ static void async_future_state_object_destroy(zend_object *object)
 		);
 	}
 
+	zval_ptr_dtor(&future_state->result);
+
 	if (future_state->filename != NULL) {
 		zend_string_release(future_state->filename);
 	}
@@ -627,15 +635,30 @@ static void async_future_state_object_destroy(zend_object *object)
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
+static void async_future_object_destroy(zend_object *object)
+{
+	async_future_t *future = (async_future_t *) object;
+
+	if (future->future_state != NULL) {
+		OBJ_RELEASE(future->future_state);
+		future->future_state = NULL;
+	}
+
+	async_ce_notifier->default_object_handlers->dtor_obj(object);
+}
+
 void async_register_future_ce(void)
 {
 	async_ce_future_state = register_class_Async_FutureState(async_ce_notifier);
 	async_ce_future_state->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
-	async_ce_future->default_object_handlers = &async_future_state_handlers;
+	async_ce_future->default_object_handlers = &async_future_state_handlers.std;
 
 	memcpy(&async_future_state_handlers, async_ce_notifier->default_object_handlers, sizeof(zend_object_handlers));
-	async_future_state_handlers.dtor_obj = async_future_state_object_destroy;
+	async_future_state_handlers.std.dtor_obj = async_future_state_object_destroy;
+
+	// Redefine the handler function.
+	async_future_state_handlers.handler_fn = notifier_handler;
 
 	async_ce_future = register_class_Async_Future();
 	async_ce_future->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -643,6 +666,7 @@ void async_register_future_ce(void)
 	async_ce_future->default_object_handlers = &async_future_handlers;
 
 	async_future_handlers = std_object_handlers;
+	async_future_handlers.dtor_obj = async_future_object_destroy;
 	async_future_handlers.clone_obj = NULL;
 }
 
@@ -667,7 +691,7 @@ zend_object * async_future_new(zend_object * future_state)
 		return NULL;
 	}
 
-	ZVAL_OBJ(&((async_future_t *)Z_OBJ_P(&object))->future_state, future_state);
+	((async_future_t *)Z_OBJ_P(&object))->future_state = future_state;
 	GC_ADDREF(future_state);
 
 	return Z_OBJ_P(&object);
@@ -813,7 +837,7 @@ ZEND_API void async_await_future_list(
 			if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
 
 				if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
-					ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+					ZVAL_OBJ(z_future_state, ((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
 				} else {
 					continue;
 				}
@@ -867,7 +891,7 @@ ZEND_API void async_await_future_list(
 		if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
 
 			if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
-				ZVAL_OBJ(z_future_state, &((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+				ZVAL_OBJ(z_future_state, ((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
 			} else {
 				continue;
 			}

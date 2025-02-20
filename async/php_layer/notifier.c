@@ -97,6 +97,33 @@ METHOD(close)
 	ZVAL_BOOL(&((reactor_notifier_t *) Z_OBJ_P(ZEND_THIS))->is_closed, true);
 }
 
+PHP_METHOD(Async_NotifierEx, __construct)
+{
+	zend_throw_error(NULL, "The Async\\NotifierEx class cannot be instantiated");
+}
+
+#define THIS_CANCELLATION ((reactor_cancellation_t *) Z_OBJ_P(ZEND_THIS))
+#define THIS_CANCELLATION_NOTIFIER ((reactor_notifier_t *) Z_OBJ(THIS_CANCELLATION->notifier))
+
+PHP_METHOD(Async_Cancellation, isCancelled)
+{
+	RETURN_BOOL(Z_TYPE(THIS_CANCELLATION_NOTIFIER->is_closed) == IS_TRUE);
+}
+
+PHP_METHOD(Async_Cancellation, cancel)
+{
+	zval * throwable;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_OBJECT_OF_CLASS(throwable, zend_ce_throwable)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (Z_TYPE(THIS_CANCELLATION_NOTIFIER->is_closed) != IS_TRUE) {
+		async_notifier_notify(THIS_CANCELLATION_NOTIFIER, NULL, throwable);
+		ZVAL_TRUE(&THIS_CANCELLATION_NOTIFIER->is_closed, true);
+	}
+}
+
 static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 {
 	// Allocate memory for the object and initialize it with zero bytes.
@@ -108,7 +135,7 @@ static zend_object *async_notifier_object_create(zend_class_entry *class_entry)
 	return &object->std;
 }
 
-static void async_notifier_ex_object_create(zend_class_entry *class_entry)
+static zend_object * async_notifier_ex_object_create(zend_class_entry *class_entry)
 {
 	DEFINE_ZEND_RAW_OBJECT(reactor_notifier_ex_t, object, class_entry);
 	zend_object_std_init(&object->notifier.std, class_entry);
@@ -117,6 +144,8 @@ static void async_notifier_ex_object_create(zend_class_entry *class_entry)
 	object->handler_fn = NULL;
 	object->remove_callback_fn = NULL;
 	object->dtor_fn = NULL;
+
+	return &object->notifier.std;
 }
 
 static zend_string* cancellation_to_string(reactor_notifier_t* notifier)
@@ -124,7 +153,7 @@ static zend_string* cancellation_to_string(reactor_notifier_t* notifier)
 	return zend_string_init("Cancellation", sizeof("Cancellation") - 1, 0);
 }
 
-static void async_cancellation_object_create(zend_class_entry *class_entry)
+static zend_object * async_cancellation_object_create(zend_class_entry *class_entry)
 {
 	DEFINE_ZEND_RAW_OBJECT(reactor_cancellation_t, object, class_entry);
 	zend_object_std_init(&object->std, class_entry);
@@ -135,6 +164,8 @@ static void async_cancellation_object_create(zend_class_entry *class_entry)
 	);
 
 	ZVAL_OBJ(&object->notifier, &notifier->notifier.std);
+
+	return &object->std;
 }
 
 static void async_notifier_ex_object_destroy(zend_object *object)
@@ -287,14 +318,13 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 
 		// If the notifier has a custom handler function, then we call it.
 
-		if (notifier->std.ce == async_ce_notifier_ex
-			&& ((reactor_notifier_ex_t *) notifier)->handler_fn
-			&& ((reactor_notifier_ex_t *) notifier)->handler_fn(notifier, event, error)) {
+		if (notifier->std.ce == async_ce_notifier_ex && ((reactor_notifier_ex_t *) notifier)->handler_fn) {
+			((reactor_notifier_ex_t *) notifier)->handler_fn(notifier, event, error);
 			IF_THROW_FINALLY;
 		}
 
-		if (((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn
-			&& ((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn(notifier, event, error)) {
+		if (((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn) {
+			((reactor_notifier_handlers_t * )notifier->std.handlers)->handler_fn(notifier, event, error);
 			IF_THROW_FINALLY;
 		}
 

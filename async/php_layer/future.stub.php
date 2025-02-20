@@ -15,11 +15,6 @@ namespace Async;
  */
 final class FutureState extends Notifier
 {
-    /**
-     * @var T|null
-     */
-    private mixed $result = null;
-
     public function __construct() {}
 
     /**
@@ -73,9 +68,6 @@ final class Future
      * @return Future<never>
      */
     public static function error(\Throwable $throwable): Future {}
-
-    /** @var FutureState<T> */
-    private readonly FutureState $state;
 
     /**
      * param FutureState<T> $state

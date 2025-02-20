@@ -24,6 +24,11 @@
 #include "walker_arginfo.h"
 #include "zend_common.h"
 
+PHP_METHOD(Async_Walker, iterate)
+{
+	// TODO: Implement iterate method
+}
+
 PHP_METHOD(Async_Walker, walk)
 {
 	zval * iterable;

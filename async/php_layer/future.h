@@ -65,7 +65,7 @@ typedef struct _async_future_s
 		/**
 		 * PHP object Async\FutureState
 		 */
-		zval future_state;
+		zend_object * future_state;
 	};
 
 } async_future_t;
