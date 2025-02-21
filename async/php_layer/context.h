@@ -72,7 +72,7 @@ ZEND_API async_context_t * async_context_with_str(async_context_t * context, zen
 ZEND_API zend_object* async_context_clone(zend_object * object);
 
 ZEND_API async_context_t * async_context_without_key(async_context_t * context, zval * key, bool copy_on_write);
-ZEND_API async_context_t * async_context_current(void);
+ZEND_API async_context_t * async_context_current(bool auto_create, bool add_ref);
 ZEND_API void async_current_context_with_key(zval * value, zend_object * object, zend_string * string, zval * key);
 ZEND_API void async_current_context_without_key(zval * key);
 

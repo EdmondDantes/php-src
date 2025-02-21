@@ -307,6 +307,8 @@ void async_start_fiber(zend_fiber * fiber, zval *params, const uint32_t params_c
 		return;
 	}
 
+	fiber->async_context = async_context_current(false, true);
+
 	zend_fiber_params_ctor(fiber, params, params_count, named_params);
 
 	async_fiber_state_t *state = async_find_fiber_state(fiber);

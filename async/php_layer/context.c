@@ -28,13 +28,12 @@
 
 METHOD(current)
 {
-	async_context_t *context = async_context_current();
+	async_context_t *context = async_context_current(true, true);
 
 	if (context == NULL) {
 		RETURN_THROWS();
 	}
 
-	GC_ADDREF(&context->std);
 	RETURN_OBJ(&context->std);
 }
 
@@ -563,19 +562,27 @@ async_context_t * async_context_without_key(async_context_t * context, zval * ke
 	return new_context;
 }
 
-async_context_t * async_context_current(void)
+async_context_t * async_context_current(const bool auto_create, const bool add_ref)
 {
 	if (EG(active_fiber)) {
 
 		if (EG(active_fiber)->async_context == NULL) {
-			EG(active_fiber)->async_context = async_context_new(NULL, false);
+			EG(active_fiber)->async_context = auto_create ? async_context_new(NULL, false) : NULL;
+		}
+
+		if (add_ref && EG(active_fiber)->async_context != NULL) {
+			GC_ADDREF(&EG(active_fiber)->async_context->std);
 		}
 
 		return EG(active_fiber)->async_context;
 	} else {
 
 		if (ASYNC_G(root_context) == NULL) {
-			ASYNC_G(root_context) = async_context_new(NULL, false);
+			ASYNC_G(root_context) = auto_create ? async_context_new(NULL, false) : NULL;
+		}
+
+		if (add_ref && ASYNC_G(root_context) != NULL) {
+			GC_ADDREF(&ASYNC_G(root_context)->std);
 		}
 
 		return ASYNC_G(root_context);

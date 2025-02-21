@@ -388,7 +388,7 @@ PHP_FUNCTION(http_get_last_response_headers)
 	}
 
 	if (EG(active_fiber)) {
-		async_context_t *context = async_context_current();
+		async_context_t *context = async_context_current(true, false);
 
 		if (context == NULL) {
 			RETURN_NULL();
