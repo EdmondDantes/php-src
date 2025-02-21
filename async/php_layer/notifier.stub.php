@@ -27,13 +27,6 @@ class Notifier
     private mixed $toString;
 
     /**
-     * Reserved for internal use:
-     * reactor_notifier_notify_t notify_fn
-     * reactor_remove_callback_t remove_callback_fn
-     */
-    private int $reserved = 0;
-
-    /**
      * Returns the number of registered callbacks.
      */
     final public function getCallbacks(): array {}

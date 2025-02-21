@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b405e75c083e4c4be158474a35ab7527f04e4042 */
+ * Stub hash: 6b83830881d0f8ee465d77a812ab80156e039172 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -86,12 +86,6 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_string *property_toString_name = zend_string_init("toString", sizeof("toString") - 1, 1);
 	zend_declare_typed_property(class_entry, property_toString_name, &property_toString_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
 	zend_string_release(property_toString_name);
-
-	zval property_reserved_default_value;
-	ZVAL_LONG(&property_reserved_default_value, 0);
-	zend_string *property_reserved_name = zend_string_init("reserved", sizeof("reserved") - 1, 1);
-	zend_declare_typed_property(class_entry, property_reserved_name, &property_reserved_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(property_reserved_name);
 
 	return class_entry;
 }
