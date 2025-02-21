@@ -99,6 +99,11 @@ void async_globals_dtor(zend_async_globals *async_globals)
 		}
 	} ZEND_HASH_FOREACH_END();
 
+	if (async_globals->root_context != NULL) {
+		OBJ_RELEASE(&async_globals->root_context->std);
+		async_globals->root_context = NULL;
+	}
+
 	circular_buffer_dtor(&async_globals->microtasks);
 	circular_buffer_dtor(&async_globals->deferred_resumes);
 	zend_hash_destroy(&async_globals->fibers_state);

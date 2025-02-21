@@ -567,6 +567,7 @@ static PHP_GINIT_FUNCTION(async)
 	async_globals->event_handle_count = 0;
 	async_globals->exit_exception = NULL;
 	async_globals->reactor = NULL;
+	async_globals->root_context = NULL;
 	async_globals->exception_handler = NULL;
 	async_globals->execute_callbacks_handler = NULL;
 	async_globals->execute_next_fiber_handler = NULL;
