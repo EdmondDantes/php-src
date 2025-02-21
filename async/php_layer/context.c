@@ -209,14 +209,21 @@ METHOD(hasLocal)
 METHOD(withKey)
 {
 	zend_object *object_key = NULL;
+	zend_string *string_key = NULL;
 	zval *value;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
-		Z_PARAM_OBJ(object_key)
+		Z_PARAM_OBJ_OR_STR(object_key, string_key)
 		Z_PARAM_ZVAL(value)
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_context_t *new_context = async_context_with_key(THIS_CONTEXT, object_key, value);
+	async_context_t *new_context = NULL;
+
+	if (object_key != NULL) {
+		new_context = async_context_with_key(THIS_CONTEXT, object_key, value);
+	} else if (string_key != NULL) {
+		new_context = async_context_with_str(THIS_CONTEXT, string_key, value);
+	}
 
 	if (new_context == NULL) {
 		RETURN_THROWS();
@@ -227,17 +234,42 @@ METHOD(withKey)
 
 METHOD(withoutKey)
 {
+	zval *key;
 
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_ZVAL(key)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (Z_TYPE_P(key) != IS_STRING && Z_TYPE_P(key) != IS_OBJECT) {
+		zend_wrong_parameter_type_error(1, Z_EXPECTED_OBJECT_OR_STRING, key);
+		RETURN_THROWS();
+	}
+
+	async_context_t *new_context = async_context_without_key(THIS_CONTEXT, key);
+
+	if (UNEXPECTED(new_context == NULL)) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&new_context->std);
 }
 
 METHOD(getParent)
 {
+	if (THIS_CONTEXT->is_weak_ref) {
+		zval weak_ref;
+		ZVAL_OBJ(&weak_ref, &THIS_CONTEXT->parent_weak_ref);
+		zend_resolve_weak_reference(&weak_ref, return_value);
+	} else if (THIS_CONTEXT->parent) {
+		RETURN_OBJ(&THIS_CONTEXT->parent->std);
+	}
 
+	RETURN_NULL();
 }
 
 METHOD(isEmpty)
 {
-
+	RETURN_BOOL(zend_hash_num_elements(THIS_CONTEXT->map) == 0);
 }
 
 static zend_object_handlers async_context_handlers;
@@ -326,7 +358,7 @@ zval * async_context_find_by_key(async_context_t * context, zend_object * key, b
 		zend_resolve_weak_reference(&weak_ref, &reference);
 
 		if (Z_TYPE(reference) == IS_OBJECT) {
-			result = async_context_find_by_key((async_context_t *) Z_OBJ(reference), key, local, recursion++);
+			result = async_context_find_by_key((async_context_t *) Z_OBJ(reference), key, local, ++recursion);
 			zval_ptr_dtor(&reference);
 			return result;
 		} else {
@@ -334,7 +366,7 @@ zval * async_context_find_by_key(async_context_t * context, zend_object * key, b
 		}
 
 	} else if (result == NULL && context->parent != NULL) {
-		return async_context_find_by_key(context->parent, key, local, recursion++);
+		return async_context_find_by_key(context->parent, key, local, ++recursion);
 	} else {
 		return result;
 	}
@@ -362,7 +394,7 @@ zval * async_context_find_by_str(async_context_t * context, zend_string * key, b
 		zend_resolve_weak_reference(&weak_ref, &reference);
 
 		if (Z_TYPE(reference) == IS_OBJECT) {
-			result = async_context_find_by_str((async_context_t *) Z_OBJ(reference), key, local, recursion++);
+			result = async_context_find_by_str((async_context_t *) Z_OBJ(reference), key, local, ++recursion);
 			zval_ptr_dtor(&reference);
 			return result;
 		} else {
@@ -370,7 +402,7 @@ zval * async_context_find_by_str(async_context_t * context, zend_string * key, b
 		}
 
 	} else if (result == NULL && context->parent != NULL) {
-		return async_context_find_by_str(context->parent, key, local, recursion++);
+		return async_context_find_by_str(context->parent, key, local, ++recursion);
 	} else {
 		return result;
 	}
@@ -410,19 +442,12 @@ async_context_t * async_context_with_str(async_context_t * context, zend_string 
 		return NULL;
 	}
 
-	zval z_key;
-	ZVAL_STR(&z_key, key);
-
-	if (UNEXPECTED(zend_hash_add(new_context->objects, key, &z_key) == NULL)) {
-		OBJ_RELEASE(&new_context->std);
-		async_throw_error("Failed to update context objects");
-		return NULL;
-	}
+	Z_TRY_ADDREF(value);
 
 	return new_context;
 }
 
-static zend_object* async_context_clone(zend_object * object)
+zend_object* async_context_clone(zend_object * object)
 {
 	async_context_t *src_context = (async_context_t *) object;
 
@@ -455,4 +480,19 @@ static zend_object* async_context_clone(zend_object * object)
 	}
 
 	return &context->std;
+}
+
+async_context_t * async_context_without_key(async_context_t * context, zval * key)
+{
+	async_context_t * new_context = (async_context_t *) async_context_clone(&context->std);
+
+	if (Z_TYPE_P(key) == IS_STRING) {
+		zend_hash_del(new_context->map, Z_STR_P(key));
+	} else {
+		zend_object *object = Z_OBJ_P(key);
+		zend_hash_index_del(new_context->map, object->handle);
+		zend_hash_index_del(new_context->objects, object->handle);
+	}
+
+	return new_context;
 }

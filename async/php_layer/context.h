@@ -57,6 +57,8 @@ ZEND_API async_context_t * async_context_with_key(async_context_t * context, zen
 ZEND_API async_context_t * async_context_with_str(async_context_t * context, zend_string * key, zval * value);
 ZEND_API zend_object* async_context_clone(zend_object * object);
 
+ZEND_API async_context_t * async_context_without_key(async_context_t * context, zval * key);
+
 END_EXTERN_C()
 
 #endif //CONTEXT_H
