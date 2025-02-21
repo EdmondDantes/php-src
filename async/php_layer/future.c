@@ -18,7 +18,7 @@
 #include <async/php_async.h>
 #include <async/php_scheduler.h>
 
-#include "callback.h"
+#include "closure.h"
 #include "exceptions.h"
 #include "future_arginfo.h"
 #include "zend_common.h"

@@ -21,7 +21,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
-#include "callback.h"
+#include "closure.h"
 #include "notifier_arginfo.h"
 #include "../php_reactor.h"
 

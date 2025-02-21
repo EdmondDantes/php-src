@@ -23,7 +23,7 @@
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
 #include "ext/standard/info.h"
-#include "callback.h"
+#include "closure.h"
 #include "channel.h"
 #include "reactor_handles.h"
 #include "exceptions.h"

@@ -15,7 +15,7 @@
 */
 #include "channel.h"
 
-#include "callback.h"
+#include "closure.h"
 #include "channel_arginfo.h"
 #include "async/php_async.h"
 #include "async/php_scheduler.h"
