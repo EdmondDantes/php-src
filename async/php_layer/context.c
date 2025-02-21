@@ -324,7 +324,6 @@ static void async_context_object_destroy(zend_object *object)
 
 	zend_array_release(context->map);
 	zend_array_release(context->objects);
-	zend_object_std_dtor(&context->std);
 
 	if (context->is_weak_ref) {
 		OBJ_RELEASE(context->parent_weak_ref);

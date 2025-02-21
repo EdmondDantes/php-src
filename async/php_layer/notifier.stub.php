@@ -34,18 +34,18 @@ class Notifier
     /**
      * Adds a callback to the event.
      *
-     * @param Callback $callback The callback to add.
+     * @param Closure $callback The callback to add.
      * @return static
      */
-    public function addCallback(Callback $callback): static {}
+    public function addCallback(Closure $callback): static {}
 
     /**
      * Removes a callback from the event.
      *
-     * @param Callback $callback The callback to remove.
+     * @param Closure $callback The callback to remove.
      * @return static
      */
-    public function removeCallback(Callback $callback): static {}
+    public function removeCallback(Closure $callback): static {}
 
     /**
      * Notifies all registered callbacks about the event.

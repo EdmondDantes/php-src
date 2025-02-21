@@ -91,7 +91,7 @@ function defer(callable $microtask): void {}
  * The callback will also be immediately canceled
  * if the Callback object is destroyed by the garbage collector or goes out of scope.
  */
-function delay(int $timeout, callable|Callback $callback): void {}
+function delay(int $timeout, callable|Closure $callback): void {}
 
 /**
  * Creates a callback microtask that will execute at regular intervals
@@ -100,7 +100,7 @@ function delay(int $timeout, callable|Callback $callback): void {}
  * The callback will also be immediately canceled
  * if the CallbackInterface object is destroyed by the garbage collector or goes out of scope.
  */
-function repeat(int $interval, Callback $callback): void {}
+function repeat(int $interval, Closure $callback): void {}
 
 /**
  * Registers a callback that will be executed when the specified signal is received.
@@ -108,7 +108,7 @@ function repeat(int $interval, Callback $callback): void {}
  * The callback will also be immediately canceled
  * if the Callback object is destroyed by the garbage collector or goes out of scope.
  */
-function onSignal(int $sigNumber, Callback $callback): void {}
+function onSignal(int $sigNumber, Closure $callback): void {}
 
 /**
  * Execute an external program.
