@@ -27,7 +27,7 @@
 // The coefficient of the maximum number of microtasks that can be executed
 // without suspicion of an infinite loop (a task that creates microtasks).
 //
-#define MICROTASK_CYCLE_THRESHOLD_C 4
+#define MICROTASK_CYCLE_THRESHOLD_C 8
 
 static ZEND_FUNCTION(callbacks_executor)
 {
@@ -246,19 +246,19 @@ void async_execute_callbacks_in_fiber(HashTable * callbacks)
 	} while (zend_hash_num_elements(callbacks) != 0);
 }
 
-static void invoke_microtask(zval *task)
+zend_always_inline void invoke_microtask(async_microtask_t *task)
 {
-	if (Z_TYPE_P(task) == IS_PTR) {
-
-		async_microtask_t *microtask = (async_microtask_t *) Z_PTR_P(task);
-
-		if (microtask->is_cancelled) {
-			async_scheduler_microtask_free(microtask);
-			return;
+	switch (task->type) {
+		case ASYNC_MICROTASK_INTERNAL:
+		{
+			async_internal_microtask_t *internal = (async_internal_microtask_t *) task;
+			internal->handler((async_microtask_t *) internal);
+			break;
 		}
 
-		if (microtask->type == ASYNC_MICROTASK_FCI) {
-			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+		case ASYNC_MICROTASK_FCI:
+		{
+			async_function_microtask_t *function = (async_function_microtask_t *) task;
 
 			zval retval;
 			ZVAL_UNDEF(&retval);
@@ -269,20 +269,33 @@ static void invoke_microtask(zval *task)
 			}
 
 			function->fci.retval = NULL;
-
-		} else {
-			// Call the function directly
-			async_internal_microtask_t *internal = (async_internal_microtask_t *) microtask;
-			internal->handler((async_microtask_t *) internal);
+			break;
 		}
 
-		async_scheduler_microtask_free(microtask);
+		case ASYNC_MICROTASK_ZVAL:
+		{
+			zval retval;
+			ZVAL_UNDEF(&retval);
+			call_user_function(CG(function_table), NULL, &task->callable, &retval, 0, NULL);
+			zval_ptr_dtor(&retval);
+			break;
+		}
 
-	} else {
-		zval retval;
-		ZVAL_UNDEF(&retval);
-		call_user_function(CG(function_table), NULL, task, &retval, 0, NULL);
-		zval_ptr_dtor(&retval);
+		case ASYNC_MICROTASK_OBJECT:
+		{
+			async_internal_microtask_with_object_t *object = (async_internal_microtask_with_object_t *) task;
+			object->handler((async_microtask_t *) object);
+			break;
+		}
+
+		case ASYNC_MICROTASK_EXCEPTION:
+		{
+			async_microtask_with_exception_t *exception = (async_microtask_with_exception_t *) task;
+			exception->handler((async_microtask_t *) exception);
+			break;
+		}
+
+		default:
 	}
 }
 
@@ -313,11 +326,15 @@ static ZEND_FUNCTION(microtasks_executor)
 	while (true) {
 
 		while (circular_buffer_is_not_empty(buffer)) {
-			zval task;
+			async_microtask_t * task;
 			(*handled)++;
 			circular_buffer_pop(buffer, &task);
-			invoke_microtask(&task);
-			zval_ptr_dtor(&task);
+
+			if (EXPECTED(false == task->is_cancelled)) {
+				invoke_microtask(task);
+			}
+
+			async_scheduler_microtask_free(task);
 
 			if (UNEXPECTED(EG(exception) != NULL || async_find_fiber_state(fiber) != NULL)) {
 				return;
@@ -660,6 +677,7 @@ ZEND_API void async_scheduler_add_microtask(zval *z_microtask)
 	async_microtask_t * microtask = pecalloc(1, sizeof(async_microtask_t), 0);
 	microtask->type = ASYNC_MICROTASK_ZVAL;
 	microtask->ref_count = 1;
+	microtask->context = async_context_current(false, true);
 
 	zval_copy(&microtask->callable, z_microtask);
 	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
@@ -669,6 +687,10 @@ ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
 {
 	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
 	microtask->ref_count++;
+
+	if (microtask->context == NULL) {
+		microtask->context = async_context_current(false, true);
+	}
 }
 
 ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler, zend_object * zend_object)
@@ -686,10 +708,9 @@ ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t ha
 	microtask->task.type = ASYNC_MICROTASK_OBJECT;
 	microtask->handler = handler;
 	microtask->task.ref_count = 1;
+	microtask->task.context = async_context_current(false, true);
 
-	zval z_microtask;
-	ZVAL_PTR(&z_microtask, microtask);
-	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
 }
 
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
@@ -735,10 +756,9 @@ ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 	microtask->handler = microtask_throw_exception_handler;
 	microtask->task.dtor = NULL;
 	microtask->task.ref_count = 1;
+	microtask->task.context = async_context_current(false, true);
 
-	zval z_microtask;
-	ZVAL_PTR(&z_microtask, microtask);
-	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
 }
 
 ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
@@ -755,6 +775,10 @@ ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
 
 	if (microtask->type != ASYNC_MICROTASK_ZVAL && microtask->dtor != NULL) {
 		microtask->dtor(microtask);
+	}
+
+	if (microtask->context != NULL) {
+		OBJ_RELEASE(&microtask->context->std);
 	}
 
 	switch (microtask->type) {
