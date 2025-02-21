@@ -166,9 +166,13 @@ PHP_METHOD(Async_Walker, walk)
 	// Transfer run_closure ownership to the fiber
 	GC_DELREF(walker->run_closure);
 	GC_DELREF(&walker->std);
-	GC_DELREF(&walker->std);
+	//GC_DELREF(&walker->std);
+
+	walker->active_fibers = 1;
 
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), NULL, 0, NULL);
+
+	RETURN_OBJ(&walker->std);
 }
 
 PHP_METHOD(Async_Walker, run)
@@ -200,11 +204,11 @@ PHP_METHOD(Async_Walker, run)
 	fci.param_count = walker->fcc.function_handler->common.num_args;
 	fci.params = args;
 
-	if (walker->next_microtask != NULL && (walker->concurrency > 0 && walker->concurrency < walker->active_fibers)) {
+	if (walker->next_microtask != NULL && false == walker->in_queue
+		&& (walker->concurrency == 0 || (walker->concurrency > 0 && walker->concurrency < walker->active_fibers))) {
+		walker->in_queue = true;
 		async_scheduler_add_microtask_ex(walker->next_microtask);
 	}
-
-	walker->active_fibers++;
 
 	/* Reload array and position */
 	if (walker->target_hash != NULL) {
@@ -327,6 +331,8 @@ PHP_METHOD(Async_Walker, next)
 	// This method is called by the scheduler to continue the foreach loop
 	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());
 
+	walker->in_queue = false;
+
 	if (Z_TYPE(walker->is_finished) == IS_TRUE) {
 		return;
 	}
@@ -340,6 +346,8 @@ PHP_METHOD(Async_Walker, next)
 	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
 		RETURN_THROWS();
 	}
+
+	walker->active_fibers++;
 
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), NULL, 0, NULL);
 }

@@ -46,6 +46,7 @@ typedef struct _async_walker_s {
 	HashTable * target_hash;
 	HashPosition position;
 	uint32_t hash_iterator;
+	bool in_queue;
 	unsigned int concurrency;
 	unsigned int active_fibers;
 	async_future_state_t * future_state;

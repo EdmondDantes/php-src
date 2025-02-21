@@ -1399,7 +1399,7 @@ static void libuv_dns_info_cancel(reactor_handle_t *handle)
 //=============================================================
 typedef struct
 {
-	reactor_notifier_t notifier;
+	reactor_notifier_ex_t notifier;
 	uv_process_t * process;
 	uv_pipe_t * stdout_pipe;
 	uv_pipe_t * stderr_pipe;
@@ -1461,7 +1461,7 @@ static void exec_on_exit(uv_process_t* process, const int64_t exit_status, int t
 	if (exec->terminated != true) {
 		exec->terminated = true;
 		DECREASE_EVENT_HANDLE_COUNT;
-		async_notifier_notify(&exec->notifier, NULL, NULL);
+		async_notifier_notify(&exec->notifier.notifier, NULL, NULL);
 	}
 }
 
@@ -1545,7 +1545,7 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 		if (exec->terminated != true) {
 			exec->terminated = true;
 			DECREASE_EVENT_HANDLE_COUNT;
-			async_notifier_notify(&exec->notifier, NULL, NULL);
+			async_notifier_notify(&exec->notifier.notifier, NULL, NULL);
 		}
 	}
 }
@@ -1674,7 +1674,7 @@ static int libuv_exec(
 		uv_close((uv_handle_t *) exec->process, libuv_close_cb);
 		exec->process = NULL;
 		exec->stdout_pipe = NULL;
-		OBJ_RELEASE(&exec->notifier.std);
+		OBJ_RELEASE(&exec->notifier.notifier.std);
 		OBJ_RELEASE(&resume->std);
 		return FAILURE;
 	}
@@ -1682,7 +1682,7 @@ static int libuv_exec(
 	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
 	uv_read_start((uv_stream_t*) exec->stderr_pipe, exec_std_err_alloc_cb, exec_std_err_read_cb);
 
-	async_resume_when(resume, &exec->notifier, true, async_resume_when_callback_resolve);
+	async_resume_when(resume, &exec->notifier.notifier, true, async_resume_when_callback_resolve);
 
 	ASYNC_G(event_handle_count)++;
 
