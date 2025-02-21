@@ -253,11 +253,11 @@ static void invoke_microtask(zval *task)
 		async_microtask_t *microtask = (async_microtask_t *) Z_PTR_P(task);
 
 		if (microtask->is_cancelled) {
-			async_scheduler_microtask_dtor(microtask);
+			async_scheduler_microtask_free(microtask);
 			return;
 		}
 
-		if (microtask->is_fci) {
+		if (microtask->type == ASYNC_MICROTASK_FCI) {
 			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
 
 			zval retval;
@@ -276,7 +276,7 @@ static void invoke_microtask(zval *task)
 			internal->handler((async_microtask_t *) internal);
 		}
 
-		async_scheduler_microtask_dtor(microtask);
+		async_scheduler_microtask_free(microtask);
 
 	} else {
 		zval retval;
@@ -650,30 +650,25 @@ ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const a
 	return prev;
 }
 
-ZEND_API void async_scheduler_add_microtask(zval *microtask)
+ZEND_API void async_scheduler_add_microtask(zval *z_microtask)
 {
-	if (EXPECTED(zend_is_callable(microtask, 0, NULL))) {
-		zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), microtask);
+	if (UNEXPECTED(false == zend_is_callable(z_microtask, 0, NULL))) {
+		async_throw_error("Invalid microtask type: should be a callable");
 		return;
 	}
 
-	async_throw_error("Invalid microtask type: should be a callable");
+	async_microtask_t * microtask = pecalloc(1, sizeof(async_microtask_t), 0);
+	microtask->type = ASYNC_MICROTASK_ZVAL;
+	microtask->ref_count = 1;
+
+	zval_copy(&microtask->callable, z_microtask);
+	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
 }
 
 ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
 {
-	zval z_microtask;
-	ZVAL_PTR(&z_microtask, microtask);
-	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
+	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
 	microtask->ref_count++;
-}
-
-static void microtask_with_object_dtor(async_microtask_t * microtask)
-{
-	if (((async_internal_microtask_with_object_t * ) microtask)->object != NULL) {
-		OBJ_RELEASE(((async_internal_microtask_with_object_t * ) microtask)->object);
-		((async_internal_microtask_with_object_t * ) microtask)->object = NULL;
-	}
 }
 
 ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler, zend_object * zend_object)
@@ -685,10 +680,10 @@ ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t ha
 	} else {
 		microtask = pecalloc(1, sizeof(async_internal_microtask_with_object_t), 0);
 		((async_internal_microtask_with_object_t * ) microtask)->object = zend_object;
-		((async_internal_microtask_with_object_t * ) microtask)->task.dtor = microtask_with_object_dtor;
+		((async_internal_microtask_with_object_t * ) microtask)->task.dtor = NULL;
 	}
 
-	microtask->task.is_fci = false;
+	microtask->task.type = ASYNC_MICROTASK_OBJECT;
 	microtask->handler = handler;
 	microtask->task.ref_count = 1;
 
@@ -707,7 +702,7 @@ ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
 	}
 
 	async_function_microtask_t *function = pecalloc(1, sizeof(async_function_microtask_t), 0);
-	function->task.is_fci = true;
+	function->task.type = ASYNC_MICROTASK_FCI;
 	function->task.ref_count = 1;
 	function->fci = fci;
 	function->fci_cache = fcc;
@@ -728,15 +723,6 @@ static void microtask_throw_exception_handler(async_microtask_t *microtask)
 	((async_microtask_with_exception_t *) microtask)->exception = NULL;
 }
 
-static void microtask_throw_exception_dtor(async_microtask_t *microtask)
-{
-	async_microtask_with_exception_t *microtask_with_exception = (async_microtask_with_exception_t *) microtask;
-
-	if (microtask_with_exception->exception != NULL) {
-		OBJ_RELEASE(microtask_with_exception->exception);
-	}
-}
-
 ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 {
 	if (EG(active_fiber) == NULL) {
@@ -745,9 +731,9 @@ ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 	}
 
 	async_microtask_with_exception_t *microtask = pecalloc(1, sizeof(async_microtask_with_exception_t), 0);
-	microtask->task.is_fci = false;
+	microtask->task.type = ASYNC_MICROTASK_EXCEPTION;
 	microtask->handler = microtask_throw_exception_handler;
-	microtask->task.dtor = microtask_throw_exception_dtor;
+	microtask->task.dtor = NULL;
 	microtask->task.ref_count = 1;
 
 	zval z_microtask;
@@ -755,7 +741,7 @@ ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 	zval_c_buffer_push_with_resize(&ASYNC_G(microtasks), &z_microtask);
 }
 
-ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
+ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
 {
 	if (microtask->ref_count <= 0) {
 		return;
@@ -767,39 +753,48 @@ ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask)
 		return;
 	}
 
-	if (microtask->dtor != NULL) {
+	if (microtask->type != ASYNC_MICROTASK_ZVAL && microtask->dtor != NULL) {
 		microtask->dtor(microtask);
 	}
 
-	if (microtask->is_fci && false == microtask->is_cancelled) {
-		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
-		zval_ptr_dtor(&function->fci.function_name);
-		ZVAL_UNDEF(&function->fci.function_name);
-		zend_fcall_info_args_clear(&function->fci, 1);
+	switch (microtask->type) {
+		case ASYNC_MICROTASK_FCI:
+			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
+			zval_ptr_dtor(&function->fci.function_name);
+			ZVAL_UNDEF(&function->fci.function_name);
+			zend_fcall_info_args_clear(&function->fci, 1);
+			break;
+
+		case ASYNC_MICROTASK_ZVAL:
+			zval_ptr_dtor(&microtask->callable);
+			ZVAL_UNDEF(&microtask->callable);
+
+			break;
+
+		case ASYNC_MICROTASK_OBJECT:
+
+			if (((async_internal_microtask_with_object_t * ) microtask)->object != NULL) {
+				OBJ_RELEASE(((async_internal_microtask_with_object_t * ) microtask)->object);
+				((async_internal_microtask_with_object_t * ) microtask)->object = NULL;
+			}
+
+			break;
+
+		case ASYNC_MICROTASK_EXCEPTION:
+			async_microtask_with_exception_t *microtask_with_exception = (async_microtask_with_exception_t *) microtask;
+
+			if (microtask_with_exception->exception != NULL) {
+				OBJ_RELEASE(microtask_with_exception->exception);
+				microtask_with_exception->exception = NULL;
+			}
+
+			break;
+
+		case ASYNC_MICROTASK_INTERNAL:
+		default:
 	}
 
 	pefree(microtask, 0);
-}
-
-ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
-{
-	if (microtask->ref_count <= 0) {
-		return;
-	}
-
-	if (microtask->ref_count > 1) {
-		microtask->ref_count--;
-		microtask->is_cancelled = 1;
-	} else {
-		async_scheduler_microtask_dtor(microtask);
-	}
-
-	if (microtask->is_fci) {
-		async_function_microtask_t *function = (async_function_microtask_t *) microtask;
-		zval_ptr_dtor(&function->fci.function_name);
-		ZVAL_UNDEF(&function->fci.function_name);
-		zend_fcall_info_args_clear(&function->fci, 1);
-	}
 }
 
 zend_always_inline void execute_deferred_fibers(void)

@@ -123,8 +123,8 @@ void async_globals_ctor(zend_async_globals *async_globals)
 	async_globals->is_async = false;
 	async_globals->in_scheduler_context = false;
 
-	circular_buffer_ctor(&async_globals->microtasks, 32, sizeof(zval), &zend_std_persistent_allocator);
-	circular_buffer_ctor(&async_globals->deferred_resumes, 128, sizeof(async_resume_t *), &zend_std_persistent_allocator);
+	circular_buffer_ctor(&async_globals->microtasks, 64, sizeof(async_microtask_t *), &zend_std_allocator);
+	circular_buffer_ctor(&async_globals->deferred_resumes, 128, sizeof(async_resume_t *), &zend_std_allocator);
 	zend_hash_init(&async_globals->fibers_state, 128, NULL, async_fiber_state_dtor, 1);
 	zend_hash_init(&async_globals->defer_callbacks, 8, NULL, ZVAL_PTR_DTOR, 1);
 

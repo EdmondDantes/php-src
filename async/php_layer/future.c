@@ -278,7 +278,7 @@ zend_always_inline void add_future_state_callbacks_microtask(async_future_state_
 	}
 
 	future_state_callbacks_task *microtask = pecalloc(1, sizeof(future_state_callbacks_task), 0);
-	microtask->task.task.is_fci = false;
+	microtask->task.task.type = false;
 	microtask->task.handler = future_state_callbacks_task_handler;
 	microtask->task.task.dtor = future_state_callbacks_task_dtor;
 	microtask->future_state = future_state;
@@ -318,7 +318,7 @@ zend_always_inline void start_concurrent_iterator(
 {
 	concurrent_iterator_task *microtask = pecalloc(1, sizeof(concurrent_iterator_task), 0);
 
-	microtask->task.task.is_fci = false;
+	microtask->task.task.type = false;
 	microtask->task.handler = concurrent_iterator_task_handler;
 	microtask->task.task.dtor = concurrent_iterator_task_dtor;
 	microtask->future_state = future_state;

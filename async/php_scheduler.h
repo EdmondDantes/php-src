@@ -17,16 +17,31 @@
 #define PHP_SCHEDULER_H
 
 #include "php.h"
+#include "php_layer/context.h"
 
 typedef struct _async_microtask_s async_microtask_t;
 
 typedef void (*async_microtask_handler_t)(async_microtask_t *microtask);
 
+typedef enum
+{
+	ASYNC_MICROTASK_INTERNAL = 1,
+	ASYNC_MICROTASK_FCI = 2,
+	ASYNC_MICROTASK_ZVAL = 3,
+	ASYNC_MICROTASK_EXCEPTION = 4,
+	ASYNC_MICROTASK_OBJECT = 5
+} MICROTASK_TYPE;
+
 struct _async_microtask_s {
-	bool is_fci;
+	MICROTASK_TYPE type;
 	bool is_cancelled;
 	int ref_count;
-	async_microtask_handler_t dtor;
+	union
+	{
+		async_microtask_handler_t dtor;
+		zval callable;
+	};
+	async_context_t *context;
 };
 
 typedef struct _async_internal_microtask_s {
@@ -96,12 +111,11 @@ ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_c
 ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(async_next_fiber_handler_t handler);
 ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(async_microtasks_handler_t handler);
 ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(async_exception_handler_t handler);
-ZEND_API void async_scheduler_add_microtask(zval *microtask);
+ZEND_API void async_scheduler_add_microtask(zval *z_microtask);
 ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask);
 ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler, zend_object * object);
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask);
 ZEND_API void async_scheduler_transfer_exception(zend_object * exception);
-ZEND_API void async_scheduler_microtask_dtor(async_microtask_t *microtask);
 ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask);
 
 zend_result async_scheduler_add_handle(const zend_object *handle);
