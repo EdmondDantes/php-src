@@ -248,55 +248,80 @@ void async_execute_callbacks_in_fiber(HashTable * callbacks)
 
 zend_always_inline void invoke_microtask(async_microtask_t *task)
 {
-	switch (task->type) {
-		case ASYNC_MICROTASK_INTERNAL:
-		{
-			async_internal_microtask_t *internal = (async_internal_microtask_t *) task;
-			internal->handler((async_microtask_t *) internal);
-			break;
-		}
+	// Inherit context of microtask to Fiber context
+	if (EG(active_fiber)->async_context != NULL) {
+		OBJ_RELEASE(&EG(active_fiber)->async_context->std);
+	}
 
-		case ASYNC_MICROTASK_FCI:
-		{
-			async_function_microtask_t *function = (async_function_microtask_t *) task;
+	EG(active_fiber)->async_context = task->context;
 
-			zval retval;
-			ZVAL_UNDEF(&retval);
-			function->fci.retval = &retval;
+	zend_try {
 
-			if (zend_call_function(&function->fci, &function->fci_cache) == SUCCESS) {
-				zval_ptr_dtor(function->fci.retval);
+		switch (task->type) {
+			case ASYNC_MICROTASK_INTERNAL:
+			{
+				async_internal_microtask_t *internal = (async_internal_microtask_t *) task;
+				internal->handler((async_microtask_t *) internal);
+				break;
 			}
 
-			function->fci.retval = NULL;
-			break;
+			case ASYNC_MICROTASK_FCI:
+			{
+				async_function_microtask_t *function = (async_function_microtask_t *) task;
+
+				zval retval;
+				ZVAL_UNDEF(&retval);
+				function->fci.retval = &retval;
+
+				if (zend_call_function(&function->fci, &function->fci_cache) == SUCCESS) {
+					zval_ptr_dtor(function->fci.retval);
+				}
+
+				function->fci.retval = NULL;
+				break;
+			}
+
+			case ASYNC_MICROTASK_ZVAL:
+			{
+				zval retval;
+				ZVAL_UNDEF(&retval);
+				call_user_function(CG(function_table), NULL, &task->callable, &retval, 0, NULL);
+				zval_ptr_dtor(&retval);
+				break;
+			}
+
+			case ASYNC_MICROTASK_OBJECT:
+			{
+				async_internal_microtask_with_object_t *object = (async_internal_microtask_with_object_t *) task;
+				object->handler((async_microtask_t *) object);
+				break;
+			}
+
+			case ASYNC_MICROTASK_EXCEPTION:
+			{
+				async_microtask_with_exception_t *exception = (async_microtask_with_exception_t *) task;
+				exception->handler((async_microtask_t *) exception);
+				break;
+			}
+
+			default:
 		}
 
-		case ASYNC_MICROTASK_ZVAL:
-		{
-			zval retval;
-			ZVAL_UNDEF(&retval);
-			call_user_function(CG(function_table), NULL, &task->callable, &retval, 0, NULL);
-			zval_ptr_dtor(&retval);
-			break;
+	} zend_catch {
+		if (EG(active_fiber)->async_context != NULL) {
+			OBJ_RELEASE(&EG(active_fiber)->async_context->std);
 		}
 
-		case ASYNC_MICROTASK_OBJECT:
-		{
-			async_internal_microtask_with_object_t *object = (async_internal_microtask_with_object_t *) task;
-			object->handler((async_microtask_t *) object);
-			break;
-		}
+		EG(active_fiber)->async_context = NULL;
 
-		case ASYNC_MICROTASK_EXCEPTION:
-		{
-			async_microtask_with_exception_t *exception = (async_microtask_with_exception_t *) task;
-			exception->handler((async_microtask_t *) exception);
-			break;
-		}
+		zend_bailout();
+	} zend_end_try();
 
-		default:
+	if (EG(active_fiber)->async_context != NULL) {
+		OBJ_RELEASE(&EG(active_fiber)->async_context->std);
 	}
+
+	EG(active_fiber)->async_context = NULL;
 }
 
 static ZEND_FUNCTION(microtasks_executor)
