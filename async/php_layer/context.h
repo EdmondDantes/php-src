@@ -21,7 +21,9 @@
 
 BEGIN_EXTERN_C()
 
-typedef struct
+typedef struct _async_context_s async_context_t;
+
+struct _async_context_s
 {
 	union
 	{
@@ -30,23 +32,30 @@ typedef struct
 		struct
 		{
 			char _padding[sizeof(zend_object) - sizeof(zval)];
-			HashTable map;
-			HashTable objects;
+			HashTable *map;
+			HashTable *objects;
+			union
+			{
+				async_context_t * parent;
+				zend_object * parent_weak_ref;
+			};
+			bool is_weak_ref;
 		};
 	};
 
-} async_context_t;
+};
 
 ZEND_API zend_class_entry * async_ce_context;
 
 void async_register_context_ce(void);
 
-ZEND_API async_context_t * async_context_new(async_context_t * parent);
-ZEND_API zval * async_context_find_by_key(async_context_t * context, zend_object * key);
-ZEND_API zval * async_context_find_by_str(async_context_t * context, zend_string * key);
+ZEND_API async_context_t * async_context_new(async_context_t * parent, const bool is_weak_ref);
+ZEND_API zval * async_context_find_by_key(async_context_t * context, zend_object * key, bool local, int recursion);
+ZEND_API zval * async_context_find_by_str(async_context_t * context, zend_string * key, bool local, int recursion);
 
 ZEND_API async_context_t * async_context_with_key(async_context_t * context, zend_object * key, zval * value);
 ZEND_API async_context_t * async_context_with_str(async_context_t * context, zend_string * key, zval * value);
+ZEND_API zend_object* async_context_clone(zend_object * object);
 
 END_EXTERN_C()
 
