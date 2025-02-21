@@ -15,3 +15,65 @@
 */
 #include "context.h"
 #include "context_arginfo.h"
+
+#define METHOD(name) PHP_METHOD(Async_Context, name)
+#define THIS_CONTEXT ((async_context_t *)(Z_OBJ_P(ZEND_THIS)))
+
+METHOD(__construct)
+{
+}
+
+METHOD(find)
+{
+
+}
+
+METHOD(get)
+{
+
+}
+
+METHOD(has)
+{
+
+}
+
+METHOD(findLocal)
+{
+
+}
+
+METHOD(getLocal)
+{
+
+}
+
+METHOD(hasLocal)
+{
+
+}
+
+METHOD(withKey)
+{
+
+}
+
+METHOD(withoutKey)
+{
+
+}
+
+METHOD(getParent)
+{
+
+}
+
+METHOD(isEmpty)
+{
+
+}
+
+void async_register_context_ce(void)
+{
+	async_ce_context = register_class_Async_Context();
+}
