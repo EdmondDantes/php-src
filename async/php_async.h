@@ -55,6 +55,8 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	zend_fiber * microtask_fiber;
 	/* Special fiber for the callbacks */
 	zend_fiber * callbacks_fiber;
+	/* Root context */
+	async_context_t * root_context;
 	/* Link to the reactor structure */
 	void * reactor;
 	/* Handlers for the scheduler */
@@ -145,6 +147,37 @@ zend_always_inline async_resume_t * async_next_deferred_resume(void)
 	return resume;
 }
 
+zend_always_inline async_context_t * async_current_context(void)
+{
+	if (EG(active_fiber)) {
+
+		if (EG(active_fiber)->async_context == NULL) {
+			EG(active_fiber)->async_context = async_context_new(NULL, false);
+		}
+
+		return EG(active_fiber)->async_context;
+	} else {
+
+		if (ASYNC_G(root_context) == NULL) {
+			ASYNC_G(root_context) = async_context_new(NULL, false);
+		}
+
+		return ASYNC_G(root_context);
+	}
+}
+
+zend_always_inline void async_current_context_replace(async_context_t * new_context)
+{
+	async_context_t * context = async_current_context();
+
+	if (EG(active_fiber)) {
+		EG(active_fiber)->async_context = new_context;
+	} else {
+		ASYNC_G(root_context) = new_context;
+	}
+
+	OBJ_RELEASE(&context->std);
+}
 
 BEGIN_EXTERN_C()
 

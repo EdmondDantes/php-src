@@ -90,11 +90,11 @@ PHP_METHOD(Async_FiberHandle, getContext)
 
 	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
 
-	if (fiber->fiber_storage == NULL) {
-		fiber->fiber_storage = zend_fiber_storage_new();
+	if (fiber->async_context == NULL) {
+		fiber->async_context = async_context_new(NULL, false);
 	}
 
-	RETURN_OBJ_COPY((zend_object *)fiber->fiber_storage);
+	RETURN_OBJ_COPY((zend_object *)fiber->async_context);
 }
 
 PHP_METHOD(Async_FiberHandle, cancel)

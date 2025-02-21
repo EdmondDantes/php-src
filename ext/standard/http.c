@@ -388,7 +388,13 @@ PHP_FUNCTION(http_get_last_response_headers)
 	}
 
 	if (EG(active_fiber)) {
-		zval * last_http_headers = zend_fiber_storage_find_zval(NULL, (zend_ulong) &BG(last_http_headers));
+		async_context_t *context = async_context_current();
+
+		if (context == NULL) {
+			RETURN_NULL();
+		}
+
+		zval * last_http_headers = async_context_find_by_key(context, get_last_http_header_key(), false, 0);
 
 		if (last_http_headers) {
 			RETURN_COPY(last_http_headers);
@@ -411,7 +417,9 @@ PHP_FUNCTION(http_clear_last_response_headers)
 	}
 
 	if (EG(active_fiber)) {
-		zend_fiber_storage_unbind(NULL, (zend_ulong) &BG(last_http_headers));
+		zval key;
+		ZVAL_OBJ(&key, get_last_http_header_key());
+		async_current_context_without_key(&key);
 	}
 
 	zval_ptr_dtor(&BG(last_http_headers));

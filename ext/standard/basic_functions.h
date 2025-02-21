@@ -20,6 +20,7 @@
 
 #include <sys/stat.h>
 #include <wchar.h>
+#include <async/php_layer/context.h>
 
 #include "php_filestat.h"
 
@@ -68,6 +69,9 @@ typedef struct _php_basic_globals {
 
 	/* http_fopen_wrapper.c */
 	zval last_http_headers;
+#ifdef PHP_ASYNC
+	zend_object * last_http_headers_key;
+#endif
 
 	/* pageinfo.c */
 	zend_long page_uid;
@@ -115,6 +119,17 @@ PHPAPI extern int basic_globals_id;
 #else
 #define BG(v) (basic_globals.v)
 PHPAPI extern php_basic_globals basic_globals;
+#endif
+
+#ifdef PHP_ASYNC
+zend_always_inline zend_object * get_last_http_header_key(void)
+{
+	if(BG(last_http_headers_key) == NULL) {
+		BG(last_http_headers_key) = (zend_object *) async_key_new_from_string(ZEND_STRL("last_http_headers"));
+	}
+
+	return BG(last_http_headers_key);
+}
 #endif
 
 PHPAPI zend_string *php_getenv(const char *str, size_t str_len);

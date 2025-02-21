@@ -26,7 +26,7 @@ final class Fiber
 
     public function getReturn(): mixed {}
 
-    public function getContext(): FiberContext {}
+    public function getContext(): Async\Context {}
 
     public function defer(callable $callable): void {}
 
@@ -35,23 +35,6 @@ final class Fiber
     public static function getCurrent(): ?Fiber {}
 
     public static function suspend(mixed $value = null): mixed {}
-}
-
-
-/**
- * @strict-properties
- * @not-serializable
- */
-final class FiberContext
-{
-    public function get(string $key): mixed {}
-    public function has(string $key): bool {}
-    public function set(string $key, mixed $value): void {}
-    public function del(string $key): void {}
-
-    public function findObject(string $type): object|null {}
-    public function bindObject(object $object, string|null $type = null, bool $replace = false): void {}
-    public function unbindObject(string $type): void {}
 }
 
 final class FiberError extends Error

@@ -727,9 +727,9 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		}
 
 		// Cleanup user local storage.
-        if(fiber->fiber_storage) {
-        	OBJ_RELEASE(&fiber->fiber_storage->std);
-        	fiber->fiber_storage = NULL;
+        if(fiber->async_context) {
+        	OBJ_RELEASE(&fiber->async_context->std);
+        	fiber->async_context = NULL;
 		}
 
 #endif
@@ -1263,8 +1263,8 @@ ZEND_METHOD(Fiber, getContext)
 {
 	zend_fiber* fiber = (zend_fiber*)Z_OBJ_P(ZEND_THIS);
 
-	if (UNEXPECTED(fiber->fiber_storage == NULL)) {
-		fiber->fiber_storage = zend_fiber_storage_new();
+	if (UNEXPECTED(fiber->async_context == NULL)) {
+		fiber->async_context = async_context_new(NULL, false);
 	}
 
 	RETURN_OBJ_COPY(fiber->fiber_storage);
@@ -1324,138 +1324,6 @@ ZEND_METHOD(Fiber, removeDeferHandler)
 
 #endif
 
-#ifdef PHP_ASYNC
-
-#define THIS_FIBER_CONTEXT ((zend_fiber_storage *)Z_OBJ_P(ZEND_THIS))
-
-ZEND_METHOD(FiberContext, get)
-{
-	zend_string * key;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STR(key)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zval * result = zend_hash_find(&THIS_FIBER_CONTEXT->storage, key);
-
-	if (result == NULL) {
-		RETURN_NULL();
-	}
-
-	RETURN_ZVAL(result, 1, 0);
-}
-
-ZEND_METHOD(FiberContext, has)
-{
-	zend_string * key;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STR(key)
-	ZEND_PARSE_PARAMETERS_END();
-
-	RETURN_BOOL(zend_hash_find(&THIS_FIBER_CONTEXT->storage, key) != NULL);
-}
-
-
-ZEND_METHOD(FiberContext, set)
-{
-	zend_string * key;
-	zval * value;
-
-	ZEND_PARSE_PARAMETERS_START(2, 2)
-		Z_PARAM_STR(key)
-		Z_PARAM_ZVAL(value)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zend_hash_update(&THIS_FIBER_CONTEXT->storage, key, value);
-}
-
-ZEND_METHOD(FiberContext, del)
-{
-	zend_string * key;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STR(key)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zend_hash_del(&THIS_FIBER_CONTEXT->storage, key);
-}
-
-ZEND_METHOD(FiberContext, findObject)
-{
-	zend_string * type;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STR(type)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zend_class_entry *ce = zend_lookup_class_ex(type, NULL, 0);
-
-	if (ce == NULL) {
-		zend_throw_error(zend_ce_type_error, "Type %s not found", ZSTR_VAL(type));
-		RETURN_THROWS();
-	}
-
-	zend_object * result = zend_fiber_storage_find_object(THIS_FIBER_CONTEXT, (zend_ulong) ce);
-
-	if (result == NULL) {
-		RETURN_NULL();
-	}
-
-	RETURN_OBJ_COPY(result);
-}
-
-ZEND_METHOD(FiberContext, bindObject)
-{
-	zend_object * object;
-	zend_string * type;
-	zend_bool replace = 0;
-	zend_class_entry *ce = NULL;
-
-	ZEND_PARSE_PARAMETERS_START(1, 3)
-		Z_PARAM_OBJ(object)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STR(type)
-		Z_PARAM_BOOL(replace)
-	ZEND_PARSE_PARAMETERS_END();
-
-	if (type == NULL) {
-		ce = object->ce;
-	} else {
-		ce = zend_lookup_class(type);
-	}
-
-	if (ce == NULL) {
-		zend_throw_error(zend_ce_type_error, "Type %s not found", ZSTR_VAL(type));
-		RETURN_THROWS();
-	}
-
-	if (zend_fiber_storage_bind(THIS_FIBER_CONTEXT, object, (zend_ulong) ce, replace) == FAILURE) {
-		zend_throw_error(NULL, "Failed to bind object to fiber context");
-		RETURN_THROWS();
-	}
-}
-
-ZEND_METHOD(FiberContext, unbindObject)
-{
-	zend_string * type;
-
-	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STR(type)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zend_class_entry *ce = zend_lookup_class_ex(type, NULL, 0);
-
-	if (ce == NULL) {
-		zend_throw_error(zend_ce_type_error, "Type %s not found", ZSTR_VAL(type));
-		RETURN_THROWS();
-	}
-
-	zend_fiber_storage_unbind(THIS_FIBER_CONTEXT, (zend_ulong) ce);
-}
-
-#endif
-
 ZEND_METHOD(FiberError, __construct)
 {
 	zend_throw_error(
@@ -1464,14 +1332,6 @@ ZEND_METHOD(FiberError, __construct)
 		ZSTR_VAL(Z_OBJCE_P(ZEND_THIS)->name)
 	);
 }
-
-#ifdef PHP_ASYNC
-static void zend_fiber_context_destroy(zend_object *object)
-{
-	zend_fiber_storage *storage = (zend_fiber_storage *) object;
-	zend_hash_destroy(&storage->storage);
-}
-#endif
 
 void zend_register_fiber_ce(void)
 {
@@ -1487,14 +1347,6 @@ void zend_register_fiber_ce(void)
 
 	zend_ce_fiber_error = register_class_FiberError(zend_ce_error);
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
-#ifdef PHP_ASYNC
-	zend_ce_fiber_context = register_class_FiberContext();
-	zend_ce_fiber_context->default_object_handlers = &zend_fiber_context_handlers;
-
-	zend_fiber_context_handlers = std_object_handlers;
-	zend_fiber_context_handlers.dtor_obj = zend_fiber_context_destroy;
-	zend_fiber_context_handlers.clone_obj = NULL;
-#endif
 }
 
 void zend_fiber_init(void)
@@ -1538,9 +1390,9 @@ void zend_fiber_finalize(zend_fiber *fiber)
 		zend_fiber_invoke_shutdown_handlers(fiber);
 	}
 
-	if(fiber->fiber_storage) {
-		OBJ_RELEASE(&fiber->fiber_storage->std);
-		fiber->fiber_storage = NULL;
+	if(fiber->async_context) {
+		OBJ_RELEASE(&fiber->async_context->std);
+		fiber->async_context = NULL;
 	}
 }
 
@@ -1619,11 +1471,11 @@ ZEND_API zend_fiber_storage * zend_fiber_storage_get(zend_fiber *fiber)
 		return NULL;
 	}
 
-	if (fiber->fiber_storage == NULL) {
-		fiber->fiber_storage = zend_fiber_storage_new();
+	if (fiber->async_context == NULL) {
+		fiber->async_context = zend_fiber_storage_new();
 	}
 
-	return fiber->fiber_storage;
+	return fiber->async_context;
 }
 
 zend_object * zend_fiber_storage_find_object(zend_fiber_storage *storage, zend_ulong entry)

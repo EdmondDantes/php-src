@@ -8,8 +8,26 @@ namespace Async;
  * @strict-properties
  * @not-serializable
  */
+final class Key
+{
+    public readonly string $description;
+    public function __construct(string $description = '') {}
+    public function __toString(): string {}
+}
+
+/**
+ * @strict-properties
+ * @not-serializable
+ */
 final class Context
 {
+    public static function current(): Context {}
+    public static function root(): Context {}
+    public static function inherit(Context $parent): Context {}
+
+    public static function currentWithKey(string|object $key, mixed $value): void {}
+    public static function currentWithoutKey(string|object $key): void {}
+
     public function __construct(?Context $parent = null, bool $weakParent = false) {}
 
     public function find(string|object $key): mixed {}

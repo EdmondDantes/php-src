@@ -20,6 +20,8 @@
 #ifndef ZEND_FIBERS_H
 #define ZEND_FIBERS_H
 
+#include <async/php_layer/context.h>
+
 #include "zend_API.h"
 #include "zend_types.h"
 
@@ -99,14 +101,6 @@ struct _zend_fiber_context {
 	void *reserved[ZEND_MAX_RESERVED_RESOURCES];
 };
 
-#ifdef PHP_ASYNC
-typedef struct _zend_fiber_storage {
-	zend_object std;
-	HashTable storage;
-} zend_fiber_storage;
-#endif
-
-
 struct _zend_fiber {
 	/* PHP object handle. */
 	zend_object std;
@@ -144,8 +138,8 @@ struct _zend_fiber {
 //
 #ifdef PHP_ASYNC
 
-	/* Fiber local storage. */
-	zend_fiber_storage *fiber_storage;
+	/* Async fiber context. */
+	async_context_t *async_context;
 
     /* Fiber shutdown_handlers */
 	HashTable *shutdown_handlers;
@@ -244,31 +238,6 @@ ZEND_API zend_long zend_fiber_defer(zend_fiber *fiber, const zend_fiber_defer_ca
 ZEND_API void zend_fiber_defer_callable(zend_fiber *fiber, zval * callable);
 
 ZEND_API void zend_fiber_remove_defer(const zend_fiber *fiber, const zend_long index);
-
-ZEND_API zend_fiber_storage * zend_fiber_storage_get(zend_fiber *fiber);
-
-ZEND_API zend_fiber_storage * zend_fiber_storage_new(void);
-
-zend_always_inline void zend_fiber_storage_add(zend_fiber_storage *storage, zend_string *key, zval *value)
-{
-	zend_hash_update(&storage->storage, key, value);
-}
-
-zend_always_inline void zend_fiber_storage_del(zend_fiber_storage *storage, zend_string * key)
-{
-	zend_hash_del(&storage->storage, key);
-}
-
-zend_always_inline zval * zend_fiber_storage_find(const zend_fiber_storage *storage, zend_string * key)
-{
-	return zend_hash_find(&storage->storage, key);
-}
-
-ZEND_API zend_object * zend_fiber_storage_find_object(zend_fiber_storage *storage, zend_ulong entry);
-ZEND_API zval * zend_fiber_storage_find_zval(zend_fiber_storage *storage, zend_ulong entry);
-ZEND_API zend_result zend_fiber_storage_bind(zend_fiber_storage *storage, zend_object *object, zend_ulong entry, bool replace);
-ZEND_API zend_result zend_fiber_storage_bind_zval(zend_fiber_storage *storage, zval *value, zend_ulong entry, bool replace);
-ZEND_API void zend_fiber_storage_unbind(zend_fiber_storage *storage, zend_ulong entry);
 
 #endif
 

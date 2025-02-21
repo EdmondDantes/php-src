@@ -14,12 +14,39 @@
   +----------------------------------------------------------------------+
 */
 #include "context.h"
+
+#include <zend_fibers.h>
+#include <async/php_async.h>
+
 #include "context_arginfo.h"
 #include "exceptions.h"
 
 #define METHOD(name) PHP_METHOD(Async_Context, name)
 #define THIS_CONTEXT ((async_context_t *)(Z_OBJ_P(ZEND_THIS)))
+#define THIS_KEY ((async_key_t *)(Z_OBJ_P(ZEND_THIS)))
 #define RECURSION_LIMIT 127
+
+METHOD(current)
+{
+	async_context_t *context = async_context_current();
+
+	if (context == NULL) {
+		RETURN_THROWS();
+	}
+
+	GC_ADDREF(&context->std);
+	RETURN_OBJ(&context->std);
+}
+
+METHOD(currentWithKey)
+{
+
+}
+
+METHOD(currentWithoutKey)
+{
+
+}
 
 METHOD(__construct)
 {
@@ -220,9 +247,9 @@ METHOD(withKey)
 	async_context_t *new_context = NULL;
 
 	if (object_key != NULL) {
-		new_context = async_context_with_key(THIS_CONTEXT, object_key, value);
+		new_context = async_context_with_key(THIS_CONTEXT, object_key, value, true);
 	} else if (string_key != NULL) {
-		new_context = async_context_with_str(THIS_CONTEXT, string_key, value);
+		new_context = async_context_with_str(THIS_CONTEXT, string_key, value, true);
 	}
 
 	if (new_context == NULL) {
@@ -245,7 +272,7 @@ METHOD(withoutKey)
 		RETURN_THROWS();
 	}
 
-	async_context_t *new_context = async_context_without_key(THIS_CONTEXT, key);
+	async_context_t *new_context = async_context_without_key(THIS_CONTEXT, key, true);
 
 	if (UNEXPECTED(new_context == NULL)) {
 		RETURN_THROWS();
@@ -270,6 +297,22 @@ METHOD(getParent)
 METHOD(isEmpty)
 {
 	RETURN_BOOL(zend_hash_num_elements(THIS_CONTEXT->map) == 0);
+}
+
+PHP_METHOD(Async_Key, __constructor)
+{
+	zend_string *name;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STR(name)
+    ZEND_PARSE_PARAMETERS_END();
+
+	ZVAL_STR(&THIS_KEY->description, zend_string_dup(name, 0));
+}
+
+PHP_METHOD(Async_Key, __toString)
+{
+    RETURN_STR(zend_string_copy(&THIS_KEY->description));
 }
 
 static zend_object_handlers async_context_handlers;
@@ -300,6 +343,9 @@ void async_register_context_ce(void)
 	async_context_handlers = std_object_handlers;
 	async_context_handlers.dtor_obj = async_context_object_destroy;
 	async_context_handlers.clone_obj = async_context_clone;
+
+	async_ce_key = register_class_Async_Key();
+	async_ce_key->ce_flags |= ZEND_ACC_FINAL;
 }
 
 async_context_t * async_context_new(async_context_t * parent, const bool is_weak_ref)
@@ -408,9 +454,16 @@ zval * async_context_find_by_str(async_context_t * context, zend_string * key, b
 	}
 }
 
-async_context_t * async_context_with_key(async_context_t * context, zend_object * key, zval * value)
+async_context_t * async_context_with_key(async_context_t * context, zend_object * key, zval * value, bool copy_on_write)
 {
-	async_context_t * new_context = (async_context_t *) async_context_clone(&context->std);
+	async_context_t * new_context = NULL;
+
+	if (false == copy_on_write && GC_REFCOUNT(&context->std) == 1) {
+		new_context = context;
+		GC_ADDREF(&new_context->std);
+	} else {
+		new_context = (async_context_t *) async_context_clone(&context->std);
+	}
 
 	if (UNEXPECTED(zend_hash_index_update(new_context->map, key->handle, value) == NULL)) {
 		OBJ_RELEASE(&new_context->std);
@@ -432,9 +485,16 @@ async_context_t * async_context_with_key(async_context_t * context, zend_object 
 	return new_context;
 }
 
-async_context_t * async_context_with_str(async_context_t * context, zend_string * key, zval * value)
+async_context_t * async_context_with_str(async_context_t * context, zend_string * key, zval * value, bool copy_on_write)
 {
-	async_context_t * new_context = (async_context_t *) async_context_clone(&context->std);
+	async_context_t * new_context = NULL;
+
+	if (false == copy_on_write && GC_REFCOUNT(&context->std) == 1) {
+		new_context = context;
+		GC_ADDREF(&new_context->std);
+	} else {
+		new_context = (async_context_t *) async_context_clone(&context->std);
+	}
 
 	if (UNEXPECTED(zend_hash_update(new_context->map, key, value) == NULL)) {
 		OBJ_RELEASE(&new_context->std);
@@ -482,9 +542,16 @@ zend_object* async_context_clone(zend_object * object)
 	return &context->std;
 }
 
-async_context_t * async_context_without_key(async_context_t * context, zval * key)
+async_context_t * async_context_without_key(async_context_t * context, zval * key, bool copy_on_write)
 {
-	async_context_t * new_context = (async_context_t *) async_context_clone(&context->std);
+	async_context_t * new_context = NULL;
+
+	if (false == copy_on_write && GC_REFCOUNT(&context->std) == 1) {
+		new_context = context;
+		GC_ADDREF(&new_context->std);
+	} else {
+		new_context = (async_context_t *) async_context_clone(&context->std);
+	}
 
 	if (Z_TYPE_P(key) == IS_STRING) {
 		zend_hash_del(new_context->map, Z_STR_P(key));
@@ -495,4 +562,68 @@ async_context_t * async_context_without_key(async_context_t * context, zval * ke
 	}
 
 	return new_context;
+}
+
+async_context_t * async_context_current(void)
+{
+	if (EG(active_fiber)) {
+
+		if (EG(active_fiber)->async_context == NULL) {
+			EG(active_fiber)->async_context = async_context_new(NULL, false);
+		}
+
+		return EG(active_fiber)->async_context;
+	} else {
+
+		if (ASYNC_G(root_context) == NULL) {
+			ASYNC_G(root_context) = async_context_new(NULL, false);
+		}
+
+		return ASYNC_G(root_context);
+	}
+}
+
+void async_current_context_with_key(zval * value, zend_object * object, zend_string * string, zval * key)
+{
+	async_context_t * context = async_current_context();
+
+	if (UNEXPECTED(context == NULL)) {
+		return;
+	}
+
+	if (object != NULL) {
+		async_current_context_replace(async_context_with_key(context, object, value, false));
+	} else if (string != NULL) {
+		async_current_context_replace(async_context_with_str(context, string, value, false));
+	} else if (key != NULL && Z_TYPE_P(key) == IS_STRING) {
+		async_current_context_replace(async_context_with_str(context, Z_STR_P(key), value, false));
+	} else if (key != NULL && Z_TYPE_P(key) == IS_OBJECT) {
+		async_current_context_replace(async_context_with_key(context, Z_OBJ_P(key), value, false));
+	}
+}
+
+void async_current_context_without_key(zval * key)
+{
+	async_context_t * context = async_current_context();
+
+	if (UNEXPECTED(context == NULL)) {
+		return;
+	}
+
+	async_current_context_replace(async_context_without_key(context, key, false));
+}
+
+async_key_t * async_key_new(zend_string * description)
+{
+	DEFINE_ZEND_INTERNAL_OBJECT(async_key_t, key, async_ce_key);
+    ZVAL_STR_COPY(&key->description, description);
+    return key;
+}
+
+async_key_t * async_key_new_from_string(char * description, size_t len)
+{
+	zend_string *str = zend_string_init(description, len, 0);
+    async_key_t *key = async_key_new(str);
+    zend_string_release(str);
+    return key;
 }
