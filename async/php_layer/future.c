@@ -131,7 +131,7 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 			if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {
 				async_resume_notify((async_resume_t *) Z_OBJ(resolved_callback), notifier, &result, &error);
 			} else if (Z_TYPE(resolved_callback) == IS_OBJECT) {
-				async_callback_notify(Z_OBJ(resolved_callback), &notifier->std, &result, &error);
+				async_closure_notify(Z_OBJ(resolved_callback), &notifier->std, &result, &error);
 			}
 
 			zval_ptr_dtor(&resolved_callback);
@@ -441,7 +441,7 @@ static void future_state_callback(zend_object * callback, zend_object *notifier,
 zend_always_inline void future_state_subscribe_to(async_future_state_t * from_future_state, async_future_state_t * to_future_state)
 {
 	if (from_future_state->callback == NULL) {
-		from_future_state->callback = (zend_object *) async_callback_new_with_owner(
+		from_future_state->callback = (zend_object *) async_closure_new_with_owner(
 			future_state_callback, (zend_object *)from_future_state
 		);
 	}

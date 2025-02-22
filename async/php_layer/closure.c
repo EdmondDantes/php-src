@@ -27,6 +27,8 @@
 
 static zend_object_handlers async_closure_handlers;
 
+zend_always_inline void closure_init(async_closure_t * closure);
+
 METHOD(__construct)
 {
 	zval* callable;
@@ -40,10 +42,7 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	if (EXPECTED(EG(active_fiber) != NULL)) {
-		THIS->fiber = EG(active_fiber);
-	}
-
+	closure_init(THIS);
 	zval_property_copy(&THIS->callback, callable);
 }
 
@@ -101,7 +100,7 @@ static void async_closure_object_destroy(zend_object* object)
 	}
 }
 
-void async_register_callback_ce(void)
+void async_register_closure_ce(void)
 {
 	async_ce_closure = register_class_Async_Closure();
 	async_ce_closure->default_object_handlers = &async_closure_handlers;
@@ -111,7 +110,21 @@ void async_register_callback_ce(void)
 	async_closure_handlers.clone_obj = NULL;
 }
 
-zend_object * async_callback_new(const async_callback_function_t callback)
+zend_always_inline void closure_init(async_closure_t * closure)
+{
+	ZVAL_UNDEF(&closure->callback);
+	closure->resume = NULL;
+	closure->owner = NULL;
+
+	closure->notifiers = zend_new_array(8);
+	closure->fiber = EG(active_fiber);
+
+	if (closure->fiber != NULL) {
+		GC_ADDREF(&closure->fiber->std);
+	}
+}
+
+zend_object * async_closure_new(const async_callback_function_t callback)
 {
 	zval object;
 
@@ -122,15 +135,17 @@ zend_object * async_callback_new(const async_callback_function_t callback)
 
 	async_closure_t * closure = (async_closure_t *) Z_OBJ(object);
 
+	closure_init(closure);
 	ZVAL_PTR(&closure->callback, callback);
 
 	return Z_OBJ_P(&object);
 }
 
-async_closure_t * async_callback_new_with_owner(const async_callback_function_t callback, zend_object * owner)
+async_closure_t * async_closure_new_with_owner(const async_callback_function_t callback, zend_object * owner)
 {
 	async_closure_t * object = (async_closure_t *) zend_object_internal_create(sizeof(async_closure_t), async_ce_closure);
 
+	closure_init(object);
 	ZVAL_PTR(&object->callback, callback);
 	object->owner = owner;
 
@@ -143,7 +158,7 @@ async_closure_t * async_callback_new_with_owner(const async_callback_function_t 
  * Such a binding can be useful for debugging to know which Callbacks affect which events.
  * This code is available only within the PHP Core and is not accessible from userland.
  */
-zend_result async_callback_bind_resume(zend_object* object, const zval* resume)
+zend_result async_closure_bind_resume(zend_object* object, const zval* resume)
 {
 	async_closure_t * closure = (async_closure_t *) object;
 
@@ -168,7 +183,7 @@ zend_result async_callback_bind_resume(zend_object* object, const zval* resume)
  * The method links the notifier and the callback together.
  * The method is always called from the notifier when someone attempts to add a callback to the notifier.
  */
-void async_callback_registered(zend_object* object, zend_object* notifier)
+void async_closure_registered(zend_object* object, zend_object* notifier)
 {
     async_closure_t * closure = (async_closure_t *) object;
 
@@ -187,7 +202,7 @@ void async_callback_registered(zend_object* object, zend_object* notifier)
  *
  * The method returns a created ZVAL and transfers ownership.
  */
-zend_object * async_callback_resolve_resume(const zend_object* object)
+zend_object * async_closure_resolve_resume(const zend_object* object)
 {
 	const async_closure_t * closure = (const async_closure_t *) object;
 
@@ -213,7 +228,7 @@ zend_object * async_callback_resolve_resume(const zend_object* object)
  *
  * The method calls the 'callable' with the notifier, event, and error.
  */
-void async_callback_notify(zend_object* object, zend_object* notifier, zval* event, zval* error)
+void async_closure_notify(zend_object* object, zend_object* notifier, zval* event, zval* error)
 {
 	async_closure_t * closure = (async_closure_t *) object;
 	zval * defer_callback = NULL;

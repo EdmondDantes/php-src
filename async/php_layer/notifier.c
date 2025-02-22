@@ -63,6 +63,8 @@ METHOD(removeCallback)
 
 METHOD(toString)
 {
+	ZEND_PARSE_PARAMETERS_NONE();
+
 	reactor_notifier_t * notifier = (reactor_notifier_t *) Z_OBJ_P(ZEND_THIS);
 
 	if (Z_TYPE(notifier->to_string) == IS_PTR) {
@@ -263,7 +265,7 @@ void async_notifier_add_callback(zend_object* object, zval* callback)
 
 	// Link the callback and the notifier together.
 	if (Z_OBJ_P(callback)->ce != async_ce_resume) {
-		async_callback_registered(Z_OBJ_P(callback), object);
+		async_closure_registered(Z_OBJ_P(callback), object);
     }
 }
 
@@ -336,7 +338,7 @@ void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * e
 				if (Z_TYPE(resolved_callback) == IS_OBJECT && Z_OBJ_P(&resolved_callback)->ce == async_ce_resume) {
 					async_resume_notify((async_resume_t *) Z_OBJ(resolved_callback), notifier, event, error);
 				} else if (Z_TYPE(resolved_callback) == IS_OBJECT) {
-					async_callback_notify(Z_OBJ(resolved_callback), &notifier->std, event, error);
+					async_closure_notify(Z_OBJ(resolved_callback), &notifier->std, event, error);
 				}
 
 				zval_ptr_dtor(&resolved_callback);

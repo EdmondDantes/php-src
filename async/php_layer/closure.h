@@ -46,12 +46,12 @@ typedef struct {
 
 typedef void (*async_callback_function_t)(zend_object * callback, zend_object * notifier, zval* event, zval* error);
 
-void async_register_callback_ce(void);
-zend_object * async_callback_new(async_callback_function_t callback);
-async_closure_t * async_callback_new_with_owner(async_callback_function_t callback, zend_object * owner);
-void async_callback_notify(zend_object *object, zend_object *notifier, zval *event, zval *error);
-zend_result async_callback_bind_resume(zend_object* object, const zval* resume);
-void async_callback_registered(zend_object* object, zend_object* notifier);
-zend_object* async_callback_resolve_resume(const zend_object* object);
+void async_register_closure_ce(void);
+zend_object * async_closure_new(async_callback_function_t callback);
+async_closure_t * async_closure_new_with_owner(async_callback_function_t callback, zend_object * owner);
+void async_closure_notify(zend_object *object, zend_object *notifier, zval *event, zval *error);
+zend_result async_closure_bind_resume(zend_object* object, const zval* resume);
+void async_closure_registered(zend_object* object, zend_object* notifier);
+zend_object* async_closure_resolve_resume(const zend_object* object);
 
 #endif //ASYNC_CALLBACK_H

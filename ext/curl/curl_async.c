@@ -222,7 +222,7 @@ static int curl_timer_cb(CURLM *multi, const long timeout_ms, void *user_p)
 	}
 
 	if (timer_callback_obj == NULL) {
-		timer_callback_obj = async_callback_new(timer_callback);
+		timer_callback_obj = async_closure_new(timer_callback);
 
 		if (timer_callback_obj == NULL) {
             OBJ_RELEASE(&timer->std);

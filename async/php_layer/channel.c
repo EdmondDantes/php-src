@@ -550,7 +550,7 @@ static bool emit_data_pushed(async_channel_t *channel)
 				}
 
 			} else if (Z_TYPE(resolved_callback) == IS_OBJECT) {
-				async_callback_notify(Z_OBJ(resolved_callback), &channel->notifier->std, &event, NULL);
+				async_closure_notify(Z_OBJ(resolved_callback), &channel->notifier->std, &event, NULL);
 			}
 
 			zval_ptr_dtor(&resolved_callback);
