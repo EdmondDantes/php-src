@@ -390,7 +390,6 @@ void async_register_context_ce(void)
 	async_context_handlers.clone_obj = async_context_clone;
 
 	async_ce_key = register_class_Async_Key();
-	async_ce_key->ce_flags |= ZEND_ACC_FINAL;
 
 	async_ce_context_exception = register_class_Async_ContextException(zend_ce_exception);
 }
@@ -534,6 +533,8 @@ void async_context_set_key(async_context_t * context, zend_object * key, zval * 
 		return;
 	}
 
+	Z_TRY_ADDREF_P(value);
+
 	zval z_key;
 	ZVAL_OBJ(&z_key, key);
 
@@ -560,7 +561,7 @@ void async_context_set_str(async_context_t * context, zend_string * key, zval * 
 		return;
 	}
 
-	Z_TRY_ADDREF(value);
+	Z_TRY_ADDREF_P(value);
 }
 
 zend_object* async_context_clone(zend_object * object)
