@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: c30bfd5bba0cfa429122de3d0057f13f31a55f76 */
+ * Stub hash: 9ca94dac63b64a33e9542ca16efe825b2c690f22 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -20,7 +20,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_FiberHandle_isTerminated arginfo_class_Async_PollHandle_isListening
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FiberHandle_getContext, 1, 0, FiberContext, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FiberHandle_fiberContext, 0, 0, Async\\Context, 1)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_FiberHandle_cancel arginfo_class_Async_PollHandle_stop
@@ -109,7 +109,7 @@ ZEND_METHOD(Async_FiberHandle, isStarted);
 ZEND_METHOD(Async_FiberHandle, isSuspended);
 ZEND_METHOD(Async_FiberHandle, isRunning);
 ZEND_METHOD(Async_FiberHandle, isTerminated);
-ZEND_METHOD(Async_FiberHandle, getContext);
+ZEND_METHOD(Async_FiberHandle, fiberContext);
 ZEND_METHOD(Async_FiberHandle, cancel);
 ZEND_METHOD(Async_FiberHandle, cancelWith);
 ZEND_METHOD(Async_FiberHandle, defer);
@@ -149,7 +149,7 @@ static const zend_function_entry class_Async_FiberHandle_methods[] = {
 	ZEND_ME(Async_FiberHandle, isSuspended, arginfo_class_Async_FiberHandle_isSuspended, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, isRunning, arginfo_class_Async_FiberHandle_isRunning, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, isTerminated, arginfo_class_Async_FiberHandle_isTerminated, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_FiberHandle, getContext, arginfo_class_Async_FiberHandle_getContext, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_FiberHandle, fiberContext, arginfo_class_Async_FiberHandle_fiberContext, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, cancel, arginfo_class_Async_FiberHandle_cancel, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, cancelWith, arginfo_class_Async_FiberHandle_cancelWith, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_FiberHandle, defer, arginfo_class_Async_FiberHandle_defer, ZEND_ACC_PUBLIC)

@@ -48,7 +48,7 @@ final class FiberHandle extends Notifier
 
     public function isTerminated(): bool {}
 
-    public function &getContext(): \FiberContext {}
+    public function fiberContext(): ?Context {}
 
     public function cancel(): void {}
 

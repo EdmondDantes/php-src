@@ -84,14 +84,14 @@ PHP_METHOD(Async_FiberHandle, isTerminated)
 	RETURN_BOOL(fiber->context.status == ZEND_FIBER_STATUS_DEAD);
 }
 
-PHP_METHOD(Async_FiberHandle, getContext)
+PHP_METHOD(Async_FiberHandle, fiberContext)
 {
 	zend_fiber *fiber = GET_FIBER_FROM_HANDLE();
 
 	RETURN_IF_FIBER_INTERNAL_ERROR(fiber);
 
 	if (fiber->async_context == NULL) {
-		fiber->async_context = async_context_new(NULL, false);
+		RETURN_NULL();
 	}
 
 	RETURN_OBJ_COPY((zend_object *)fiber->async_context);
