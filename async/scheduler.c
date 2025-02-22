@@ -352,7 +352,7 @@ static ZEND_FUNCTION(microtasks_executor)
 	while (true) {
 
 		while (circular_buffer_is_not_empty(buffer)) {
-			async_microtask_t * task;
+			async_microtask_t * task = NULL;
 			(*handled)++;
 			circular_buffer_pop(buffer, &task);
 
@@ -706,12 +706,12 @@ ZEND_API void async_scheduler_add_microtask(zval *z_microtask)
 	microtask->context = async_context_current(false, true);
 
 	zval_copy(&microtask->callable, z_microtask);
-	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
+	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
 }
 
 ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
 {
-	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
+	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
 	microtask->ref_count++;
 
 	if (microtask->context == NULL) {
@@ -736,7 +736,7 @@ ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t ha
 	microtask->task.ref_count = 1;
 	microtask->task.context = async_context_current(false, true);
 
-	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
+	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
 }
 
 ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
@@ -784,7 +784,7 @@ ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 	microtask->task.ref_count = 1;
 	microtask->task.context = async_context_current(false, true);
 
-	circular_buffer_push(&ASYNC_G(microtasks), microtask, true);
+	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
 }
 
 ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
