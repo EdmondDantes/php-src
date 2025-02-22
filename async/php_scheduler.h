@@ -16,7 +16,6 @@
 #ifndef PHP_SCHEDULER_H
 #define PHP_SCHEDULER_H
 
-#include "php.h"
 #include "php_layer/context.h"
 
 typedef struct _async_microtask_s async_microtask_t;
@@ -74,7 +73,7 @@ typedef struct _async_function_microtask_s {
  *
  * @param no_wait The parameter indicates whether it is necessary to switch to kernel mode to wait for I/O events.
  */
-typedef zend_bool (*async_callbacks_handler_t)(zend_bool no_wait);
+typedef bool (*async_callbacks_handler_t)(bool no_wait);
 
 /**
  * async_resume_next_fiber_handler_t - Function pointer type for resuming the next fiber in the queue.

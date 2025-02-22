@@ -284,7 +284,7 @@ static void on_timer_event(uv_timer_t *handle)
 	IF_EXCEPTION_STOP;
 }
 
-static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const zend_bool is_periodic)
+static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const bool is_periodic)
 {
 	STARTUP_REACTOR_IF_NEED
 
@@ -1142,7 +1142,7 @@ static void libuv_shutdown(void)
 	}
 }
 
-static zend_bool execute_callbacks(const zend_bool no_wait)
+static bool execute_callbacks(const bool no_wait)
 {
 	bool has_handles = uv_run(UVLOOP, no_wait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
 
@@ -1159,7 +1159,7 @@ static void libuv_loop_stop(void)
 	uv_stop(UVLOOP);
 }
 
-static zend_bool libuv_loop_alive(void)
+static bool libuv_loop_alive(void)
 {
 	if (UVLOOP == NULL) {
 		return false;

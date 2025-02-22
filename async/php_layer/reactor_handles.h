@@ -18,7 +18,6 @@
 
 #include <php_network.h>
 
-#include "php.h"
 #include "zend_types.h"
 #include "notifier.h"
 

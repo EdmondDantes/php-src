@@ -19,7 +19,6 @@
 #include <async/php_scheduler.h>
 
 #include "future.h"
-#include "php.h"
 
 BEGIN_EXTERN_C()
 

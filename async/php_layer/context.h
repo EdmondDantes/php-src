@@ -16,7 +16,6 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
-#include "php.h"
 #include "zend_common.h"
 
 BEGIN_EXTERN_C()

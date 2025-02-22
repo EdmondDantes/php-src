@@ -16,7 +16,7 @@
 #ifndef ASYNC_CIRCULAR_BUFFER_H
 #define ASYNC_CIRCULAR_BUFFER_H
 
-#include "php.h"
+#include <zend_types.h>
 #include "allocator.h"
 
 typedef struct _circular_buffer_s circular_buffer_t;
@@ -59,9 +59,9 @@ void circular_buffer_dtor(circular_buffer_t *buffer);
 circular_buffer_t *circular_buffer_new(const size_t count, const size_t item_size, const allocator_t *allocator);
 void circular_buffer_destroy(circular_buffer_t *buffer);
 
-zend_bool circular_buffer_is_full(const circular_buffer_t *buffer);
-zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer);
-zend_bool circular_buffer_is_not_empty(const circular_buffer_t *buffer);
+bool circular_buffer_is_full(const circular_buffer_t *buffer);
+bool circular_buffer_is_empty(const circular_buffer_t *buffer);
+bool circular_buffer_is_not_empty(const circular_buffer_t *buffer);
 zend_result circular_buffer_push(circular_buffer_t *buffer, const void *value, bool should_resize);
 zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value);
 size_t circular_buffer_count(const circular_buffer_t *buffer);

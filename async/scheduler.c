@@ -505,7 +505,7 @@ static void execute_microtasks(void)
 	);
 }
 
-static zend_bool handle_callbacks(zend_bool no_wait)
+static bool handle_callbacks(bool no_wait)
 {
 	async_throw_error("Event Loop API method handle_callbacks not implemented");
 	return false;
@@ -1096,7 +1096,7 @@ void async_scheduler_launch(void)
 
 	zend_try
 	{
-		zend_bool has_handles = true;
+		bool has_handles = true;
 
 		do {
 

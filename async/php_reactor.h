@@ -16,7 +16,6 @@
 #ifndef PHP_REACTOR_H
 #define PHP_REACTOR_H
 
-#include "php.h"
 #include "php_async.h"
 #include "Zend/zend_types.h"
 #include "php_layer/reactor_handles.h"
@@ -49,13 +48,13 @@ typedef void (*reactor_stop_t)(void);
  * reactor_loop_alive_t - Function pointer type for checking if the event loop is active.
  * This function returns whether the event loop still has active handles or tasks.
  */
-typedef zend_bool (*reactor_loop_alive_t)(void);
+typedef bool (*reactor_loop_alive_t)(void);
 
 /**
  * reactor_is_active_method_t - Function pointer type for checking if the event loop is active.
  * This function returns whether the event loop is currently running.
  */
-typedef zend_bool (*reactor_is_active_method_t)(void);
+typedef bool (*reactor_is_active_method_t)(void);
 
 /**
  * reactor_handle_method_t - Function pointer type for operating on an event handle.
@@ -67,7 +66,7 @@ typedef void (*reactor_handle_method_t)(reactor_handle_t *handle);
  * reactor_is_listening_method_t - Function pointer type for checking if a handle is listening.
  * This function returns whether the handle is currently listening for events.
  */
-typedef zend_bool (*reactor_is_listening_method_t)(reactor_handle_t *handle);
+typedef bool (*reactor_is_listening_method_t)(reactor_handle_t *handle);
 
 /**
  * reactor_handle_from_resource_t - Creates an event handle from a resource.
@@ -91,7 +90,7 @@ typedef reactor_handle_t* (*reactor_socket_new_t)(php_socket_t fd, zend_ulong ev
  * reactor_timer_new_t - Creates a new timeout event handle.
  * Triggers an event after the specified timeout duration.
  */
-typedef reactor_handle_t* (*reactor_timer_new_t)(const zend_ulong timeout, const zend_bool is_periodic);
+typedef reactor_handle_t* (*reactor_timer_new_t)(const zend_ulong timeout, const bool is_periodic);
 
 /**
  * reactor_signal_new_t - Creates a new signal event handle.
@@ -171,7 +170,7 @@ typedef int (* reactor_exec_t)(
 
 BEGIN_EXTERN_C()
 
-ZEND_API zend_bool reactor_is_enabled(void);
+ZEND_API bool reactor_is_enabled(void);
 ZEND_API void reactor_add_handle(reactor_handle_t *handle);
 ZEND_API void async_execute_callable_in_fiber(zval * callable);
 ZEND_API void async_execute_callbacks_in_fiber(HashTable * callbacks);

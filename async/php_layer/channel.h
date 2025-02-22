@@ -17,7 +17,6 @@
 #define ASYNC_CHANNEL_H
 
 #include "notifier.h"
-#include "php.h"
 #include "zend_common.h"
 #include "async/internal/circular_buffer.h"
 

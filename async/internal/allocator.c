@@ -14,7 +14,8 @@
   +----------------------------------------------------------------------+
 */
 #include "allocator.h"
-#include "php.h"
+
+#include <zend_alloc.h>
 
 void *zend_std_alloc(size_t size)
 {

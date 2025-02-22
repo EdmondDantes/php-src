@@ -13,7 +13,6 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "php.h"
 #include "php_async.h"
 
 #include <php_network.h>

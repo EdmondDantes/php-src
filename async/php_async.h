@@ -16,7 +16,7 @@
 #ifndef PHP_ASYNC_H
 #define PHP_ASYNC_H
 
-#include "php.h"
+#include "zend_portability.h"
 #include "php_network.h"
 #include "async/php_scheduler.h"
 #include "async/internal/circular_buffer.h"

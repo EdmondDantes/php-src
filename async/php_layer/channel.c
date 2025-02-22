@@ -123,7 +123,7 @@ METHOD(send)
 	zval *data;
 	zend_long timeout = 0;
 	zend_object *cancellation = NULL;
-	zend_bool waitOnFull = true;
+	bool waitOnFull = true;
 
 	ZEND_PARSE_PARAMETERS_START(1, 4)
 		Z_PARAM_ZVAL(data)

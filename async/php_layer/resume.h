@@ -16,6 +16,7 @@
 #ifndef ASYNC_RESUME_H
 #define ASYNC_RESUME_H
 
+#include "zend_globals.h"
 #include "notifier.h"
 
 typedef enum {

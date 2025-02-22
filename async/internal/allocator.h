@@ -16,7 +16,7 @@
 #ifndef ASYNC_ALLOCATOR_H
 #define ASYNC_ALLOCATOR_H
 
-#include "php.h"
+#include <stddef.h>
 
 typedef struct _allocator_s allocator_t;
 

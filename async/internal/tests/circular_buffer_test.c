@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 #include "circular_buffer_test.h"
-#include "php.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

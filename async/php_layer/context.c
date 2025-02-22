@@ -30,7 +30,7 @@
 
 METHOD(current)
 {
-	zend_bool auto_create = false;
+	bool auto_create = false;
 
 	ZEND_PARSE_PARAMETERS_START(0, 1)
 		Z_PARAM_OPTIONAL
@@ -61,7 +61,7 @@ METHOD(newCurrent)
 
 METHOD(overrideCurrent)
 {
-	zend_bool is_weak_ref = false;
+	bool is_weak_ref = false;
 
 	ZEND_PARSE_PARAMETERS_START(0, 1)
 		Z_PARAM_OPTIONAL
@@ -282,7 +282,7 @@ METHOD(setKey)
 {
 	zend_object *object_key = NULL;
 	zend_string *string_key = NULL;
-	zend_bool replace = 0;
+	bool replace = 0;
 	zval *value;
 
 	ZEND_PARSE_PARAMETERS_START(2, 3)

@@ -34,7 +34,7 @@ void reactor_shutdown(void)
  * The method returns TRUE if the specified handle is already waiting in the event loop.
  * This check can detect complex errors in the application's operation.
  */
-static zend_always_inline zend_bool reactor_handle_is_waiting(const zend_object *handle)
+static zend_always_inline bool reactor_handle_is_waiting(const zend_object *handle)
 {
 	// TODO: extract real handle->handle from zend_object
 	zval *result = zend_hash_index_find(&ASYNC_G(linked_handles), handle->handle);
@@ -56,7 +56,7 @@ void reactor_add_handle(reactor_handle_t *handle)
 	reactor_add_handle_ex_fn(handle);
 }
 
-static zend_bool reactor_is_active_no(void)
+static bool reactor_is_active_no(void)
 {
 	return false;
 }
@@ -66,13 +66,13 @@ static void reactor_handle_method_no(reactor_handle_t *handle)
 	async_throw_error("Reactor API method handle_method not implemented");
 }
 
-static zend_bool reactor_is_listening_no(const reactor_handle_t *handle)
+static bool reactor_is_listening_no(const reactor_handle_t *handle)
 {
 	async_warning("Reactor API method is_listening not implemented");
 	return false;
 }
 
-ZEND_API zend_bool reactor_is_enabled(void)
+ZEND_API bool reactor_is_enabled(void)
 {
 	return reactor_startup_fn != reactor_startup;
 }
@@ -95,7 +95,7 @@ static reactor_handle_t* reactor_socket_new(php_socket_t fd, zend_ulong events)
 	return NULL;
 }
 
-static reactor_handle_t* reactor_timeout_new(zend_ulong timeout, zend_bool is_periodic)
+static reactor_handle_t* reactor_timeout_new(zend_ulong timeout, bool is_periodic)
 {
 	async_throw_error("Reactor API method timeout_new not implemented");
 	return NULL;

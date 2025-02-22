@@ -16,7 +16,8 @@
 #ifndef ASYNC_EXCEPTIONS_H
 #define ASYNC_EXCEPTIONS_H
 
-#include <php.h>
+#include <zend_portability.h>
+#include <zend_property_hooks.h>
 
 BEGIN_EXTERN_C()
 

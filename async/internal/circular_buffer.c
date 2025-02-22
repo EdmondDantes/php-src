@@ -15,6 +15,9 @@
 */
 #include "circular_buffer.h"
 
+#include <zend.h>
+#include <zend_errors.h>
+
 #define MINIMUM_COUNT 4
 
 #ifdef ASYNC_UNIT_TESTS
@@ -349,12 +352,12 @@ zend_result circular_buffer_pop(circular_buffer_t *buffer, void *value)
 /**
  * Check if the circular buffer is empty.
  */
-zend_bool circular_buffer_is_empty(const circular_buffer_t *buffer)
+bool circular_buffer_is_empty(const circular_buffer_t *buffer)
 {
   	return buffer->head == buffer->tail;
 }
 
-zend_bool circular_buffer_is_not_empty(const circular_buffer_t *buffer)
+bool circular_buffer_is_not_empty(const circular_buffer_t *buffer)
 {
 	return buffer->head != buffer->tail;
 }
@@ -362,7 +365,7 @@ zend_bool circular_buffer_is_not_empty(const circular_buffer_t *buffer)
 /**
  * Check if the circular buffer is full.
  */
-zend_bool circular_buffer_is_full(const circular_buffer_t *buffer)
+bool circular_buffer_is_full(const circular_buffer_t *buffer)
 {
 	if (buffer->head == NULL) {
 		return false;

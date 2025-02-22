@@ -19,7 +19,6 @@
 #include <zend_exceptions.h>
 
 #include "context.h"
-#include "php.h"
 #include "notifier.h"
 
 BEGIN_EXTERN_C()

@@ -17,7 +17,7 @@
 #ifndef ASYNC_NOTIFIER_H
 #define ASYNC_NOTIFIER_H
 
-#include "php.h"
+#include "zend.h"
 
 BEGIN_EXTERN_C()
 

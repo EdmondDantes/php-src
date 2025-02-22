@@ -221,7 +221,7 @@ PHP_FUNCTION(Async_awaitFirst)
 	THROW_IF_REACTOR_DISABLED
 
 	zval * futures;
-	zend_bool ignoreErrors = false;
+	bool ignoreErrors = false;
 	zend_object * cancellation = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 3)
@@ -266,7 +266,7 @@ PHP_FUNCTION(Async_awaitAnyN)
 
 	zend_long count;
 	zval * futures;
-	zend_bool ignoreErrors = false;
+	bool ignoreErrors = false;
 	zend_object * cancellation = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(2, 4)
@@ -318,7 +318,7 @@ PHP_FUNCTION(Async_awaitAll)
 	THROW_IF_REACTOR_DISABLED
 
 	zval * futures;
-	zend_bool ignoreErrors = false;
+	bool ignoreErrors = false;
 	zend_object * cancellation = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 3)

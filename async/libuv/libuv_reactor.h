@@ -16,7 +16,6 @@
 #ifndef ASYNC_LIBUV_REACTOR_H
 #define ASYNC_LIBUV_REACTOR_H
 
-#include "php.h"
 #include "zend_types.h"
 #include <libuv/uv.h>
 #include "../php_async.h"
