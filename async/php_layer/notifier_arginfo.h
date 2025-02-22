@@ -1,11 +1,11 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6b83830881d0f8ee465d77a812ab80156e039172 */
+ * Stub hash: a8ef335f5eb3fbcf609a0744c28f680e4c74f74b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_addCallback, 0, 1, IS_STATIC, 0)
-	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
+	ZEND_ARG_OBJ_INFO(0, callback, Async\\Closure, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Notifier_removeCallback arginfo_class_Async_Notifier_addCallback

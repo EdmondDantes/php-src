@@ -60,6 +60,7 @@ typedef struct
 
 ZEND_API zend_class_entry * async_ce_context;
 ZEND_API zend_class_entry * async_ce_key;
+ZEND_API zend_class_entry * async_ce_context_exception;
 
 void async_register_context_ce(void);
 
@@ -67,14 +68,14 @@ ZEND_API async_context_t * async_context_new(async_context_t * parent, const boo
 ZEND_API zval * async_context_find_by_key(async_context_t * context, zend_object * key, bool local, int recursion);
 ZEND_API zval * async_context_find_by_str(async_context_t * context, zend_string * key, bool local, int recursion);
 
-ZEND_API async_context_t * async_context_with_key(async_context_t * context, zend_object * key, zval * value, bool copy_on_write);
-ZEND_API async_context_t * async_context_with_str(async_context_t * context, zend_string * key, zval * value, bool copy_on_write);
+ZEND_API void async_context_set_key(async_context_t * context, zend_object * key, zval * value, bool replace);
+ZEND_API void async_context_set_str(async_context_t * context, zend_string * key, zval * value, bool replace);
+ZEND_API void async_context_del_key(const async_context_t * context, zval * key);
+
 ZEND_API zend_object* async_context_clone(zend_object * object);
 
-ZEND_API async_context_t * async_context_without_key(async_context_t * context, zval * key, bool copy_on_write);
 ZEND_API async_context_t * async_context_current(bool auto_create, bool add_ref);
-ZEND_API void async_current_context_with_key(zval * value, zend_object * object, zend_string * string, zval * key);
-ZEND_API void async_current_context_without_key(zval * key);
+ZEND_API async_context_t * async_context_current_new(bool is_override, const bool is_weak_ref);
 
 ZEND_API async_key_t * async_key_new(zend_string * description);
 ZEND_API async_key_t * async_key_new_from_string(char * description, size_t len);

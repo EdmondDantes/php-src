@@ -21,12 +21,20 @@ final class Key
  */
 final class Context
 {
-    public static function current(): Context {}
-    public static function root(): Context {}
-    public static function inherit(Context $parent): Context {}
-
-    public static function currentWithKey(string|object $key, mixed $value): void {}
-    public static function currentWithoutKey(string|object $key): void {}
+    /**
+     * Create a new current context.
+     * If the current context already exists, it will be replaced with the new one.
+     */
+    public static function newCurrent(): Context {}
+    /**
+     * Get the current context.
+     */
+    public static function current(bool $createIfNull = false): ?Context {}
+    /**
+     * Creates a new context, sets the current context as the parent for the new one,
+     * and sets the new context as the current one.
+     */
+    public static function overrideCurrent(bool $weakParent = false): Context {}
 
     public function __construct(?Context $parent = null, bool $weakParent = false) {}
 
@@ -38,9 +46,12 @@ final class Context
     public function getLocal(string|object $key): mixed {}
     public function hasLocal(string|object $key): bool {}
 
-    public function withKey(string|object $key, mixed $value): Context {}
-    public function withoutKey(string|object $key): Context {}
+    public function setKey(string|object $key, mixed $value, bool $replace = false): Context {}
+    public function delKey(string|object $key): Context {}
+
     public function getParent(): ?Context {}
 
     public function isEmpty(): bool {}
 }
+
+final class ContextException extends \Exception {}

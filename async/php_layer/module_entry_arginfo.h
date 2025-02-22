@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b850dbf8053f795f4003488bc6b23beea553c54d */
+ * Stub hash: 9c5e4e6ad00a5a591be525bdb8dc1d1a6287bfb0 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_launchScheduler, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -48,17 +48,17 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_delay, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, callback, Async\\Callback, MAY_BE_CALLABLE, NULL)
+	ZEND_ARG_OBJ_TYPE_MASK(0, callback, Async\\Closure, MAY_BE_CALLABLE, NULL)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_repeat, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, interval, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
+	ZEND_ARG_OBJ_INFO(0, callback, Async\\Closure, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_onSignal, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, callback, Async\\Callback, 0)
+	ZEND_ARG_OBJ_INFO(0, callback, Async\\Closure, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_exec, 0, 1, IS_VOID, 0)
