@@ -26,8 +26,6 @@ final class Fiber
 
     public function getReturn(): mixed {}
 
-    public function getContext(): Async\Context {}
-
     public function defer(callable $callable): void {}
 
     public function removeDeferHandler(callable $callable): void {}
