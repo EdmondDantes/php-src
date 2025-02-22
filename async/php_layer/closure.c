@@ -27,8 +27,6 @@
 
 static zend_object_handlers async_closure_handlers;
 
-zend_always_inline void closure_init(async_closure_t * closure);
-
 METHOD(__construct)
 {
 	zval* callable;
@@ -42,7 +40,6 @@ METHOD(__construct)
 		RETURN_THROWS();
 	}
 
-	closure_init(THIS);
 	zval_property_copy(&THIS->callback, callable);
 }
 
@@ -100,19 +97,16 @@ static void async_closure_object_destroy(zend_object* object)
 	}
 }
 
-void async_register_closure_ce(void)
+static zend_object *async_closure_object_create(zend_class_entry *class_entry)
 {
-	async_ce_closure = register_class_Async_Closure();
-	async_ce_closure->default_object_handlers = &async_closure_handlers;
+	// Allocate memory for the object and initialize it with zero bytes.
+	DEFINE_ZEND_RAW_OBJECT(async_closure_t, closure, class_entry);
 
-	async_closure_handlers = std_object_handlers;
-	async_closure_handlers.dtor_obj = async_closure_object_destroy;
-	async_closure_handlers.clone_obj = NULL;
-}
-
-zend_always_inline void closure_init(async_closure_t * closure)
-{
 	ZVAL_UNDEF(&closure->callback);
+
+	zend_object_std_init(&closure->std, class_entry);
+	object_properties_init(&closure->std, class_entry);
+
 	closure->resume = NULL;
 	closure->owner = NULL;
 
@@ -122,6 +116,19 @@ zend_always_inline void closure_init(async_closure_t * closure)
 	if (closure->fiber != NULL) {
 		GC_ADDREF(&closure->fiber->std);
 	}
+
+	return &closure->std;
+}
+
+void async_register_closure_ce(void)
+{
+	async_ce_closure = register_class_Async_Closure();
+	async_ce_closure->default_object_handlers = &async_closure_handlers;
+	async_ce_closure->create_object = async_closure_object_create;
+
+	async_closure_handlers = std_object_handlers;
+	async_closure_handlers.dtor_obj = async_closure_object_destroy;
+	async_closure_handlers.clone_obj = NULL;
 }
 
 zend_object * async_closure_new(const async_callback_function_t callback)
@@ -134,22 +141,26 @@ zend_object * async_closure_new(const async_callback_function_t callback)
 	}
 
 	async_closure_t * closure = (async_closure_t *) Z_OBJ(object);
-
-	closure_init(closure);
 	ZVAL_PTR(&closure->callback, callback);
 
-	return Z_OBJ_P(&object);
+	return &closure->std;
 }
 
 async_closure_t * async_closure_new_with_owner(const async_callback_function_t callback, zend_object * owner)
 {
-	async_closure_t * object = (async_closure_t *) zend_object_internal_create(sizeof(async_closure_t), async_ce_closure);
+	zval object;
 
-	closure_init(object);
-	ZVAL_PTR(&object->callback, callback);
-	object->owner = owner;
+	// Create a new object without calling the constructor
+	if (object_init_ex(&object, async_ce_closure) == FAILURE) {
+		return NULL;
+	}
 
-	return object;
+	async_closure_t * closure = (async_closure_t *) Z_OBJ(object);
+
+	ZVAL_PTR(&closure->callback, callback);
+	closure->owner = owner;
+
+	return closure;
 }
 
 /**
