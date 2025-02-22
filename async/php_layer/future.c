@@ -284,6 +284,7 @@ zend_always_inline void add_future_state_callbacks_microtask(async_future_state_
 	microtask->future_state = future_state;
 	microtask->position = -1;
 	microtask->started = false;
+	microtask->task.task.context = future_state->context;
 
 	if (ASYNC_G(in_scheduler_context)) {
 		future_state_callbacks_task_handler((async_microtask_t *) microtask);
@@ -340,7 +341,7 @@ static void notifier_handler(reactor_notifier_t* notifier, zval* event, zval* er
 
 static void future_state_callback(zend_object * callback, zend_object *notifier, zval* z_event, zval* error)
 {
-	async_future_state_t * future_state = (async_future_state_t *) ((async_callback_t *) callback)->owner;
+	async_future_state_t * future_state = (async_future_state_t *) ((async_closure_t *) callback)->owner;
 	async_future_state_t * from_future_state = (async_future_state_t *) notifier;
 
 	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
@@ -457,6 +458,9 @@ FUTURE_STATE_METHOD(__construct)
 
 	async_future_state_t* future_state = THIS_FUTURE_STATE;
 	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
+
+	future_state->is_handled = false;
+	future_state->context = async_context_current(false, true);
 }
 
 FUTURE_STATE_METHOD(complete)
@@ -499,7 +503,7 @@ FUTURE_STATE_METHOD(addCallback)
 	zval* callback;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
+		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_closure)
 	ZEND_PARSE_PARAMETERS_END();
 
 	async_notifier_add_callback(Z_OBJ_P(ZEND_THIS), callback);
@@ -623,6 +627,10 @@ static void async_future_state_object_destroy(zend_object *object)
 	}
 
 	zval_ptr_dtor(&future_state->result);
+
+	if (future_state->context != NULL) {
+		OBJ_RELEASE(&future_state->context->std);
+	}
 
 	if (future_state->filename != NULL) {
 		zend_string_release(future_state->filename);

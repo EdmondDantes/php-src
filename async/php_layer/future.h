@@ -18,6 +18,7 @@
 
 #include <zend_exceptions.h>
 
+#include "context.h"
 #include "php.h"
 #include "notifier.h"
 
@@ -35,7 +36,11 @@ typedef enum {
 typedef struct _async_future_state_s
 {
 	reactor_notifier_t notifier;
+	/* Context of the future state. Can be NULL */
+	async_context_t *context;
+	/* Result of the future state */
 	zval result;
+	/* Error of the future state */
 	zend_object * throwable;
 	/* Function that processes the result of FutureState */
 	zval mapper;
@@ -43,6 +48,7 @@ typedef struct _async_future_state_s
 	ASYNC_FUTURE_MAPPER mapper_type;
 	/** Callback for listen other future states */
 	zend_object * callback;
+	/* Flag indicates that the future state is handled. */
 	bool is_handled;
 	/* Filename of the future object creation point. */
 	zend_string *filename;
