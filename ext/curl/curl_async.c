@@ -17,7 +17,7 @@
 #include "Zend/zend_types.h"
 #include <zend_exceptions.h>
 #include <async/php_reactor.h>
-#include <async/php_layer/callback.h>
+#include <async/php_layer/closure.h>
 #include <async/php_layer/zend_common.h>
 
 /********************************************************************************************************************

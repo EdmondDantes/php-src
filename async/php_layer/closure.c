@@ -103,7 +103,7 @@ static void async_closure_object_destroy(zend_object* object)
 
 void async_register_callback_ce(void)
 {
-	async_ce_closure = register_class_Async_Callback();
+	async_ce_closure = register_class_Async_Closure();
 	async_ce_closure->default_object_handlers = &async_closure_handlers;
 
 	async_closure_handlers = std_object_handlers;

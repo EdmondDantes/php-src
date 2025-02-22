@@ -1022,7 +1022,12 @@ php_stream *php_stream_url_wrap_http(php_stream_wrapper *wrapper, const char *pa
 		if (EG(active_fiber) == NULL) {
 			ZVAL_COPY(&BG(last_http_headers), &headers);
 		} else {
-			async_current_context_with_key(&headers, get_last_http_header_key(), NULL, NULL);
+			async_context_set_key(
+				async_context_current(true, false),
+				get_last_http_header_key(),
+				&headers,
+				true
+			);
 		}
 
 		if (FAILURE == zend_set_local_var_str(

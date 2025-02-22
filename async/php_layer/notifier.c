@@ -40,7 +40,7 @@ METHOD(addCallback)
 	zval* callback;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
+		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_closure)
 	ZEND_PARSE_PARAMETERS_END();
 
 	async_notifier_add_callback(Z_OBJ_P(ZEND_THIS), callback);
@@ -53,7 +53,7 @@ METHOD(removeCallback)
 	zval* callback;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_callback)
+		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_closure)
 	ZEND_PARSE_PARAMETERS_END();
 
 	async_notifier_remove_callback(Z_OBJ_P(ZEND_THIS), callback);
@@ -250,7 +250,7 @@ void async_notifier_add_callback(zend_object* object, zval* callback)
 	reactor_notifier_t * notifier = (reactor_notifier_t *) object;
 
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
-		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
+		&& (Z_OBJ_P(callback)->ce == async_ce_closure || Z_OBJ_P(callback)->ce == async_ce_resume));
 
 	if (zend_hash_index_find(Z_ARRVAL(notifier->callbacks), Z_OBJ_P(callback)->handle) != NULL) {
 		return;
@@ -289,7 +289,7 @@ void async_notifier_remove_callback(zend_object* notifier, zval* callback)
 	}
 
 	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
-		&& (Z_OBJ_P(callback)->ce == async_ce_callback || Z_OBJ_P(callback)->ce == async_ce_resume));
+		&& (Z_OBJ_P(callback)->ce == async_ce_closure || Z_OBJ_P(callback)->ce == async_ce_resume));
 
 	HashTable * callbacks = Z_ARRVAL(((reactor_notifier_t * )notifier)->callbacks);
 

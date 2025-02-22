@@ -419,7 +419,7 @@ PHP_FUNCTION(http_clear_last_response_headers)
 	if (EG(active_fiber)) {
 		zval key;
 		ZVAL_OBJ(&key, get_last_http_header_key());
-		async_current_context_without_key(&key);
+		async_context_del_key(async_context_current(false, false), &key);
 	}
 
 	zval_ptr_dtor(&BG(last_http_headers));

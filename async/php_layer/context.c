@@ -305,7 +305,7 @@ METHOD(setKey)
 	RETURN_OBJ(&THIS_CONTEXT->std);
 }
 
-METHOD(removeKey)
+METHOD(delKey)
 {
 	zval *key;
 
@@ -345,7 +345,7 @@ METHOD(isEmpty)
 	RETURN_BOOL(zend_hash_num_elements(THIS_CONTEXT->map) == 0);
 }
 
-PHP_METHOD(Async_Key, __constructor)
+PHP_METHOD(Async_Key, __construct)
 {
 	zend_string *name;
 
@@ -503,6 +503,10 @@ zval * async_context_find_by_str(async_context_t * context, zend_string * key, b
 
 void async_context_set_key(async_context_t * context, zend_object * key, zval * value, bool replace)
 {
+	if (context == NULL) {
+		return;
+	}
+
 	if (false == replace && zend_hash_index_find(context->map, key->handle) != NULL) {
 
 		zval key_as_string;
@@ -594,8 +598,12 @@ zend_object* async_context_clone(zend_object * object)
 	return &context->std;
 }
 
-void async_context_del_key(async_context_t * context, zval * key)
+void async_context_del_key(const async_context_t * context, zval * key)
 {
+	if (UNEXPECTED(context == NULL)) {
+		return;
+	}
+
 	if (Z_TYPE_P(key) == IS_STRING) {
 		zend_hash_del(context->map, Z_STR_P(key));
 	} else {

@@ -305,6 +305,7 @@ zend_always_inline void invoke_microtask(async_microtask_t *task)
 			}
 
 			default:
+				break;
 		}
 
 	} zend_catch {
@@ -841,6 +842,7 @@ ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
 
 		case ASYNC_MICROTASK_INTERNAL:
 		default:
+			break;
 	}
 
 	pefree(microtask, 0);

@@ -392,12 +392,12 @@ PHP_FUNCTION(Async_delay)
 	zval callback;
 	bool is_callback_owned = false;
 
-	if (Z_TYPE_P(callable) != IS_OBJECT || Z_OBJ_P(callable)->ce != async_ce_callback) {
+	if (Z_TYPE_P(callable) != IS_OBJECT || Z_OBJ_P(callable)->ce != async_ce_closure) {
 		is_callback_owned = true;
 		zval params[1];
 		ZVAL_COPY_VALUE(&params[0], callable);
 
-		if (object_init_with_constructor(&callback, async_ce_callback, 1, params, NULL) == FAILURE) {
+		if (object_init_with_constructor(&callback, async_ce_closure, 1, params, NULL) == FAILURE) {
 			RETURN_THROWS();
 		}
 	} else {
@@ -441,7 +441,7 @@ PHP_FUNCTION(Async_repeat)
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_LONG(timeout);
-		Z_PARAM_OBJ_OF_CLASS(callback, async_ce_callback);
+		Z_PARAM_OBJ_OF_CLASS(callback, async_ce_closure);
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (timeout < 0) {
@@ -474,7 +474,7 @@ PHP_FUNCTION(Async_onSignal)
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_LONG(signal);
-		Z_PARAM_OBJ_OF_CLASS(callback, async_ce_callback);
+		Z_PARAM_OBJ_OF_CLASS(callback, async_ce_closure);
 	ZEND_PARSE_PARAMETERS_END();
 
 	reactor_handle_t * handle = reactor_signal_new_fn(signal);
