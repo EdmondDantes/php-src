@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a534bd3c64820160bd4b747559dfb2d238d145ca */
+ * Stub hash: c7430221c22762b070125b4752895de9f2b079b2 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Key___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, description, IS_STRING, 0, "\'\'")
@@ -15,7 +15,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_current, 0, 0
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, createIfNull, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_inheritCurrent, 0, 0, Async\\Context, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_overrideCurrent, 0, 0, Async\\Context, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, weakParent, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
@@ -46,7 +46,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_setKey, 0, 2,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, replace, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_removeKey, 0, 1, Async\\Context, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_delKey, 0, 1, Async\\Context, 0)
 	ZEND_ARG_TYPE_MASK(0, key, MAY_BE_STRING|MAY_BE_OBJECT, NULL)
 ZEND_END_ARG_INFO()
 
@@ -60,7 +60,7 @@ ZEND_METHOD(Async_Key, __construct);
 ZEND_METHOD(Async_Key, __toString);
 ZEND_METHOD(Async_Context, newCurrent);
 ZEND_METHOD(Async_Context, current);
-ZEND_METHOD(Async_Context, inheritCurrent);
+ZEND_METHOD(Async_Context, overrideCurrent);
 ZEND_METHOD(Async_Context, __construct);
 ZEND_METHOD(Async_Context, find);
 ZEND_METHOD(Async_Context, get);
@@ -69,7 +69,7 @@ ZEND_METHOD(Async_Context, findLocal);
 ZEND_METHOD(Async_Context, getLocal);
 ZEND_METHOD(Async_Context, hasLocal);
 ZEND_METHOD(Async_Context, setKey);
-ZEND_METHOD(Async_Context, removeKey);
+ZEND_METHOD(Async_Context, delKey);
 ZEND_METHOD(Async_Context, getParent);
 ZEND_METHOD(Async_Context, isEmpty);
 
@@ -82,7 +82,7 @@ static const zend_function_entry class_Async_Key_methods[] = {
 static const zend_function_entry class_Async_Context_methods[] = {
 	ZEND_ME(Async_Context, newCurrent, arginfo_class_Async_Context_newCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Context, current, arginfo_class_Async_Context_current, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	ZEND_ME(Async_Context, inheritCurrent, arginfo_class_Async_Context_inheritCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_Context, overrideCurrent, arginfo_class_Async_Context_overrideCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Context, __construct, arginfo_class_Async_Context___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, find, arginfo_class_Async_Context_find, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, get, arginfo_class_Async_Context_get, ZEND_ACC_PUBLIC)
@@ -91,7 +91,7 @@ static const zend_function_entry class_Async_Context_methods[] = {
 	ZEND_ME(Async_Context, getLocal, arginfo_class_Async_Context_getLocal, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, hasLocal, arginfo_class_Async_Context_hasLocal, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, setKey, arginfo_class_Async_Context_setKey, ZEND_ACC_PUBLIC)
-	ZEND_ME(Async_Context, removeKey, arginfo_class_Async_Context_removeKey, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Context, delKey, arginfo_class_Async_Context_delKey, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, getParent, arginfo_class_Async_Context_getParent, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, isEmpty, arginfo_class_Async_Context_isEmpty, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
