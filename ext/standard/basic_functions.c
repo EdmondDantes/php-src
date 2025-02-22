@@ -264,13 +264,6 @@ static void basic_globals_dtor(php_basic_globals *basic_globals_p) /* {{{ */
 
 	zend_hash_destroy(&basic_globals_p->url_adapt_session_hosts_ht);
 	zend_hash_destroy(&basic_globals_p->url_adapt_output_hosts_ht);
-
-#ifdef PHP_ASYNC
-	if (basic_globals_p->last_http_headers_key != NULL) {
-		OBJ_RELEASE(basic_globals_p->last_http_headers_key);
-	}
-#endif
-
 }
 /* }}} */
 
@@ -443,6 +436,10 @@ PHP_RINIT_FUNCTION(basic) /* {{{ */
 	/* Initialize memory for last http headers */
 	ZVAL_UNDEF(&BG(last_http_headers));
 
+#ifdef PHP_ASYNC
+	BG(last_http_headers_key) = NULL;
+#endif
+
 	/* Setup default context */
 	FG(default_context) = NULL;
 
@@ -509,6 +506,13 @@ PHP_RSHUTDOWN_FUNCTION(basic) /* {{{ */
 
 	/* Free last http headers */
 	zval_ptr_dtor(&BG(last_http_headers));
+
+#ifdef PHP_ASYNC
+	if (BG(last_http_headers_key)) {
+		OBJ_RELEASE(BG(last_http_headers_key));
+		BG(last_http_headers_key) = NULL;
+	}
+#endif
 
 	BG(page_uid) = -1;
 	BG(page_gid) = -1;
