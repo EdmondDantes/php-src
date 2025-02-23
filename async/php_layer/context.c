@@ -56,7 +56,7 @@ METHOD(newCurrent)
 		RETURN_THROWS();
 	}
 
-	RETURN_OBJ(&context->std);
+	RETURN_OBJ_COPY(&context->std);
 }
 
 METHOD(overrideCurrent)
@@ -74,7 +74,7 @@ METHOD(overrideCurrent)
 		RETURN_THROWS();
 	}
 
-	RETURN_OBJ(&context->std);
+	RETURN_OBJ_COPY(&context->std);
 }
 
 METHOD(__construct)
@@ -302,7 +302,7 @@ METHOD(setKey)
 		RETURN_THROWS();
 	}
 
-	RETURN_OBJ(&THIS_CONTEXT->std);
+	RETURN_OBJ_COPY(&THIS_CONTEXT->std);
 }
 
 METHOD(delKey)
@@ -324,7 +324,7 @@ METHOD(delKey)
 		RETURN_THROWS();
 	}
 
-	RETURN_OBJ(&THIS_CONTEXT->std);
+	RETURN_OBJ_COPY(&THIS_CONTEXT->std);
 }
 
 METHOD(getParent)

@@ -727,6 +727,12 @@ static ZEND_STACK_ALIGNED void zend_fiber_execute(zend_fiber_transfer *transfer)
 		}
 
 		// Cleanup user local storage.
+
+		if(fiber->local_context) {
+			OBJ_RELEASE(&fiber->local_context->std);
+			fiber->local_context = NULL;
+		}
+
         if(fiber->async_context) {
         	OBJ_RELEASE(&fiber->async_context->std);
         	fiber->async_context = NULL;
@@ -889,6 +895,13 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	memset(fiber, 0, sizeof(zend_fiber));
 
 	zend_object_std_init(&fiber->std, ce);
+
+#ifdef PHP_ASYNC
+	fiber->async_context = NULL;
+	fiber->local_context = NULL;
+	fiber->shutdown_handlers = NULL;
+#endif
+
 	return &fiber->std;
 }
 
@@ -1377,6 +1390,11 @@ void zend_fiber_finalize(zend_fiber *fiber)
 {
 	if(fiber->shutdown_handlers) {
 		zend_fiber_invoke_shutdown_handlers(fiber);
+	}
+
+	if(fiber->local_context) {
+		OBJ_RELEASE(&fiber->local_context->std);
+		fiber->local_context = NULL;
 	}
 
 	if(fiber->async_context) {

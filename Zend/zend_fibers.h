@@ -140,6 +140,8 @@ struct _zend_fiber {
 
 	/* Async fiber context. */
 	async_context_t *async_context;
+	/* Fiber local context */
+	async_context_t *local_context;
 
     /* Fiber shutdown_handlers */
 	HashTable *shutdown_handlers;
