@@ -113,7 +113,11 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 		zend_string * key;
 		zend_ulong index;
 
-		zend_hash_get_current_key_ex(callbacks, &key, &index, &task->position);
+		int key_type = zend_hash_get_current_key_ex(callbacks, &key, &index, &task->position);
+
+		if (key_type == HASH_KEY_NON_EXISTENT) {
+			break;
+		}
 
 		zend_hash_move_forward_ex(callbacks, &task->position);
 
@@ -121,9 +125,9 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 			zend_resolve_weak_reference(current, &resolved_callback);
 
 			// Remove from the callbacks array.
-			if (key != NULL) {
+			if (key_type == HASH_KEY_IS_STRING) {
 				zend_hash_del(callbacks, key);
-			} else {
+			} else if (key_type == HASH_KEY_IS_LONG) {
 				zend_hash_index_del(callbacks, index);
 			}
 
@@ -278,7 +282,7 @@ zend_always_inline void add_future_state_callbacks_microtask(async_future_state_
 	}
 
 	future_state_callbacks_task *microtask = pecalloc(1, sizeof(future_state_callbacks_task), 0);
-	microtask->task.task.type = false;
+	microtask->task.task.type = ASYNC_MICROTASK_INTERNAL;
 	microtask->task.handler = future_state_callbacks_task_handler;
 	microtask->task.task.dtor = future_state_callbacks_task_dtor;
 	microtask->future_state = future_state;
