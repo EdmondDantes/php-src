@@ -15,11 +15,11 @@ class Notifier
     private array $callbacks = [];
 
     /**
-     * Equals to TRUE if the Notifier is terminated.
+     * Equals to TRUE if the Notifier is closed.
      * If the Notifier is in the Terminated state, it will never generate any events again.
      * Attempting to add such a Notifier to the Resume object will result in an error.
      */
-    public readonly bool $isTerminated = false;
+    public readonly bool $isClosed = false;
 
     /**
      * The string representation of the Notifier.

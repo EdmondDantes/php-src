@@ -523,6 +523,7 @@ ZEND_MINIT_FUNCTION(async)
 	async_register_channel_ce();
 	async_register_walker_ce();
 	async_register_context_ce();
+	async_register_future_ce();
 
 	async_scheduler_startup();
 

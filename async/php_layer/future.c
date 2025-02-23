@@ -455,12 +455,6 @@ zend_always_inline void future_state_subscribe_to(async_future_state_t * from_fu
 FUTURE_STATE_METHOD(__construct)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
-
-	async_future_state_t* future_state = THIS_FUTURE_STATE;
-	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
-
-	future_state->is_handled = false;
-	future_state->context = async_context_current(false, true);
 }
 
 FUTURE_STATE_METHOD(complete)
@@ -521,7 +515,7 @@ FUTURE_STATE_METHOD(ignore)
 	THIS_FUTURE_STATE->is_handled = true;
 }
 
-FUTURE_STATE_METHOD(__toString)
+FUTURE_STATE_METHOD(toString)
 {
 	RETURN_STR(zend_strpprintf(0,
 		"FutureObject started at %s:%d",
@@ -583,6 +577,8 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 	future_state->mapper_type = mapper_type;
 
 	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
+
+	RETURN_OBJ_COPY(&THIS_FUTURE->std);
 }
 
 FUTURE_METHOD(map)
@@ -655,18 +651,41 @@ static void async_future_object_destroy(zend_object *object)
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
+static zend_object *async_future_state_object_create(zend_class_entry *class_entry)
+{
+	// Allocate memory for the object and initialize it with zero bytes.
+	DEFINE_ZEND_RAW_OBJECT(async_future_state_t, future_state, class_entry);
+
+	zend_object_std_init(&future_state->notifier.std, class_entry);
+	object_properties_init(&future_state->notifier.std, class_entry);
+
+	ZVAL_UNDEF(&future_state->result);
+	ZVAL_UNDEF(&future_state->mapper);
+
+	future_state->mapper_type = ASYNC_FUTURE_MAPPER_SUCCESS;
+	future_state->callback = NULL;
+
+	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
+	future_state->is_handled = false;
+	future_state->context = async_context_current(false, true);
+
+	return &future_state->notifier.std;
+}
+
 void async_register_future_ce(void)
 {
+
 	async_ce_future_state = register_class_Async_FutureState(async_ce_notifier);
 	async_ce_future_state->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_future_state->create_object = async_future_state_object_create;
 
-	async_ce_future->default_object_handlers = &async_future_state_handlers.std;
-
-	memcpy(&async_future_state_handlers, async_ce_notifier->default_object_handlers, sizeof(zend_object_handlers));
+	memcpy(&async_future_state_handlers, async_ce_notifier->default_object_handlers, sizeof(reactor_notifier_handlers_t));
 	async_future_state_handlers.std.dtor_obj = async_future_state_object_destroy;
 
 	// Redefine the handler function.
 	async_future_state_handlers.handler_fn = notifier_handler;
+
+	async_ce_future_state->default_object_handlers = &async_future_state_handlers.std;
 
 	async_ce_future = register_class_Async_Future();
 	async_ce_future->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;

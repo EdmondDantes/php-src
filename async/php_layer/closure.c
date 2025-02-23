@@ -60,7 +60,7 @@ METHOD(disposeClosure)
 	THIS->notifiers = NULL;
 
 	// And create a new empty array.
-	array_init(THIS->notifiers);
+	THIS->notifiers = zend_new_array(2);
 }
 
 /**

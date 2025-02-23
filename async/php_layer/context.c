@@ -96,12 +96,12 @@ METHOD(__construct)
 	zval *parent = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
-		Z_PARAM_OBJ_OR_NULL(parent)
+		Z_PARAM_OBJECT_OR_NULL(parent)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_BOOL(THIS_CONTEXT->is_weak_ref)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (Z_TYPE(parent) != IS_NULL) {
+	if (Z_TYPE_P(parent) != IS_NULL) {
 
 		if (THIS_CONTEXT->is_weak_ref) {
 			zval retval;
@@ -193,7 +193,7 @@ METHOD(get)
 		try_to_resolve_weak_reference(THIS_CONTEXT, NULL, string_key, result, return_value);
 	}
 
-	if (Z_TYPE(return_value) == IS_NULL) {
+	if (Z_TYPE_P(return_value) == IS_NULL) {
 		if (object_key != NULL) {
 			async_throw_error("Key object class '%s' is nullable in context", object_key->ce->name->val);
 		} else {
@@ -261,7 +261,7 @@ METHOD(getLocal)
 		try_to_resolve_weak_reference(THIS_CONTEXT, NULL, string_key, result, return_value);
 	}
 
-	if (Z_TYPE(return_value) == IS_NULL) {
+	if (Z_TYPE_P(return_value) == IS_NULL) {
 		if (object_key != NULL) {
 			async_throw_error("Key object class '%s' is nullable in context", object_key->ce->name->val);
 		} else {
@@ -372,7 +372,7 @@ PHP_METHOD(Async_Key, __construct)
 
 PHP_METHOD(Async_Key, __toString)
 {
-    RETURN_STR(zend_string_copy(&THIS_KEY->description));
+    RETURN_STR(zend_string_copy(Z_STR(THIS_KEY->description)));
 }
 
 static zend_object_handlers async_context_handlers;

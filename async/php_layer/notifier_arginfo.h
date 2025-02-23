@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a8ef335f5eb3fbcf609a0744c28f680e4c74f74b */
+ * Stub hash: 5ca605fed5203d1099d9e6906aa1fe8f6a1bfd5b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -75,11 +75,11 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_declare_typed_property(class_entry, property_callbacks_name, &property_callbacks_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_callbacks_name);
 
-	zval property_isTerminated_default_value;
-	ZVAL_FALSE(&property_isTerminated_default_value);
-	zend_string *property_isTerminated_name = zend_string_init("isTerminated", sizeof("isTerminated") - 1, 1);
-	zend_declare_typed_property(class_entry, property_isTerminated_name, &property_isTerminated_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
-	zend_string_release(property_isTerminated_name);
+	zval property_isClosed_default_value;
+	ZVAL_FALSE(&property_isClosed_default_value);
+	zend_string *property_isClosed_name = zend_string_init("isClosed", sizeof("isClosed") - 1, 1);
+	zend_declare_typed_property(class_entry, property_isClosed_name, &property_isClosed_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
+	zend_string_release(property_isClosed_name);
 
 	zval property_toString_default_value;
 	ZVAL_UNDEF(&property_toString_default_value);
