@@ -1,5 +1,5 @@
 --TEST--
-Context: basic test
+Context: context should be shared between async functions1
 --FILE--
 <?php
 
@@ -22,5 +22,6 @@ echo "end\n";
 ?>
 --EXPECT--
 start
-async function 1
+async function 1: test-value
+async function 2: test-value
 end

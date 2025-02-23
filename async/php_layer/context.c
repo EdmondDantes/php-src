@@ -643,13 +643,9 @@ async_context_t * async_context_current(const bool auto_create, const bool add_r
 
 async_context_t * async_context_current_new(bool is_override, const bool is_weak_ref)
 {
-	async_context_t *parent_context = NULL;
+	async_context_t *parent_context = async_context_current(false, false);
 
-	if (is_override) {
-		parent_context = async_context_current(false, false);
-	}
-
-	async_context_t * context = async_context_new(parent_context, is_weak_ref);
+	async_context_t * context = async_context_new(is_override ? parent_context : NULL, is_weak_ref);
 
 	if (context == NULL) {
 		return NULL;
