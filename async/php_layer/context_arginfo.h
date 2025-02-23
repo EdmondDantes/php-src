@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: c7430221c22762b070125b4752895de9f2b079b2 */
+ * Stub hash: 09ea388a783b93dd67bb882435519ed981ad376b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Key___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, description, IS_STRING, 0, "\'\'")
@@ -18,6 +18,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Context_overrideCurrent, 0, 0, Async\\Context, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, weakParent, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
+
+#define arginfo_class_Async_Context_local arginfo_class_Async_Context_newCurrent
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Context___construct, 0, 0, 0)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, parent, Async\\Context, 1, "null")
@@ -61,6 +63,7 @@ ZEND_METHOD(Async_Key, __toString);
 ZEND_METHOD(Async_Context, newCurrent);
 ZEND_METHOD(Async_Context, current);
 ZEND_METHOD(Async_Context, overrideCurrent);
+ZEND_METHOD(Async_Context, local);
 ZEND_METHOD(Async_Context, __construct);
 ZEND_METHOD(Async_Context, find);
 ZEND_METHOD(Async_Context, get);
@@ -83,6 +86,7 @@ static const zend_function_entry class_Async_Context_methods[] = {
 	ZEND_ME(Async_Context, newCurrent, arginfo_class_Async_Context_newCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Context, current, arginfo_class_Async_Context_current, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Context, overrideCurrent, arginfo_class_Async_Context_overrideCurrent, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(Async_Context, local, arginfo_class_Async_Context_local, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Context, __construct, arginfo_class_Async_Context___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, find, arginfo_class_Async_Context_find, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Context, get, arginfo_class_Async_Context_get, ZEND_ACC_PUBLIC)

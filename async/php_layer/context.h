@@ -76,6 +76,8 @@ ZEND_API zend_object* async_context_clone(zend_object * object);
 ZEND_API async_context_t * async_context_current(bool auto_create, bool add_ref);
 ZEND_API async_context_t * async_context_current_new(bool is_override, const bool is_weak_ref);
 
+ZEND_API async_context_t * async_context_local(bool auto_create, bool add_ref);
+
 ZEND_API async_key_t * async_key_new(zend_string * description);
 ZEND_API async_key_t * async_key_new_from_string(char * description, size_t len);
 

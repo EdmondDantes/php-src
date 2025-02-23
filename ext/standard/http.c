@@ -388,7 +388,7 @@ PHP_FUNCTION(http_get_last_response_headers)
 	}
 
 	if (EG(active_fiber)) {
-		async_context_t *context = async_context_current(true, false);
+		async_context_t *context = async_context_local(false, false);
 
 		if (context == NULL) {
 			RETURN_NULL();
@@ -419,7 +419,7 @@ PHP_FUNCTION(http_clear_last_response_headers)
 	if (EG(active_fiber)) {
 		zval key;
 		ZVAL_OBJ(&key, get_last_http_header_key());
-		async_context_del_key(async_context_current(false, false), &key);
+		async_context_del_key(async_context_local(false, false), &key);
 	}
 
 	zval_ptr_dtor(&BG(last_http_headers));

@@ -36,6 +36,12 @@ final class Context
      */
     public static function overrideCurrent(bool $weakParent = false): Context {}
 
+    /**
+     * Return a current local context.
+     * The local context can be considered the execution context of a Fiber.
+     */
+    public static function local(): Context {}
+
     public function __construct(?Context $parent = null, bool $weakParent = false) {}
 
     public function find(string|object $key): mixed {}

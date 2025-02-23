@@ -77,6 +77,20 @@ METHOD(overrideCurrent)
 	RETURN_OBJ_COPY(&context->std);
 }
 
+METHOD(local)
+{
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	async_context_t *context = async_context_local(true, true);
+
+	if (context == NULL) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(&context->std);
+}
+
 METHOD(__construct)
 {
 	zval *parent = NULL;
@@ -331,7 +345,7 @@ METHOD(getParent)
 {
 	if (THIS_CONTEXT->is_weak_ref) {
 		zval weak_ref;
-		ZVAL_OBJ(&weak_ref, &THIS_CONTEXT->parent_weak_ref);
+		ZVAL_OBJ(&weak_ref, THIS_CONTEXT->parent_weak_ref);
 		zend_resolve_weak_reference(&weak_ref, return_value);
 	} else if (THIS_CONTEXT->parent) {
 		RETURN_OBJ(&THIS_CONTEXT->parent->std);
@@ -373,6 +387,7 @@ static void async_context_object_destroy(zend_object *object)
 
 	if (context->is_weak_ref) {
 		OBJ_RELEASE(context->parent_weak_ref);
+		context->parent_weak_ref = NULL;
 	} else if (context->parent != NULL) {
 		OBJ_RELEASE(&context->parent->std);
 		context->parent = NULL;
@@ -446,7 +461,7 @@ zval * async_context_find_by_key(async_context_t * context, zend_object * key, b
 	if (result == NULL && context->is_weak_ref && context->parent_weak_ref) {
 
 		zval weak_ref, reference;
-		ZVAL_OBJ(&weak_ref, &context->parent_weak_ref);
+		ZVAL_OBJ(&weak_ref, context->parent_weak_ref);
 		zend_resolve_weak_reference(&weak_ref, &reference);
 
 		if (Z_TYPE(reference) == IS_OBJECT) {
@@ -482,7 +497,7 @@ zval * async_context_find_by_str(async_context_t * context, zend_string * key, b
 	if (result == NULL && context->is_weak_ref && context->parent_weak_ref) {
 
 		zval weak_ref, reference;
-		ZVAL_OBJ(&weak_ref, &context->parent_weak_ref);
+		ZVAL_OBJ(&weak_ref, context->parent_weak_ref);
 		zend_resolve_weak_reference(&weak_ref, &reference);
 
 		if (Z_TYPE(reference) == IS_OBJECT) {
@@ -575,7 +590,7 @@ zend_object* async_context_clone(zend_object * object)
 
 	if (src_context->is_weak_ref) {
 		zval retval, weak_ref, reference;
-		ZVAL_OBJ(&weak_ref, &src_context->parent_weak_ref);
+		ZVAL_OBJ(&weak_ref, src_context->parent_weak_ref);
 		zend_resolve_weak_reference(&weak_ref, &reference);
 
 		if (Z_TYPE(reference) == IS_OBJECT) {
@@ -662,6 +677,29 @@ async_context_t * async_context_current_new(bool is_override, const bool is_weak
 	}
 
 	return context;
+}
+
+async_context_t * async_context_local(bool auto_create, bool add_ref)
+{
+	if (UNEXPECTED(EG(active_fiber) == NULL)) {
+		return async_context_current(true, add_ref);
+	}
+
+	if (EG(active_fiber)->local_context == NULL) {
+
+		if (false == auto_create) {
+			return NULL;
+		}
+
+		async_context_t * parent = async_context_current(false, false);
+		EG(active_fiber)->local_context = async_context_new(parent, true);
+	}
+
+	if (add_ref) {
+		GC_ADDREF(&EG(active_fiber)->local_context->std);
+	}
+
+	return EG(active_fiber)->local_context;
 }
 
 async_key_t * async_key_new(zend_string * description)
