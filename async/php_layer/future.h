@@ -35,6 +35,8 @@ typedef enum {
 typedef struct _async_future_state_s
 {
 	reactor_notifier_t notifier;
+	/* List of linked future states */
+	HashTable * linked_future_states;
 	/* Context of the future state. Can be NULL */
 	async_context_t *context;
 	/* Result of the future state */
@@ -47,8 +49,8 @@ typedef struct _async_future_state_s
 	ASYNC_FUTURE_MAPPER mapper_type;
 	/** Callback for listen other future states */
 	zend_object * callback;
-	/* Flag indicates that the future state is handled. */
-	bool is_handled;
+	/* Flag indicates that the future state is used. */
+	bool is_used;
 	/* Filename of the future object creation point. */
 	zend_string *filename;
 	/* Line number of the future object creation point. */
@@ -59,6 +61,7 @@ typedef struct _async_future_state_s
 	uint32_t completed_lineno;
 	/* The flag indicates that the future state is in the microtask queue. */
 	bool in_microtask_queue;
+	bool remove_after_notify;
 } async_future_state_t;
 
 typedef struct _async_future_s

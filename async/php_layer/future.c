@@ -100,7 +100,11 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 
 	// Add a microtask to the queue for execution if the Fiber unexpectedly stops due to an asynchronous operation.
 	// In this case, we will continue execution in a different Fiber.
-	async_scheduler_add_microtask_ex(microtask);
+	if (zend_hash_num_elements(callbacks) > 0) {
+		async_scheduler_add_microtask_ex(microtask);
+	} else {
+		microtask->is_cancelled = true;
+	}
 
 	while (false == microtask->is_cancelled) {
 		zval *current = zend_hash_get_current_data_ex(callbacks, &task->position);
@@ -277,7 +281,13 @@ static void concurrent_iterator_task_dtor(async_microtask_t *microtask)
 
 zend_always_inline void add_future_state_callbacks_microtask(async_future_state_t *future_state)
 {
-	if (future_state->in_microtask_queue) {
+	if (UNEXPECTED(future_state->in_microtask_queue
+		|| zend_hash_num_elements(Z_ARR(future_state->notifier.callbacks)) == 0)) {
+
+		if (future_state->remove_after_notify) {
+			OBJ_RELEASE(&future_state->notifier.std);
+		}
+
 		return;
 	}
 
@@ -286,13 +296,22 @@ zend_always_inline void add_future_state_callbacks_microtask(async_future_state_
 	microtask->task.handler = future_state_callbacks_task_handler;
 	microtask->task.task.dtor = future_state_callbacks_task_dtor;
 	microtask->future_state = future_state;
+
+	if (false == future_state->remove_after_notify) {
+		GC_ADDREF(&future_state->notifier.std);
+	}
+
 	microtask->position = -1;
 	microtask->started = false;
 	microtask->task.task.context = future_state->context;
 
 	if (ASYNC_G(in_scheduler_context)) {
 		future_state_callbacks_task_handler((async_microtask_t *) microtask);
-		async_scheduler_microtask_free((async_microtask_t *) microtask);
+
+		if (UNEXPECTED(microtask->task.task.ref_count == 0)) {
+			microtask->task.task.ref_count = 1;
+			async_scheduler_microtask_free((async_microtask_t *) microtask);
+		}
 	} else {
 		async_scheduler_add_microtask_ex((async_microtask_t *) microtask);
 	}
@@ -348,6 +367,17 @@ static void future_state_callback(zend_object * callback, zend_object *notifier,
 	async_future_state_t * future_state = (async_future_state_t *) ((async_closure_t *) callback)->owner;
 	async_future_state_t * from_future_state = (async_future_state_t *) notifier;
 
+	if (from_future_state->linked_future_states != NULL
+		&& zend_hash_index_exists(from_future_state->linked_future_states, future_state->notifier.std.handle)) {
+
+		if (GC_REFCOUNT(&future_state->notifier.std) == 1) {
+			future_state->remove_after_notify = true;
+			GC_ADDREF(&future_state->notifier.std);
+		}
+
+		zend_hash_index_del(from_future_state->linked_future_states, future_state->notifier.std.handle);
+    }
+
 	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
 		async_warning(
 			"The Future state has already been completed at %s:%d (called from other Future state created at %s:%d)",
@@ -356,6 +386,10 @@ static void future_state_callback(zend_object * callback, zend_object *notifier,
 			from_future_state->filename != NULL ? ZSTR_VAL(from_future_state->filename) : "<unknown>",
 			from_future_state->lineno
 		);
+
+		if (future_state->remove_after_notify) {
+			OBJ_RELEASE(&future_state->notifier.std);
+		}
 
 		return;
 	}
@@ -453,7 +487,24 @@ zend_always_inline void future_state_subscribe_to(async_future_state_t * from_fu
 	zval callback;
 	ZVAL_OBJ(&callback, from_future_state->callback);
 
+	to_future_state->is_used = true;
+
 	async_notifier_add_callback(&to_future_state->notifier.std, &callback);
+
+	if (UNEXPECTED(EG(exception))) {
+		return;
+	}
+
+	if (to_future_state->linked_future_states == NULL) {
+		to_future_state->linked_future_states = zend_new_array(0);
+	}
+
+	zval z_future_state;
+	ZVAL_OBJ(&z_future_state, &from_future_state->notifier.std);
+
+	if (zend_hash_index_update(to_future_state->linked_future_states, to_future_state->notifier.std.handle, &z_future_state) != NULL) {
+		GC_ADDREF(&from_future_state->notifier.std);
+	}
 }
 
 FUTURE_STATE_METHOD(__construct)
@@ -504,6 +555,11 @@ FUTURE_STATE_METHOD(addCallback)
 		Z_PARAM_OBJECT_OF_CLASS(callback, async_ce_closure)
 	ZEND_PARSE_PARAMETERS_END();
 
+	//
+	// Future counted as used if it has at least one callback.
+	//
+	THIS_FUTURE_STATE->is_used = true;
+
 	async_notifier_add_callback(Z_OBJ_P(ZEND_THIS), callback);
 
 	if (Z_TYPE(THIS_FUTURE_STATE->notifier.is_closed) == IS_TRUE) {
@@ -516,7 +572,7 @@ FUTURE_STATE_METHOD(addCallback)
 FUTURE_STATE_METHOD(ignore)
 {
 	ZVAL_TRUE(&THIS_FUTURE_STATE->notifier.is_closed);
-	THIS_FUTURE_STATE->is_handled = true;
+	THIS_FUTURE_STATE->is_used = true;
 }
 
 FUTURE_STATE_METHOD(toString)
@@ -560,7 +616,7 @@ FUTURE_METHOD(ignore)
 {
 	async_future_state_t * future_state = (async_future_state_t *) THIS_FUTURE->future_state;
 	ZVAL_TRUE(&future_state->notifier.is_closed);
-	future_state->is_handled = true;
+	future_state->is_used = true;
 }
 
 static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER mapper_type)
@@ -580,7 +636,11 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 	zval_copy(&future_state->mapper, callable);
 	future_state->mapper_type = mapper_type;
 
+	future_state->is_used = true;
+
 	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
+
+	OBJ_RELEASE(&future_state->notifier.std);
 
 	RETURN_OBJ_COPY(&THIS_FUTURE->std);
 }
@@ -612,7 +672,7 @@ static void async_future_state_object_destroy(zend_object *object)
 	// Add exception if the future state is not handled but was completed.
 	// Ignore if the shutdown is in progress.
 	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE
-		&& future_state->is_handled == false
+		&& future_state->is_used == false
 		&& ASYNC_G(graceful_shutdown) == false
 		) {
 		async_scheduler_transfer_exception(
@@ -627,6 +687,20 @@ static void async_future_state_object_destroy(zend_object *object)
 	}
 
 	zval_ptr_dtor(&future_state->result);
+	zval_ptr_dtor(&future_state->mapper);
+
+	if (future_state->linked_future_states != NULL) {
+		zend_array_release(future_state->linked_future_states);
+		future_state->linked_future_states = NULL;
+	}
+
+	if (future_state->callback != NULL) {
+		OBJ_RELEASE(future_state->callback);
+	}
+
+	if (future_state->throwable != NULL) {
+		OBJ_RELEASE(future_state->throwable);
+	}
 
 	if (future_state->context != NULL) {
 		OBJ_RELEASE(&future_state->context->std);
@@ -666,11 +740,14 @@ static zend_object *async_future_state_object_create(zend_class_entry *class_ent
 	ZVAL_UNDEF(&future_state->result);
 	ZVAL_UNDEF(&future_state->mapper);
 
+	future_state->linked_future_states = NULL;
+	future_state->remove_after_notify = false;
+
 	future_state->mapper_type = ASYNC_FUTURE_MAPPER_SUCCESS;
 	future_state->callback = NULL;
 
 	zend_apply_current_filename_and_line(&future_state->filename, &future_state->lineno);
-	future_state->is_handled = false;
+	future_state->is_used = false;
 	future_state->context = async_context_current(false, true);
 
 	return &future_state->notifier.std;
@@ -678,7 +755,6 @@ static zend_object *async_future_state_object_create(zend_class_entry *class_ent
 
 void async_register_future_ce(void)
 {
-
 	async_ce_future_state = register_class_Async_FutureState(async_ce_notifier);
 	async_ce_future_state->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 	async_ce_future_state->create_object = async_future_state_object_create;
@@ -763,8 +839,6 @@ void async_future_state_reject(async_future_state_t *future_state, zend_object *
 
 void async_await_future(async_future_state_t *future_state, zval * retval)
 {
-	future_state->is_handled = true;
-
 	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
 		async_future_state_to_retval(future_state, retval);
 		return;

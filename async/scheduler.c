@@ -437,6 +437,13 @@ static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const siz
 			ZEND_ASSERT(true && "Invalid microtask fiber status");
 		}
 
+		if (UNEXPECTED(EG(exception))) {
+			ASYNC_G(microtask_fiber) = NULL;
+			OBJ_RELEASE(&fiber->std);
+			is_not_empty = false;
+			break;
+		}
+
 		is_not_empty = circular_buffer_is_not_empty(buffer);
 
 		if (handled <= count) {
@@ -783,6 +790,7 @@ ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
 	microtask->task.dtor = NULL;
 	microtask->task.ref_count = 1;
 	microtask->task.context = async_context_current(false, true);
+	microtask->exception = exception;
 
 	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
 }
