@@ -22,5 +22,5 @@ echo "end\n";
 ?>
 --EXPECT--
 start
-async function 1
+future map: complete
 end
