@@ -106,7 +106,7 @@ static void future_state_callbacks_task_handler(async_microtask_t *microtask)
 		microtask->is_cancelled = true;
 	}
 
-	while (false == microtask->is_cancelled) {
+	while (false == microtask->is_cancelled) {		
 		zval *current = zend_hash_get_current_data_ex(callbacks, &task->position);
 
 		if (current == NULL) {
@@ -791,18 +791,6 @@ static void async_future_state_object_destroy(zend_object *object)
 	async_ce_notifier->default_object_handlers->dtor_obj(object);
 }
 
-static void async_future_object_destroy(zend_object *object)
-{
-	async_future_t *future = (async_future_t *) object;
-
-	if (future->future_state != NULL) {
-		OBJ_RELEASE(future->future_state);
-		future->future_state = NULL;
-	}
-
-	async_ce_notifier->default_object_handlers->dtor_obj(object);
-}
-
 static zend_object *async_future_state_object_create(zend_class_entry *class_entry)
 {
 	// Allocate memory for the object and initialize it with zero bytes.
@@ -827,6 +815,29 @@ static zend_object *async_future_state_object_create(zend_class_entry *class_ent
 	return &future_state->notifier.std;
 }
 
+static void async_future_object_destroy(zend_object *object)
+{
+	async_future_t *future = (async_future_t *) object;
+
+	if (future->future_state != NULL) {
+		OBJ_RELEASE(future->future_state);
+		future->future_state = NULL;
+	}
+
+	async_ce_notifier->default_object_handlers->dtor_obj(object);
+}
+
+static zend_object * async_future_object_create(zend_class_entry *class_entry)
+{
+	// Allocate memory for the object and initialize it with zero bytes.
+	DEFINE_ZEND_RAW_OBJECT(async_future_t, future, class_entry);
+
+	zend_object_std_init(&future->std, class_entry);
+	object_properties_init(&future->std, class_entry);
+
+	return &future->std;
+}
+
 void async_register_future_ce(void)
 {
 	async_ce_future_state = register_class_Async_FutureState(async_ce_notifier);
@@ -843,6 +854,7 @@ void async_register_future_ce(void)
 
 	async_ce_future = register_class_Async_Future();
 	async_ce_future->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+	async_ce_future->create_object = async_future_object_create;
 
 	async_ce_future->default_object_handlers = &async_future_handlers;
 
