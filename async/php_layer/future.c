@@ -484,12 +484,36 @@ zend_always_inline void future_state_subscribe_to(async_future_state_t * from_fu
 		);
 	}
 
+	//
+	// Object Ownership and Reference Count Scheme.
+	//
+	// Future2 - from_future_state
+	// Future1 - to_future_state
+	//
+	// Future1 (1 ref)
+	//   └─ owns (1 ref) ─► FutureState1 (1 ref total: 1 from Future1)
+	// 						 │ emits events (1 ref)
+	// 						 ▼
+	// 					    FutureState2 (2 refs total: 1 from FutureState1, 1 from Future2)
+	// 						   └─ holds (1 ref) ─► FutureState1
+	//
+	// Future2 (1 ref, returned by map(), catch() or finally())
+	//   └─ owns (1 ref) ─► FutureState2
+	//
+	// In this scheme, FutureState1 owns FutureState2.
+	// As soon as FutureState1 is deleted, it also removes the reference to FutureState2
+	// and marks it as "is_closed", since no one will be able to trigger an event on this Future anymore.
+	//
+
 	zval callback;
 	ZVAL_OBJ(&callback, from_future_state->callback);
 
 	to_future_state->is_used = true;
 
-	async_notifier_add_callback(&to_future_state->notifier.std, &callback);
+	//
+	// Subscribe to to_future_state without increasing the reference count on it.
+	//
+	async_notifier_add_callback_without_backref(&to_future_state->notifier.std, &callback);
 
 	if (UNEXPECTED(EG(exception))) {
 		return;
@@ -502,7 +526,10 @@ zend_always_inline void future_state_subscribe_to(async_future_state_t * from_fu
 	zval z_future_state;
 	ZVAL_OBJ(&z_future_state, &from_future_state->notifier.std);
 
-	if (zend_hash_index_update(to_future_state->linked_future_states, to_future_state->notifier.std.handle, &z_future_state) != NULL) {
+	if (zend_hash_index_update(to_future_state->linked_future_states, from_future_state->notifier.std.handle, &z_future_state) != NULL) {
+		//
+		// Increase the reference count on the FutureState2 because it is linked to FutureState1.
+		//
 		GC_ADDREF(&from_future_state->notifier.std);
 	}
 }
@@ -640,9 +667,14 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 
 	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
 
-	OBJ_RELEASE(&future_state->notifier.std);
+	if (GC_REFCOUNT(&future_state->notifier.std) == 1) {
+		async_throw_error("Future state has wrong reference count");
+		RETURN_THROWS();
+    }
 
-	RETURN_OBJ_COPY(&THIS_FUTURE->std);
+	GC_DELREF(&future_state->notifier.std);
+
+	RETURN_OBJ(async_future_new(&future_state->notifier.std));
 }
 
 FUTURE_METHOD(map)
@@ -663,6 +695,31 @@ FUTURE_METHOD(finally)
 FUTURE_METHOD(await)
 {
 	async_await_future((async_future_state_t *) THIS_FUTURE->future_state, return_value);
+}
+
+static void future_state_mark_as_closed(async_future_state_t *future_state)
+{
+	ZVAL_TRUE(&future_state->notifier.is_closed);
+
+	if (future_state->linked_future_states == NULL) {
+		return;
+	}
+
+	zval *value;
+	HashTable * linked_future_states = future_state->linked_future_states;
+
+	// Prevent the forever loop if the linked Future states are linked to each other.
+	future_state->linked_future_states = NULL;
+
+	ZEND_HASH_FOREACH_VAL(linked_future_states, value)
+	{
+		if (EXPECTED(Z_TYPE_P(value) == IS_OBJECT)) {
+			future_state_mark_as_closed((async_future_state_t *) Z_OBJ_P(value));
+		}
+	}
+	ZEND_HASH_FOREACH_END();
+
+	zend_array_release(linked_future_states);
 }
 
 static void async_future_state_object_destroy(zend_object *object)
@@ -690,8 +747,25 @@ static void async_future_state_object_destroy(zend_object *object)
 	zval_ptr_dtor(&future_state->mapper);
 
 	if (future_state->linked_future_states != NULL) {
-		zend_array_release(future_state->linked_future_states);
+
+		// Notify all linked Future states about the destruction of the current Future state.
+		zval *value;
+		HashTable * linked_future_states = future_state->linked_future_states;
 		future_state->linked_future_states = NULL;
+
+		ZEND_HASH_FOREACH_VAL(linked_future_states, value)
+        {
+            if (EXPECTED(Z_TYPE_P(value) == IS_OBJECT)) {
+                async_future_state_t * linked_future_state = (async_future_state_t *) Z_OBJ_P(value);
+            	zval z_callback;
+				ZVAL_OBJ(&z_callback, future_state->callback);
+            	async_notifier_remove_callback(&linked_future_state->notifier.std, &z_callback);
+            	future_state_mark_as_closed(linked_future_state);
+            }
+        }
+		ZEND_HASH_FOREACH_END();
+
+		zend_array_release(linked_future_states);
 	}
 
 	if (future_state->callback != NULL) {

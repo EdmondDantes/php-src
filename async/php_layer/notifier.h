@@ -157,6 +157,7 @@ ZEND_API reactor_notifier_ex_t * async_notifier_new_ex(
 	reactor_notifier_ex_dtor_t dtor_fn
 );
 ZEND_API reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_entry *class_entry);
+ZEND_API void async_notifier_add_callback_without_backref(zend_object* object, zval* callback);
 ZEND_API void async_notifier_add_callback(zend_object* notifier, zval* callback);
 ZEND_API void async_notifier_remove_callback(zend_object* notifier, zval* callback);
 ZEND_API void async_notifier_notify(reactor_notifier_t * notifier, zval * event, zval * error);

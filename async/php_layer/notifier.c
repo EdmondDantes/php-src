@@ -247,6 +247,23 @@ reactor_notifier_t * async_notifier_new_by_class(const size_t size, zend_class_e
 	return notifier;
 }
 
+void async_notifier_add_callback_without_backref(zend_object* object, zval* callback)
+{
+	reactor_notifier_t * notifier = (reactor_notifier_t *) object;
+
+	ZEND_ASSERT(Z_TYPE_P(callback) == IS_OBJECT
+		&& (Z_OBJ_P(callback)->ce == async_ce_closure || Z_OBJ_P(callback)->ce == async_ce_resume));
+
+	if (zend_hash_index_find(Z_ARRVAL(notifier->callbacks), Z_OBJ_P(callback)->handle) != NULL) {
+		return;
+	}
+
+	// Add the weak reference to the callbacks array.
+	zval weak_reference;
+	zend_new_weak_reference_from(callback, &weak_reference);
+	zend_property_array_index_update(&notifier->callbacks, Z_OBJ_P(callback)->handle, &weak_reference, true);
+}
+
 void async_notifier_add_callback(zend_object* object, zval* callback)
 {
 	reactor_notifier_t * notifier = (reactor_notifier_t *) object;
