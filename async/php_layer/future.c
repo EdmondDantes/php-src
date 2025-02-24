@@ -665,6 +665,11 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 
 	future_state->is_used = true;
 
+	if (mapper_type == ASYNC_FUTURE_MAPPER_CATCH) {
+		// mark that the exception was caught
+		future_state->will_exception_caught = true;
+	}
+
 	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
 
 	if (GC_REFCOUNT(&future_state->notifier.std) == 1) {
@@ -728,7 +733,18 @@ static void async_future_state_object_destroy(zend_object *object)
 
 	// Add exception if the future state is not handled but was completed.
 	// Ignore if the shutdown is in progress.
-	if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE
+	if (false == future_state->will_exception_caught && future_state->throwable != NULL) {
+		async_scheduler_transfer_exception(future_state->throwable);
+		future_state->throwable = NULL;
+		async_warning(
+			"Unhandled exception (caught in %s:%d) in the Future state (has been created at %s:%d); %s",
+			future_state->completed_filename ? ZSTR_VAL(future_state->completed_filename) : "<unknown>",
+			future_state->completed_lineno,
+			future_state->filename ? ZSTR_VAL(future_state->filename) : "<unknown>",
+			future_state->lineno,
+			"Use catch() to handle the exception."
+		);
+	} else if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE
 		&& future_state->is_used == false
 		&& ASYNC_G(graceful_shutdown) == false
 		) {

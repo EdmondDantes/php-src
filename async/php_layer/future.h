@@ -62,6 +62,7 @@ typedef struct _async_future_state_s
 	/* The flag indicates that the future state is in the microtask queue. */
 	bool in_microtask_queue;
 	bool remove_after_notify;
+	bool will_exception_caught;
 } async_future_state_t;
 
 typedef struct _async_future_s
