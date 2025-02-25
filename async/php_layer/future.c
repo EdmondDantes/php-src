@@ -738,7 +738,6 @@ static void async_future_state_object_destroy(zend_object *object)
 
 	// Add exception if the future state is not handled but was completed.
 	// Ignore if the shutdown is in progress.
-	/*
 	if (false == future_state->will_exception_caught && future_state->throwable != NULL) {
 		async_scheduler_transfer_exception(future_state->throwable);
 		future_state->throwable = NULL;
@@ -764,7 +763,6 @@ static void async_future_state_object_destroy(zend_object *object)
 				)
 		);
 	}
-	*/
 
 	zval_ptr_dtor(&future_state->result);
 	zval_ptr_dtor(&future_state->mapper);
@@ -1054,15 +1052,12 @@ ZEND_API void async_await_future_list(
 			}
 
 			// Resolve the Future object to the FutureState object.
-			if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
-
-				if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-					future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
-				} else {
-					continue;
-				}
-			} else {
+			if (instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 				future_state = (async_future_state_t *) Z_OBJ_P(current);
+			} else if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
+				future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
+			} else {
+				continue;
 			}
 
 			if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
@@ -1116,15 +1111,12 @@ ZEND_API void async_await_future_list(
 		}
 
 		// Resolve the Future object to the FutureState object.
-		if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
-
-			if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-				future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
-			} else {
-				continue;
-			}
-		} else {
+		if (instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 			future_state = (async_future_state_t *) Z_OBJ_P(current);
+		} else if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
+			future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
+		} else {
+			continue;
 		}
 
 		if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
