@@ -1057,7 +1057,7 @@ ZEND_API void async_await_future_list(
 			if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 
 				if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-					future_state = (async_future_state_t *) Z_OBJ_P(current);
+					future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
 				} else {
 					continue;
 				}
@@ -1119,7 +1119,7 @@ ZEND_API void async_await_future_list(
 		if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 
 			if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-				future_state = (async_future_state_t *) Z_OBJ_P(current);
+				future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
 			} else {
 				continue;
 			}
