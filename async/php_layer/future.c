@@ -672,7 +672,7 @@ static void new_mapper(INTERNAL_FUNCTION_PARAMETERS, const ASYNC_FUTURE_MAPPER m
 
 	if (mapper_type == ASYNC_FUTURE_MAPPER_CATCH) {
 		// mark that the exception was caught
-		future_state->will_exception_caught = true;
+		((async_future_state_t *)(THIS_FUTURE->future_state))->will_exception_caught = true;
 	}
 
 	future_state_subscribe_to(future_state, (async_future_state_t *) THIS_FUTURE->future_state);
