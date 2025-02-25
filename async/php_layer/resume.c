@@ -608,6 +608,8 @@ void async_resume_notify(async_resume_t* resume, reactor_notifier_t* notifier, z
 
 		call_user_function(CG(function_table), NULL, &resume_notifier->callback, &retval, 3, params);
 		zval_ptr_dtor(&retval);
+	} else {
+		zend_error(E_CORE_ERROR, "Invalid callback type for resume notifier");
 	}
 
 	//

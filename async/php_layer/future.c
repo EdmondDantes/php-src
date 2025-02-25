@@ -48,7 +48,7 @@ typedef struct
 
 typedef struct
 {
-	async_resume_notifier_t * resume_notifier;
+	async_resume_notifier_t resume_notifier;
 	future_await_conditions_t * conditions;
 } future_resume_callback_t;
 
@@ -235,10 +235,10 @@ static void concurrent_iterator_task_handler(async_microtask_t *microtask)
 			async_future_state_t * state = (async_future_state_t *) ((async_future_t *) Z_OBJ_P(current))->future_state;
 
 			future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
-			ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
+			ZVAL_PTR(&callback->resume_notifier.callback, future_resume_callback);
 			callback->conditions = iterator_task->conditions;
 
-			async_resume_when_ex(iterator_task->resume, (reactor_notifier_t *) state, true, (async_resume_notifier_t *) callback);
+			async_resume_when_ex(iterator_task->resume, &state->notifier, true, (async_resume_notifier_t *) callback);
 		}
 
 	} while (current != NULL && microtask->is_cancelled == false);
@@ -951,6 +951,9 @@ void async_await_future(async_future_state_t *future_state, zval * retval)
 		return;
 	}
 
+	future_state->is_used = true;
+	future_state->will_exception_caught = true;
+
 	async_resume_t * resume = async_resume_new(NULL);
 
 	if (resume == NULL) {
@@ -1021,6 +1024,8 @@ ZEND_API void async_await_future_list(
 	zval * z_future_state;
 
 	async_resume_t * resume;
+	future_await_conditions_t * conditions = NULL;
+	future_resume_callback_t * callback = NULL;
 
 	if (futures != NULL)
 	{
@@ -1034,7 +1039,7 @@ ZEND_API void async_await_future_list(
 			return;
 		}
 
-		future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
+		conditions = emalloc(sizeof(future_await_conditions_t));
 		conditions->total = (int) zend_hash_num_elements(futures);
 		conditions->waiting_count = count > 0 ? count : conditions->total;
 		conditions->resolved_count = 0;
@@ -1061,9 +1066,12 @@ ZEND_API void async_await_future_list(
 				continue;
 			}
 
-			future_resume_callback_t * callback = emalloc(sizeof(future_resume_callback_t));
-			ZVAL_PTR(&callback->resume_notifier->callback, future_resume_callback);
+			callback = emalloc(sizeof(future_resume_callback_t));
+			ZVAL_PTR(&callback->resume_notifier.callback, future_resume_callback);
 			callback->conditions = conditions;
+
+			future_state->is_used = true;
+			future_state->will_exception_caught = true;
 
 			async_resume_when_ex(resume, &future_state->notifier, false, (async_resume_notifier_t *)callback);
 
@@ -1080,7 +1088,7 @@ ZEND_API void async_await_future_list(
 		async_future_state_t * future_state = (async_future_state_t *) async_future_state_new();
 		async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
 
-		future_await_conditions_t * conditions = emalloc(sizeof(future_await_conditions_t));
+		conditions = emalloc(sizeof(future_await_conditions_t));
 		conditions->total = (int) zend_hash_num_elements(futures);
 		conditions->waiting_count = count > 0 ? count : conditions->total;
 		conditions->resolved_count = 0;
@@ -1090,6 +1098,11 @@ ZEND_API void async_await_future_list(
 	}
 
 	async_wait(resume);
+
+	if (conditions != NULL) {
+		efree(conditions);
+		conditions = NULL;
+	}
 
 	// Save the results and errors.
 
