@@ -738,6 +738,7 @@ static void async_future_state_object_destroy(zend_object *object)
 
 	// Add exception if the future state is not handled but was completed.
 	// Ignore if the shutdown is in progress.
+	/*
 	if (false == future_state->will_exception_caught && future_state->throwable != NULL) {
 		async_scheduler_transfer_exception(future_state->throwable);
 		future_state->throwable = NULL;
@@ -763,6 +764,7 @@ static void async_future_state_object_destroy(zend_object *object)
 				)
 		);
 	}
+	*/
 
 	zval_ptr_dtor(&future_state->result);
 	zval_ptr_dtor(&future_state->mapper);
@@ -1021,7 +1023,8 @@ ZEND_API void async_await_future_list(
 
 	zend_ulong index;
 	zend_string *key;
-	zval * z_future_state;
+	zval * current;
+	async_future_state_t * future_state;
 
 	async_resume_t * resume;
 	future_await_conditions_t * conditions = NULL;
@@ -1045,22 +1048,22 @@ ZEND_API void async_await_future_list(
 		conditions->resolved_count = 0;
 		conditions->ignore_errors = ignore_errors;
 
-		ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
-			if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
+		ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, current) {
+			if (Z_TYPE_P(current) != IS_OBJECT) {
 				continue;
 			}
 
 			// Resolve the Future object to the FutureState object.
-			if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
+			if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 
-				if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
-					ZVAL_OBJ(z_future_state, ((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+				if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
+					future_state = (async_future_state_t *) Z_OBJ_P(current);
 				} else {
 					continue;
 				}
+			} else {
+				future_state = (async_future_state_t *) Z_OBJ_P(current);
 			}
-
-			async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
 
 			if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
 				continue;
@@ -1085,7 +1088,7 @@ ZEND_API void async_await_future_list(
 		}
 
 		futures = zend_new_array(8);
-		async_future_state_t * future_state = (async_future_state_t *) async_future_state_new();
+		future_state = (async_future_state_t *) async_future_state_new();
 		async_resume_when(resume, &future_state->notifier, false, async_resume_when_callback_resolve);
 
 		conditions = emalloc(sizeof(future_await_conditions_t));
@@ -1106,23 +1109,23 @@ ZEND_API void async_await_future_list(
 
 	// Save the results and errors.
 
-	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, z_future_state) {
+	ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, current) {
 
-		if (Z_TYPE_P(z_future_state) != IS_OBJECT) {
+		if (Z_TYPE_P(current) != IS_OBJECT) {
 			continue;
 		}
 
 		// Resolve the Future object to the FutureState object.
-		if (false == instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future_state)) {
+		if (false == instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
 
-			if (instanceof_function(Z_OBJCE_P(z_future_state), async_ce_future)) {
-				ZVAL_OBJ(z_future_state, ((async_future_t *) Z_OBJ_P(z_future_state))->future_state);
+			if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
+				future_state = (async_future_state_t *) Z_OBJ_P(current);
 			} else {
 				continue;
 			}
+		} else {
+			future_state = (async_future_state_t *) Z_OBJ_P(current);
 		}
-
-		async_future_state_t * future_state = (async_future_state_t *) Z_OBJ_P(z_future_state);
 
 		if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
 
