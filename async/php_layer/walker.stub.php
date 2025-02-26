@@ -13,6 +13,18 @@ namespace Async;
  */
 final class Walker
 {
+    /**
+     * Iterates over the given iterable asynchronously
+     * and calls the given callback function for each element.
+     *
+     * @param iterable      $iterator       The iterable to walk over.
+     * @param callable      $function       The callback function to call for each element.
+     * @param mixed         $customData     Custom data to pass to the callback function.
+     * @param callable|null $defer          The callback function to call when the iteration is finished.
+     * @param int           $concurrency    The number of concurrent operations.
+     *
+     * @return Walker
+     */
     public static function walk(
         iterable $iterator,
         callable $function,
@@ -22,11 +34,32 @@ final class Walker
     ): Walker {}
 
     /**
+     * Iterates over the given iterable asynchronously
+     * and calls the given callback function for each element.
+     * The callback function should return a value.
+     *
+     * @param iterable      $iterator       The iterable to walk over.
+     * @param callable      $function       The callback function to call for each element.
+     * @param mixed         $customData     Custom data to pass to the callback function.
+     * @param callable|null $defer          The callback function to call when the iteration is finished.
+     * @param int           $concurrency    The number of concurrent operations.
+     *
+     * @return Walker
+     */
+    public static function map(
+        iterable $iterator,
+        callable $function,
+        mixed $customData = null,
+        ?callable $defer = null,
+        int $concurrency = 0
+    ): Future {}
+
+    /**
      * Iterates over the given iterable asynchronously.
      *
-     * param iterable $iterator The iterable to iterate over.
-     * param bool $returnArray Whether to return the result as an array.
-     * param int $concurrency The number of concurrent operations.
+     * param    iterable    $iterator       The iterable to iterate over.
+     * param    bool        $returnArray    Whether to return the result as an array.
+     * param    int         $concurrency    The number of concurrent operations.
      *
      * @return Future
      */
@@ -41,9 +74,9 @@ final class Walker
     private mixed $customData;
     private mixed $defer;
 
+    public function getFuture(): Future {}
+
     private function run(): void {}
     private function next(): void {}
     public function cancel(): void {}
-
-    public function getFuture(): Future {}
 }
