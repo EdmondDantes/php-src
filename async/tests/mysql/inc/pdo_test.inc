@@ -1,0 +1,85 @@
+<?php
+# PDO test framework utilities
+
+class PDOTest {
+    // create an instance of the PDO driver, based on
+    // the current environment
+    static function factory($classname = PDO::class, bool $useConnectMethod = false) {
+        $dsn = getenv('PDOTEST_DSN');
+        $user = getenv('PDOTEST_USER');
+        $pass = getenv('PDOTEST_PASS');
+        $attr = getenv('PDOTEST_ATTR');
+        if (is_string($attr) && strlen($attr)) {
+            $attr = unserialize($attr);
+        } else {
+            $attr = null;
+        }
+
+        if ($user === false) $user = NULL;
+        if ($pass === false) $pass = NULL;
+
+        if ($useConnectMethod) {
+            $db = $classname::connect($dsn, $user, $pass, $attr);
+        } else {
+            $db = new $classname($dsn, $user, $pass, $attr);
+        }
+
+        if (!$db) {
+            die("Could not create PDO object (DSN=$dsn, user=$user)\n");
+        }
+        // Ignore errors about non-existent tables
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+        $db->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+        $db->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, true);
+        return $db;
+    }
+
+    static function skip() {
+        try {
+            $db = PDOTest::factory();
+        } catch (PDOException $e) {
+            die("skip " . $e->getMessage());
+        }
+    }
+
+    static function test_factory($file, $classname = PDO::class, bool $useConnectMethod = false) {
+        $config = self::get_config($file);
+        foreach ($config['ENV'] as $k => $v) {
+            putenv("$k=$v");
+        }
+        return self::factory($classname, $useConnectMethod);
+    }
+
+    static function get_config($file) {
+        $data = file_get_contents($file);
+        $data = preg_replace('/^.*--REDIRECTTEST--/s', '', $data);
+        $config = eval($data);
+
+        return $config;
+    }
+
+    public static function dropTableIfExists(PDO $db, string $tableName): void {
+        if (getenv('PDOTEST_DSN') === "sqlite::memory:") {
+            return;
+        }
+
+        match ($db->getAttribute(PDO::ATTR_DRIVER_NAME)) {
+            "oci" => $db->exec(<<<SQL
+                 BEGIN
+                     EXECUTE IMMEDIATE 'DROP TABLE $tableName';
+                 EXCEPTION
+                     WHEN OTHERS THEN
+                         IF SQLCODE != -942 THEN
+                             RAISE;
+                         END IF;
+                    END;
+                SQL
+            ),
+            "firebird" => @$db->exec("DROP TABLE $tableName"),
+            default => $db->exec("DROP TABLE IF EXISTS $tableName"),
+        };
+    }
+}
+?>
