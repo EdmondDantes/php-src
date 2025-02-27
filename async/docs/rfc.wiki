@@ -1009,20 +1009,24 @@ A channel is a primitive for message exchange between ''Fibers''.
 Different languages have stricter or looser approaches to implementing channel APIs.
 Here, a combined design is proposed that supports two usage scenarios:
   * one **producer**, multiple **consumers** (One-to-Many (1P-NC) – Work Queue)
-  * an **undefined** scenario (Many-to-Many (NP-NC), implemented similarly to ''Go'')
+  * an **general** scenario (Many-to-Many (NP-NC), implemented similarly to ''Go'')
 
 <code php>
 class Channel implements ChannelInterface
 {
+    public static function singleProducer(int $capacity = 1, ?\Fiber $owner = null, bool $expandable = false, bool $throwOnNull = false): Channel {}
+
     public readonly ?\Fiber $owner = null;
 
-    public function __construct(int $capacity = 1, ?\Fiber $owner = null, bool $expandable = false) {}
+    public function __construct(int $capacity = 1, ?\Fiber $owner = null, bool $expandable = false, bool $throwOnNull = false) {}
 
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void {}
 
     public function trySend(mixed $data): void {}
 
     public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed {}
+
+    public function receiveOrNull(int $timeout = 0, ?Notifier $cancellation = null): mixed {}
 
     public function tryReceive(): mixed {}
 
@@ -1068,12 +1072,12 @@ class Channel implements ChannelInterface
 }
 </code>
 
-=== One Producer, Multiple Consumers (Work Queue) ===
+=== Single Producer, Multiple Consumers (Work Queue) ===
 
 The basic scenario is when a channel has only one producer and can have one or more (usually just one) consumers.
 In most cases, this scenario is sufficient. It also promotes simple code organization, minimizing errors.
 
-**True Async** provides an explicit implementation of ''Work Queue'' scenario by defining a channel owner.
+**True Async** provides an explicit implementation of ''Single Producer'' scenario by defining a channel owner.
 
 **Rules for the producer:**
   * When a channel is created, it automatically assigns the current ''Fiber'' as the owner.
@@ -1092,10 +1096,10 @@ This logic helps prevent deadlocks and makes working with channels more predicta
 
 <code php>
 Async\run(function() {
-    $channel = new Async\Channel();
+    $channel = Async\Channel::singleProducer();
 
     Async\run(function(Async\Channel $channel) {
-        while (($data = $channel->receive()) != null) {
+        while (($data = $channel->receiveOrNull()) != null) {
             echo "receive: $data\n";
         }
     }, $channel);
@@ -1111,7 +1115,8 @@ while ''Fiber1'', which creates the channel, fills it with data.
 There is no explicit call to the ''close()''
 method in the code because the channel closes automatically once ''Fiber1'' stops execution.
 
-When the ''close()'' method is called by the producer, all consumers receive a ''NULL'' message.
+When the ''close()'' method is called by the producer, all consumers receive a ''NULL'' message with receiveOrNull or
+exception with receive. This behavior is consistent with the ''NULL'' semantics described below.
 
 === NULL as an End-of-Data Indicator ===
 
@@ -1119,17 +1124,19 @@ Using ''NULL'' semantics as an end-of-data indicator falls into the category of 
 and can therefore be considered "bad practice."
 Throwing an exception when a channel is closed would be a more explicit behavior.
 ''NULL'' creates ambiguity because a producer may send ''NULL'' as actual data.
-This is one of the debated aspects of the implementation.
 
-However, at this moment, the decision has been made to use this approach, and here’s why:
+However, the **NULL-EOF** approach has the following advantages:
 
   * Code using ''NULL'' is a common practice not only in channel programming but also in socket programming.
   * Code with ''NULL'' appears semantically less complex and more concise.
-  * The ''NULL'' value in PHP signifies the absence of data,
-    so this approach does not contradict the overall logic of the language.
+  * The ''NULL'' value in PHP signifies the absence of data, so this approach does not contradict the overall logic of the language.
 
-To maintain logical consistency, the ''send()'' method prohibits sending ''NULL'' values into a channel.
-In such cases, an exception will be thrown.
+**True Async** implements both approaches:
+
+  * The ''Channel'' class contains the methods ''receive'' and ''receiveOrNull''.
+  * The ''receive'' method throws an exception when attempting to read from the channel if the channel has been closed and there is no data.
+  * The ''receiveOrNull'' method returns ''NULL''.
+  * The ''$throwOnNull'' option, available in the constructor, controls the behavior of the ''send'' method: if the option is enabled and an attempt is made to write a ''NULL'' value into the channel, the method will throw an exception.
 
 === Channel Closing Methods ===
 
@@ -1447,92 +1454,6 @@ $timer = new Timer(2000, function (Timer $self) {
         echo "Timer stopped.\n";
     }
 })->start();
-</code>
-
-==== Pool ====
-
-The object pool is a necessary pattern for managing connections to services in a concurrent environment.
-For example, database connections cannot be used simultaneously in different Fibers
-because they might be in an incomplete state, and parallel use could cause operational issues.
-
-The ''Pool'' class organizes a storage of objects that can automatically return to the pool
-and remember which Fiber they are associated with.
-
-The ''Pool'' class implements the following flow:
-
-  - The ''borrow()'' method acquires an object from the pool (e.g., a database connection).
-  - The pool associates the object with the current Fiber.
-  - Once the object goes out of scope, the Fiber terminates, or the ''return()'' method is called,
-    the object is returned to the pool and becomes available for other Fibers.
-
-<code php>
-/**
- * @template-covariant T
- */
-class Pool
-{
-    protected callable   $factory;
-    protected int        $maxPoolSize;
-    protected int        $minPoolSize        = 0;
-    protected int        $timeout            = -1;
-    protected int        $delayPoolReduction = 0;
-
-    /**
-     * Pool constructor.
-     */
-    public function __construct(
-        callable    $factory,
-        int         $maxPoolSize,
-        int         $minPoolSize        = 0,
-        int         $timeout            = -1,
-        int         $delayPoolReduction = 0,
-    ) {}
-
-    /**
-     * Borrow an object from the pool.
-     * @return T|null
-     */
-    public function borrow(): object|null {}
-
-    /**
-     * Return an object to the pool.
-     * @param T $object
-     */
-    public function return(object $object): void {}
-
-    /**
-     * Rebuild pool state and free unused objects.
-     *
-     */
-    public function rebuild(): void {}
-
-    /**
-     * Get the maximum pool size.
-     *
-     */
-    public function getMaxPoolSize(): int {}
-
-    /**
-     * Get the minimum pool size.
-     *
-     */
-    public function getMinPoolSize(): int {}
-
-    /**
-     * Get the timeout for borrowing an object.
-     */
-    public function getMaxWaitTimeout(): int {}
-
-    /**
-     * Get used objects count.
-     */
-    public function getUsed(): int {}
-
-    /**
-     * Get the pool size.
-     */
-    public function getPoolSize(): int {}
-}
 </code>
 
 ==== Low-level API ====

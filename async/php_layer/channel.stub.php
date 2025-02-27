@@ -50,15 +50,29 @@ final class ChannelNotifier extends Notifier {}
  */
 class Channel implements ChannelInterface
 {
+    public static function singleProducer(
+        int     $capacity       = 1,
+        ?\Fiber $owner          = null,
+        bool    $expandable     = false,
+        bool    $throwOnNull    = false
+    ): Channel {}
+
     public readonly ?\Fiber $owner = null;
 
-    public function __construct(int $capacity = 1, ?\Fiber $owner = null, bool $expandable = false) {}
+    public function __construct(
+        int     $capacity       = 1,
+        ?\Fiber $owner          = null,
+        bool    $expandable     = false,
+        bool    $throwOnNull    = false
+    ) {}
 
     public function send(mixed $data, int $timeout = 0, ?Notifier $cancellation = null, ?bool $waitOnFull = true): void {}
 
     public function trySend(mixed $data): void {}
 
     public function receive(int $timeout = 0, ?Notifier $cancellation = null): mixed {}
+
+    public function receiveOrNull(int $timeout = 0, ?Notifier $cancellation = null): mixed {}
 
     public function tryReceive(): mixed {}
 
