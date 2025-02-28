@@ -4,7 +4,7 @@ Fiber handle with callback
 <?php
 
 $callback = new Async\Closure(function(Async\Notifier $notifier, \Fiber $fiber) {
-    echo "Fiber was terminated {$notifier->toString()}\n";
+    echo "Fiber was terminated {$notifier-> __debugInfo()}\n";
 });
 
 $fiber = Async\async(function() {
