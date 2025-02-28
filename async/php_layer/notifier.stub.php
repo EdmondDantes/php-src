@@ -22,9 +22,9 @@ class Notifier
     public readonly bool $isClosed = false;
 
     /**
-     * The string representation of the Notifier.
+     * The debug-string representation of the Notifier.
      */
-    private mixed $toString;
+    private mixed $debugInfo;
 
     /**
      * Returns the number of registered callbacks.
@@ -60,7 +60,7 @@ class Notifier
     /**
      * Returns a string representation of the Notifier that can be used for debugging purposes.
      */
-    public function toString(): string {}
+    public function __debugInfo(): string {}
 }
 
 /**

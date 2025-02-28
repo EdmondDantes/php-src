@@ -1,6 +1,6 @@
 ====== PHP RFC: True Async ======
-  * Version: 0.5
-  * Date: 2025-02-24
+  * Version: 0.7
+  * Date: 2025-03-01
   * Author: Edmond [HT], edmondifthen@proton.me
   * Status: Draft
   * First Published at: http://wiki.php.net/rfc/true_async
@@ -813,7 +813,7 @@ final class FutureState extends Notifier
      */
     public function addCallback(Closure $callback): static {}
 
-    public function toString(): string {}
+    public function __debugInfo(): string {}
 }
 </code>
 
@@ -1551,7 +1551,7 @@ final class Resume
     /**
      * Returns a string representation of the `Resume` object that can be used for debugging purposes.
      */
-    public function toString(): string {}
+    public function __debugInfo(): string {}
 }
 </code>
 
@@ -1817,7 +1817,7 @@ final class DnsInfoHandle extends Notifier
 
     private function __construct() {}
 
-    public function toString(): string {}
+    public function __debugInfo(): string {}
 }
 </code>
 
@@ -1902,7 +1902,7 @@ you can also retrieve information about **which events the Fiber is waiting for*
 The method **Resume::awaitedIn()** returns
 the **PHP file name and line number** where the **Fiber was suspended**.
 
-The **toString()** method, available for **Notifier** and **Resume** objects,
+The **__debugInfo()** method, available for **Notifier** and **Resume** objects,
 allows retrieving **string information**
 that can be used for **debugging** or **error output**.
 

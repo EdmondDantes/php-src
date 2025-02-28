@@ -61,7 +61,7 @@ METHOD(removeCallback)
 	RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
-METHOD(toString)
+METHOD(__debugInfo)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 

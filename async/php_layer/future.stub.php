@@ -47,7 +47,7 @@ final class FutureState extends Notifier
      */
     public function addCallback(Closure $callback): static {}
 
-    public function toString(): string {}
+    public function __debugInfo(): string {}
 }
 
 /**
