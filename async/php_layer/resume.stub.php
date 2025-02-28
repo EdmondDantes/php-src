@@ -98,5 +98,5 @@ final class Resume
     /**
      * Returns a string representation of the `Resume` object that can be used for debugging purposes.
      */
-    public function __toString(): string {}
+    public function toString(): string {}
 }

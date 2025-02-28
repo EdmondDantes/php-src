@@ -1458,11 +1458,388 @@ $timer = new Timer(2000, function (Timer $self) {
 
 ==== Low-level API ====
 
+The low-level API for managing Fiber execution flow and handling I/O events mirrors the corresponding C-language API.
+It is built around the creation of a Fiber suspension point and conditions for resumption.
+
+The **Resume** class represents a Fiber suspension point and connects the following information:
+  * In which location the Fiber was suspended
+  * What events it is waiting for
+  * What the conditions for resumption are
+  * What events occurred when the Fiber was resumed
+
+<blockquote>
+**Note:**
+The **Low-level API** is designed for **libraries and frameworks** and imposes **increased development requirements**.
+Code written using this API must be **tested for deadlocks** and ensure the **correct release of reactor descriptors**.
+</blockquote>
+
+<code php>
+final class Resume
+{
+    private mixed $result = null;
+
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution.
+     * If an error occurs, an exception is thrown.
+     */
+    const int RESOLVE   = 1;
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution with a cancellation exception.
+     * If an error occurs, an exception is thrown.
+     */
+    const int CANCEL    = 2;
+    /**
+     * Predefined callback-behavior for the `Resume` object
+     * when the event is triggered, fiber resumes execution with a timeout exception.
+     * If an error occurs, an exception is thrown.
+     * This callback can be used only with the `TimerHandle` object.
+     */
+    const int TIMEOUT   = 3;
+
+    /**
+     * Creates a new `Resume` object.
+     */
+    public function __construct() {}
+
+    /**
+     * Resumes the fiber with a value.
+     */
+    public function resume(mixed $value = null): void {}
+
+    /**
+     * Throws an exception into the fiber.
+     */
+    public function throw(?\Throwable $error = null): void {}
+
+    /**
+     * Determines if the `Resume` object is pending.
+     */
+    public function isPending(): bool {}
+
+    /**
+     * Determines if the `Resume` object has been resolved.
+     */
+    public function isResolved(): bool {}
+
+    /**
+     * Returns the Notifiers associated with the `Resume` object.
+     */
+    public function getNotifiers(): array {}
+
+    /**
+     * Returns the Notifiers that have been triggered.
+     */
+    public function getTriggeredNotifiers(): array {}
+
+    /**
+     * Add a Notifier to the `Resume` object with a callback.
+     */
+    public function when(Notifier $notifier, callable|int $callback = Resume::RESOLVE): static {}
+
+    /**
+     * Removes a Notifier from the `Resume` object.
+     */
+    public function removeNotifier(Notifier $notifier): static {}
+
+    /**
+     * Returns the last position: the file name and line number where the Resume object was used for awaiting.
+     */
+    public function awaitedIn(): string {}
+
+    /**
+     * Returns a string representation of the `Resume` object that can be used for debugging purposes.
+     */
+    public function toString(): string {}
+}
+</code>
+
+Resumption conditions for **Resume** are defined using a callback function with the following prototype:
+
+<code php>
+function(Async\Resume $resume, Async\Notifier $notifier, mixed $event, ?\Throwable $error = null): void {}
+</code>
+
+where:
+  * ''$resume'' - the current **Resume** object
+  * ''$notifier'' - the producer that generated the event (e.g., socket, file descriptor, etc.)
+  * ''$event'' - event information (event type depends on the source)
+  * ''$error'' - exception object, or ''NULL'' if no error occurred
+
+The event handler can decide:
+  * Whether to call ''Resume::resume()'' - to resume Fiber execution
+  * Whether to call ''Resume::throw()'' - to resume Fiber execution with an error
+  * Or do nothing
+
+Method ''Resume::when()'' associates a **Notifier** object with a **Resume** object and a **callback**.
+A single **Resume** object can be associated with multiple **Notifier** instances.
+Each **Notifier** can be handled by its own event handler.
+
+*Example:*
+<code php>
+$notifier = TimerHandle::newTimeout(1000);
+$resume = new Async\Resume();
+
+$resume->when($notifier, function(Async\Resume $resume, Async\Notifier $notifier, mixed $event, ?\Throwable $error = null) {
+    if ($error) {
+        $resume->throw($error);
+    } else {
+        $resume->resume();
+    }
+});
+
+Async\wait($resume);
+</code>
+
+The code above demonstrates behavior similar to the `sleep(1)` function.
+The **TimerHandle** object generates an event after a specified time interval.
+
+The ''$callback'' parameter of the ''when()'' method can also accept one of the predefined values:
+
+  * ''Resume::RESOLVE'' – on success, the fiber continues execution; on error, an exception is thrown.
+  * ''Resume::CANCEL'' – on success, the fiber resumes with a cancellation exception `CancellationException`.
+  * ''Resume::TIMEOUT'' – on success, the fiber resumes execution with a timeout exception `TimeoutException`.
+
+=== Callback Function Limitation ===
+
+The callback function is executed in the context of the **Scheduler**,
+so if the function uses an operation that blocks execution (e.g., **sleep**),
+it will halt the **Scheduler**, and consequently, the entire application thread.
+
+This imposes **increased testing requirements** and makes this API **unsafe** for inattentive use.
+
+==== Reactor Handlers ====
+
+The **Reactor** component defines **Notifier** subclasses that can be used within the **EventLoop**.
+
+=== PollHandle: File, Socket, and Pipes ===
+
+<code php>
+abstract class PollHandle extends Notifier
+{
+    public const int READABLE = 1;
+    public const int WRITABLE = 2;
+    public const int DISCONNECT = 4;
+    public const int PRIORITY = 8;
+
+    public readonly int $triggeredEvents = 0;
+
+    final private function __construct() {}
+
+    /**
+     * Return TRUE if the handle is listening for events in the reactor.
+     */
+    final public function isListening(): bool {}
+
+    /**
+     * Stop listening for events on the handle.
+     */
+    final public function stop(): void {}
+}
+</code>
+
+<code php>
+final class FileHandle extends PollHandle
+{
+    public static function fromResource(mixed $fd, int $actions = self::READABLE | self::WRITABLE): FileHandle {}
+}
+
+final class SocketHandle extends PollHandle
+{
+    public static function fromResource(mixed $resource, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
+    public static function fromSocket(mixed $socket, int $actions = self::READABLE | self::WRITABLE): SocketHandle {}
+}
+
+final class PipeHandle extends PollHandle
+{
+    //public static function open(string $path, string $mode): PipeHandle {}
+}
+
+final class TtyHandle extends PollHandle
+{
+    //public static function open(string $path, string $mode): TtyHandle {}
+}
+</code>
+
+The group of classes that inherit from **PollHandle** allows waiting for **I/O events**
+on input/output descriptors such as **files, sockets, TTYs, and pipes**.
+
+<blockquote>
+**Attention:** The **Windows** operating system does not allow the creation of a seamless
+API for all types of descriptors, so the use of **PollHandle** is **limited on Windows**.
+</blockquote>
+
+The **PollHandle** class group can be created from **PHP-resource handlers**,
+which are returned by functions such as ''fopen'', ''stream_socket_pair'', etc.
+
+<blockquote>
+**Attention:**
+At the moment of **handle creation**, the **blocking mode** is **automatically switched** from **blocking to
+non-blocking**.
+</blockquote>
+
+Using multiple ''PollHandle'' instances from the **same I/O descriptor**
+in the **event loop** may result in an **exception** (the implementation of this behavior depends on the **reactor**).
+The **developer** is responsible for ensuring that this rule is **not violated**.
+
+Using the **same PollHandle** in different **Fibers** is **allowed**.
+However, it is important to **consider the type of Handle**.
+For example, a scenario where **one Fiber only writes to a socket**
+and **another only reads from it** is valid **if it does not break the logic**.
+
+=== Timer Handle ===
+
+<code php>
+final class TimerHandle extends Notifier
+{
+    public readonly int $microseconds = 0;
+    public readonly bool $isPeriodic = false;
+
+    public static function newTimeout(int $microseconds): TimerHandle {}
+    public static function newInterval(int $microseconds): TimerHandle {}
+
+    public function isListening(): bool {}
+    public function stop(): void {}
+}
+</code>
+
+=== Signal Handle ===
+
+<code php>
+final class SignalHandle extends Notifier
+{
+    public readonly int $sigNumber = 0;
+
+    public static function new(int $sigNumber): SignalHandle {}
+
+    public function isListening(): bool {}
+    public function stop(): void {}
+}
+</code>
+
+=== Thread Handle ===
+
+<code php>
+final class ThreadHandle extends Notifier
+{
+    public readonly int|null $tid = 0;
+
+    private function __construct() {}
+}
+</code>
+
+=== Process Handle ===
+
+<code php>
+final class ProcessHandle extends Notifier
+{
+    public readonly int|null $pid = null;
+    public readonly int|null $exitCode = null;
+
+    private function __construct() {}
+}
+</code>
+
+=== DNS Handle ===
+
+<code php>
+final class DnsInfoHandle extends Notifier
+{
+    public static function resolveHost(string $host): DnsInfoHandle {}
+    public static function resolveAddress(string $address): DnsInfoHandle {}
+
+    public readonly string|null $host = null;
+    public readonly string|null $address = null;
+
+    private function __construct() {}
+
+    public function toString(): string {}
+}
+</code>
+
+=== Filesystem Handle ===
+
+<code php>
+final class FileSystemHandle extends Notifier
+{
+    public const int EVENT_RENAME = 1;
+    public const int EVENT_CHANGE = 2;
+
+    public const int FLAG_NONE = 0;
+    public const int WATCH_ENTRY = 1;
+    public const int WATCH_RECURSIVE = 4;
+
+    public readonly int $triggeredEvents = 0;
+    public readonly string $path = '';
+    public readonly int $flags = 0;
+
+    public static function fromPath(string $path, int $flags): FileSystemHandle {}
+
+    private function __construct() {}
+
+    public function isListening(): bool {}
+    public function stop(): void {}
+}
+</code>
+
+==== Handling `Handle` with `Resume::when` ====
+
+When a `Handle` class is bound to a `Resume` object via `Resume::when`,
+and the `Resume` object is passed to `Async\wait()`,
+the waiting process begins, and the `Handle` enters the **event loop**.
+
+Once the waiting process completes, the `Handle` exits the event loop.
+
+A single `Handle` class can potentially belong to multiple `Resume` instances at the same time,
+meaning that **multiple Fibers** can wait on the **same Handle**.
+
+However, the validity of this operation depends on the **context**.
+For example, waiting on the **same socket** can lead to **unpredictable errors**
+if two **Fibers** attempt to **read or write** to it simultaneously.
+
+Ensuring the correctness of such operations is the responsibility of the **developer**.
+
 ==== Tools ====
+
+Additional functions allow obtaining information about the **current state** of the **Scheduler**.
+
+<code php>
+/**
+ * Returns a list of all fibers registered in the Scheduler.
+ *
+ * @return \Fiber[]
+ */
+function getFibers(): array {}
+
+/**
+ * Returns a list of all Resume objects that have currently suspended Fibers.
+ *
+ * @return Resume[]
+ */
+function getResumes(): array {}
+</code>
+
+The ''Async\getFibers()'' function returns a **list of all
+Fiber instances** in the system that **belong to the Scheduler**.
+
+The ''Async\getResumes()'' function returns a **list of all Resume objects**
+that have **currently suspended Fibers**.
+
+Using the method **Resume::getNotifiers()**,
+you can also retrieve information about **which events the Fiber is waiting for**.
+
+The method **Resume::awaitedIn()** returns
+the **PHP file name and line number** where the **Fiber was suspended**.
+
+The **toString()** method, available for **Notifier** and **Resume** objects,
+allows retrieving **string information**
+that can be used for **debugging** or **error output**.
 
 ==== Supported PHP Functions ====
 
-The following list of PHP functions is supported by True Async, which modifies PHP Core functions as well as extension functions to implement non-blocking I/O.
+The following list of PHP functions is supported by True Async,
+which modifies PHP Core functions as well as extension functions to implement non-blocking I/O.
 
   * ''sleep'', ''usleep''
   * Stream functions: ''file_get_contents'', ''stream_socket_accept'', etc (For Windows, a known limitation applies to file and pipe handles)
