@@ -1924,6 +1924,49 @@ all other functions that rely on them operate in a non-blocking mode.
 It is worth noting that the current implementation is not the most efficient in terms of performance,
 as the select/poll algorithm itself is outdated.
 
+==== Performance and Resilience ====
+
+The introduction of a **Scheduler** and the **Reactor** inevitably adds some overhead.
+Creating a ''Fiber'' is relatively cheap (much lighter than an OS thread),
+but it still requires allocating a stack and ''Fiber''/''Resume''/''Notifier'' objects.
+
+If a program launches thousands of small tasks, the overhead from ''Fiber'' switching, ''Resume'' allocation,
+and event dispatching through the ''Notifier'' can become noticeable.
+In the worst-case scenario, improper usage (e.g., an infinite stream of microtasks or thousands of timers per second)
+can lead to performance degradation.
+Additionally, ''Fiber'' context switching is slightly heavier than a function call but significantly lighter
+than a system context switch between threads.
+
+One of the drawbacks of the **True Async approach** is the use of ''zend_object'' for abstracting over the event loop.
+Removing these objects from PHP-land-level could help save some memory.
+
+**True Async** attempts to optimize Fiber usage in microtasks and concurrent iterators by creating new Fibers only when
+necessary. To achieve this, it employs an algorithm similar to the one used in **AMPHP**.
+
+**True Async** overrides core PHP functions such as `php_select`/`poll2`, which themselves have a negative impact on
+performance. Attempting to build a high-performance solution on top of such functions is inherently ineffective.
+However, this should not be considered a critical drawback, as PHP's goal is not to compete with C/C++.
+It is evident that the creation of high-performance servers and handlers should be entrusted to low-level languages.
+
+The implementation of the DNS resolution function ''network_get_host_by_name''
+that caches results in "memory" is potentially not
+the best solution and requires refactoring in the future.
+
+**True Async** does not provide PHP with multitasking, as this is a limitation of PHP's own. This fact
+imposes unavoidable constraints on concurrency usage that cannot be circumvented and MUST be considered by developers:
+
+* A Fiber should execute for the minimal possible time between context switch points. Code that attempts to perform a million iterations in a loop without calling `Async\wait()` is meaningless.
+* If an infinite loop or a stack overflow error occurs within a Fiber, it will be necessary to terminate at least the entire OS thread, which means all other Fibers will also be destroyed. From the user's perspective, this will result in the failure of multiple requests simultaneously. This drawback MUST be considered if you aim to build a highly reliable application.
+* The built-in Web server, which delegates requests to Fibers, must be able to correctly determine the maximum number of requests that should be processed within a single OS thread.
+
+You should not avoid writing code within a single OS thread out of fear of failure.
+
+A possible solution to the above issues could be:
+* A request retry mechanism (must be provided by the Web server component)
+* Delegating heavy or risky tasks to separate processes/threads
+
+So the API for inter-thread (or inter-process) communication is a crucial topic for **True Async**.
+
 ==== Implementation Notes ====
 
 The Windows operating system has a well-known issue related to waiting for I/O events on descriptors of different types.
