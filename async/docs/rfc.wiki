@@ -1653,12 +1653,12 @@ final class SocketHandle extends PollHandle
 
 final class PipeHandle extends PollHandle
 {
-    //public static function open(string $path, string $mode): PipeHandle {}
+    public static function fromResource(mixed $resource, int $actions = self::READABLE | self::WRITABLE): PipeHandle {}
 }
 
 final class TtyHandle extends PollHandle
 {
-    //public static function open(string $path, string $mode): TtyHandle {}
+    public static function fromResource(mixed $resource, int $actions = self::READABLE | self::WRITABLE): TtyHandle {}
 }
 </code>
 
@@ -1688,7 +1688,24 @@ However, it is important to **consider the type of Handle**.
 For example, a scenario where **one Fiber only writes to a socket**
 and **another only reads from it** is valid **if it does not break the logic**.
 
+<blockquote>
+**Attention:**
+The ''PipeHandle'' class is not fully implemented in the current release.
+To ensure its full functionality, it is necessary to implement a STREAM with the ''pipe'' type.
+</blockquote>
+
+<blockquote>
+**Note:**
+Input/output events will not be processed earlier than:
+    * The scheduler gains control
+    * All microtasks are completed
+</blockquote>
+
 === Timer Handle ===
+
+**TimerHandle** allows creating a notifier in the event loop that will trigger after a specified time interval.
+The ''TimerHandle'' will remain active as long as the ''Resume'' object is in a waiting state.
+Once ''Resume'' is resolved, the ''TimerHandle'' will be removed from the event loop.
 
 <code php>
 final class TimerHandle extends Notifier
@@ -1704,11 +1721,34 @@ final class TimerHandle extends Notifier
 }
 </code>
 
+<blockquote>
+**Note** that ''TimerHandle'' is not a precise time measurement tool.
+The event will not occur earlier than:
+    * The scheduler gains control
+    * All microtasks are completed
+    * All input/output events are processed
+</blockquote>
+
 === Signal Handle ===
+
+The **SignalHandle** class allows creating a notifier in the event loop that will trigger when a signal is received.
 
 <code php>
 final class SignalHandle extends Notifier
 {
+    public const int SIGHUP = 1;
+    public const int SIGINT = 2;
+    public const int SIGQUIT = 3;
+    public const int SIGILL = 4;
+    public const int SIGABRT_COMPAT = 6;
+    public const int SIGFPE = 8;
+    public const int SIGKILL = 9;
+    public const int SIGSEGV = 11;
+    public const int SIGTERM = 15;
+    public const int SIGBREAK = 21;
+    public const int SIGABRT = 22;
+    public const int SIGWINCH = 28;
+
     public readonly int $sigNumber = 0;
 
     public static function new(int $sigNumber): SignalHandle {}
@@ -1718,7 +1758,21 @@ final class SignalHandle extends Notifier
 }
 </code>
 
+The final implementation of the signal handler depends on the ''Reactor'' implementation, which may change.
+**True Async** sets the following requirements for the ''Reactor'':
+
+    * Signals are numbered the same way as in Unix-like systems.
+    * If the operating system does not support signals, the ''Reactor'' may emulate this support. For example, as implemented by LibUv: https://docs.libuv.org/en/v1.x/signal.html
+    * A programmer implementing code for this handle must rely not only on this RFC but also on the documentation of the specific ''Reactor''.
+    * Support for the ''SIGINT'' signal must be implemented in the ''Reactor'' if the ''Reactor'' declares that it supports the specified OS.
+
 === Thread Handle ===
+
+''ThreadHandle'' is designed for waiting for a ''Thread'' to complete.
+Its functionality exists only for use at the C-API level.
+A PHP developer may see this class in the list of awaited objects.
+
+Full support for ''ThreadHandle'' depends on the development of multithreading support in PHP.
 
 <code php>
 final class ThreadHandle extends Notifier
@@ -1731,6 +1785,10 @@ final class ThreadHandle extends Notifier
 
 === Process Handle ===
 
+''ProcessHandle'' is designed for waiting for a process to complete.
+Its functionality exists only for use at the C-API level.
+A PHP developer may see this class in the list of awaited objects.
+
 <code php>
 final class ProcessHandle extends Notifier
 {
@@ -1742,6 +1800,11 @@ final class ProcessHandle extends Notifier
 </code>
 
 === DNS Handle ===
+
+''DnsInfoHandle'' is used in functions related to DNS services.
+In this RFC, it has a rather limited API, which may be expanded in the future.
+Almost any HTTP request executed inside a ''Fiber'' implicitly uses this class,
+and it can be observed using functions for inspecting the state of the ''Scheduler''.
 
 <code php>
 final class DnsInfoHandle extends Notifier
@@ -1759,6 +1822,11 @@ final class DnsInfoHandle extends Notifier
 </code>
 
 === Filesystem Handle ===
+
+''FileSystemHandle'' allows tracking filesystem events, specifically two events:
+
+* **EVENT_RENAME** – triggered when a file is renamed
+* **EVENT_CHANGE** – triggered when a file is modified
 
 <code php>
 final class FileSystemHandle extends Notifier
@@ -1783,7 +1851,9 @@ final class FileSystemHandle extends Notifier
 }
 </code>
 
-==== Handling `Handle` with `Resume::when` ====
+TODO: Need to add examples for all handles and add special classes for them.
+
+=== Handling `Handle` with `Resume::when` ===
 
 When a `Handle` class is bound to a `Resume` object via `Resume::when`,
 and the `Resume` object is passed to `Async\wait()`,
@@ -1849,7 +1919,10 @@ which modifies PHP Core functions as well as extension functions to implement no
   * Sockets ext
   * Curl ext
 
-By modifying two key PHP core functions, ''php_select''/''php_poll2'', which are emulated in the True Async library, all other functions that rely on them operate in a non-blocking mode. It is worth noting that the current implementation is not the most efficient in terms of performance, as the select/poll algorithm itself is outdated.
+By modifying two key PHP core functions, ''php_select''/''php_poll2'', which are emulated in the True Async library,
+all other functions that rely on them operate in a non-blocking mode.
+It is worth noting that the current implementation is not the most efficient in terms of performance,
+as the select/poll algorithm itself is outdated.
 
 ==== Implementation Notes ====
 
@@ -1868,6 +1941,7 @@ For example, functions like **php_select**/**php_poll2** could be replaced with 
 Such changes may be implemented in the future.
 
 ===== Backward Incompatible Changes =====
+None.
 
 ==== Fiber API issue ====
 
@@ -1933,6 +2007,8 @@ It proposes development in two areas:
   * **Support for Pipe**
   * **Development of new and revision of existing extensions**
   * **Refactoring of input-output code** to improve performance and better integration with the Event Loop
+  * Functions for **collecting metrics**
+  * **Multithreading** (?)
 
 === Changes to the Language Syntax ===
 
@@ -1946,12 +2022,19 @@ It can be implemented as an `#[Async]` attribute or as a separate keyword.
 
 === Integration with Pipe ===
 
-The chain of calls **Future/map/catch/finally** can rightfully be criticized for its monstrous complexity and difficulty of perception. **Pipe** can solve this problem and create a more intuitive and understandable interface for describing sequences of asynchronous function calls.
+The chain of calls **Future/map/catch/finally** can rightfully be criticized for its monstrous complexity
+and difficulty of perception.
+**Pipe** (not UNIX-like-pipe) can solve this problem and create a more intuitive
+and understandable interface for describing sequences of asynchronous function calls.
 
 === Refactoring of the Input-Output Module ===
 
 Input-output modules such as **PHP Streams** can be redesigned with **asynchronous capabilities**
 in mind and better optimized for operation in this environment.
+
+It would also be appropriate to add support for ''pipe'' in such a way
+that it can be used regardless of the operating system using ''fopen()'' functions.
+This would make the API more consistent.
 
 === Multithreading ===
 
