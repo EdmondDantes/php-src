@@ -874,6 +874,36 @@ end
 
 </code>
 
+== Microtask Context Inheritance ==
+
+Microtasks inherit the context from the ''Fiber'' that created them. This means that in the following code:
+
+<code php>
+Async\Context::current(true)->setKey('test-key', 'test-value');
+
+Async\defer(function() {
+    $value = Async\Context::current()->get('test-key');
+    echo "Microtask 1: {$value}\n";
+
+    Async\defer(function() {
+        $value = Async\Context::current()->get('test-key');
+        echo "Microtask 2: {$value}\n";
+    });
+});
+
+echo "start\n";
+Async\launchScheduler();
+echo "end\n";
+</code>
+
+''Microtask1'' will inherit the context from the previous execution scope. ''Microtask2'',
+which is created inside ''Microtask1'', will inherit the context that was current in ''Microtask1''.
+
+<blockquote>
+**Note:** During the execution of a ''microtask'', you should not rely on ''LocalContext'' because,
+unlike a ''Fiber'', a **microtask cannot own a local context**.
+</blockquote>
+
 ==== Futures ====
 
 Objects of the ''Future'' class are high-level patterns for handling deferred results. **True Async** inherits the semantics of the AMPHP project and defines two key classes:
