@@ -1577,6 +1577,14 @@ sacrificing flexibility in favor of code safety is a reasonable trade-off.
 
 By hiding the ''Low-level API'' from the PHP-land, memory consumption could also be optimized,
 as objects like ''Notifier'' could be implemented without the need to inherit from ''zend_object''.
+
+On the other hand, the existence of this API makes the toolkit as comprehensive as possible.
+
+If a developer encounters a limitation of a high-level implementation,
+this API provides more flexibility in switching fibers,
+which can positively impact performance since the cost of invoking callback functions
+is lower than the cost of switching ''Fiber''.
+
 </blockquote>
 
 The low-level API for managing Fiber execution flow and handling I/O events mirrors the corresponding C-language API.
