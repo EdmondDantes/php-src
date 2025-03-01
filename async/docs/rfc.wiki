@@ -1825,6 +1825,17 @@ The ''$callback'' parameter of the ''when()'' method can also accept one of the 
   * ''Resume::CANCEL'' – on success, the fiber resumes with a cancellation exception `CancellationException`.
   * ''Resume::TIMEOUT'' – on success, the fiber resumes execution with a timeout exception `TimeoutException`.
 
+After the `Resume` object is created, the execution of the `Fiber` must be stopped using
+the `Async\wait()` function, which takes a `Resume` object as an argument.
+Calling this function will suspend the `Fiber` and resume it when the state of the `Resume` object changes.
+
+If the `Resume` object is resolved with an error, an exception passed to `Resume::throw()`
+will be thrown at the point where `Async\wait` was called.
+
+After the waiting for the `Resume` object is completed, the `Resume::getTriggeredNotifiers`
+method can be used to obtain a list of `Notifiers` objects that were involved during the `Fiber` idle time.
+This allows determining the reason for resumption or the result of a background operation.
+
 === Callback Function Limitation ===
 
 The callback function is executed in the context of the **Scheduler**,
