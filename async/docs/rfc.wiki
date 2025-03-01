@@ -594,6 +594,14 @@ Graceful Shutdown Flow:
   - Creating new fibers via ''Async\run()'' or ''Async\async()'' **throws an exception**.
   - When fibers complete, the **Reactor event loop** releases handlers, and the **exception that caused the application to stop** is thrown at the **Scheduler** activation point.
 
+The **Graceful Shutdown** mode can also be triggered using the function:
+
+<code php>
+Async\gracefulShutdown(\Throwable|null $throwable = null): void {}
+</code>
+
+from anywhere in the application.
+
 === Deadlocks ===
 
 A situation may arise where there are no active ''Fibers'' in the execution queue and no active ''Notifiers'' in the event loop. This condition is called a ''Deadlock'', and it represents a serious logical error.
@@ -610,6 +618,63 @@ Deadlocks are still possible due to:
   - **Errors in True Async itself**,
   - **Issues within Reactor**,
   - **Bugs in third-party extensions**.
+
+==== Microtasks ====
+
+Microtasks are a special type of task that is executed before any other event loop callbacks, including timers and I/O events.
+
+To create a microtask, the following function is used:
+
+<code php>
+function defer(callable $microtask): void {}
+</code>
+
+The ''Scheduler'' executes microtasks inside a ''Fiber'',
+so the microtask code can call blocking operations.
+
+However, the nature of microtask execution imposes certain logical constraints:
+
+    * Creating microtasks within a microtask can lead to an infinite loop. The developer must be careful about this type of error. Currently, the ''Scheduler'' does not check for infinite loops, and it may not do so in the future.
+    * A microtask should not take too much time, as this increases the application's latency in responding to events.
+
+Example: Using defer() to create a microtask
+
+<code php>
+Async\run(function() {
+
+    echo "Fiber started\n";
+
+    Async\defer(function() {
+        echo "Microtask 1\n";
+
+        Async\defer(function() {
+            echo "Microtask 2\n";
+        });
+    });
+
+    echo "Fiber completed\n";
+});
+
+Async\run(function() {
+    echo "Another fiber\n";
+});
+
+Async\launchScheduler();
+
+echo "Done!\n";
+
+</code>
+
+**Expected output:**
+
+<code>
+Fiber started
+Fiber completed
+Microtask 1
+Microtask 2
+Another fiber
+Done!
+</code>
 
 ==== Context ====
 
@@ -1485,7 +1550,7 @@ final class Interval
 **Example:**
 
 <code php>
-$timer = new Interval(2000, function (Timer $self) {
+$timer = new Interval(2000, function (Interval $self) {
     echo "Tick at: " . date('H:i:s') . "\n";
     if (rand(1, 5) === 3) { // Random stop condition
         $self->stop();
@@ -1738,7 +1803,7 @@ it will halt the **Scheduler**, and consequently, the entire application thread.
 
 This imposes **increased testing requirements** and makes this API **unsafe** for inattentive use.
 
-==== Reactor Handlers ====
+=== Reactor Handlers ===
 
 The **Reactor** component defines **Notifier** subclasses that can be used within the **EventLoop**.
 
@@ -1954,8 +2019,8 @@ final class DnsInfoHandle extends Notifier
 
 ''FileSystemHandle'' allows tracking filesystem events, specifically two events:
 
-* **EVENT_RENAME** – triggered when a file is renamed
-* **EVENT_CHANGE** – triggered when a file is modified
+    * **EVENT_RENAME** – triggered when a file is renamed
+    * **EVENT_CHANGE** – triggered when a file is modified
 
 <code php>
 final class FileSystemHandle extends Notifier
@@ -2083,15 +2148,15 @@ the best solution and requires refactoring in the future.
 **True Async** does not provide PHP with multitasking, as this is a limitation of PHP's own. This fact
 imposes unavoidable constraints on concurrency usage that cannot be circumvented and MUST be considered by developers:
 
-* A Fiber should execute for the minimal possible time between context switch points. Code that attempts to perform a million iterations in a loop without calling `Async\wait()` is meaningless.
-* If an infinite loop or a stack overflow error occurs within a Fiber, it will be necessary to terminate at least the entire OS thread, which means all other Fibers will also be destroyed. From the user's perspective, this will result in the failure of multiple requests simultaneously. This drawback MUST be considered if you aim to build a highly reliable application.
-* The built-in Web server, which delegates requests to Fibers, must be able to correctly determine the maximum number of requests that should be processed within a single OS thread.
+    * A Fiber should execute for the minimal possible time between context switch points. Code that attempts to perform a million iterations in a loop without calling `Async\wait()` is meaningless.
+    * If an infinite loop or a stack overflow error occurs within a Fiber, it will be necessary to terminate at least the entire OS thread, which means all other Fibers will also be destroyed. From the user's perspective, this will result in the failure of multiple requests simultaneously. This drawback MUST be considered if you aim to build a highly reliable application.
+    * The built-in Web server, which delegates requests to Fibers, must be able to correctly determine the maximum number of requests that should be processed within a single OS thread.
 
 You should not avoid writing code within a single OS thread out of fear of failure.
 
 A possible solution to the above issues could be:
-* A request retry mechanism (must be provided by the Web server component)
-* Delegating heavy or risky tasks to separate processes/threads
+    * A request retry mechanism (must be provided by the Web server component)
+    * Delegating heavy or risky tasks to separate processes/threads
 
 So the API for inter-thread (or inter-process) communication is a crucial topic for **True Async**.
 
