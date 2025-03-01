@@ -16,7 +16,7 @@ The goal of this **RFC** is to establish a standard for writing concurrent code 
 
 The **True Async** project pursues the following goals and values:
 
-  * From a PHP developer's perspective, the **main value** of this implementation is that they DO NOT NEED to change existing code (or if changes are required, they should be minimal) to enable concurrency.
+  * From a PHP developer's perspective, the **main value** of this implementation is that they DO NOT NEED to change existing code (or if changes are required, they should be minimal) to enable concurrency. Unlike explicit async models, this approach lets developers reuse existing synchronous code inside fibers without modification.
 
   * Code that was originally written and intended to run outside of a Fiber must work **EXACTLY THE SAME** inside a Fiber without modifications.
 
@@ -54,7 +54,8 @@ True Async implements an **implicit asynchronous model**. This solution has seve
    * ''Reactor'' – responsible for the Event Loop.
 
 
-In normal mode, code executes outside of a ''Fiber'', and no changes occur. When you call a blocking function such as ''sleep()'', ''shell_exec()'', or ''fread()'', it behaves as usual: execution halts until the operation is complete.
+In normal mode, code executes outside of a ''Fiber'' (Null-Fiber-Context), and no changes occur. When you call a
+blocking function such as ''sleep()'', ''shell_exec()'', or ''fread()'', it behaves as usual: execution halts until the operation is complete.
 
 However, once one or more ''Fibers'' are created using the API and the ''Scheduler'' is activated, the code begins executing concurrently.
 
@@ -99,7 +100,6 @@ A PHP developer **SHOULD NOT** make any assumptions about the order in which Fib
 
 === Scheduler ===
 
-
 The **Scheduler** implements the main execution loop of the application, one of its steps being the execution of the **Reactor's** event loop.
 
 Similar to **AMPHP** and **JavaScript**, the **Scheduler** defines two types of tasks:
@@ -114,11 +114,22 @@ The function ''Async\defer()'' is responsible for creating microtasks.
 
 === Activating the Scheduler ===
 
-The **Scheduler** is not activated //automatically//; it must be explicitly enabled. Until it is activated, PHP code behaves as before: calls to blocking functions will block the execution thread and will not switch the **Fiber** context. Thus, code written without the **Scheduler** component will function exactly the same way, without side effects. This ensures backward compatibility.
+The **Scheduler** is not activated //automatically//; it must be explicitly enabled.
+Until it is activated, PHP code behaves as before:
+calls to blocking functions will block the execution thread and will not switch the **Fiber** context.
+Thus, code written without the **Scheduler** component will function exactly the same way, without side effects.
+This ensures backward compatibility.
 
-The **Scheduler** can only be activated in the main **zero-Fiber** execution context. It cannot be activated inside a **Fiber**, as this will result in a fatal error.
+By default, a PHP script runs outside the Fiber context (Null-Fiber-Context).
+**True Async** uses this criterion to distinguish execution contexts. The **Null-Fiber** context is handed over to the
+''Scheduler'' component. This is one of the reasons why ''Scheduler'' activation is explicit, unlike implementations in other
+languages.
 
-Once the **Scheduler** is activated, it will take control of the **zero-Fiber** context, and execution within it will pause until all **Fibers**, all **microtasks**, and all **event loop** events have been processed.
+The **Scheduler** can only be activated in the **Null-Fiber** execution context. It cannot be activated inside a
+**Fiber**, as this will result in a fatal error.
+
+Once the **Scheduler** is activated, it will take control of the **Null-Fiber** context, and execution within it will
+pause until all **Fibers**, all **microtasks**, and all **event loop** events have been processed.
 
 The **Scheduler** is activated by calling:
 
@@ -126,7 +137,33 @@ The **Scheduler** is activated by calling:
 Async\launchScheduler();
 </code>
 
-At the point where **Async\launchScheduler();** is called, all unhandled exceptions from **Fiber** will also be generated. Therefore, you can use **try-catch** to handle such errors and take additional actions if necessary.
+At the point where **Async\launchScheduler();** is called, all unhandled exceptions from **Fiber** will also be generated.
+Therefore, you can use **try-catch** to handle such errors and take additional actions if necessary.
+
+**Restarting the Scheduler**
+
+''True Async'' prohibits initializing the ''Scheduler'' twice.
+This is not because such initialization is technically impossible, but to avoid logical uncertainty.
+A PHP application should terminate execution as soon as possible after the ''Scheduler'' has completed its work.
+
+This is crucial because the process may handle an OS signal that imposes a time limit on execution (for example, as Windows does).
+
+== Explicit activation of the Scheduler ==
+
+Explicit activation of the Scheduler has both drawbacks and advantages.
+
+//Disadvantages://
+  * PHP is a high-level language, but activating the component looks like a low-level operation. (Although Fiber is also a low-level component, it exists in the language)
+  * Code in the ''Null-Fiber'' context cannot use concurrency.
+  * ''Scheduler'' can be activated multiple times because it is just a function.
+
+//Advantages://
+  * Code written without using the ''Scheduler'' should not experience any side effects.
+  * Existence of a responsibility point for exception handling.
+  * Explicit application initialization flow.
+
+On the other hand, there are no serious technical obstacles to running the main PHP code directly in a ''Fiber'' environment.
+This behavior can be defined in ''php.ini'' or set via a startup option.
 
 === Resume & Fiber Control ===
 
@@ -204,7 +241,8 @@ New fibers are created using two functions, which are very similar to each other
   * ''Async\run()''
   * ''Async\async()''
 
-The difference between them is that the function ''Async\async()'' returns a special object ''FiberHandle'', which is used to control the execution of the fiber.
+The difference between them is that the function ''Async\async()'' returns a special object ''FiberHandle'',
+which is used to control the execution of the fiber.
 
 Example:
 <code php>
@@ -377,7 +415,7 @@ Done!
 </code>
 
 **Note:** If multiple fibers await the result of another fiber, the behavior will remain the same:
-each call to ''await()'' will receive the exception.
+each call to ''await()'' will receive that exception.
 
 Example: Multiple fibers awaiting the same fiber
 
@@ -2008,10 +2046,7 @@ The proposed changes are intended for PHP 8.5 or later.
 ===== RFC Impact =====
 ==== To SAPIs ====
 The **True Async** module activates the reactor within the context of ''php_request_startup\php_request_shutdown()''
-request processing.
-Therefore, APIs designed to create and destroy the context
-for each request will nullify the benefits of using the concurrent mode.
-As of now, only the **CLI** mode is suitable for these purposes.
+request processing. Therefore, using concurrency is reasonable only for long-life scenarios implemented via CLI.
 
 It is expected that **True Async** will enable the integration of built-in **web servers** into PHP,
 which will be embedded into the reactor’s event loop.
@@ -2065,8 +2100,7 @@ It can be implemented as an `#[Async]` attribute or as a separate keyword.
 
 === Integration with Pipe ===
 
-The chain of calls **Future/map/catch/finally** can rightfully be criticized for its monstrous complexity
-and difficulty of perception.
+The Future->map()->catch()->finally() call chain is rightly criticized for excessive complexity and difficulty of comprehension.
 **Pipe** (not UNIX-like-pipe) can solve this problem and create a more intuitive
 and understandable interface for describing sequences of asynchronous function calls.
 
