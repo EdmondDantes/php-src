@@ -94,34 +94,26 @@ function defer(callable $microtask): void {}
 function delay(int $timeout, callable|Closure $callback): void {}
 
 /**
- * Creates a callback microtask that will execute at regular intervals
- * as long as the specified time interval has not expired and the Scheduler takes control.
- * Callback allows you to cancel the callback.
- * The callback will also be immediately canceled
- * if the CallbackInterface object is destroyed by the garbage collector or goes out of scope.
+ * Registers a callback that will be executed when the specified signal is received.
  */
-function repeat(int $interval, Closure $callback): void {}
+function trapSignal(int|array $sigNumber, callable $callback): void {}
 
 /**
- * Registers a callback that will be executed when the specified signal is received.
- * Callback allows you to cancel the callback.
- * The callback will also be immediately canceled
- * if the Callback object is destroyed by the garbage collector or goes out of scope.
+ * Returns a list of supported signals.
  */
-function onSignal(int $sigNumber, Closure $callback): void {}
+function getSupportedSignals(): array {}
 
 /**
  * Execute an external program.
+ * @return Future<array{string, int}>
  */
 function exec(
     string $command,
-    array|string|null &$output = null,
-    ?int &$result_code  = null,
     int $timeout        = 0,
     ?string $cwd        = null,
     ?array $env         = null,
-    ?array $options     = null
-): void {}
+    bool $returnAll     = false
+): Future {}
 
 /**
  * Returns a list of all fibers registered in the Scheduler.

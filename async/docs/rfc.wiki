@@ -1437,16 +1437,16 @@ final class Walker
 }
 </code>
 
-==== Timer ====
+==== Interval ====
 
-The ''Timer'' class provides a high-level API for creating a callback function that will trigger periodically at a specified interval.
-The callback function receives the ''Timer'' instance itself as an argument, allowing for dynamic control.
+The ''Interval'' class provides a high-level API for creating a callback function that will trigger periodically at a specified interval.
+The callback function receives the ''Interval'' instance itself as an argument, allowing for dynamic control.
 
 <code php>
-class Timer
+final class Interval
 {
     /**
-     * Constructor to initialize the timer.
+     * Constructor to initialize the Interval.
      *
      * @param int $interval Interval in milliseconds.
      * @param callable $callback Function to execute, receiving the Timer instance.
@@ -1454,7 +1454,7 @@ class Timer
     public function __construct(int $interval, callable $callback) {}
 
     /**
-     * Starts the timer.
+     * Starts the Interval.
      *
      * @return void
      */
@@ -1468,7 +1468,7 @@ class Timer
     public function stop(): void {}
 
     /**
-     * Checks if the timer is currently running.
+     * Checks if the Interval is currently running.
      *
      * @return bool True if the timer is running, false otherwise.
      */
@@ -1485,14 +1485,77 @@ class Timer
 **Example:**
 
 <code php>
-$timer = new Timer(2000, function (Timer $self) {
+$timer = new Interval(2000, function (Timer $self) {
     echo "Tick at: " . date('H:i:s') . "\n";
     if (rand(1, 5) === 3) { // Random stop condition
         $self->stop();
-        echo "Timer stopped.\n";
+        echo "Interval stopped.\n";
     }
 })->start();
 </code>
+
+==== Shell command execution ====
+
+In addition to standard functions for launching processes and shell commands,
+such as: ''proc_open'', ''shell_exec'', ''exec'', ''passthru'',
+which do not block the application in ''Scheduler'' mode, **True Async**
+defines an additional function that returns a ''Future''.
+
+<code php>
+/**
+ * Execute an external program.
+ * @return Future<array{string, int}>
+ */
+function exec(
+    string|array $command,
+    int $timeout        = 0,
+    ?string $cwd        = null,
+    ?array $env         = null,
+    bool $returnAll     = false,
+): Future {}
+</code>
+
+The function ''exec'' returns a ''Future'' that will store the result of the command execution.
+The result is an array with two elements:
+  * the output of the command
+  * the exit code
+
+**Example:**
+<code php>
+Async\run(function() {
+    $result = Async\await(Async\exec('ls -la'));
+    echo $result[0];
+});
+</code>
+
+If the ''$returnAll'' parameter is set to ''true'', the function will return all output lines.
+Otherwise, only the last line will be returned.
+
+==== OS signal handling ====
+
+Function ''trapSignal'':
+
+<code php>
+Async\trapSignal(int|array $sigNumber, callable $callback): void {}
+</code>
+
+allows defining signal handlers that the OS sends to the application.
+
+Signals are a mechanism whose implementation depends on the operating system and the Reactor component implementation,
+which is not defined by **True Async**.
+
+**True Async** imposes the following requirements on the implementation:
+* The reactor should strive to support handling the application termination signal if the operating system is included in the list of supported ones.
+* The method ''getSupportedSignals'' must return a list of supported signals on the current platform.
+* An attempt to add a handler for an unsupported signal must throw an exception.
+
+The ''trapSignal'' method is intended for defining a global signal handler
+and can be set only once for a specific signal number (unlike the similar ''SignalHandle'' API).
+
+This means that ''trapSignal'' is not intended for "regular code" and should not be used "anywhere".
+
+The signal handler must be defined **before** starting the ''Scheduler'' and will be destroyed as soon as the
+''Scheduler'' stops running.
 
 ==== Low-level API ====
 
@@ -1967,13 +2030,14 @@ that can be used for **debugging** or **error output**.
 The following list of PHP functions is supported by True Async,
 which modifies PHP Core functions as well as extension functions to implement non-blocking I/O.
 
-  * ''sleep'', ''usleep''
-  * Stream functions: ''file_get_contents'', ''stream_socket_accept'', etc (For Windows, a known limitation applies to file and pipe handles)
-  * Dns info functions like: ''gethostbyname''
-  * Exec functions like: ''exec'', ''shell_exec'', etc
-  * ''proc_close''
+  * ''sleep'', ''usleep'', ''time_nanosleep'', ''time_sleep_until''
+  * Stream functions: ''file_get_contents'', ''fopen'', ''fread'', ''fwrite'', ''fsockopen'', ''stream_socket_accept'', etc (For Windows, a known limitation applies to file and pipe handles)
+  * Dns info functions like: ''gethostbyname'', ''gethostbynamel'', ''gethostbyaddr''
+  * Exec functions: ''proc_close'', ''shell_exec'', ''exec'', ''passthru'' (Windows full support)
   * Sockets ext
   * Curl ext
+  * MySql Native Driver + PDO ext
+  * Redis ext
 
 By modifying two key PHP core functions, ''php_select''/''php_poll2'', which are emulated in the True Async library,
 all other functions that rely on them operate in a non-blocking mode.
