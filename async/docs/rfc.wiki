@@ -772,7 +772,7 @@ final class Context
 }
 </code>
 
-The `Context` class is a map-like data structure where keys can be either **objects** or **strings**. Object keys allow the creation of slots in `Context` that cannot be accessed from other areas of the application. This mechanism is similar to `Symbol` in JavaScript.
+The ''Context'' class is a map-like data structure where keys can be either **objects** or **strings**. Object keys allow the creation of slots in ''Context'' that cannot be accessed from other areas of the application. This mechanism is similar to ''Symbol'' in JavaScript.
 
 For key objects, a specialized ''Async\Key()'' object can be used, but this is not required.
 
@@ -796,7 +796,7 @@ Async\run(function() {
 
 ''Fiber1'' will inherit the context from the previous execution scope. ''Fiber2'', which is created inside ''Fiber1'', will inherit the context that was current in ''Fiber1''.
 
-The following code demonstrates the mutable nature of `Context`:
+The following code demonstrates the mutable nature of ''Context'':
 
 <code php>
 Async\Context::current(true)->setKey('test-key', 'test-value');
@@ -1703,27 +1703,27 @@ final class Resume
     private mixed $result = null;
 
     /**
-     * Predefined callback-behavior for the `Resume` object
+     * Predefined callback-behavior for the ''Resume'' object
      * when the event is triggered, fiber resumes execution.
      * If an error occurs, an exception is thrown.
      */
     const int RESOLVE   = 1;
     /**
-     * Predefined callback-behavior for the `Resume` object
+     * Predefined callback-behavior for the ''Resume'' object
      * when the event is triggered, fiber resumes execution with a cancellation exception.
      * If an error occurs, an exception is thrown.
      */
     const int CANCEL    = 2;
     /**
-     * Predefined callback-behavior for the `Resume` object
+     * Predefined callback-behavior for the ''Resume'' object
      * when the event is triggered, fiber resumes execution with a timeout exception.
      * If an error occurs, an exception is thrown.
-     * This callback can be used only with the `TimerHandle` object.
+     * This callback can be used only with the ''TimerHandle'' object.
      */
     const int TIMEOUT   = 3;
 
     /**
-     * Creates a new `Resume` object.
+     * Creates a new ''Resume'' object.
      */
     public function __construct() {}
 
@@ -1738,17 +1738,17 @@ final class Resume
     public function throw(?\Throwable $error = null): void {}
 
     /**
-     * Determines if the `Resume` object is pending.
+     * Determines if the ''Resume'' object is pending.
      */
     public function isPending(): bool {}
 
     /**
-     * Determines if the `Resume` object has been resolved.
+     * Determines if the ''Resume'' object has been resolved.
      */
     public function isResolved(): bool {}
 
     /**
-     * Returns the Notifiers associated with the `Resume` object.
+     * Returns the Notifiers associated with the ''Resume'' object.
      */
     public function getNotifiers(): array {}
 
@@ -1816,24 +1816,24 @@ $resume->when($notifier, function(Async\Resume $resume, Async\Notifier $notifier
 Async\wait($resume);
 </code>
 
-The code above demonstrates behavior similar to the `sleep(1)` function.
+The code above demonstrates behavior similar to the ''sleep(1)'' function.
 The **TimerHandle** object generates an event after a specified time interval.
 
 The ''$callback'' parameter of the ''when()'' method can also accept one of the predefined values:
 
   * ''Resume::RESOLVE'' – on success, the fiber continues execution; on error, an exception is thrown.
-  * ''Resume::CANCEL'' – on success, the fiber resumes with a cancellation exception `CancellationException`.
-  * ''Resume::TIMEOUT'' – on success, the fiber resumes execution with a timeout exception `TimeoutException`.
+  * ''Resume::CANCEL'' – on success, the fiber resumes with a cancellation exception ''CancellationException''.
+  * ''Resume::TIMEOUT'' – on success, the fiber resumes execution with a timeout exception ''TimeoutException''.
 
-After the `Resume` object is created, the execution of the `Fiber` must be stopped using
-the `Async\wait()` function, which takes a `Resume` object as an argument.
-Calling this function will suspend the `Fiber` and resume it when the state of the `Resume` object changes.
+After the ''Resume'' object is created, the execution of the ''Fiber'' must be stopped using
+the ''Async\wait()'' function, which takes a ''Resume'' object as an argument.
+Calling this function will suspend the ''Fiber'' and resume it when the state of the ''Resume'' object changes.
 
-If the `Resume` object is resolved with an error, an exception passed to `Resume::throw()`
-will be thrown at the point where `Async\wait` was called.
+If the ''Resume'' object is resolved with an error, an exception passed to ''Resume::throw()''
+will be thrown at the point where ''Async\wait'' was called.
 
-After the waiting for the `Resume` object is completed, the `Resume::getTriggeredNotifiers`
-method can be used to obtain a list of `Notifiers` objects that were involved during the `Fiber` idle time.
+After the waiting for the ''Resume'' object is completed, the ''Resume::getTriggeredNotifiers''
+method can be used to obtain a list of ''Notifiers'' objects that were involved during the ''Fiber'' idle time.
 This allows determining the reason for resumption or the result of a background operation.
 
 === Callback Function Limitation ===
@@ -2086,15 +2086,15 @@ final class FileSystemHandle extends Notifier
 }
 </code>
 
-=== Handling `Handle` with `Resume::when` ===
+=== Handling ''Handle'' with ''Resume::when'' ===
 
-When a `Handle` class is bound to a `Resume` object via `Resume::when`,
-and the `Resume` object is passed to `Async\wait()`,
-the waiting process begins, and the `Handle` enters the **event loop**.
+When a ''Handle'' class is bound to a ''Resume'' object via ''Resume::when'',
+and the ''Resume'' object is passed to ''Async\wait()'',
+the waiting process begins, and the ''Handle'' enters the **event loop**.
 
-Once the waiting process completes, the `Handle` exits the event loop.
+Once the waiting process completes, the ''Handle'' exits the event loop.
 
-A single `Handle` class can potentially belong to multiple `Resume` instances at the same time,
+A single ''Handle'' class can potentially belong to multiple ''Resume'' instances at the same time,
 meaning that **multiple Fibers** can wait on the **same Handle**.
 
 However, the validity of this operation depends on the **context**.
@@ -2177,7 +2177,7 @@ Removing these objects from PHP-land-level could help save some memory.
 **True Async** attempts to optimize Fiber usage in microtasks and concurrent iterators by creating new Fibers only when
 necessary. To achieve this, it employs an algorithm similar to the one used in **AMPHP**.
 
-**True Async** overrides core PHP functions such as `php_select`/`poll2`, which themselves have a negative impact on
+**True Async** overrides core PHP functions such as ''php_select''/''poll2'', which themselves have a negative impact on
 performance. Attempting to build a high-performance solution on top of such functions is inherently ineffective.
 However, this should not be considered a critical drawback, as PHP's goal is not to compete with C/C++.
 It is evident that the creation of high-performance servers and handlers should be entrusted to low-level languages.
@@ -2189,7 +2189,7 @@ the best solution and requires refactoring in the future.
 **True Async** does not provide PHP with multitasking, as this is a limitation of PHP's own. This fact
 imposes unavoidable constraints on concurrency usage that cannot be circumvented and MUST be considered by developers:
 
-    * A Fiber should execute for the minimal possible time between context switch points. Code that attempts to perform a million iterations in a loop without calling `Async\wait()` is meaningless.
+    * A Fiber should execute for the minimal possible time between context switch points. Code that attempts to perform a million iterations in a loop without calling ''Async\wait()'' is meaningless.
     * If an infinite loop or a stack overflow error occurs within a Fiber, it will be necessary to terminate at least the entire OS thread, which means all other Fibers will also be destroyed. From the user's perspective, this will result in the failure of multiple requests simultaneously. This drawback MUST be considered if you aim to build a highly reliable application.
     * The built-in Web server, which delegates requests to Fibers, must be able to correctly determine the maximum number of requests that should be processed within a single OS thread.
 
@@ -2292,7 +2292,7 @@ This will make the code more compact and more understandable in comparison to ot
 
 The **async** keyword can also be used as a special attribute for functions
 to signal that a function may suspend a **Fiber**.
-It can be implemented as an `#[Async]` attribute or as a separate keyword.
+It can be implemented as an ''#[Async]'' attribute or as a separate keyword.
 
 === Integration with Pipe ===
 
@@ -2318,7 +2318,17 @@ These aspects require evaluation and analysis in the future.
 ===== Proposed Voting Choices =====
 Yes or no vote.  2/3 required to pass.
 
-<doodle title="Add the pipe operator?" auth="crell" voteType="single" closed="true">
+<doodle title="Accept the architecture proposed in the RFC as the base?" auth="crell" voteType="single" closed="true">
+   * Yes
+   * No
+</doodle>
+
+<doodle title="Make the Low-level API (Async/wait + Resume) accessible from PHP?" auth="crell" voteType="single" closed="true">
+   * Yes
+   * No
+</doodle>
+
+<doodle title="Decompose this RFC into two: Low-level, High-level?" auth="crell" voteType="single" closed="true">
    * Yes
    * No
 </doodle>
