@@ -1496,6 +1496,26 @@ $timer = new Timer(2000, function (Timer $self) {
 
 ==== Low-level API ====
 
+<blockquote>
+**Point of Discussion**
+
+At the early stages of designing ''True Async'', an attempt was made to create a copy of the interface from ''Revolt''
+to provide developers with the highest possible level of control over the application.
+
+The main argument in favor of having a low-level API was as follows:
+If PHP includes such low-level objects as ''Fiber'' and sockets close to C-level implementations,
+it would be logical to provide an API for interacting with the ''Event Loop''.
+
+However, as the code was being developed and interfaces were defined, doubts arose.
+
+The main argument against this API: functions that inherently block the execution flow appear simpler,
+are more intuitive to use, and are safer. I came to the conclusion that, in the long run,
+sacrificing flexibility in favor of code safety is a reasonable trade-off.
+
+By hiding the ''Low-level API'' from the PHP-land, memory consumption could also be optimized,
+as objects like ''Notifier'' could be implemented without the need to inherit from ''zend_object''.
+</blockquote>
+
 The low-level API for managing Fiber execution flow and handling I/O events mirrors the corresponding C-language API.
 It is built around the creation of a Fiber suspension point and conditions for resumption.
 
@@ -1888,8 +1908,6 @@ final class FileSystemHandle extends Notifier
     public function stop(): void {}
 }
 </code>
-
-TODO: Need to add examples for all handles and add special classes for them.
 
 === Handling `Handle` with `Resume::when` ===
 
