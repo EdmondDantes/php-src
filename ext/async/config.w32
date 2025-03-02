@@ -4,30 +4,29 @@ ARG_ENABLE('async', 'Enable True Async API', 'no');
 ARG_WITH('async_libuv', 'Build True Async API with libuv support', 'no');
 
 if (PHP_ASYNC == "yes") {
-    ADD_SOURCES("async", "async.c reactor.c scheduler.c");
-    ADD_SOURCES("async/internal", "allocator.c circular_buffer.c");
+    ADD_SOURCES("ext/async", "async.c reactor.c scheduler.c");
+    ADD_SOURCES("ext/async/internal", "allocator.c circular_buffer.c");
     ADD_SOURCES(
-        "async/php_layer",
+        "ext/async/php_layer",
         "closure.c notifier.c resume.c reactor_handles.c exceptions.c module_entry.c zend_common.c walker.c future.c pool.c context.c channel.c"
     );
 
     ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
 
-    PHP_INSTALL_HEADERS("async", "php_async.h");
-    PHP_INSTALL_HEADERS("async", "php_reactor.h");
-    PHP_INSTALL_HEADERS("async", "php_scheduler.h");
-    PHP_INSTALL_HEADERS("async/libuv", "libuv_reactor.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "closure.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "channel.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "reactor_handles.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "exceptions.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "module_entry.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "notifier.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "resume.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "walker.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "future.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "pool.h");
-    PHP_INSTALL_HEADERS("async/php_layer", "context.h");
+    PHP_INSTALL_HEADERS("ext/async", "php_async.h");
+    PHP_INSTALL_HEADERS("ext/async", "php_reactor.h");
+    PHP_INSTALL_HEADERS("ext/async", "php_scheduler.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "closure.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "channel.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "reactor_handles.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "exceptions.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "module_entry.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "notifier.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "resume.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "walker.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "future.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "pool.h");
+    PHP_INSTALL_HEADERS("ext/async/php_layer", "context.h");
 }
 
 if (PHP_ASYNC_LIBUV == "yes") {
@@ -37,7 +36,9 @@ if (PHP_ASYNC_LIBUV == "yes") {
         if (CHECK_HEADER_ADD_INCLUDE("libuv/uv.h", "CFLAGS_UV", PHP_PHP_BUILD + "\\include")
             && CHECK_LIB("libuv.lib", "libuv")) {
 
-            ADD_SOURCES("async/libuv", "libuv_reactor.c");
+            PHP_INSTALL_HEADERS("ext/async/libuv", "libuv_reactor.h");
+
+            ADD_SOURCES("ext/async/libuv", "libuv_reactor.c");
             ADD_FLAG("CFLAGS", "/D PHP_ASYNC_LIBUV");
             ADD_FLAG("LIBS", "libuv.lib Dbghelp.lib Userenv.lib");
         } else {

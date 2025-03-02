@@ -4,7 +4,7 @@ file_get_contents with Http
 allow_url_fopen=1
 --FILE--
 <?php
-include "../sapi/cli/tests/php_cli_server.inc";
+include "../../sapi/cli/tests/php_cli_server.inc";
 php_cli_server_start();
 
 Async\async(function() {
