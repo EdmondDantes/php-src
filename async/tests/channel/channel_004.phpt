@@ -11,7 +11,7 @@ Async\run(function() {
         $receiveLimit = 3;
         $received = 0;
 
-        while (($data = $channel->receive()) != null) {
+        while (($data = $channel->receiveOrNull()) != null) {
             echo "receive: $data\n";
             $received++;
             if ($received >= $receiveLimit) {

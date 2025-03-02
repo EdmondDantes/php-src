@@ -212,7 +212,7 @@ METHOD(awaitedIn)
     }
 }
 
-METHOD(__debugInfo)
+METHOD(getInfo)
 {
 	if (THIS_RESUME->filename != NULL) {
 		RETURN_STR(zend_strpprintf(0, "Resume at %s:%d", ZSTR_VAL(THIS_RESUME->filename), THIS_RESUME->lineno));

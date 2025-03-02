@@ -60,7 +60,7 @@ class Notifier
     /**
      * Returns a string representation of the Notifier that can be used for debugging purposes.
      */
-    public function __debugInfo(): string {}
+    public function getInfo(): string {}
 }
 
 /**

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 52e871c78b985236423923449e7be702e70d64de */
+ * Stub hash: b2c7f313ef6db649cefa77e03c9955268bf59dcf */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -18,7 +18,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_close, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier___debugInfo, 0, 0, IS_STRING, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getInfo, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_NotifierEx___construct, 0, 0, 0)
@@ -36,7 +36,7 @@ ZEND_METHOD(Async_Notifier, addCallback);
 ZEND_METHOD(Async_Notifier, removeCallback);
 ZEND_METHOD(Async_Notifier, notify);
 ZEND_METHOD(Async_Notifier, close);
-ZEND_METHOD(Async_Notifier, __debugInfo);
+ZEND_METHOD(Async_Notifier, getInfo);
 ZEND_METHOD(Async_NotifierEx, __construct);
 ZEND_METHOD(Async_Cancellation, isCancelled);
 ZEND_METHOD(Async_Cancellation, cancel);
@@ -47,7 +47,7 @@ static const zend_function_entry class_Async_Notifier_methods[] = {
 	ZEND_ME(Async_Notifier, removeCallback, arginfo_class_Async_Notifier_removeCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, notify, arginfo_class_Async_Notifier_notify, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, close, arginfo_class_Async_Notifier_close, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
-	ZEND_ME(Async_Notifier, __debugInfo, arginfo_class_Async_Notifier___debugInfo, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Notifier, getInfo, arginfo_class_Async_Notifier_getInfo, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 

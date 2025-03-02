@@ -8,13 +8,13 @@ Async\run(function() {
 
     Async\run(function() use($channel) {
 
-        while (($data = $channel->receive()) != null) {
+        while (($data = $channel->receiveOrNull()) != null) {
             echo "receive by 1: $data\n";
         }
     });
 
     Async\run(function() use($channel) {
-        while (($data = $channel->receive()) != null) {
+        while (($data = $channel->receiveOrNull()) != null) {
             echo "receive by 2: $data\n";
         }
     });

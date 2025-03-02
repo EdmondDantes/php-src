@@ -181,7 +181,7 @@ final class DnsInfoHandle extends Notifier
 
     private function __construct() {}
 
-    public function __debugInfo(): string {}
+    public function getInfo(): string {}
 }
 
 /**

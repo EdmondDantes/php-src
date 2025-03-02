@@ -6,13 +6,13 @@ Channel: two receivers and two producers
 $channel = new Async\Channel();
 
 Async\run(function() use($channel) {
-    while (($data = $channel->receive()) != null) {
+    while (($data = $channel->receiveOrNull()) != null) {
         echo "receive: $data\n";
     }
 });
 
 Async\run(function() use($channel) {
-    while (($data = $channel->receive()) != null) {
+    while (($data = $channel->receiveOrNull()) != null) {
         echo "receive: $data\n";
     }
 });

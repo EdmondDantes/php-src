@@ -607,7 +607,7 @@ FUTURE_STATE_METHOD(ignore)
 	THIS_FUTURE_STATE->is_used = true;
 }
 
-FUTURE_STATE_METHOD(__debugInfo)
+FUTURE_STATE_METHOD(getInfo)
 {
 	RETURN_STR(zend_strpprintf(0,
 		"FutureObject started at %s:%d",

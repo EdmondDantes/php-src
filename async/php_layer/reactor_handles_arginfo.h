@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 92924cf3aa380b39e6545f6b86573f4b99d54581 */
+ * Stub hash: 4bbf591ae33abc031e13bbf8e6d33458deed0ea5 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_PollHandle___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -87,7 +87,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_DnsInfoHandle___construct arginfo_class_Async_PollHandle___construct
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_DnsInfoHandle___debugInfo, 0, 0, IS_STRING, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_DnsInfoHandle_getInfo, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_FileSystemHandle_fromPath, 0, 2, Async\\FileSystemHandle, 0)
@@ -130,7 +130,7 @@ ZEND_METHOD(Async_ProcessHandle, __construct);
 ZEND_METHOD(Async_DnsInfoHandle, resolveHost);
 ZEND_METHOD(Async_DnsInfoHandle, resolveAddress);
 ZEND_METHOD(Async_DnsInfoHandle, __construct);
-ZEND_METHOD(Async_DnsInfoHandle, __debugInfo);
+ZEND_METHOD(Async_DnsInfoHandle, getInfo);
 ZEND_METHOD(Async_FileSystemHandle, fromPath);
 ZEND_METHOD(Async_FileSystemHandle, __construct);
 ZEND_METHOD(Async_FileSystemHandle, isListening);
@@ -198,7 +198,7 @@ static const zend_function_entry class_Async_DnsInfoHandle_methods[] = {
 	ZEND_ME(Async_DnsInfoHandle, resolveHost, arginfo_class_Async_DnsInfoHandle_resolveHost, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_DnsInfoHandle, resolveAddress, arginfo_class_Async_DnsInfoHandle_resolveAddress, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_DnsInfoHandle, __construct, arginfo_class_Async_DnsInfoHandle___construct, ZEND_ACC_PRIVATE)
-	ZEND_ME(Async_DnsInfoHandle, __debugInfo, arginfo_class_Async_DnsInfoHandle___debugInfo, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_DnsInfoHandle, getInfo, arginfo_class_Async_DnsInfoHandle_getInfo, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
