@@ -946,7 +946,7 @@ final class FutureState extends Notifier
      */
     public function addCallback(Closure $callback): static {}
 
-    public function __debugInfo(): string {}
+    public function getInfo(): string {}
 }
 </code>
 
@@ -1775,7 +1775,7 @@ final class Resume
     /**
      * Returns a string representation of the `Resume` object that can be used for debugging purposes.
      */
-    public function __debugInfo(): string {}
+    public function getInfo(): string {}
 }
 </code>
 
@@ -2052,7 +2052,7 @@ final class DnsInfoHandle extends Notifier
 
     private function __construct() {}
 
-    public function __debugInfo(): string {}
+    public function getInfo(): string {}
 }
 </code>
 
@@ -2135,7 +2135,7 @@ you can also retrieve information about **which events the Fiber is waiting for*
 The method **Resume::awaitedIn()** returns
 the **PHP file name and line number** where the **Fiber was suspended**.
 
-The **__debugInfo()** method, available for **Notifier** and **Resume** objects,
+The **getInfo()** method, available for **Notifier** and **Resume** objects,
 allows retrieving **string information**
 that can be used for **debugging** or **error output**.
 
