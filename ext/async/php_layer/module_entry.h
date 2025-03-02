@@ -16,7 +16,7 @@
 #ifndef ASYNC_MODULE_ENTRY_H
 #define ASYNC_MODULE_ENTRY_H
 
-#include <async/php_scheduler.h>
+#include <ext/async/php_scheduler.h>
 #include "zend_common.h"
 
 #define PHP_ASYNC_VERSION "1.0.0-dev"

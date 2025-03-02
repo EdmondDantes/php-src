@@ -38,7 +38,7 @@
 #ifdef ZTS
 ZEND_DECLARE_MODULE_GLOBALS(async)
 #else
-async_globals* async_globals;
+zend_async_globals* async_globals;
 #endif
 
 ZEND_TLS HashTable * host_name_list = NULL;
@@ -1266,7 +1266,7 @@ PHPAPI struct hostent* async_network_get_host_by_name(const char *name)
 	result = addr_info_to_hostent(((reactor_dns_info_t *) dns_info)->addr_info);
 
 	store_host_by_name(name, result);
-	
+
 	OBJ_RELEASE(&dns_info->std);
 
 	return result;

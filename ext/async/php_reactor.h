@@ -126,7 +126,7 @@ typedef reactor_handle_t* (*reactor_process_new_t)(async_process_t process_h, ze
  * reactor_thread_new_t - Creates a new thread event handle.
  * Monitors thread ID for specified events.
  */
-typedef reactor_handle_t* (*reactor_thread_new_t)(THREAD_T thread_id, zend_ulong events);
+typedef reactor_handle_t* (*reactor_thread_new_t)(int thread_id, zend_ulong events);
 
 /**
  * reactor_dns_info_new_t - Creates a new DNS info event handle.

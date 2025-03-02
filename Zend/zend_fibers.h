@@ -20,10 +20,12 @@
 #ifndef ZEND_FIBERS_H
 #define ZEND_FIBERS_H
 
-#include <async/php_layer/context.h>
-
 #include "zend_API.h"
 #include "zend_types.h"
+
+#ifdef PHP_ASYNC
+#include <ext/async/php_layer/context.h>
+#endif
 
 #define ZEND_FIBER_GUARD_PAGES 1
 
