@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5ca605fed5203d1099d9e6906aa1fe8f6a1bfd5b */
+ * Stub hash: 52e871c78b985236423923449e7be702e70d64de */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_getCallbacks, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -18,7 +18,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_close, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier_toString, 0, 0, IS_STRING, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_Notifier___debugInfo, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_NotifierEx___construct, 0, 0, 0)
@@ -36,7 +36,7 @@ ZEND_METHOD(Async_Notifier, addCallback);
 ZEND_METHOD(Async_Notifier, removeCallback);
 ZEND_METHOD(Async_Notifier, notify);
 ZEND_METHOD(Async_Notifier, close);
-ZEND_METHOD(Async_Notifier, toString);
+ZEND_METHOD(Async_Notifier, __debugInfo);
 ZEND_METHOD(Async_NotifierEx, __construct);
 ZEND_METHOD(Async_Cancellation, isCancelled);
 ZEND_METHOD(Async_Cancellation, cancel);
@@ -47,7 +47,7 @@ static const zend_function_entry class_Async_Notifier_methods[] = {
 	ZEND_ME(Async_Notifier, removeCallback, arginfo_class_Async_Notifier_removeCallback, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Notifier, notify, arginfo_class_Async_Notifier_notify, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
 	ZEND_ME(Async_Notifier, close, arginfo_class_Async_Notifier_close, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
-	ZEND_ME(Async_Notifier, toString, arginfo_class_Async_Notifier_toString, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Notifier, __debugInfo, arginfo_class_Async_Notifier___debugInfo, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -81,11 +81,11 @@ static zend_class_entry *register_class_Async_Notifier(void)
 	zend_declare_typed_property(class_entry, property_isClosed_name, &property_isClosed_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
 	zend_string_release(property_isClosed_name);
 
-	zval property_toString_default_value;
-	ZVAL_UNDEF(&property_toString_default_value);
-	zend_string *property_toString_name = zend_string_init("toString", sizeof("toString") - 1, 1);
-	zend_declare_typed_property(class_entry, property_toString_name, &property_toString_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
-	zend_string_release(property_toString_name);
+	zval property_debugInfo_default_value;
+	ZVAL_UNDEF(&property_debugInfo_default_value);
+	zend_string *property_debugInfo_name = zend_string_init("debugInfo", sizeof("debugInfo") - 1, 1);
+	zend_declare_typed_property(class_entry, property_debugInfo_name, &property_debugInfo_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_string_release(property_debugInfo_name);
 
 	return class_entry;
 }

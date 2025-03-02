@@ -175,6 +175,11 @@ PHP_METHOD(Async_Walker, walk)
 	RETURN_OBJ(&walker->std);
 }
 
+PHP_METHOD(Async_Walker, map)
+{
+	// TODO: Implement map method
+}
+
 PHP_METHOD(Async_Walker, run)
 {
 	async_walker_t * walker = (async_walker_t *) Z_OBJ_P(getThis());

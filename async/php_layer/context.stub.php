@@ -12,7 +12,7 @@ final class Key
 {
     public readonly string $description;
     public function __construct(string $description = '') {}
-    public function __debugInfo(): string {}
+    public function __toString(): string {}
 }
 
 /**

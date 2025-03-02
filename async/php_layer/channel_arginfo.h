@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5f21a6c039049a5d9de10ec4981d86a104e55c8e */
+ * Stub hash: 49f419f58dbaf911bf7eca8ecd3f058b79066e78 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Async_ChannelStateInterface_isClosed, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -55,10 +55,18 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_ChannelInterface_getNotifier, 0, 0, Async\\\116otifier, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Async_Channel_singleProducer, 0, 0, Async\\Channel, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, capacity, IS_LONG, 0, "1")
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, owner, Fiber, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, expandable, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, throwOnNull, _IS_BOOL, 0, "false")
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Async_Channel___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, capacity, IS_LONG, 0, "1")
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, owner, Fiber, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, expandable, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, throwOnNull, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Channel_send arginfo_class_Async_ProducerInterface_send
@@ -66,6 +74,8 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Async_Channel_trySend arginfo_class_Async_ProducerInterface_trySend
 
 #define arginfo_class_Async_Channel_receive arginfo_class_Async_ConsumerInterface_receive
+
+#define arginfo_class_Async_Channel_receiveOrNull arginfo_class_Async_ConsumerInterface_receive
 
 #define arginfo_class_Async_Channel_tryReceive arginfo_class_Async_ConsumerInterface_tryReceive
 
@@ -109,10 +119,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Async_Channel_count arginfo_class_Async_ChannelStateInterface_getCapacity
 
+ZEND_METHOD(Async_Channel, singleProducer);
 ZEND_METHOD(Async_Channel, __construct);
 ZEND_METHOD(Async_Channel, send);
 ZEND_METHOD(Async_Channel, trySend);
 ZEND_METHOD(Async_Channel, receive);
+ZEND_METHOD(Async_Channel, receiveOrNull);
 ZEND_METHOD(Async_Channel, tryReceive);
 ZEND_METHOD(Async_Channel, waitUntilWritable);
 ZEND_METHOD(Async_Channel, waitUntilReadable);
@@ -170,10 +182,12 @@ static const zend_function_entry class_Async_ChannelInterface_methods[] = {
 };
 
 static const zend_function_entry class_Async_Channel_methods[] = {
+	ZEND_ME(Async_Channel, singleProducer, arginfo_class_Async_Channel_singleProducer, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(Async_Channel, __construct, arginfo_class_Async_Channel___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, send, arginfo_class_Async_Channel_send, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, trySend, arginfo_class_Async_Channel_trySend, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, receive, arginfo_class_Async_Channel_receive, ZEND_ACC_PUBLIC)
+	ZEND_ME(Async_Channel, receiveOrNull, arginfo_class_Async_Channel_receiveOrNull, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, tryReceive, arginfo_class_Async_Channel_tryReceive, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, waitUntilWritable, arginfo_class_Async_Channel_waitUntilWritable, ZEND_ACC_PUBLIC)
 	ZEND_ME(Async_Channel, waitUntilReadable, arginfo_class_Async_Channel_waitUntilReadable, ZEND_ACC_PUBLIC)

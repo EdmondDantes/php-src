@@ -60,6 +60,11 @@ static void on_fiber_finished(
 	ZEND_ASSERT(async_channel_get_owner_fiber(callback->object) == fiber && "Fiber is not the owner of the channel");
 }
 
+METHOD(singleProducer)
+{
+	// TODO: Implement singleProducer method
+}
+
 METHOD(__construct)
 {
 	zend_long capacity = 8;
@@ -220,7 +225,7 @@ METHOD(trySend)
 	}
 }
 
-METHOD(receive)
+zend_always_inline void receive_method(INTERNAL_FUNCTION_PARAMETERS, bool return_null)
 {
 	zend_long timeout = 0;
 	zend_object *cancellation = NULL;
@@ -250,7 +255,7 @@ METHOD(receive)
 		emit_data_popped(channel);
 
 		if(UNEXPECTED(EG(exception))) {
-            zval_ptr_dtor(return_value);
+			zval_ptr_dtor(return_value);
 			RETURN_THROWS();
 		}
 
@@ -258,7 +263,12 @@ METHOD(receive)
 	}
 
 	if (UNEXPECTED(THIS(closed))) {
-		RETURN_NULL();
+		if (return_null) {
+			RETURN_NULL();
+		} else {
+			zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0);
+			RETURN_THROWS();
+		}
 	}
 
 	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, (reactor_notifier_t *) cancellation);
@@ -272,11 +282,21 @@ METHOD(receive)
 	}
 
 	if (UNEXPECTED(THIS(closed))) {
-		RETURN_NULL();
+		if (return_null) {
+			RETURN_NULL();
+		} else {
+			zend_throw_exception(async_ce_channel_was_closed_exception, "Channel was closed", 0);
+			RETURN_THROWS();
+		}
 	}
 
 	if (UNEXPECTED(circular_buffer_is_empty(&channel->buffer))) {
-		RETURN_NULL();
+		if (return_null) {
+			RETURN_NULL();
+		} else {
+			zend_throw_exception(async_ce_channel_exception, "Channel is empty", 0);
+			RETURN_THROWS();
+		}
 	}
 
 	zval_c_buffer_pop(&channel->buffer, return_value);
@@ -292,6 +312,16 @@ METHOD(receive)
 		zval_ptr_dtor(return_value);
 		RETURN_THROWS();
 	}
+}
+
+METHOD(receive)
+{
+	receive_method(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+METHOD(receiveOrNull)
+{
+	receive_method(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 METHOD(tryReceive)

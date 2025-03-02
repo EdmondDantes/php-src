@@ -17,13 +17,13 @@ final class Walker
      * Iterates over the given iterable asynchronously
      * and calls the given callback function for each element.
      *
-     * @param iterable      $iterator       The iterable to walk over.
-     * @param callable      $function       The callback function to call for each element.
-     * @param mixed         $customData     Custom data to pass to the callback function.
-     * @param callable|null $defer          The callback function to call when the iteration is finished.
-     * @param int           $concurrency    The number of concurrent operations.
+     * param iterable      $iterator       The iterable to walk over.
+     * param callable      $function       The callback function to call for each element.
+     * param mixed         $customData     Custom data to pass to the callback function.
+     * param callable|null $defer          The callback function to call when the iteration is finished.
+     * param int           $concurrency    The number of concurrent operations.
      *
-     * @return Walker
+     * return Walker
      */
     public static function walk(
         iterable $iterator,
@@ -38,11 +38,11 @@ final class Walker
      * and calls the given callback function for each element.
      * The callback function should return a value.
      *
-     * @param iterable      $iterator       The iterable to walk over.
-     * @param callable      $function       The callback function to call for each element.
-     * @param mixed         $customData     Custom data to pass to the callback function.
-     * @param callable|null $defer          The callback function to call when the iteration is finished.
-     * @param int           $concurrency    The number of concurrent operations.
+     * param iterable      $iterator       The iterable to walk over.
+     * param callable      $function       The callback function to call for each element.
+     * param mixed         $customData     Custom data to pass to the callback function.
+     * param callable|null $defer          The callback function to call when the iteration is finished.
+     * param int           $concurrency    The number of concurrent operations.
      *
      * @return Walker
      */

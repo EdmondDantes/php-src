@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9c5e4e6ad00a5a591be525bdb8dc1d1a6287bfb0 */
+ * Stub hash: 678c00c0d48a1c5ba05a31d4504b60c710836f80 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_launchScheduler, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -51,30 +51,25 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_delay, 0, 2, IS_VOID, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, callback, Async\\Closure, MAY_BE_CALLABLE, NULL)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_repeat, 0, 2, IS_VOID, 0)
-	ZEND_ARG_TYPE_INFO(0, interval, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, callback, Async\\Closure, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_trapSignal, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_MASK(0, sigNumber, MAY_BE_LONG|MAY_BE_ARRAY, NULL)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_onSignal, 0, 2, IS_VOID, 0)
-	ZEND_ARG_TYPE_INFO(0, sigNumber, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, callback, Async\\Closure, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_getSupportedSignals, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_exec, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Async_exec, 0, 1, Async\\Future, 0)
 	ZEND_ARG_TYPE_INFO(0, command, IS_STRING, 0)
-	ZEND_ARG_TYPE_MASK(1, output, MAY_BE_ARRAY|MAY_BE_STRING|MAY_BE_NULL, "null")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(1, result_code, IS_LONG, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_LONG, 0, "0")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, cwd, IS_STRING, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, env, IS_ARRAY, 1, "null")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, returnAll, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_getFibers, 0, 0, IS_ARRAY, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_Async_getFibers arginfo_Async_getSupportedSignals
 
-#define arginfo_Async_getResumes arginfo_Async_getFibers
+#define arginfo_Async_getResumes arginfo_Async_getSupportedSignals
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Async_gracefulShutdown, 0, 0, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, throwable, Throwable, 1, "null")
@@ -90,8 +85,8 @@ ZEND_FUNCTION(Async_awaitAnyN);
 ZEND_FUNCTION(Async_awaitAll);
 ZEND_FUNCTION(Async_defer);
 ZEND_FUNCTION(Async_delay);
-ZEND_FUNCTION(Async_repeat);
-ZEND_FUNCTION(Async_onSignal);
+ZEND_FUNCTION(Async_trapSignal);
+ZEND_FUNCTION(Async_getSupportedSignals);
 ZEND_FUNCTION(Async_exec);
 ZEND_FUNCTION(Async_getFibers);
 ZEND_FUNCTION(Async_getResumes);
@@ -108,8 +103,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "awaitAll"), zif_Async_awaitAll, arginfo_Async_awaitAll, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "defer"), zif_Async_defer, arginfo_Async_defer, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "delay"), zif_Async_delay, arginfo_Async_delay, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "repeat"), zif_Async_repeat, arginfo_Async_repeat, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "onSignal"), zif_Async_onSignal, arginfo_Async_onSignal, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "trapSignal"), zif_Async_trapSignal, arginfo_Async_trapSignal, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "getSupportedSignals"), zif_Async_getSupportedSignals, arginfo_Async_getSupportedSignals, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "exec"), zif_Async_exec, arginfo_Async_exec, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "getFibers"), zif_Async_getFibers, arginfo_Async_getFibers, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("Async", "getResumes"), zif_Async_getResumes, arginfo_Async_getResumes, 0, NULL, NULL)

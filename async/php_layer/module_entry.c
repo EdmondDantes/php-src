@@ -465,7 +465,7 @@ PHP_FUNCTION(Async_repeat)
 	}
 }
 
-PHP_FUNCTION(Async_onSignal)
+PHP_FUNCTION(Async_trapSignal)
 {
 	THROW_IF_REACTOR_DISABLED
 
@@ -491,6 +491,11 @@ PHP_FUNCTION(Async_onSignal)
 	if (EG(exception) != NULL) {
 		RETURN_THROWS();
 	}
+}
+
+PHP_FUNCTION(Async_getSupportedSignals)
+{
+	// TODO: Implement Async_getSupportedSignals
 }
 
 PHP_FUNCTION(Async_exec)
