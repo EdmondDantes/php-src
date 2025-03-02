@@ -1,93 +1,99 @@
-dnl vim: ft=config
+PHP_ARG_ENABLE([async],
+  [whether to enable True Async API],
+  [AS_HELP_STRING([--enable-async],
+    [Enable True Async API])])
 
-PHP_ARG_ENABLE(async, whether to enable True Async API,
-[  --enable-async          Enable True Async API], no, no)
+PHP_ARG_WITH([async_libuv],
+  [for True Async LibUV support],
+  [AS_HELP_STRING([--with-async-libuv],
+    [Build True Async API with LibUv support])])
 
-PHP_ARG_WITH(async_libuv, whether to build with libuv support,
-[  --with-async-libuv[=DIR]      Build True Async API with libuv support], no, no)
+if test "$PHP_ASYNC" = "yes"; then
+  dnl Define a symbol for C code.
+  AC_DEFINE([HAVE_ASYNC], 1, [Enable True Async API])
 
-if test "$PHP_ASYNC" != "no"; then
-  dnl Add main source files
-  PHP_ADD_SOURCES("async", async.c reactor.c scheduler.c, ASYNC_CFLAGS)
-  PHP_ADD_SOURCES("async/internal", allocator.c circular_buffer.c, ASYNC_CFLAGS)
-  PHP_ADD_SOURCES("async/php_layer", \
-    closure.c notifier.c resume.c reactor_handles.c exceptions.c module_entry.c \
-    zend_common.c walker.c future.c pool.c context.c channel.c, ASYNC_CFLAGS)
+  dnl Register extension source files.
+  PHP_NEW_EXTENSION(
+    [async],
+    [async/async.c async/reactor.c \
+    async/scheduler.c \
+    async/internal/allocator.c \
+    async/internal/circular_buffer.c \
+    async/php_layer/callback.c \
+    async/php_layer/channel.c \
+    async/php_layer/reactor_handles.c \
+    async/php_layer/exceptions.c \
+    async/php_layer/module_entry.c \
+    async/php_layer/notifier.c \
+    async/php_layer/resume.c \
+    async/php_layer/zend_common.c],
+    $ext_shared
+  )
 
-  dnl Define the main macro
-  AC_DEFINE(PHP_ASYNC, 1, [Enable True Async API])
+  dnl Optionally install headers (if desired for public use).
+  PHP_INSTALL_HEADERS([async], [php_async.h php_reactor.h php_scheduler.h])
+  PHP_INSTALL_HEADERS([async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
 
-  dnl Install header files
-  PHP_INSTALL_HEADERS([ext/async], php_async.h php_reactor.h php_scheduler.h)
-  PHP_INSTALL_HEADERS([ext/async/libuv], libuv_reactor.h)
-  PHP_INSTALL_HEADERS([ext/async/php_layer], \
-    closure.h channel.h reactor_handles.h exceptions.h module_entry.h \
-    notifier.h resume.h walker.h future.h pool.h context.h)
+  if test "$PHP_ASYNC_LIBUV" = "yes"; then
+    if test "$PHP_ASYNC" != "yes"; then
+      AC_MSG_ERROR([libuv requires True Async API. Use --enable-async.])
+    fi
 
-  dnl Register the extension
-  PHP_NEW_EXTENSION(async, $ext_src, $ext_shared)
-fi
+    AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
 
-if test "$PHP_ASYNC_LIBUV" != "no"; then
-  dnl Check async dependency
-  if test "$PHP_ASYNC" = "no"; then
-    AC_MSG_ERROR([libuv requires True Async API to be enabled. Use --enable-async])
-  fi
+    AC_MSG_CHECKING(for libuv)
 
-  dnl Search for libuv using pkg-config
-  PKG_CHECK_MODULES([LIBUV], [libuv >= 1.0.0], [
-    PHP_EVAL_INCLINE($LIBUV_CFLAGS)
-    PHP_EVAL_LIBLINE($LIBUV_LIBS, ASYNC_LIBUV_SHARED_LIBADD)
-    UV_FOUND=yes
-  ], [
-    UV_FOUND=no
-  ])
+    if test -x "$PKG_CONFIG" && $PKG_CONFIG --exists libuv; then
+      if $PKG_CONFIG libuv --atleast-version 1.40.0; then
+        LIBUV_INCLINE=`$PKG_CONFIG libuv --cflags`
+        LIBUV_LIBLINE=`$PKG_CONFIG libuv --libs`
+        LIBUV_VERSION=`$PKG_CONFIG libuv --modversion`
+        AC_MSG_RESULT(from pkgconfig: found version $LIBUV_VERSION)
+        AC_DEFINE(HAVE_UVLIB,1,[ ])
+      else
+        AC_MSG_ERROR(system libuv must be upgraded to version >= 1.40.0)
+      fi
+      PHP_EVAL_LIBLINE($LIBUV_LIBLINE, UV_SHARED_LIBADD)
+      PHP_EVAL_INCLINE($LIBUV_INCLINE)
 
-  dnl Fallback: Manual search for libuv
-  if test "$UV_FOUND" = "no"; then
-    if test -r "$PHP_ASYNC_LIBUV/include/uv.h"; then
-      UV_INC_DIR="$PHP_ASYNC_LIBUV/include"
-      UV_LIB_DIR="$PHP_ASYNC_LIBUV/$PHP_LIBDIR"
     else
-      UV_SEARCH_DIRS="/usr/local /usr"
-      for dir in $UV_SEARCH_DIRS; do
-        if test -r "$dir/include/uv.h"; then
-          UV_INC_DIR="$dir/include"
-          UV_LIB_DIR="$dir/$PHP_LIBDIR"
-          UV_FOUND=yes
-          break
-        fi
-      done
+      SEARCH_PATH="/usr/local /usr"
+      SEARCH_FOR="/include/uv.h"
+      if test -r $PHP_ASYNC_LIBUV/$SEARCH_FOR; then # path given as parameter
+         UV_DIR=$PHP_ASYNC_LIBUV
+         AC_MSG_RESULT(from option: found in $UV_DIR)
+      else # search default path list
+         for i in $SEARCH_PATH ; do
+             if test -r $i/$SEARCH_FOR; then
+               UV_DIR=$i
+               AC_MSG_RESULT(from default path: found in $i)
+             fi
+         done
+      fi
+      PHP_ADD_INCLUDE($UV_DIR/include)
+      PHP_CHECK_LIBRARY(uv, uv_version,
+      [
+        PHP_ADD_LIBRARY_WITH_PATH(uv, $UV_DIR/$PHP_LIBDIR, UV_SHARED_LIBADD)
+        AC_DEFINE(HAVE_UVLIB,1,[ ])
+      ],[
+        AC_MSG_ERROR([wrong uv library version or library not found])
+      ],[
+        -L$UV_DIR/$PHP_LIBDIR -lm
+      ])
+      case $host in
+          *linux*)
+              CFLAGS="$CFLAGS -lrt"
+      esac
     fi
 
-    if test "$UV_FOUND" = "no"; then
-      AC_MSG_ERROR([uv.h not found. Please install libuv development files])
-    fi
+	PHP_SUBST([CFLAGS])
+    PHP_SUBST(UV_SHARED_LIBADD)
 
-    PHP_ADD_INCLUDE($UV_INC_DIR)
-    PHP_ADD_LIBRARY_WITH_PATH(uv, $UV_LIB_DIR, ASYNC_LIBUV_SHARED_LIBADD)
+    dnl Link against needed libraries.
+    PHP_ADD_LIBRARY([uv], 1, ASYNC_SHARED_LIBADD)
+
+    dnl Add libuv-specific reactor code.
+    PHP_ADD_SOURCES([async/libuv], [libuv_reactor.c])
+    PHP_INSTALL_HEADERS([async/libuv], [libuv_reactor.h])
   fi
-
-  dnl Check for required libuv functions
-  CFLAGS_SAVE=$CFLAGS
-  LIBS_SAVE=$LIBS
-  CFLAGS="$CFLAGS $LIBUV_CFLAGS"
-  LIBS="$LIBS $LIBUV_LIBS"
-
-  AC_CHECK_LIB(uv, uv_loop_init, [
-    AC_DEFINE(PHP_ASYNC_LIBUV, 1, [Enable libuv support])
-  ], [
-    AC_MSG_ERROR([Invalid libuv library version])
-  ])
-
-  AC_CHECK_LIB(uv, uv_async_send, [], [
-    AC_MSG_ERROR([libuv missing required uv_async_send function])
-  ])
-
-  dnl Restore original flags
-  CFLAGS=$CFLAGS_SAVE
-  LIBS=$LIBS_SAVE
-
-  dnl Add libuv-specific sources
-  PHP_ADD_SOURCES("async/libuv", libuv_reactor.c, ASYNC_LIBUV_CFLAGS)
 fi
