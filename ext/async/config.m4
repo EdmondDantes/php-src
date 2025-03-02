@@ -10,7 +10,7 @@ PHP_ARG_WITH([async_libuv],
 
 if test "$PHP_ASYNC" = "yes"; then
   dnl Define a symbol for C code.
-  AC_DEFINE([HAVE_ASYNC], 1, [Enable True Async API])
+  AC_DEFINE([PHP_ASYNC], 1, [Enable True Async API])
 
   dnl Register extension source files.
   PHP_NEW_EXTENSION(
@@ -47,7 +47,7 @@ if test "$PHP_ASYNC" = "yes"; then
         LIBUV_LIBLINE=`$PKG_CONFIG libuv --libs`
         LIBUV_VERSION=`$PKG_CONFIG libuv --modversion`
         AC_MSG_RESULT(from pkgconfig: found version $LIBUV_VERSION)
-        AC_DEFINE(HAVE_UVLIB,1,[ ])
+        AC_DEFINE(PHP_ASYNC_LIBUV,1,[ ])
       else
         AC_MSG_ERROR(system libuv must be upgraded to version >= 1.40.0)
       fi
@@ -72,7 +72,7 @@ if test "$PHP_ASYNC" = "yes"; then
       PHP_CHECK_LIBRARY(uv, uv_version,
       [
         PHP_ADD_LIBRARY_WITH_PATH(uv, $UV_DIR/$PHP_LIBDIR, UV_SHARED_LIBADD)
-        AC_DEFINE(HAVE_UVLIB,1,[ ])
+        AC_DEFINE(PHP_ASYNC_LIBUV,1,[ ])
       ],[
         AC_MSG_ERROR([wrong uv library version or library not found])
       ],[

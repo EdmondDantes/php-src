@@ -38,7 +38,7 @@
 #ifdef ZTS
 ZEND_DECLARE_MODULE_GLOBALS(async)
 #else
-zend_async_globals* async_globals;
+zend_async_globals async_globals;
 #endif
 
 ZEND_TLS HashTable * host_name_list = NULL;
