@@ -15,24 +15,22 @@ if test "$PHP_ASYNC" = "yes"; then
   dnl Register extension source files.
   PHP_NEW_EXTENSION(
     [async],
-    [async/async.c async/reactor.c \
-    async/scheduler.c \
-    async/internal/allocator.c \
-    async/internal/circular_buffer.c \
-    async/php_layer/callback.c \
-    async/php_layer/channel.c \
-    async/php_layer/reactor_handles.c \
-    async/php_layer/exceptions.c \
-    async/php_layer/module_entry.c \
-    async/php_layer/notifier.c \
-    async/php_layer/resume.c \
-    async/php_layer/zend_common.c],
+    [async.c reactor.c scheduler.c \
+    internal/allocator.c internal/circular_buffer.c \
+    php_layer/callback.c \
+    php_layer/channel.c \
+    php_layer/reactor_handles.c \
+    php_layer/exceptions.c \
+    php_layer/module_entry.c \
+    php_layer/notifier.c \
+    php_layer/resume.c \
+    php_layer/zend_common.c],
     $ext_shared
   )
 
   dnl Optionally install headers (if desired for public use).
-  PHP_INSTALL_HEADERS([async], [php_async.h php_reactor.h php_scheduler.h])
-  PHP_INSTALL_HEADERS([async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
+  PHP_INSTALL_HEADERS([ext/async], [php_async.h php_reactor.h php_scheduler.h])
+  PHP_INSTALL_HEADERS([ext/async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
 
   if test "$PHP_ASYNC_LIBUV" = "yes"; then
     if test "$PHP_ASYNC" != "yes"; then
@@ -93,7 +91,7 @@ if test "$PHP_ASYNC" = "yes"; then
     PHP_ADD_LIBRARY([uv], 1, ASYNC_SHARED_LIBADD)
 
     dnl Add libuv-specific reactor code.
-    PHP_ADD_SOURCES([async/libuv], [libuv_reactor.c])
-    PHP_INSTALL_HEADERS([async/libuv], [libuv_reactor.h])
+    PHP_ADD_SOURCES([ext/async/libuv], [libuv_reactor.c])
+    PHP_INSTALL_HEADERS([ext/async/libuv], [libuv_reactor.h])
   fi
 fi
