@@ -541,10 +541,6 @@ Sometimes, it is necessary to cancel an operation for various reasons. However, 
 <blockquote>**ATTENTION**: A programmer **should not** attempt to suppress ''CancellationException'', as this may lead to a fatal error and disrupt the application's behavior.
 </blockquote>
 
-<blockquote>**ATTENTION**: A programmer must **never** attempt to create a new fiber while handling a ''CancellationException'',
-as this behavior may trigger an exception during **Graceful Shutdown** mode.
-</blockquote>
-
 If a fiber does not handle ''CancellationException'' and it reaches the **Scheduler**, the **Scheduler** will process and suppress it.
 Thus, an unhandled ''CancellationException'' **does not** terminate the application.
 
@@ -1180,8 +1176,6 @@ class Channel implements ChannelInterface
     public function isFull(): bool {}
 
     public function isEmpty(): bool {}
-
-    public function isNotEmpty(): bool {}
 
     public function isProducingFinished(): bool {}
 
