@@ -10,29 +10,27 @@ PHP_ARG_WITH([async_libuv],
 
 if test "$PHP_ASYNC" = "yes"; then
   dnl Define a symbol for C code.
-  AC_DEFINE([HAVE_ASYNC], 1, [Enable True Async API])
+  AC_DEFINE([PHP_ASYNC], 1, [Enable True Async API])
 
   dnl Register extension source files.
   PHP_NEW_EXTENSION(
     [async],
-    [async/async.c async/reactor.c \
-    async/scheduler.c \
-    async/internal/allocator.c \
-    async/internal/circular_buffer.c \
-    async/php_layer/callback.c \
-    async/php_layer/channel.c \
-    async/php_layer/reactor_handles.c \
-    async/php_layer/exceptions.c \
-    async/php_layer/module_entry.c \
-    async/php_layer/notifier.c \
-    async/php_layer/resume.c \
-    async/php_layer/zend_common.c],
+    [async.c reactor.c scheduler.c \
+    internal/allocator.c internal/circular_buffer.c \
+    php_layer/callback.c \
+    php_layer/channel.c \
+    php_layer/reactor_handles.c \
+    php_layer/exceptions.c \
+    php_layer/module_entry.c \
+    php_layer/notifier.c \
+    php_layer/resume.c \
+    php_layer/zend_common.c],
     $ext_shared
   )
 
   dnl Optionally install headers (if desired for public use).
-  PHP_INSTALL_HEADERS([async], [php_async.h php_reactor.h php_scheduler.h])
-  PHP_INSTALL_HEADERS([async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
+  PHP_INSTALL_HEADERS([ext/async], [php_async.h php_reactor.h php_scheduler.h])
+  PHP_INSTALL_HEADERS([ext/async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
 
   if test "$PHP_ASYNC_LIBUV" = "yes"; then
     if test "$PHP_ASYNC" != "yes"; then
@@ -49,7 +47,7 @@ if test "$PHP_ASYNC" = "yes"; then
         LIBUV_LIBLINE=`$PKG_CONFIG libuv --libs`
         LIBUV_VERSION=`$PKG_CONFIG libuv --modversion`
         AC_MSG_RESULT(from pkgconfig: found version $LIBUV_VERSION)
-        AC_DEFINE(HAVE_UVLIB,1,[ ])
+        AC_DEFINE(PHP_ASYNC_LIBUV,1,[ ])
       else
         AC_MSG_ERROR(system libuv must be upgraded to version >= 1.40.0)
       fi
@@ -74,7 +72,7 @@ if test "$PHP_ASYNC" = "yes"; then
       PHP_CHECK_LIBRARY(uv, uv_version,
       [
         PHP_ADD_LIBRARY_WITH_PATH(uv, $UV_DIR/$PHP_LIBDIR, UV_SHARED_LIBADD)
-        AC_DEFINE(HAVE_UVLIB,1,[ ])
+        AC_DEFINE(PHP_ASYNC_LIBUV,1,[ ])
       ],[
         AC_MSG_ERROR([wrong uv library version or library not found])
       ],[
@@ -93,7 +91,7 @@ if test "$PHP_ASYNC" = "yes"; then
     PHP_ADD_LIBRARY([uv], 1, ASYNC_SHARED_LIBADD)
 
     dnl Add libuv-specific reactor code.
-    PHP_ADD_SOURCES([async/libuv], [libuv_reactor.c])
-    PHP_INSTALL_HEADERS([async/libuv], [libuv_reactor.h])
+    PHP_ADD_SOURCES([ext/async/libuv], [libuv_reactor.c])
+    PHP_INSTALL_HEADERS([ext/async/libuv], [libuv_reactor.h])
   fi
 fi

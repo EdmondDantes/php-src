@@ -18,10 +18,10 @@
 
 #include "zend_portability.h"
 #include "php_network.h"
-#include "async/php_scheduler.h"
-#include "async/internal/circular_buffer.h"
-#include "async/php_layer/resume.h"
-#include "php_layer/exceptions.h"
+#include "ext/async/php_scheduler.h"
+#include "ext/async/internal/circular_buffer.h"
+#include "ext/async/php_layer/resume.h"
+#include "ext/async/php_layer/exceptions.h"
 #include "zend_fibers.h"
 
 #define ASYNC_READABLE 1

@@ -20,7 +20,10 @@
 
 #include <sys/stat.h>
 #include <wchar.h>
-#include <async/php_layer/context.h>
+
+#ifdef PHP_ASYNC
+#include <ext/async/php_layer/context.h>
+#endif
 
 #include "php_filestat.h"
 
