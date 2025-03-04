@@ -18,7 +18,7 @@
 #include "zend_fibers.h"
 #include "resume.h"
 
-#include <async/php_async.h>
+#include <ext/async/php_async.h>
 #include <ext/spl/spl_exceptions.h>
 
 #include "notifier.h"
@@ -322,6 +322,8 @@ static void async_resume_object_free(zend_object* object)
     zend_hash_destroy(&resume->notifiers);
     zend_object_std_dtor(&resume->std);
 }
+
+ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void)
 {

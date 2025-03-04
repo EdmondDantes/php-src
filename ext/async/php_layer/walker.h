@@ -16,7 +16,7 @@
 #ifndef WALKER_H
 #define WALKER_H
 
-#include <async/php_scheduler.h>
+#include <ext/async/php_scheduler.h>
 
 #include "future.h"
 

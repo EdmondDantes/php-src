@@ -18,7 +18,7 @@
 
 #include "notifier.h"
 #include "zend_common.h"
-#include "async/internal/circular_buffer.h"
+#include "ext/async/internal/circular_buffer.h"
 
 typedef enum {
 	ASYNC_DATA_PUSHED = 1,

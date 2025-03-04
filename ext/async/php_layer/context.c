@@ -15,10 +15,10 @@
 */
 #include "context.h"
 
-#include <IPHlpApi.h>
+//#include <IPHlpApi.h>
 #include <zend_fibers.h>
 #include <zend_weakrefs.h>
-#include <async/php_async.h>
+#include <ext/async/php_async.h>
 
 #include "context_arginfo.h"
 #include "exceptions.h"
@@ -393,6 +393,10 @@ static void async_context_object_destroy(zend_object *object)
 		context->parent = NULL;
 	}
 }
+
+ZEND_API zend_class_entry * async_ce_context;
+ZEND_API zend_class_entry * async_ce_key;
+ZEND_API zend_class_entry * async_ce_context_exception;
 
 void async_register_context_ce(void)
 {

@@ -15,8 +15,8 @@
 */
 #include "future.h"
 
-#include <async/php_async.h>
-#include <async/php_scheduler.h>
+#include <ext/async/php_async.h>
+#include <ext/async/php_scheduler.h>
 
 #include "closure.h"
 #include "exceptions.h"
@@ -858,6 +858,9 @@ static zend_object * async_future_object_create(zend_class_entry *class_entry)
 
 	return &future->std;
 }
+
+ZEND_API zend_class_entry *async_ce_future_state;
+ZEND_API zend_class_entry *async_ce_future;
 
 void async_register_future_ce(void)
 {

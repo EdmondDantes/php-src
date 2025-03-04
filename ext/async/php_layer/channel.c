@@ -15,12 +15,13 @@
 */
 #include "channel.h"
 
+#include <zend_fibers.h>
 #include "closure.h"
 #include "channel_arginfo.h"
-#include "async/php_async.h"
-#include "async/php_scheduler.h"
-#include "async/internal/circular_buffer.h"
-#include "async/internal/zval_circular_buffer.h"
+#include "ext/async/php_async.h"
+#include "ext/async/php_scheduler.h"
+#include "ext/async/internal/circular_buffer.h"
+#include "ext/async/internal/zval_circular_buffer.h"
 
 #define METHOD(name) PHP_METHOD(Async_Channel, name)
 #define THIS_CHANNEL ((async_channel_t *)((char *)Z_OBJ_P(ZEND_THIS) - XtOffsetOf(async_channel_t, std)))
@@ -682,6 +683,19 @@ static void async_channel_object_free(zend_object *object)
 }
 
 static zend_object_handlers async_channel_handlers;
+
+ZEND_API zend_class_entry * async_ce_producer_i;
+ZEND_API zend_class_entry * async_ce_consumer_i;
+ZEND_API zend_class_entry * async_ce_channel_state_i;
+ZEND_API zend_class_entry * async_ce_channel_i;
+
+ZEND_API zend_class_entry * async_ce_channel_notifier;
+ZEND_API zend_class_entry * async_ce_channel;
+
+ZEND_API zend_class_entry * async_ce_channel_exception;
+ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
+ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
+
 
 void async_register_channel_ce(void)
 {

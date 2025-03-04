@@ -17,12 +17,10 @@
 #define PHP_ASYNC_H
 
 #include "zend_portability.h"
-#include "php_network.h"
 #include "ext/async/php_scheduler.h"
 #include "ext/async/internal/circular_buffer.h"
 #include "ext/async/php_layer/resume.h"
 #include "ext/async/php_layer/exceptions.h"
-#include "zend_fibers.h"
 
 #define ASYNC_READABLE 1
 #define ASYNC_WRITABLE 2
@@ -146,6 +144,8 @@ zend_always_inline static async_resume_t * async_next_deferred_resume(void)
 
 	return resume;
 }
+
+#include "php_network.h"
 
 BEGIN_EXTERN_C()
 

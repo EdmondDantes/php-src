@@ -513,6 +513,25 @@ static void reactor_fiber_handle_destroy(zend_object* object)
 static reactor_notifier_handlers_t reactor_object_handlers;
 static reactor_notifier_handlers_t reactor_fiber_handle_handlers;
 
+ZEND_API zend_class_entry *async_ce_poll_handle;
+
+ZEND_API zend_class_entry *async_ce_fiber_handle;
+
+ZEND_API zend_class_entry *async_ce_file_handle;
+ZEND_API zend_class_entry *async_ce_socket_handle;
+ZEND_API zend_class_entry *async_ce_pipe_handle;
+ZEND_API zend_class_entry *async_ce_tty_handle;
+
+ZEND_API zend_class_entry *async_ce_timer_handle;
+
+ZEND_API zend_class_entry *async_ce_signal_handle;
+ZEND_API zend_class_entry *async_ce_process_handle;
+ZEND_API zend_class_entry *async_ce_thread_handle;
+ZEND_API zend_class_entry *async_ce_dns_info;
+
+ZEND_API zend_class_entry *async_ce_file_system_handle;
+
+
 void async_register_handlers_ce(void)
 {
 	// Create common handlers for reactor classes

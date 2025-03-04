@@ -178,6 +178,10 @@ static void async_notifier_ex_object_destroy(zend_object *object)
 	notifier->dtor_fn = NULL;
 }
 
+ZEND_API zend_class_entry *async_ce_notifier;
+ZEND_API zend_class_entry *async_ce_notifier_ex;
+ZEND_API zend_class_entry *async_ce_cancellation;
+
 void async_register_notifier_ce(void)
 {
 	async_ce_notifier = register_class_Async_Notifier();

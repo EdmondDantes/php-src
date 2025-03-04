@@ -120,6 +120,8 @@ static zend_object *async_closure_object_create(zend_class_entry *class_entry)
 	return &closure->std;
 }
 
+ZEND_API zend_class_entry *async_ce_closure;
+
 void async_register_closure_ce(void)
 {
 	async_ce_closure = register_class_Async_Closure();

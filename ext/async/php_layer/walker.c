@@ -17,8 +17,8 @@
 
 #include <zend_closures.h>
 #include <zend_fibers.h>
-#include <async/php_scheduler.h>
-#include <async/php_async.h>
+#include <ext/async/php_scheduler.h>
+#include <ext/async/php_async.h>
 
 #include "future.h"
 #include "walker_arginfo.h"
@@ -417,6 +417,8 @@ static void async_walker_object_destroy(zend_object* object)
 }
 
 static zend_object_handlers async_walker_handlers;
+
+ZEND_API zend_class_entry *async_ce_walker;
 
 void async_register_walker_ce(void)
 {
