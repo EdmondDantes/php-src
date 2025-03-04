@@ -159,14 +159,17 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout);
 
 #ifndef PHP_USE_POLL_2_EMULATION
 #ifdef PHP_ASYNC
-static zend_always_inline int _async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+ZEND_API int async_poll2(php_pollfd *ufds, unsigned int nfds, const int timeout);
+
+zend_always_inline static int _async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
 {
 	if(UNEXPECTED(IN_ASYNC_CONTEXT)) {
-        return async_poll2(ufds, nfds, timeout);
-    } else {
-        return poll(ufds, nfds, timeout);
-    }
+		return async_poll2(ufds, nfds, timeout);
+	} else {
+		return poll(ufds, nfds, timeout);
+	}
 }
+
 # define php_poll2(ufds, nfds, timeout)		_async_poll2(ufds, nfds, timeout)
 #else
 # define php_poll2(ufds, nfds, timeout)		poll(ufds, nfds, timeout)
