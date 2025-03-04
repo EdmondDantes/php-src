@@ -154,15 +154,15 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout);
 #define PHP_POLLREADABLE	(POLLIN|POLLERR|POLLHUP)
 
 #ifdef PHP_ASYNC
-#include "async/php_async.h"
+#include <ext/async/php_async.h>
 #endif
 
 #ifndef PHP_USE_POLL_2_EMULATION
 #ifdef PHP_ASYNC
 static zend_always_inline int _async_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
 {
-	if(UNEXPECTED(IS_ASSYNC_ALLOWED)) {
-        return async_poll2(ufds, nfds, timeout)
+	if(UNEXPECTED(IN_ASYNC_CONTEXT)) {
+        return async_poll2(ufds, nfds, timeout);
     } else {
         return poll(ufds, nfds, timeout);
     }
