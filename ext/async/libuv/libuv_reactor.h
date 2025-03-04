@@ -17,7 +17,11 @@
 #define ASYNC_LIBUV_REACTOR_H
 
 #include "zend_types.h"
+#ifdef PHP_WIN32
 #include <libuv/uv.h>
+#else
+#include <uv.h>
+#endif
 #include "../php_async.h"
 #include "../php_layer/notifier.h"
 #include "../php_layer/reactor_handles.h"
@@ -75,8 +79,8 @@ struct _libuv_process_s {
 		reactor_handle_t handle;
 		reactor_process_t process;
 	};
-	HANDLE hProcess;
 #ifdef PHP_WIN32
+	HANDLE hProcess;
 	HANDLE hJob;
 #endif
 };
