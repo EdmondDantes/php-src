@@ -113,7 +113,7 @@ typedef pid_t async_process_id_t;
 typedef pid_t async_process_t;
 #endif
 
-zend_always_inline void async_push_fiber_to_deferred_resume(async_resume_t *resume, const bool transfer_resume)
+zend_always_inline static void async_push_fiber_to_deferred_resume(async_resume_t *resume, const bool transfer_resume)
 {
 	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(deferred_resumes), &resume, true) == FAILURE)) {
 		async_throw_error("Failed to push the Fiber into the pending queue.");
@@ -131,7 +131,7 @@ zend_always_inline void async_push_fiber_to_deferred_resume(async_resume_t *resu
 	}
 }
 
-zend_always_inline async_resume_t * async_next_deferred_resume(void)
+zend_always_inline static async_resume_t * async_next_deferred_resume(void)
 {
 	if (circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
 		return NULL;
