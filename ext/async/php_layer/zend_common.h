@@ -27,7 +27,7 @@
 #define DEFINE_VAR(type, var) type *var = (type *) emalloc(sizeof(type));
 
 
-zend_always_inline void zval_move(zval * destination, const zval * source)
+zend_always_inline static void zval_move(zval * destination, const zval * source)
 {
 	if (Z_ISREF_P(source)) {
 		source = Z_REFVAL_P(source);
@@ -37,7 +37,7 @@ zend_always_inline void zval_move(zval * destination, const zval * source)
 	ZVAL_COPY_VALUE(destination, source);
 }
 
-zend_always_inline void zval_copy(zval * destination, zval * source)
+zend_always_inline static void zval_copy(zval * destination, zval * source)
 {
 	if (Z_ISREF_P(source)) {
 		source = Z_REFVAL_P(source);
@@ -48,7 +48,7 @@ zend_always_inline void zval_copy(zval * destination, zval * source)
 	Z_TRY_ADDREF_P(source);
 }
 
-zend_always_inline void zval_assign(zval * destination, zval * source)
+zend_always_inline static void zval_assign(zval * destination, zval * source)
 {
 	if (Z_ISREF_P(source)) {
 		source = Z_REFVAL_P(source);
@@ -58,13 +58,13 @@ zend_always_inline void zval_assign(zval * destination, zval * source)
 	ZVAL_COPY_VALUE(destination, source);
 }
 
-zend_always_inline void zval_null(zval * destination)
+zend_always_inline static void zval_null(zval * destination)
 {
 	zval_ptr_dtor(destination);
 	ZVAL_NULL(destination);
 }
 
-zend_always_inline void zval_property_move(zval * property, const zval * value)
+zend_always_inline static void zval_property_move(zval * property, const zval * value)
 {
 	if (EXPECTED(Z_TYPE_P(property) != IS_UNDEF)) {
 		zval_ptr_dtor(property);
@@ -79,7 +79,7 @@ zend_always_inline void zval_property_move(zval * property, const zval * value)
 	ZVAL_COPY_VALUE(property, value);
 }
 
-zend_always_inline void zval_property_copy(zval * property, zval * value)
+zend_always_inline static void zval_property_copy(zval * property, zval * value)
 {
 	if (EXPECTED(Z_TYPE_P(property) != IS_UNDEF)) {
 		zval_ptr_dtor(property);
@@ -95,7 +95,7 @@ zend_always_inline void zval_property_copy(zval * property, zval * value)
 	Z_TRY_ADDREF_P(value);
 }
 
-zend_always_inline void zend_object_ptr_copy(zend_object * destination, zend_object * source)
+zend_always_inline static void zend_object_ptr_copy(zend_object * destination, zend_object * source)
 {
 	if (EXPECTED(destination != NULL)) {
 		OBJ_RELEASE(destination);
@@ -105,7 +105,7 @@ zend_always_inline void zend_object_ptr_copy(zend_object * destination, zend_obj
 	GC_ADDREF(source);
 }
 
-zend_always_inline void zend_object_ptr_reset(zend_object * destination)
+zend_always_inline static void zend_object_ptr_reset(zend_object * destination)
 {
 	if (EXPECTED(destination != NULL)) {
 		OBJ_RELEASE(destination);
@@ -114,7 +114,7 @@ zend_always_inline void zend_object_ptr_reset(zend_object * destination)
 	destination = NULL;
 }
 
-zend_always_inline void async_warning(const char * format, ...)
+zend_always_inline static void async_warning(const char * format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -143,7 +143,7 @@ zend_always_inline zend_object* zend_object_internal_create(const size_t obj_siz
 
 #define DEFINE_ZEND_INTERNAL_OBJECT(type, var, class_entry) type *var = (type *) zend_object_internal_create(sizeof(type), class_entry)
 
-zend_always_inline void zend_property_array_index_update(zval *property, zend_ulong h, zval *pData, const bool is_transfer_data)
+zend_always_inline static void zend_property_array_index_update(zval *property, zend_ulong h, zval *pData, const bool is_transfer_data)
 {
 	SEPARATE_ARRAY(property);
 
@@ -156,7 +156,7 @@ zend_always_inline void zend_property_array_index_update(zval *property, zend_ul
 	}
 }
 
-zend_always_inline void zend_apply_current_filename_and_line(zend_string **filename, uint32_t *lineno)
+zend_always_inline static void zend_apply_current_filename_and_line(zend_string **filename, uint32_t *lineno)
 {
 	if (*filename != NULL) {
 		zend_string_release(*filename);

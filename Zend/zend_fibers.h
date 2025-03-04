@@ -173,7 +173,7 @@ ZEND_API bool zend_fiber_switch_blocked(void);
 
 #ifdef PHP_ASYNC
 
-zend_always_inline void zend_fiber_params_dtor(zend_fiber *fiber)
+zend_always_inline static void zend_fiber_params_dtor(zend_fiber *fiber)
 {
 	if (fiber->owned_params && fiber->fci.params != NULL && fiber->fci.param_count > 0) {
 		for (uint32_t i = 0; i < fiber->fci.param_count; i++) {
@@ -190,7 +190,7 @@ zend_always_inline void zend_fiber_params_dtor(zend_fiber *fiber)
 	}
 }
 
-zend_always_inline void zend_fiber_params_ctor(
+zend_always_inline static void zend_fiber_params_ctor(
 	zend_fiber *fiber, zval *params, const uint32_t params_count, HashTable * named_params
 )
 {
