@@ -23,8 +23,8 @@
 
 BEGIN_EXTERN_C()
 
-ZEND_API zend_class_entry *async_ce_future_state;
-ZEND_API zend_class_entry *async_ce_future;
+extern ZEND_API zend_class_entry *async_ce_future_state;
+extern ZEND_API zend_class_entry *async_ce_future;
 
 typedef enum {
 	ASYNC_FUTURE_MAPPER_SUCCESS,

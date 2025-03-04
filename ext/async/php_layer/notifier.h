@@ -21,9 +21,9 @@
 
 BEGIN_EXTERN_C()
 
-ZEND_API zend_class_entry *async_ce_notifier;
-ZEND_API zend_class_entry *async_ce_notifier_ex;
-ZEND_API zend_class_entry *async_ce_cancellation;
+extern ZEND_API zend_class_entry *async_ce_notifier;
+extern ZEND_API zend_class_entry *async_ce_notifier_ex;
+extern ZEND_API zend_class_entry *async_ce_cancellation;
 
 typedef enum {
 	REACTOR_H_UNKNOWN = 0,

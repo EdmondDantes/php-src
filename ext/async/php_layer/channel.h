@@ -66,17 +66,17 @@ zend_always_inline void async_channel_set_owner_fiber(zend_object* channel, zend
 	zval_property_copy(&channel->properties_table[0], &z_fiber);
 }
 
-ZEND_API zend_class_entry * async_ce_producer_i;
-ZEND_API zend_class_entry * async_ce_consumer_i;
-ZEND_API zend_class_entry * async_ce_channel_state_i;
-ZEND_API zend_class_entry * async_ce_channel_i;
+extern ZEND_API zend_class_entry * async_ce_producer_i;
+extern ZEND_API zend_class_entry * async_ce_consumer_i;
+extern ZEND_API zend_class_entry * async_ce_channel_state_i;
+extern ZEND_API zend_class_entry * async_ce_channel_i;
 
-ZEND_API zend_class_entry * async_ce_channel_notifier;
-ZEND_API zend_class_entry * async_ce_channel;
+extern ZEND_API zend_class_entry * async_ce_channel_notifier;
+extern ZEND_API zend_class_entry * async_ce_channel;
 
-ZEND_API zend_class_entry * async_ce_channel_exception;
-ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
-ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
+extern ZEND_API zend_class_entry * async_ce_channel_exception;
+extern ZEND_API zend_class_entry * async_ce_channel_was_closed_exception;
+extern ZEND_API zend_class_entry * async_ce_channel_is_full_exception;
 
 void async_register_channel_ce(void);
 
