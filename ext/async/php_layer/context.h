@@ -57,9 +57,9 @@ typedef struct
 	};
 } async_key_t;
 
-ZEND_API zend_class_entry * async_ce_context;
-ZEND_API zend_class_entry * async_ce_key;
-ZEND_API zend_class_entry * async_ce_context_exception;
+extern ZEND_API zend_class_entry * async_ce_context;
+extern ZEND_API zend_class_entry * async_ce_key;
+extern ZEND_API zend_class_entry * async_ce_context_exception;
 
 void async_register_context_ce(void);
 

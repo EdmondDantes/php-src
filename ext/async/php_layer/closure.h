@@ -19,7 +19,7 @@
 
 #include "resume.h"
 
-ZEND_API zend_class_entry *async_ce_closure;
+extern ZEND_API zend_class_entry *async_ce_closure;
 
 typedef struct {
 	union

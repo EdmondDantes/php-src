@@ -91,7 +91,7 @@ static zend_always_inline zval* async_resume_get_callback(zend_object* resume)
 
 BEGIN_EXTERN_C()
 
-ZEND_API zend_class_entry * async_ce_resume;
+extern ZEND_API zend_class_entry * async_ce_resume;
 
 void async_register_resume_ce(void);
 ZEND_API async_resume_t * async_resume_new(zend_fiber * fiber);

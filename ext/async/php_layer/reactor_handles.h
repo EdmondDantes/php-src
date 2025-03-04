@@ -164,23 +164,23 @@ BEGIN_EXTERN_C()
 
 reactor_fiber_handle_t * async_fiber_handle_new(zend_fiber * fiber);
 
-ZEND_API zend_class_entry *async_ce_poll_handle;
+extern ZEND_API zend_class_entry *async_ce_poll_handle;
 
-ZEND_API zend_class_entry *async_ce_fiber_handle;
+extern ZEND_API zend_class_entry *async_ce_fiber_handle;
 
-ZEND_API zend_class_entry *async_ce_file_handle;
-ZEND_API zend_class_entry *async_ce_socket_handle;
-ZEND_API zend_class_entry *async_ce_pipe_handle;
-ZEND_API zend_class_entry *async_ce_tty_handle;
+extern ZEND_API zend_class_entry *async_ce_file_handle;
+extern ZEND_API zend_class_entry *async_ce_socket_handle;
+extern ZEND_API zend_class_entry *async_ce_pipe_handle;
+extern ZEND_API zend_class_entry *async_ce_tty_handle;
 
-ZEND_API zend_class_entry *async_ce_timer_handle;
+extern ZEND_API zend_class_entry *async_ce_timer_handle;
 
-ZEND_API zend_class_entry *async_ce_signal_handle;
-ZEND_API zend_class_entry *async_ce_process_handle;
-ZEND_API zend_class_entry *async_ce_thread_handle;
-ZEND_API zend_class_entry *async_ce_dns_info;
+extern ZEND_API zend_class_entry *async_ce_signal_handle;
+extern ZEND_API zend_class_entry *async_ce_process_handle;
+extern ZEND_API zend_class_entry *async_ce_thread_handle;
+extern ZEND_API zend_class_entry *async_ce_dns_info;
 
-ZEND_API zend_class_entry *async_ce_file_system_handle;
+extern ZEND_API zend_class_entry *async_ce_file_system_handle;
 
 END_EXTERN_C()
 
