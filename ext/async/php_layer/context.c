@@ -120,7 +120,7 @@ METHOD(__construct)
 	}
 }
 
-zend_always_inline void try_to_resolve_weak_reference(
+zend_always_inline static void try_to_resolve_weak_reference(
 	async_context_t * context, zend_object *object_key, zend_string *string_key, zval * result, zval * return_value
 )
 {

@@ -18,6 +18,11 @@
 #include <php_network.h>
 #include <zend_fibers.h>
 
+#ifndef PHP_WIN32
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+
 #include "php_reactor.h"
 #include "php_scheduler.h"
 #include "php_layer/module_entry.h"
@@ -44,7 +49,7 @@ zend_async_globals async_globals;
 ZEND_TLS HashTable * host_name_list = NULL;
 
 //===============================================================
-#pragma region Startup and Shutdown
+// Startup and Shutdown
 //===============================================================
 
 void async_host_name_list_ctor(void)
@@ -176,7 +181,7 @@ void async_fiber_shutdown_callback(zend_fiber *fiber)
 }
 
 //===============================================================
-#pragma endregion
+// endregion
 //===============================================================
 
 /**
@@ -560,7 +565,7 @@ void async_build_resume_with(zend_ulong timeout, reactor_notifier_t * cancellati
 
 }
 
-void async_await_socket()
+void async_await_socket(void)
 {
 
 }
@@ -709,7 +714,7 @@ void async_wait_fd(async_file_descriptor_t fd, const zend_ulong events, const ze
 }
 
 //===============================================================
-#pragma region POLL2 EMULATION
+// region POLL2 EMULATION
 //===============================================================
 
 static zend_always_inline zend_ulong poll2_events_to_async(const short events)
@@ -860,11 +865,11 @@ error:
 }
 
 //===============================================================
-#pragma endregion
+// endregion
 //===============================================================
 
 //===============================================================
-#pragma region SELECT EMULATION
+// region SELECT EMULATION
 //===============================================================
 
 #ifndef PHP_WIN32
@@ -1026,11 +1031,11 @@ error:
 	goto finally;
 }
 //===============================================================
-#pragma endregion
+// endregion
 //===============================================================
 
 //===============================================================
-#pragma region DNS
+// region DNS
 //===============================================================
 
 int async_network_get_addresses(const char *host, int socktype, struct sockaddr ***sal, zend_string **error_string)
@@ -1195,7 +1200,7 @@ static void hostent_dtor(zval *pDest)
 	efree(host);
 }
 
-zend_always_inline struct hostent* find_host_by_name(const char *name)
+zend_always_inline static struct hostent* find_host_by_name(const char *name)
 {
 	if (host_name_list == NULL) {
         return NULL;
@@ -1210,7 +1215,7 @@ zend_always_inline struct hostent* find_host_by_name(const char *name)
 	return (struct hostent *)Z_PTR_P(entry);
 }
 
-zend_always_inline void store_host_by_name(const char *name, struct hostent *host)
+zend_always_inline static void store_host_by_name(const char *name, struct hostent *host)
 {
     if (host_name_list == NULL) {
         ALLOC_HASHTABLE(host_name_list);
@@ -1337,6 +1342,8 @@ void async_get_addr_info(zend_string *host, zend_string *service, struct addrinf
 		return;
 	}
 
+	(void)res;
+
 	res = &((reactor_dns_info_t *) dns_info)->addr_info;
 }
 
@@ -1348,7 +1355,7 @@ void async_free_addr_info(struct addrinfo *addr_info)
 }
 
 //===============================================================
-#pragma endregion
+// endregion
 //===============================================================
 
 bool async_ensure_socket_nonblocking(php_socket_t socket)

@@ -279,7 +279,7 @@ static void concurrent_iterator_task_dtor(async_microtask_t *microtask)
 	}
 }
 
-zend_always_inline void add_future_state_callbacks_microtask(async_future_state_t *future_state)
+zend_always_inline static void add_future_state_callbacks_microtask(async_future_state_t *future_state)
 {
 	if (UNEXPECTED(future_state->in_microtask_queue
 		|| zend_hash_num_elements(Z_ARR(future_state->notifier.callbacks)) == 0)) {

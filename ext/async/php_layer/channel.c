@@ -44,7 +44,7 @@ static void emit_channel_closed(async_channel_t *channel);
 static void resume_when_data_pushed(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier);
 static void resume_when_data_popped(async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier);
 
-zend_always_inline void close_channel(async_channel_t *channel)
+zend_always_inline static void close_channel(async_channel_t *channel)
 {
 	channel->closed = true;
 	emit_channel_closed(channel);
@@ -226,7 +226,7 @@ METHOD(trySend)
 	}
 }
 
-zend_always_inline void receive_method(INTERNAL_FUNCTION_PARAMETERS, bool return_null)
+zend_always_inline static void receive_method(INTERNAL_FUNCTION_PARAMETERS, bool return_null)
 {
 	zend_long timeout = 0;
 	zend_object *cancellation = NULL;

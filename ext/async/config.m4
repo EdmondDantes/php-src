@@ -17,7 +17,7 @@ if test "$PHP_ASYNC" = "yes"; then
     [async],
     [async.c reactor.c scheduler.c \
     internal/allocator.c internal/circular_buffer.c \
-    php_layer/callback.c \
+    php_layer/closure.c \
     php_layer/channel.c \
     php_layer/reactor_handles.c \
     php_layer/exceptions.c \

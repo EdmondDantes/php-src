@@ -84,7 +84,7 @@ struct _async_resume_notifier_s {
 	zval callback;
 };
 
-static zend_always_inline zval* async_resume_get_callback(zend_object* resume)
+zend_always_inline static zval* async_resume_get_callback(zend_object* resume)
 {
 	return &resume->properties_table[0];
 }

@@ -157,10 +157,9 @@ PHP_METHOD(Async_FiberHandle, removeDeferHandler)
 	}
 
 	zend_ulong index;
-	zend_string *key;
 	zval *entry;
 
-	ZEND_HASH_FOREACH_KEY_VAL(fiber->shutdown_handlers, index, key, entry) {
+	ZEND_HASH_FOREACH_NUM_KEY_VAL(fiber->shutdown_handlers, index, entry) {
 		if (zend_is_identical(entry, callback)) {
 			zend_hash_index_del(fiber->shutdown_handlers, index);
 			return;

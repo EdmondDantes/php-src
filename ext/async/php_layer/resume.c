@@ -230,7 +230,7 @@ static void async_resume_notifier_dtor(zval *item)
 	efree(resume_notifier);
 }
 
-zend_always_inline void async_resume_object_init(async_resume_t * object, zend_class_entry *class_entry)
+zend_always_inline static void async_resume_object_init(async_resume_t * object, zend_class_entry *class_entry)
 {
 	object->status = ASYNC_RESUME_NO_STATUS;
 	object->triggered_notifiers = NULL;

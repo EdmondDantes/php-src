@@ -66,7 +66,7 @@ static void reactor_handle_method_no(reactor_handle_t *handle)
 	async_throw_error("Reactor API method handle_method not implemented");
 }
 
-static bool reactor_is_listening_no(const reactor_handle_t *handle)
+static bool reactor_is_listening_no(reactor_handle_t *handle)
 {
 	async_warning("Reactor API method is_listening not implemented");
 	return false;
@@ -131,7 +131,7 @@ static reactor_handle_t* reactor_process_new(async_file_descriptor_t process_h, 
 	return NULL;
 }
 
-static reactor_handle_t* reactor_thread_new(THREAD_T tread_id, zend_ulong events)
+static reactor_handle_t* reactor_thread_new(int tread_id, zend_ulong events)
 {
 	async_throw_error("Reactor API method thread_new not implemented");
 	return NULL;

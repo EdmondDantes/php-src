@@ -17,8 +17,8 @@
 
 #include <zend_closures.h>
 
-#include "async/php_reactor.h"
-#include "async/libuv/libuv_reactor.h"
+#include "ext/async/php_reactor.h"
+#include "ext/async/libuv/libuv_reactor.h"
 
 #include "zend_smart_str.h"
 #include "zend_fibers.h"
@@ -99,7 +99,7 @@ PHP_FUNCTION(Async_run)
 	async_start_fiber((zend_fiber *) Z_OBJ(zval_fiber), args, args_count, named_args);
 }
 
-zend_always_inline void create_fiber_with_handle(INTERNAL_FUNCTION_PARAMETERS)
+zend_always_inline static void create_fiber_with_handle(INTERNAL_FUNCTION_PARAMETERS)
 {
 	THROW_IF_SHUTDOWN;
 

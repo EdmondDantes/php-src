@@ -143,7 +143,7 @@ zend_fiber * async_internal_fiber_create(zend_internal_function * function)
 	return (zend_fiber *) Z_OBJ_P(&zval_fiber);
 }
 
-zend_always_inline zend_fiber * get_callback_fiber()
+zend_always_inline static zend_fiber * get_callback_fiber(void)
 {
 	if (ASYNC_G(callbacks_fiber) == NULL) {
         ASYNC_G(callbacks_fiber) = async_internal_fiber_create(&callbacks_internal_function);
@@ -152,7 +152,7 @@ zend_always_inline zend_fiber * get_callback_fiber()
 	return ASYNC_G(callbacks_fiber);
 }
 
-zend_always_inline void separate_callback_fiber(void)
+zend_always_inline static void separate_callback_fiber(void)
 {
 	if (ASYNC_G(callbacks_fiber) != NULL && async_find_fiber_state(ASYNC_G(callbacks_fiber)) != NULL) {
 		OBJ_RELEASE(&ASYNC_G(callbacks_fiber)->std);
@@ -246,7 +246,7 @@ void async_execute_callbacks_in_fiber(HashTable * callbacks)
 	} while (zend_hash_num_elements(callbacks) != 0);
 }
 
-zend_always_inline void invoke_microtask(async_microtask_t *task)
+zend_always_inline static void invoke_microtask(async_microtask_t *task)
 {
 	// Inherit context of microtask to Fiber context
 	if (EG(active_fiber)->async_context != NULL) {
@@ -854,7 +854,7 @@ ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
 	pefree(microtask, 0);
 }
 
-zend_always_inline void execute_deferred_fibers(void)
+zend_always_inline static void execute_deferred_fibers(void)
 {
 	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ?
 									ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
@@ -956,7 +956,7 @@ static void start_graceful_shutdown(void)
 	zend_clear_exception();
 	cancel_deferred_fibers();
 
-	if (UNEXPECTED(EG(exception)) != NULL) {
+	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
 		GC_DELREF(ASYNC_G(exit_exception));
 		ASYNC_G(exit_exception) = EG(exception);

@@ -16,10 +16,10 @@
 #include "libuv_reactor.h"
 
 #include <zend_exceptions.h>
-#include <async/php_async.h>
-#include <async/php_reactor.h>
-#include <async/php_scheduler.h>
-#include <async/php_layer/zend_common.h>
+#include <ext/async/php_async.h>
+#include <ext/async/php_reactor.h>
+#include <ext/async/php_scheduler.h>
+#include <ext/async/php_layer/zend_common.h>
 
 #include "../php_layer/exceptions.h"
 
@@ -42,7 +42,7 @@ typedef struct
 #define WATCHER ((libuv_reactor_t *) ASYNC_G(reactor))->watcherThread
 #define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
 
-void libuv_startup(void);
+static void libuv_startup(void);
 
 #define STARTUP_REACTOR_IF_NEED if (UNEXPECTED(UVLOOP == NULL)) {						\
 		libuv_startup();																\

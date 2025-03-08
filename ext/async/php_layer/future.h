@@ -79,7 +79,7 @@ typedef struct _async_future_s
 
 } async_future_t;
 
-zend_always_inline void async_future_state_to_retval(async_future_state_t * future_state, zval * retval)
+zend_always_inline static void async_future_state_to_retval(async_future_state_t * future_state, zval * retval)
 {
 	ZVAL_UNDEF(retval);
 

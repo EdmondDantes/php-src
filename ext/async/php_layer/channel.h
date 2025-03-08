@@ -59,7 +59,7 @@ zend_always_inline zend_fiber* async_channel_get_owner_fiber(zend_object* channe
 	return (zend_fiber*) Z_OBJ(channel->properties_table[0]);
 }
 
-zend_always_inline void async_channel_set_owner_fiber(zend_object* channel, zend_fiber * fiber)
+zend_always_inline static void async_channel_set_owner_fiber(zend_object* channel, zend_fiber * fiber)
 {
 	zval z_fiber;
 	ZVAL_OBJ(&z_fiber, (zend_object * )fiber);
