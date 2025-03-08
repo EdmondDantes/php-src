@@ -630,14 +630,12 @@ static bool execute_next_fiber(void)
 static bool resolve_deadlocks(void)
 {
 	zval *value;
-	zend_ulong index;
-	zend_string *key;
 
 	async_warning(
 		"No active fibers, deadlock detected. Fibers in waiting: %u", zend_hash_num_elements(&ASYNC_G(fibers_state))
 	);
 
-	ZEND_HASH_FOREACH_KEY_VAL(&ASYNC_G(fibers_state), index, key, value)
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), value)
 
 		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
 
