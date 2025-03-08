@@ -152,7 +152,7 @@ static reactor_handle_t* libuv_handle_from_resource(const zend_resource *resourc
 }
 
 //=============================================================
-#pragma region Poll Handle
+// #pragma region Poll Handle
 //=============================================================
 static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
 {
@@ -258,11 +258,11 @@ static reactor_handle_t* libuv_tty_new(const async_file_descriptor_t file, const
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region Timer
+// #pragma region Timer
 //=============================================================
 
 static void on_timer_event(uv_timer_t *handle)
@@ -328,11 +328,11 @@ static reactor_handle_t* libuv_timer_new(const zend_ulong timeout, const bool is
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region Signal
+// #pragma region Signal
 //=============================================================
 
 static void on_signal_event(uv_signal_t *handle, int sig_number)
@@ -390,11 +390,11 @@ static reactor_handle_t* libuv_signal_new(const zend_long sig_number)
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region File System Events
+// #pragma region File System Events
 //=============================================================
 
 static void on_fs_event(uv_fs_event_t *handle, const char *filename, int events, int status)
@@ -456,11 +456,11 @@ static reactor_handle_t* libuv_file_system_new(const char *path, const size_t le
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region Process handle
+// #pragma region Process handle
 //=============================================================
 
 static reactor_handle_t* libuv_process_new(const async_process_t process_h, const zend_ulong events)
@@ -735,24 +735,24 @@ static void libuv_close_process_handle(reactor_handle_t *handle)
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region Thread handle
+// #pragma region Thread handle
 //=============================================================
 
-static reactor_handle_t* libuv_thread_new(const THREAD_T tid, const zend_ulong events)
+static reactor_handle_t* libuv_thread_new(const int tid, const zend_ulong events)
 {
 	return NULL;
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
 
 //=============================================================
-#pragma region Handle add/remove/destroy API
+// #pragma region Handle add/remove/destroy API
 //=============================================================
 
 static void libuv_add_handle(reactor_handle_t *handle)
@@ -1817,5 +1817,5 @@ void async_libuv_shutdown(void)
 }
 
 //=============================================================
-#pragma endregion
+// #pragma endregion
 //=============================================================
