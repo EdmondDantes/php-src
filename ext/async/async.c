@@ -207,13 +207,13 @@ void async_resource_cast(const zend_resource *resource, php_socket_t *socket, as
 
 	if (php_stream_is(stream, PHP_STREAM_IS_SOCKET)) {
 
-		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, &socket, false) == FAILURE) {
+		if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket, false) == FAILURE) {
 			socket = NULL;
 			return;
 		}
 
 	} else if (php_stream_is(stream, PHP_STREAM_IS_STDIO)) {
-		if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, file, false) == FAILURE) {
+		if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void *) file, false) == FAILURE) {
 			file = NULL;
 			return;
 		}
@@ -866,6 +866,11 @@ error:
 //===============================================================
 #pragma region SELECT EMULATION
 //===============================================================
+
+#ifndef PHP_WIN32
+#define INFINITE (uint64_t)-1
+#endif
+
 PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tv)
 {
 	int result = 0;
@@ -883,7 +888,7 @@ PHPAPI int async_select(php_socket_t max_fd, fd_set *rfds, fd_set *wfds, fd_set 
 		return -1;
 	}
 
-	ULONGLONG ms_total;
+	uint64_t ms_total;
 
 	/* calculate how long we need to wait in milliseconds */
 	if (tv == NULL) {
@@ -1373,7 +1378,7 @@ bool async_ensure_socket_nonblocking(php_socket_t socket)
 		return false;
 	}
 
-	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+	if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) == -1) {
 		async_warning("Unable to set socket to non-blocking mode");
 		return false;
 	}
