@@ -546,7 +546,9 @@ static HashTable *curl_get_gc(zend_object *object, zval **table, int *n)
 
 	zend_get_gc_buffer_use(gc_buffer, table, n);
 
-	return zend_std_get_properties(object);
+	/* CurlHandle can never have properties as it's final and has strict-properties on.
+	 * Avoid building a hash table. */
+	return NULL;
 }
 
 zend_result curl_cast_object(zend_object *obj, zval *result, int type)
@@ -2242,6 +2244,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
 			break;
 
 		/* Curl off_t options */
+		case CURLOPT_INFILESIZE_LARGE:
 		case CURLOPT_MAX_RECV_SPEED_LARGE:
 		case CURLOPT_MAX_SEND_SPEED_LARGE:
 		case CURLOPT_MAXFILESIZE_LARGE:

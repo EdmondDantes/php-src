@@ -702,6 +702,41 @@ ZEND_API zend_result ZEND_FASTCALL zend_ast_evaluate_inner(
 			}
 			zval_ptr_dtor_nogc(&op1);
 			break;
+		case ZEND_AST_CAST:
+			if (UNEXPECTED(zend_ast_evaluate_ex(&op1, ast->child[0], scope, &short_circuited, ctx) != SUCCESS)) {
+				ret = FAILURE;
+				break;
+			}
+			if (ast->attr == Z_TYPE(op1)) {
+				ZVAL_COPY_VALUE(result, &op1);
+			} else {
+				switch (ast->attr) {
+					case _IS_BOOL:
+						ZVAL_BOOL(result, zend_is_true(&op1));
+						break;
+					case IS_LONG:
+						ZVAL_LONG(result, zval_get_long_func(&op1, false));
+						break;
+					case IS_DOUBLE:
+						ZVAL_DOUBLE(result, zval_get_double_func(&op1));
+						break;
+					case IS_STRING:
+						ZVAL_STR(result, zval_get_string_func(&op1));
+						break;
+					case IS_ARRAY:
+						zend_cast_zval_to_array(result, &op1, IS_VAR);
+						break;
+					case IS_OBJECT:
+						zend_cast_zval_to_object(result, &op1, IS_VAR);
+						break;
+					EMPTY_SWITCH_DEFAULT_CASE();
+				}
+				zval_ptr_dtor_nogc(&op1);
+				if (UNEXPECTED(EG(exception))) {
+					ret = FAILURE;
+				}
+			}
+			break;
 		case ZEND_AST_OR:
 			if (UNEXPECTED(zend_ast_evaluate_ex(&op1, ast->child[0], scope, &short_circuited, ctx) != SUCCESS)) {
 				ret = FAILURE;
@@ -1277,6 +1312,7 @@ static void* ZEND_FASTCALL zend_ast_tree_copy(zend_ast *ast, void *buf)
 		new->attr = old->attr;
 		new->lineno = old->lineno;
 		new->op_array = old->op_array;
+		function_add_ref((zend_function *)new->op_array);
 		buf = (void*)((char*)buf + sizeof(zend_ast_op_array));
 	} else if (ast->kind == ZEND_AST_CALLABLE_CONVERT) {
 		zend_ast_fcc *old = (zend_ast_fcc*)ast;
@@ -1353,7 +1389,7 @@ tail_call:
 	} else if (EXPECTED(ast->kind == ZEND_AST_CONSTANT)) {
 		zend_string_release_ex(zend_ast_get_constant_name(ast), 0);
 	} else if (EXPECTED(ast->kind == ZEND_AST_OP_ARRAY)) {
-		/* Nothing to do. */
+		destroy_op_array(zend_ast_get_op_array(ast)->op_array);
 	} else if (EXPECTED(zend_ast_is_decl(ast))) {
 		zend_ast_decl *decl = (zend_ast_decl *) ast;
 
@@ -2260,6 +2296,9 @@ simple_list:
 				case IS_OBJECT:    PREFIX_OP("(object)", 240, 241);
 				EMPTY_SWITCH_DEFAULT_CASE();
 			}
+			break;
+		case ZEND_AST_CAST_VOID:
+			PREFIX_OP("(void)", 240, 241);
 			break;
 		case ZEND_AST_EMPTY:
 			FUNC_OP("empty");
