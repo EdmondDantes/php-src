@@ -151,8 +151,32 @@ ZEND_API zend_async_new_thread_event_t zend_async_new_thread_event_fn;
 ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
 
 /* Thread pool API */
-
+ZEND_API bool zend_async_thread_pool_is_enabled(void);
 ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
+
+ZEND_API void zend_async_scheduler_register(
+    zend_async_spawn_t spawn_fn,
+    zend_async_suspend_t suspend_fn,
+    zend_async_resume_t resume_fn,
+    zend_async_cancel_t cancel_fn,
+    zend_async_shutdown_t shutdown_fn,
+    zend_async_get_coroutines_t get_coroutines_fn,
+    zend_async_add_microtask_t add_microtask_fn
+);
+
+ZEND_API void zend_async_reactor_register(
+    zend_async_add_event_t add_event_fn,
+    zend_async_remove_event_t remove_event_fn,
+    zend_async_new_socket_event_t new_socket_event_fn,
+    zend_async_new_poll_event_t new_poll_event_fn,
+    zend_async_new_timer_event_t new_timer_event_fn,
+    zend_async_new_signal_event_t new_signal_event_fn,
+    zend_async_new_process_event_t new_process_event_fn,
+    zend_async_new_thread_event_t new_thread_event_fn,
+    zend_async_new_filesystem_event_t new_filesystem_event_fn
+);
+
+ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn);
 
 END_EXTERN_C()
 
