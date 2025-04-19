@@ -20,6 +20,7 @@
 
 typedef struct _zend_async_api zend_async_api;
 typedef struct _zend_async_scope zend_async_scope;
+typedef struct _zend_async_microtask_t zend_async_microtask_t;
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -38,6 +39,7 @@ typedef void (*zend_async_resume_t)(zend_coroutine *coroutine);
 typedef void (*zend_async_cancel_t)(zend_coroutine *coroutine);
 typedef void (*zend_async_shutdown_t)();
 typedef void (*zend_async_get_coroutines_t)();
+typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
 
 typedef void (*zend_async_add_event_t)();
 typedef void (*zend_async_remove_event_t)();
@@ -59,6 +61,15 @@ typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event *event, ze
 typedef void (*zend_async_event_add_callback_t)(zend_async_event *event, zend_async_event_callback_t callback);
 typedef void (*zend_async_event_del_callback_t)(zend_async_event *event, zend_async_event_callback_t callback);
 typedef bool (*zend_async_event_is_closed_t)(zend_async_event *event);
+
+typedef void (*zend_async_microtask_handler_t)(zend_async_microtask_t *microtask);
+
+struct _zend_async_microtask_t {
+	zend_async_microtask_handler_t handler;
+	zend_async_microtask_handler_t dtor;
+	bool is_cancelled;
+	int ref_count;
+};
 
 struct _zend_async_event_callback_t {
 	zend_async_event_callback_fn callback;
@@ -124,6 +135,7 @@ ZEND_API zend_async_resume_t zend_async_resume_fn;
 ZEND_API zend_async_cancel_t zend_async_cancel_fn;
 ZEND_API zend_async_shutdown_t zend_async_shutdown_fn;
 ZEND_API zend_async_get_coroutines_t zend_async_get_coroutines_fn;
+ZEND_API zend_async_add_microtask_t zend_async_add_microtask_fn;
 
 /* Reactor API */
 
@@ -150,6 +162,7 @@ END_EXTERN_C()
 #define ZEND_ASYNC_CANCEL(coroutine) zend_async_cancel_fn(coroutine)
 #define ZEND_ASYNC_SHUTDOWN() zend_async_shutdown_fn()
 #define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()
+#define ZEND_ASYNC_ADD_MICROTASK(microtask) zend_async_add_microtask_fn(microtask)
 #define ZEND_ASYNC_ADD_EVENT() zend_async_add_event_fn()
 #define ZEND_ASYNC_REMOVE_EVENT() zend_async_remove_event_fn()
 #define ZEND_ASYNC_NEW_SOCKET_EVENT() zend_async_new_socket_event_fn()
