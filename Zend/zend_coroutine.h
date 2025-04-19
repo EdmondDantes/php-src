@@ -21,10 +21,9 @@
 typedef struct _zend_coroutine_waker zend_coroutine_waker;
 typedef struct _zend_coroutine zend_coroutine;
 
-struct _zend_coroutine {
-	/* PHP object handle. */
-	zend_object std;
+typedef zend_array* (*zend_coroutine_get_awaiting_info_t)(zend_coroutine * coroutine);
 
+struct _zend_coroutine {
 	/* Flags are defined in enum zend_fiber_flag. */
 	uint8_t flags;
 
@@ -46,10 +45,19 @@ struct _zend_coroutine {
 
 	/* Storage for fiber return value. */
 	zval result;
+
+	/* PHP object handle. */
+	zend_object std;
 };
 
 struct _zend_coroutine_waker {
+	zend_coroutine_get_awaiting_info_t get_awaiting_info;
 };
 
+BEGIN_EXTERN_C()
+
+ZEND_API zend_coroutine *zend_coroutine_create(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache);
+
+END_EXTERN_C()
 
 #endif //ZEND_COROUTINE_H

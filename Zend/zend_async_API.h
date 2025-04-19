@@ -42,7 +42,7 @@ typedef void (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_event_t)();
 typedef void (*zend_async_remove_event_t)();
 
-typedef void (*zend_async_new_socket_event_fn)();
+typedef void (*zend_async_new_socket_event_t)();
 typedef void (*zend_async_new_poll_event_t)();
 typedef void (*zend_async_new_timer_event_t)();
 typedef void (*zend_async_new_signal_event_t)();
@@ -51,34 +51,6 @@ typedef void (*zend_async_new_thread_event_t)();
 typedef void (*zend_async_new_filesystem_event_t)();
 
 typedef void (*zend_async_queue_task_t)(zend_async_task *task);
-
-struct _zend_async_api {
-	zend_async_spawn_t spawn;
-	zend_async_suspend_t suspend;
-	zend_async_resume_t resume;
-
-	zend_async_cancel_t cancel;
-	zend_async_shutdown_t shutdown;
-	zend_async_get_coroutines_t get_coroutines;
-
-	/* Reactor API */
-
-	zend_async_new_socket_event_fn new_socket_event;
-	zend_async_new_poll_event_t new_poll_event;
-	zend_async_new_timer_event_t new_timer_event;
-	zend_async_new_signal_event_t new_signal_event;
-	zend_async_new_process_event_t new_process_event;
-	zend_async_new_thread_event_t new_thread_event;
-	zend_async_new_filesystem_event_t new_filesystem_event;
-
-	/* Dns API */
-
-	zend_async_add_event_t add_event;
-	zend_async_remove_event_t remove_event;
-
-	/* Thread pool API */
-	zend_async_queue_task_t queue_task;
-};
 
 typedef struct _zend_async_event zend_async_event;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
@@ -136,3 +108,57 @@ struct _zend_async_scope {
 };
 
 #endif //ZEND_ASYNC_API_H
+
+BEGIN_EXTERN_C()
+
+ZEND_API bool zend_async_is_enabled(void);
+
+ZEND_API void zend_async_init(void);
+ZEND_API void zend_async_shutdown(void);
+
+/* Scheduler API */
+
+ZEND_API zend_async_spawn_t zend_async_spawn_fn;
+ZEND_API zend_async_suspend_t zend_async_suspend_fn;
+ZEND_API zend_async_resume_t zend_async_resume_fn;
+ZEND_API zend_async_cancel_t zend_async_cancel_fn;
+ZEND_API zend_async_shutdown_t zend_async_shutdown_fn;
+ZEND_API zend_async_get_coroutines_t zend_async_get_coroutines_fn;
+
+/* Reactor API */
+
+ZEND_API bool zend_async_reactor_is_enabled(void);
+ZEND_API zend_async_add_event_t zend_async_add_event_fn;
+ZEND_API zend_async_remove_event_t zend_async_remove_event_fn;
+ZEND_API zend_async_new_socket_event_t zend_async_new_socket_event_fn;
+ZEND_API zend_async_new_poll_event_t zend_async_new_poll_event_fn;
+ZEND_API zend_async_new_timer_event_t zend_async_new_timer_event_fn;
+ZEND_API zend_async_new_signal_event_t zend_async_new_signal_event_fn;
+ZEND_API zend_async_new_process_event_t zend_async_new_process_event_fn;
+ZEND_API zend_async_new_thread_event_t zend_async_new_thread_event_fn;
+ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
+
+/* Thread pool API */
+
+ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
+
+END_EXTERN_C()
+
+#define ZEND_ASYNC_SPAWN() zend_async_spawn_fn()
+#define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
+#define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine)
+#define ZEND_ASYNC_CANCEL(coroutine) zend_async_cancel_fn(coroutine)
+#define ZEND_ASYNC_SHUTDOWN() zend_async_shutdown_fn()
+#define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()
+#define ZEND_ASYNC_ADD_EVENT() zend_async_add_event_fn()
+#define ZEND_ASYNC_REMOVE_EVENT() zend_async_remove_event_fn()
+#define ZEND_ASYNC_NEW_SOCKET_EVENT() zend_async_new_socket_event_fn()
+#define ZEND_ASYNC_NEW_POLL_EVENT() zend_async_new_poll_event_fn()
+#define ZEND_ASYNC_NEW_TIMER_EVENT() zend_async_new_timer_event_fn()
+#define ZEND_ASYNC_NEW_SIGNAL_EVENT() zend_async_new_signal_event_fn()
+#define ZEND_ASYNC_NEW_PROCESS_EVENT() zend_async_new_process_event_fn()
+#define ZEND_ASYNC_NEW_THREAD_EVENT() zend_async_new_thread_event_fn()
+#define ZEND_ASYNC_NEW_FILESYSTEM_EVENT() zend_async_new_filesystem_event_fn()
+#define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)
+#define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
+#define ZEND_ASYNC_REACTOR_IS_ENABLED() zend_async_reactor_is_enabled()
