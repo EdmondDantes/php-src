@@ -19,6 +19,7 @@
 #include "zend_coroutine.h"
 
 typedef struct _zend_async_api zend_async_api;
+typedef struct _zend_async_scope zend_async_scope;
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -128,6 +129,10 @@ struct _zend_async_filesystem_event {
 
 struct _zend_async_task {
 	zend_async_event event;
+};
+
+struct _zend_async_scope {
+
 };
 
 #endif //ZEND_ASYNC_API_H

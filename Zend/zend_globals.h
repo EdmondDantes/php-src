@@ -74,6 +74,8 @@ typedef struct _zend_vm_stack *zend_vm_stack;
 typedef struct _zend_ini_entry zend_ini_entry;
 typedef struct _zend_fiber_context zend_fiber_context;
 typedef struct _zend_fiber zend_fiber;
+typedef struct _zend_coroutine zend_coroutine;
+typedef struct _zend_async_scope zend_async_scope;
 
 typedef enum {
 	ZEND_MEMOIZE_NONE,
@@ -293,6 +295,13 @@ struct _zend_executor_globals {
 
 	/* Default fiber C stack size. */
 	size_t fiber_stack_size;
+
+#ifdef PHP_ASYNC
+	/* The current coroutine context. */
+	zend_coroutine *coroutine;
+	/* The current async scope. */
+	zend_async_scope *async_scope;
+#endif
 
 	/* If record_errors is enabled, all emitted diagnostics will be recorded,
 	 * in addition to being processed as usual. */
