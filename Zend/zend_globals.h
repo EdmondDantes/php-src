@@ -297,10 +297,16 @@ struct _zend_executor_globals {
 	size_t fiber_stack_size;
 
 #ifdef PHP_ASYNC
+	/* Equal TRUE if the asynchronous context is enabled */
+	bool is_async;
+	/* Equal TRUE if the reactor is in the process of shutting down */
+	bool graceful_shutdown;
 	/* The current coroutine context. */
 	zend_coroutine *coroutine;
 	/* The current async scope. */
 	zend_async_scope *async_scope;
+	/* Exit exception object */
+	zend_object *exit_exception;
 #endif
 
 	/* If record_errors is enabled, all emitted diagnostics will be recorded,

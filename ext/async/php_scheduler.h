@@ -13,4 +13,14 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include "zend_coroutine.h"
+#ifndef PHP_SCHEDULER_H
+#define PHP_SCHEDULER_H
+
+BEGIN_EXTERN_C()
+
+void async_scheduler_startup(void);
+void async_scheduler_shutdown(void);
+
+END_EXTERN_C()
+
+#endif //PHP_SCHEDULER_H

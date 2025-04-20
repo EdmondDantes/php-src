@@ -16,11 +16,13 @@
 #ifndef ZEND_ASYNC_API_H
 #define ZEND_ASYNC_API_H
 
-#include "zend_coroutine.h"
+#include "zend_fibers.h"
+#include "zend_globals.h"
 
-typedef struct _zend_async_api zend_async_api;
-typedef struct _zend_async_scope zend_async_scope;
+typedef struct _zend_async_scope_t zend_async_scope_t;
 typedef struct _zend_async_microtask_t zend_async_microtask_t;
+typedef struct _zend_async_waker_t zend_async_waker_t;
+typedef struct _zend_async_coroutine_t zend_async_coroutine_t;
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -54,13 +56,13 @@ typedef void (*zend_async_new_filesystem_event_t)();
 
 typedef void (*zend_async_queue_task_t)(zend_async_task *task);
 
-typedef struct _zend_async_event zend_async_event;
+typedef struct _zend_async_event_t zend_async_event_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
-typedef void (*zend_async_event_callback_fn)(zend_async_event *event, zend_async_event_callback_t *callback, zend_object *exception);
-typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event *event, zend_async_event_callback_t *callback);
-typedef void (*zend_async_event_add_callback_t)(zend_async_event *event, zend_async_event_callback_t callback);
-typedef void (*zend_async_event_del_callback_t)(zend_async_event *event, zend_async_event_callback_t callback);
-typedef bool (*zend_async_event_is_closed_t)(zend_async_event *event);
+typedef void (*zend_async_event_callback_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback, zend_object *exception);
+typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t callback);
+typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t callback);
+typedef bool (*zend_async_event_is_closed_t)(zend_async_event_t *event);
 
 typedef void (*zend_async_microtask_handler_t)(zend_async_microtask_t *microtask);
 
@@ -76,14 +78,14 @@ struct _zend_async_event_callback_t {
 	zend_async_event_callback_dispose_fn dispose;
 };
 
-struct _zend_async_event {
+struct _zend_async_event_t {
 	zend_async_event_add_callback_t add_callback;
 	zend_async_event_del_callback_t del_callback;
 	zend_async_event_is_closed_t is_closed;
 };
 
 struct _zend_async_poll_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_socket_event {
@@ -91,31 +93,74 @@ struct _zend_async_socket_event {
 };
 
 struct _zend_async_timer_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_signal_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_process_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_thread_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_filesystem_event {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
 struct _zend_async_task {
-	zend_async_event event;
+	zend_async_event_t event;
 };
 
-struct _zend_async_scope {
+struct _zend_async_scope_t {
 
+};
+
+typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine * coroutine);
+
+struct _zend_async_waker_t {
+	/* Error object. */
+	zend_object *error;
+	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
+	HashTable * triggered_events;
+	/* The array of zend_async_event_t. */
+	HashTable events;
+	/* Filename of the resume object creation point. */
+	zend_string *filename;
+	/* Line number of the resume object creation point. */
+	uint32_t lineno;
+	zend_async_get_awaiting_info_t get_awaiting_info;
+};
+
+struct _zend_async_coroutine_t {
+	/* Flags are defined in enum zend_fiber_flag. */
+	uint8_t flags;
+
+	/* Native C fiber context. */
+	zend_fiber_context context;
+
+	/* Callback and info / cache to be used when fiber is started. */
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+
+	/* Current Zend VM execute data being run by the fiber. */
+	zend_execute_data *execute_data;
+
+	/* Active fiber vm stack. */
+	zend_vm_stack vm_stack;
+
+	/* Coroutine waker */
+	zend_async_waker_t *waker;
+
+	/* Storage for return value. */
+	zval result;
+
+	/* PHP object handle. */
+	zend_object std;
 };
 
 #endif //ZEND_ASYNC_API_H
