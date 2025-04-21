@@ -165,12 +165,13 @@ ZEND_API void zend_async_waker_destroy(zend_async_coroutine_t *coroutine)
 	zend_hash_destroy(&waker->events);
 }
 
-ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_waker_callback_t *callback)
+ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_event_callback_t *callback)
 {
 	if (UNEXPECTED(coroutine->waker == NULL)) {
 		return;
 	}
 
+	event->add_callback(event, callback);
 }
 
 ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event)

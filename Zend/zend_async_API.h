@@ -60,10 +60,12 @@ typedef void (*zend_async_queue_task_t)(zend_async_task *task);
 
 typedef struct _zend_async_event_t zend_async_event_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
-typedef void (*zend_async_event_callback_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback, zend_object *exception);
+typedef void (*zend_async_event_callback_fn)(
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+);
 typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
-typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t callback);
-typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t callback);
+typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef bool (*zend_async_event_is_closed_t)(zend_async_event_t *event);
 
 typedef void (*zend_async_microtask_handler_t)(zend_async_microtask_t *microtask);
@@ -122,15 +124,11 @@ struct _zend_async_scope_t {
 
 };
 
-typedef void (*zend_async_waker_callback_t)(
-	zend_async_coroutine_t *coroutine, zend_async_event_t *event, void *result, zend_object *exception
-);
-
 typedef void (*zend_async_waker_dtor)(zend_async_coroutine_t *coroutine);
 
 typedef struct {
 	zend_async_event_t *event;
-	zend_async_waker_callback_t callback;
+	zend_async_event_callback_t *callback;
 } zend_async_waker_trigger_t;
 
 struct _zend_async_waker_t {
@@ -241,7 +239,7 @@ ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task
 /* Waker API */
 ZEND_API zend_async_waker_t *zend_async_waker_create(zend_async_coroutine_t *coroutine);
 ZEND_API void zend_async_waker_destroy(zend_async_coroutine_t *coroutine);
-ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_waker_callback_t *callback);
+ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_event_callback_t *callback);
 ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event);
 
 END_EXTERN_C()
