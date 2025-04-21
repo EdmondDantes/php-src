@@ -74,8 +74,8 @@ typedef struct _zend_vm_stack *zend_vm_stack;
 typedef struct _zend_ini_entry zend_ini_entry;
 typedef struct _zend_fiber_context zend_fiber_context;
 typedef struct _zend_fiber zend_fiber;
-typedef struct _zend_coroutine zend_coroutine;
-typedef struct _zend_async_scope zend_async_scope;
+typedef struct _zend_coroutine_t zend_coroutine_t;
+typedef struct _zend_async_scope_t zend_async_scope_t;
 
 typedef enum {
 	ZEND_MEMOIZE_NONE,
@@ -302,9 +302,9 @@ struct _zend_executor_globals {
 	/* Equal TRUE if the reactor is in the process of shutting down */
 	bool graceful_shutdown;
 	/* The current coroutine context. */
-	zend_coroutine *coroutine;
+	zend_coroutine_t *coroutine;
 	/* The current async scope. */
-	zend_async_scope *async_scope;
+	zend_async_scope_t *async_scope;
 	/* Exit exception object */
 	zend_object *exit_exception;
 #endif

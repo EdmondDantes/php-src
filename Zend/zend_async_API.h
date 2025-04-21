@@ -35,13 +35,15 @@ typedef struct _zend_async_thread_event zend_async_thread_event;
 
 typedef struct _zend_async_task zend_async_task;
 
-typedef void (*zend_async_spawn_t)();
-typedef void (*zend_async_suspend_t)(zend_coroutine *coroutine);
-typedef void (*zend_async_resume_t)(zend_coroutine *coroutine);
-typedef void (*zend_async_cancel_t)(zend_coroutine *coroutine);
+typedef void (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
+typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
+typedef void (*zend_async_suspend_t)(zend_coroutine_t *coroutine);
+typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine);
+typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine);
 typedef void (*zend_async_shutdown_t)();
 typedef void (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
+typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine_t * coroutine);
 
 typedef void (*zend_async_add_event_t)();
 typedef void (*zend_async_remove_event_t)();
@@ -120,20 +122,30 @@ struct _zend_async_scope_t {
 
 };
 
-typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine * coroutine);
+typedef void (*zend_async_waker_callback_t)(
+	zend_async_coroutine_t *coroutine, zend_async_event_t *event, void *result, zend_object *exception
+);
+
+typedef void (*zend_async_waker_dtor)(zend_async_coroutine_t *coroutine);
+
+typedef struct {
+	zend_async_event_t *event;
+	zend_async_waker_callback_t callback;
+} zend_async_waker_trigger_t;
 
 struct _zend_async_waker_t {
+	/* The array of zend_async_waker_trigger_t. */
+	HashTable events;
+	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
+	HashTable *triggered_events;
 	/* Error object. */
 	zend_object *error;
-	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
-	HashTable * triggered_events;
-	/* The array of zend_async_event_t. */
-	HashTable events;
 	/* Filename of the resume object creation point. */
 	zend_string *filename;
 	/* Line number of the resume object creation point. */
 	uint32_t lineno;
-	zend_async_get_awaiting_info_t get_awaiting_info;
+	/* The waker destructor. */
+	zend_async_waker_dtor dtor;
 };
 
 struct _zend_async_coroutine_t {
@@ -175,6 +187,7 @@ ZEND_API void zend_async_shutdown(void);
 /* Scheduler API */
 
 ZEND_API zend_async_spawn_t zend_async_spawn_fn;
+ZEND_API zend_async_new_coroutine_t zend_async_new_coroutine_fn;
 ZEND_API zend_async_suspend_t zend_async_suspend_fn;
 ZEND_API zend_async_resume_t zend_async_resume_fn;
 ZEND_API zend_async_cancel_t zend_async_cancel_fn;
@@ -200,13 +213,15 @@ ZEND_API bool zend_async_thread_pool_is_enabled(void);
 ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
 
 ZEND_API void zend_async_scheduler_register(
+	zend_async_new_coroutine_t new_coroutine_fn,
     zend_async_spawn_t spawn_fn,
     zend_async_suspend_t suspend_fn,
     zend_async_resume_t resume_fn,
     zend_async_cancel_t cancel_fn,
     zend_async_shutdown_t shutdown_fn,
     zend_async_get_coroutines_t get_coroutines_fn,
-    zend_async_add_microtask_t add_microtask_fn
+    zend_async_add_microtask_t add_microtask_fn,
+    zend_async_get_awaiting_info_t get_awaiting_info_fn
 );
 
 ZEND_API void zend_async_reactor_register(
@@ -222,6 +237,12 @@ ZEND_API void zend_async_reactor_register(
 );
 
 ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn);
+
+/* Waker API */
+ZEND_API zend_async_waker_t *zend_async_waker_create(zend_async_coroutine_t *coroutine);
+ZEND_API void zend_async_waker_destroy(zend_async_coroutine_t *coroutine);
+ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_waker_callback_t *callback);
+ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event);
 
 END_EXTERN_C()
 

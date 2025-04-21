@@ -101,3 +101,82 @@ ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task
 {
     zend_async_queue_task_fn = queue_task_fn;
 }
+
+//////////////////////////////////////////////////////////////////////
+/* Waker API */
+//////////////////////////////////////////////////////////////////////
+
+static void waker_events_dtor(zval *item)
+{
+	zend_async_waker_trigger_t * waker_trigger = Z_PTR_P(item);
+
+	waker_trigger->event->del_callback(waker_trigger->event, waker_trigger->callback);
+	efree(waker_trigger);
+}
+
+ZEND_API zend_async_waker_t *zend_async_waker_create(zend_async_coroutine_t *coroutine)
+{
+	if (UNEXPECTED(coroutine->waker != NULL)) {
+		return coroutine->waker;
+	}
+
+	zend_async_waker_t *waker = pecalloc(1, sizeof(zend_async_waker_t), 0);
+
+	waker->triggered_events = NULL;
+	waker->error = NULL;
+	waker->dtor = NULL;
+
+	zend_hash_init(&waker->events, 2, NULL, waker_events_dtor, 0);
+
+	coroutine->waker = waker;
+
+	return waker;
+}
+
+ZEND_API void zend_async_waker_destroy(zend_async_coroutine_t *coroutine)
+{
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		return;
+	}
+
+	if (coroutine->waker->dtor != NULL) {
+		coroutine->waker->dtor(coroutine);
+	}
+
+	zend_async_waker_t * waker = coroutine->waker;
+
+	// default dtor
+	if (waker->error != NULL) {
+		zend_object_release(waker->error);
+		waker->error = NULL;
+	}
+
+	if (waker->triggered_events != NULL) {
+		zend_array_release(waker->triggered_events);
+		waker->triggered_events = NULL;
+	}
+
+	if (waker->filename != NULL) {
+		zend_string_release(waker->filename);
+		waker->filename = NULL;
+		waker->lineno = 0;
+	}
+
+	zend_hash_destroy(&waker->events);
+}
+
+ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_waker_callback_t *callback)
+{
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		return;
+	}
+
+}
+
+ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event)
+{
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		return;
+	}
+
+}
