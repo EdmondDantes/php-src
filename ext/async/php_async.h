@@ -50,6 +50,8 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	#endif
 ZEND_END_MODULE_GLOBALS(async)
 
+ZEND_EXTERN_MODULE_GLOBALS(async)
+
 #define ASYNC_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(async, v)
 
 # if defined(ZTS) && defined(COMPILE_DL_ASYNC)

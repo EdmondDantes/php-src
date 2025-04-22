@@ -13,730 +13,99 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#include <zend_closures.h>
-#include <Zend/zend_fibers.h>
+#include <Zend/zend_async_API.h>
+#include "internal/zval_circular_buffer.h"
 #include "php_scheduler.h"
 #include "php_async.h"
-#include "php_reactor.h"
-#include "internal/zval_circular_buffer.h"
 #include "exceptions.h"
 #include "zend_common.h"
 
-//
-// The coefficient of the maximum number of microtasks that can be executed
-// without suspicion of an infinite loop (a task that creates microtasks).
-//
-#define MICROTASK_CYCLE_THRESHOLD_C 8
-
-zend_fiber * async_internal_fiber_create(zend_internal_function * function)
+void async_scheduler_startup(void)
 {
-	zval zval_closure, zval_fiber;
-	zend_create_closure(&zval_closure, (zend_function *) function, NULL, NULL, NULL);
-	if (Z_TYPE(zval_closure) == IS_UNDEF) {
-        async_throw_error("Failed to create internal fiber closure");
-        return NULL;
-    }
-
-	zval params[1];
-
-	ZVAL_COPY_VALUE(&params[0], &zval_closure);
-
-	if (object_init_with_constructor(&zval_fiber, zend_ce_fiber, 1, params, NULL) == FAILURE) {
-		zval_ptr_dtor(&zval_closure);
-		async_throw_error("Failed to create internal fiber");
-		return NULL;
-	}
-
-	zval_ptr_dtor(&zval_closure);
-
-	return (zend_fiber *) Z_OBJ_P(&zval_fiber);
 }
 
-void async_execute_callbacks_in_fiber(HashTable * callbacks)
+void async_scheduler_shutdown(void)
 {
-	struct {
-		HashTable * callbacks;
-		HashPosition position;
-	} iterator = {callbacks, 0};
-
-	if (zend_hash_num_elements(callbacks) == 0) {
-		return;
-	}
-
-	zend_fiber *fiber = get_callback_fiber();
-
-	if (fiber == NULL) {
-		return;
-	}
-
-	zend_hash_internal_pointer_reset_ex(callbacks, &iterator.position);
-
-	zval retval;
-	ZVAL_UNDEF(&retval);
-	zval params[1];
-	ZVAL_PTR(&params[0], &iterator);
-
-	do
-	{
-		if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
-			fiber->fci.params = params;
-			fiber->fci.param_count = 1;
-
-			zend_fiber_start(fiber, NULL);
-
-			fiber->fci.params = NULL;
-			fiber->fci.param_count = 0;
-
-		} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zend_fiber_resume(fiber, &params[0], NULL);
-		} else {
-			ZEND_ASSERT(true && "Invalid callback fiber status");
-		}
-
-		if (EG(exception != NULL)) {
-            break;
-        }
-
-		separate_callback_fiber();
-		fiber = get_callback_fiber();
-
-	} while (zend_hash_num_elements(callbacks) != 0);
 }
 
-zend_always_inline static void invoke_microtask(async_microtask_t *task)
+zend_always_inline static void execute_microtasks(circular_buffer_t *buffer)
 {
-	// Inherit context of microtask to Fiber context
-	if (EG(active_fiber)->async_context != NULL) {
-		OBJ_RELEASE(&EG(active_fiber)->async_context->std);
-	}
+	zend_async_microtask_t * task = NULL;
 
-	EG(active_fiber)->async_context = task->context;
+	while (circular_buffer_is_not_empty(buffer)) {
 
-	zend_try {
+		circular_buffer_pop(buffer, &task);
 
-		switch (task->type) {
-			case ASYNC_MICROTASK_INTERNAL:
-			{
-				async_internal_microtask_t *internal = (async_internal_microtask_t *) task;
-				internal->handler((async_microtask_t *) internal);
-				break;
-			}
-
-			case ASYNC_MICROTASK_FCI:
-			{
-				async_function_microtask_t *function = (async_function_microtask_t *) task;
-
-				zval retval;
-				ZVAL_UNDEF(&retval);
-				function->fci.retval = &retval;
-
-				if (zend_call_function(&function->fci, &function->fci_cache) == SUCCESS) {
-					zval_ptr_dtor(function->fci.retval);
-				}
-
-				function->fci.retval = NULL;
-				break;
-			}
-
-			case ASYNC_MICROTASK_ZVAL:
-			{
-				zval retval;
-				ZVAL_UNDEF(&retval);
-				call_user_function(CG(function_table), NULL, &task->callable, &retval, 0, NULL);
-				zval_ptr_dtor(&retval);
-				break;
-			}
-
-			case ASYNC_MICROTASK_OBJECT:
-			{
-				async_internal_microtask_with_object_t *object = (async_internal_microtask_with_object_t *) task;
-				object->handler((async_microtask_t *) object);
-				break;
-			}
-
-			case ASYNC_MICROTASK_EXCEPTION:
-			{
-				async_microtask_with_exception_t *exception = (async_microtask_with_exception_t *) task;
-				exception->handler((async_microtask_t *) exception);
-				break;
-			}
-
-			default:
-				break;
+		if (EXPECTED(false == task->is_cancelled)) {
+			task->handler(task);
 		}
 
-	} zend_catch {
-		if (EG(active_fiber)->async_context != NULL) {
-			OBJ_RELEASE(&EG(active_fiber)->async_context->std);
+		task->ref_count--;
+
+		if (task->ref_count <= 0) {
+			task->dtor(task);
 		}
 
-		EG(active_fiber)->async_context = NULL;
-
-		zend_bailout();
-	} zend_end_try();
-
-	if (EG(active_fiber)->async_context != NULL) {
-		OBJ_RELEASE(&EG(active_fiber)->async_context->std);
-	}
-
-	EG(active_fiber)->async_context = NULL;
-}
-
-static ZEND_FUNCTION(microtasks_executor)
-{
-	zval *z_buffer;
-	zval *z_handled;
-	zend_long max_count;
-
-	struct {
-		int handled;
-		zend_long max_count;
-	} * next = NULL;
-
-	zval z_next;
-	ZVAL_NULL(&z_next);
-
-	ZEND_PARSE_PARAMETERS_START(3, 3)
-		Z_PARAM_ZVAL(z_buffer)
-		Z_PARAM_ZVAL(z_handled)
-		Z_PARAM_LONG(max_count)
-	ZEND_PARSE_PARAMETERS_END();
-
-	zend_fiber * fiber = EG(active_fiber);
-	circular_buffer_t *buffer = Z_PTR_P(z_buffer);
-	int * handled = Z_PTR_P(z_handled);
-
-	while (true) {
-
-		while (circular_buffer_is_not_empty(buffer)) {
-			async_microtask_t * task = NULL;
-			(*handled)++;
-			circular_buffer_pop(buffer, &task);
-
-			if (EXPECTED(false == task->is_cancelled)) {
-				invoke_microtask(task);
-			}
-
-			async_scheduler_microtask_free(task);
-
-			if (UNEXPECTED(EG(exception) != NULL || async_find_fiber_state(fiber) != NULL)) {
-				return;
-			}
-
-			if (UNEXPECTED(*handled >= max_count)) {
-				break;
-			}
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			return;
 		}
-
-		ZVAL_NULL(&z_next);
-		zend_fiber_suspend(fiber, NULL, &z_next);
-
-		if (UNEXPECTED(Z_TYPE(z_next) != IS_PTR)) {
-            return;
-        }
-
-		next = Z_PTR_P(&z_next);
-		handled = &next->handled;
-		max_count = next->max_count;
 	}
 }
 
-static zend_result execute_microtasks_stage(circular_buffer_t *buffer, const size_t max_count)
+static void async_scheduler_dtor(void)
 {
-	if (circular_buffer_is_empty(buffer)) {
-		return SUCCESS;
-	}
+	IN_SCHEDULER_CONTEXT = true;
 
-	zend_fiber * fiber = ASYNC_G(microtask_fiber);
+	execute_microtasks(&ASYNC_G(microtasks));
 
-	if (fiber == NULL || fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
+	IN_SCHEDULER_CONTEXT = false;
 
-		if (fiber != NULL) {
-			OBJ_RELEASE(&fiber->std);
-		}
-
-        ASYNC_G(microtask_fiber) = async_internal_fiber_create(&microtasks_internal_function);
-		fiber = ASYNC_G(microtask_fiber);
-    }
-
-	// Define the fiber parameters
-	int handled = 0;
-
-	struct {
-		int handled;
-		zend_long max_count;
-	} current = {0, (zend_long) max_count};
-
-	zval z_current;
-	ZVAL_PTR(&z_current, &current);
-
-	const size_t count = circular_buffer_count(buffer);
-	zval z_max_count;
-	ZVAL_LONG(&z_max_count, max_count);
-
-	zval params[3];
-	ZVAL_PTR(&params[0], buffer);
-	ZVAL_PTR(&params[1], &handled);
-	ZVAL_LONG(&params[2], max_count);
-
-	fiber->fci.params = params;
-	fiber->fci.param_count = 3;
-	bool is_not_empty = true;
-
-	do
-	{
-		if (fiber->context.status == ZEND_FIBER_STATUS_INIT) {
-			zend_fiber_start(fiber, NULL);
-		} else if (fiber->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zend_fiber_resume(fiber, &z_current, NULL);
-			handled = current.handled;
-		} else {
-			ZEND_ASSERT(true && "Invalid microtask fiber status");
-		}
-
-		if (UNEXPECTED(EG(exception))) {
-			ASYNC_G(microtask_fiber) = NULL;
-			OBJ_RELEASE(&fiber->std);
-			is_not_empty = false;
-			break;
-		}
-
-		is_not_empty = circular_buffer_is_not_empty(buffer);
-
-		if (handled <= count) {
-			return is_not_empty ? FAILURE : SUCCESS;
-		}
-
-		if (UNEXPECTED(handled > max_count)) {
-
-			OBJ_RELEASE(&fiber->std);
-			ASYNC_G(microtask_fiber) = NULL;
-
-            async_throw_error("Possible infinite loop detected during microtask execution");
-			return FAILURE;
-
-        } else if (UNEXPECTED(async_find_fiber_state(fiber) != NULL)) {
-
-        	OBJ_RELEASE(&fiber->std);
-        	ASYNC_G(microtask_fiber) = NULL;
-
-        	if (is_not_empty) {
-        		ASYNC_G(microtask_fiber) = async_internal_fiber_create(&microtasks_internal_function);
-        		fiber = ASYNC_G(microtask_fiber);
-
-        		fiber->fci.params = params;
-        		fiber->fci.param_count = 3;
-        	}
-        }
-
-	} while (is_not_empty);
-
-	fiber->fci.params = NULL;
-	fiber->fci.param_count = 0;
-
-	return is_not_empty;
-}
-
-static void execute_microtasks(void)
-{
-	circular_buffer_t *buffer = &ASYNC_G(microtasks);
-
-	if (circular_buffer_is_empty(buffer)) {
-		return;
-	}
-
-	/**
-	 * The execution of the microtask queue occurs in two stages:
-	 * * All microtasks in the queue that were initially scheduled are executed.
-	 * * All subsequent microtasks in the queue are executed, but no more than MICROTASK_CYCLE_THRESHOLD_C the buffer size.
-	*/
-
-	if (execute_microtasks_stage(buffer, circular_buffer_count(buffer)) == SUCCESS) {
-		return;
-	}
-
-	const size_t max_count = circular_buffer_capacity(buffer) * MICROTASK_CYCLE_THRESHOLD_C;
-
-	if (execute_microtasks_stage(buffer, max_count) == SUCCESS) {
-		return;
-	}
-
-	// TODO: make critical error
-	async_throw_error(
-		"A possible infinite loop was detected during microtask execution. Max count: %u, remaining: %u",
-		max_count,
-		circular_buffer_count(buffer)
-	);
-}
-
-static bool handle_callbacks(bool no_wait)
-{
-	async_throw_error("Event Loop API method handle_callbacks not implemented");
-	return false;
-}
-
-static bool execute_next_fiber(void)
-{
-	async_resume_t *resume = async_next_deferred_resume();
-
-	if (resume == NULL) {
-		return false;
-	}
-
-	if (UNEXPECTED(resume->status == ASYNC_RESUME_IGNORED)) {
-
-		//
-		// This state triggers if the fiber has never been started;
-		// in this case, it is deallocated differently than usual.
-		// Finalizing handlers are called. Memory is freed in the correct order!
-		//
-
-		async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
-
-		if (state != NULL) {
-			state->resume = NULL;
-		}
-
-		// First release the reference to the resume object
-		zend_fiber * fiber = resume->fiber;
-		OBJ_RELEASE(&resume->std);
-
-		// And only then release the reference to the fiber object
-		resume->fiber = NULL;
-		zend_hash_index_del(&ASYNC_G(fibers_state), fiber->std.handle);
-		OBJ_RELEASE(&fiber->std);
-		return true;
-	}
-
-	if (UNEXPECTED(resume->status == ASYNC_RESUME_WAITING)) {
-		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
-		async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
-
-		if (state != NULL) {
-			state->resume = NULL;
-		}
-
-		OBJ_RELEASE(&resume->std);
-		return false;
-	}
-
-	zval retval;
-	ZVAL_UNDEF(&retval);
-
-	async_fiber_state_t *state = async_find_fiber_state(resume->fiber);
-	ZEND_ASSERT(state != NULL && "Fiber state not found but required");
-
-	if (EXPECTED(state != NULL)) {
-		state->resume = NULL;
-	}
-
-	// After the fiber is resumed, the resume object is no longer needed.
-	// So we need to release the reference to the object before resuming the fiber.
-	// Copy the resume object status and fiber to local variables.
-	ASYNC_RESUME_STATUS status = resume->status;
-	resume->status = ASYNC_RESUME_NO_STATUS;
-	zend_fiber *fiber = resume->fiber;
-	zval result = resume->result;
-	ZVAL_UNDEF(&resume->result);
-
-	zend_object * error = resume->error;
-	resume->error = NULL;
-
-	OBJ_RELEASE(&resume->std);
-
-	if (EXPECTED(status == ASYNC_RESUME_SUCCESS)) {
-
-		if (UNEXPECTED(fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
-			zend_fiber_start(fiber, &retval);
-		} else {
-			zend_fiber_resume(fiber, &result, &retval);
-		}
-
-	} else {
-
-		if (UNEXPECTED(fiber->context.status == ZEND_FIBER_STATUS_INIT)) {
-			async_warning("Attempt to resume with error a fiber that has not been started");
-			zend_fiber_start(fiber, &retval);
-		} else {
-			zval zval_error;
-			ZVAL_OBJ(&zval_error, error);
-			zend_fiber_resume_exception(fiber, &zval_error, &retval);
-		}
-	}
-
-	// Ignore the exception if it is a cancellation exception
-	if (UNEXPECTED(EG(exception) && instanceof_function(EG(exception)->ce, async_ce_cancellation_exception))) {
-        zend_clear_exception();
-    }
-
-	// Free fiber if it is completed
-	if (fiber->context.status == ZEND_FIBER_STATUS_DEAD) {
-		OBJ_RELEASE(&fiber->std);
-	}
-
-	if (error != NULL) {
-		OBJ_RELEASE(error);
-	}
-
-	zval_ptr_dtor(&result);
-	zval_ptr_dtor(&retval);
-
-	return true;
-}
-
-static bool resolve_deadlocks(void)
-{
-	zval *value;
-
-	async_warning(
-		"No active fibers, deadlock detected. Fibers in waiting: %u", zend_hash_num_elements(&ASYNC_G(fibers_state))
-	);
-
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), value)
-
-		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
-
-		ZEND_ASSERT(fiber_state->resume != NULL && "Fiber state has no resume object");
-
-		if (fiber_state->resume != NULL && fiber_state->resume->filename != NULL) {
-
-			//Maybe we need to get the function name
-			//zend_string * function_name = NULL;
-			//zend_get_function_name_by_fci(&fiber_state->fiber->fci, &fiber_state->fiber->fci_cache, &function_name);
-
-			async_warning(
-				"Resume that suspended in file: %s, line: %d will be canceled",
-				ZSTR_VAL(fiber_state->resume->filename),
-				fiber_state->resume->lineno
-			);
-		}
-
-		async_cancel_fiber(
-			fiber_state->fiber,
-			async_new_exception(async_ce_cancellation_exception, "Deadlock detected"),
-			true
+	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
+		async_warning(
+			"%u microtasks were not executed", circular_buffer_count(&ASYNC_G(microtasks))
 		);
-
-		if (EG(exception) != NULL) {
-			return true;
-		}
-
-	ZEND_HASH_FOREACH_END();
-
-	return false;
-}
-
-
-ZEND_API async_callbacks_handler_t async_scheduler_set_callbacks_handler(async_callbacks_handler_t handler)
-{
-    const async_callbacks_handler_t prev = ASYNC_G(execute_callbacks_handler);
-    ASYNC_G(execute_callbacks_handler) = handler ? handler : handle_callbacks;
-    return prev;
-}
-
-ZEND_API async_next_fiber_handler_t async_scheduler_set_next_fiber_handler(const async_next_fiber_handler_t handler)
-{
-	const async_next_fiber_handler_t prev = ASYNC_G(execute_next_fiber_handler);
-	ASYNC_G(execute_next_fiber_handler) = handler ? handler : execute_next_fiber;
-	return prev;
-}
-
-ZEND_API async_microtasks_handler_t async_scheduler_set_microtasks_handler(const async_microtasks_handler_t handler)
-{
-	const async_microtasks_handler_t prev = ASYNC_G(execute_microtasks_handler);
-	ASYNC_G(execute_microtasks_handler) = handler ? handler : execute_microtasks;
-	return prev;
-}
-
-ZEND_API async_exception_handler_t async_scheduler_set_exception_handler(const async_exception_handler_t handler)
-{
-	const async_exception_handler_t prev = ASYNC_G(exception_handler);
-	ASYNC_G(exception_handler) = handler;
-	return prev;
-}
-
-ZEND_API void async_scheduler_add_microtask(zval *z_microtask)
-{
-	if (UNEXPECTED(false == zend_is_callable(z_microtask, 0, NULL))) {
-		async_throw_error("Invalid microtask type: should be a callable");
-		return;
 	}
 
-	async_microtask_t * microtask = pecalloc(1, sizeof(async_microtask_t), 0);
-	microtask->type = ASYNC_MICROTASK_ZVAL;
-	microtask->ref_count = 1;
-	microtask->context = async_context_current(false, true);
+	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(coroutine_queue)))) {
+		async_warning(
+			"%u deferred coroutines were not executed",
+			circular_buffer_count(&ASYNC_G(coroutine_queue))
+		);
+	}
 
-	zval_copy(&microtask->callable, z_microtask);
-	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
+	zval_c_buffer_cleanup(&ASYNC_G(coroutine_queue));
+	zval_c_buffer_cleanup(&ASYNC_G(microtasks));
+
+	zval *current;
+	// foreach by fibers_state and release all fibers
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), current) {
+		zend_coroutine_t *coroutine = Z_PTR_P(current);
+		OBJ_RELEASE(&coroutine->std);
+	} ZEND_HASH_FOREACH_END();
+
+	zend_hash_clean(&ASYNC_G(coroutines));
+
+	ZEND_ASYNC_REACTOR_SHUTDOWN();
+
+	EG(graceful_shutdown) = false;
+	EG(in_scheduler_context) = false;
+	EG(is_async) = false;
+
+	zend_exception_restore();
 }
 
-ZEND_API void async_scheduler_add_microtask_ex(async_microtask_t *microtask)
-{
-	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
-	microtask->ref_count++;
-
-	if (microtask->context == NULL) {
-		microtask->context = async_context_current(false, true);
-	}
-}
-
-ZEND_API void async_scheduler_add_microtask_handler(async_microtask_handler_t handler, zend_object * zend_object)
-{
-	async_internal_microtask_t *microtask;
-
-	if (zend_object == NULL) {
-		microtask = pecalloc(1, sizeof(async_internal_microtask_t), 0);
-	} else {
-		microtask = pecalloc(1, sizeof(async_internal_microtask_with_object_t), 0);
-		((async_internal_microtask_with_object_t * ) microtask)->object = zend_object;
-		((async_internal_microtask_with_object_t * ) microtask)->task.dtor = NULL;
-	}
-
-	microtask->task.type = ASYNC_MICROTASK_OBJECT;
-	microtask->handler = handler;
-	microtask->task.ref_count = 1;
-	microtask->task.context = async_context_current(false, true);
-
-	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
-}
-
-ZEND_API async_microtask_t * async_scheduler_create_microtask(zval * microtask)
-{
-	zend_fcall_info fci;
-	zend_fcall_info_cache fcc;
-
-	if (UNEXPECTED(zend_fcall_info_init(microtask, 0, &fci, &fcc, NULL, NULL) != SUCCESS)) {
-		return NULL;
-	}
-
-	async_function_microtask_t *function = pecalloc(1, sizeof(async_function_microtask_t), 0);
-	function->task.type = ASYNC_MICROTASK_FCI;
-	function->task.ref_count = 1;
-	function->fci = fci;
-	function->fci_cache = fcc;
-
-	// Keep a reference to closures or callable objects
-	Z_TRY_ADDREF(function->fci.function_name);
-
-	return (async_microtask_t *) function;
-}
-
-static void microtask_throw_exception_handler(async_microtask_t *microtask)
-{
-	zval exception;
-	ZVAL_OBJ(&exception, ((async_microtask_with_exception_t *) microtask)->exception);
-
-	zend_throw_exception_object(&exception);
-
-	((async_microtask_with_exception_t *) microtask)->exception = NULL;
-}
-
-ZEND_API void async_scheduler_transfer_exception(zend_object * exception)
-{
-	if (EG(active_fiber) == NULL) {
-		zend_throw_exception_internal(exception);
-		return;
-	}
-
-	async_microtask_with_exception_t *microtask = pecalloc(1, sizeof(async_microtask_with_exception_t), 0);
-	microtask->task.type = ASYNC_MICROTASK_EXCEPTION;
-	microtask->handler = microtask_throw_exception_handler;
-	microtask->task.dtor = NULL;
-	microtask->task.ref_count = 1;
-	microtask->task.context = async_context_current(false, true);
-	microtask->exception = exception;
-
-	circular_buffer_push(&ASYNC_G(microtasks), &microtask, true);
-}
-
-ZEND_API void async_scheduler_microtask_free(async_microtask_t *microtask)
-{
-	if (microtask->ref_count <= 0) {
-		return;
-	}
-
-	microtask->ref_count--;
-
-	if (microtask->ref_count > 0) {
-		return;
-	}
-
-	if (microtask->type != ASYNC_MICROTASK_ZVAL && microtask->dtor != NULL) {
-		microtask->dtor(microtask);
-	}
-
-	if (microtask->context != NULL) {
-		OBJ_RELEASE(&microtask->context->std);
-	}
-
-	switch (microtask->type) {
-		case ASYNC_MICROTASK_FCI:
-			async_function_microtask_t *function = (async_function_microtask_t *) microtask;
-			zval_ptr_dtor(&function->fci.function_name);
-			ZVAL_UNDEF(&function->fci.function_name);
-			zend_fcall_info_args_clear(&function->fci, 1);
-			break;
-
-		case ASYNC_MICROTASK_ZVAL:
-			zval_ptr_dtor(&microtask->callable);
-			ZVAL_UNDEF(&microtask->callable);
-
-			break;
-
-		case ASYNC_MICROTASK_OBJECT:
-
-			if (((async_internal_microtask_with_object_t * ) microtask)->object != NULL) {
-				OBJ_RELEASE(((async_internal_microtask_with_object_t * ) microtask)->object);
-				((async_internal_microtask_with_object_t * ) microtask)->object = NULL;
-			}
-
-			break;
-
-		case ASYNC_MICROTASK_EXCEPTION:
-			async_microtask_with_exception_t *microtask_with_exception = (async_microtask_with_exception_t *) microtask;
-
-			if (microtask_with_exception->exception != NULL) {
-				OBJ_RELEASE(microtask_with_exception->exception);
-				microtask_with_exception->exception = NULL;
-			}
-
-			break;
-
-		case ASYNC_MICROTASK_INTERNAL:
-		default:
-			break;
-	}
-
-	pefree(microtask, 0);
-}
-
-zend_always_inline static void execute_deferred_fibers(void)
-{
-	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler) ?
-									ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
-
-	while (false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes))) {
-		execute_next_fiber_handler();
-
-		if (UNEXPECTED(EG(exception))) {
-			zend_exception_save();
-		}
-	}
-}
-
-static void call_fiber_deferred_callbacks(void)
+static void dispose_coroutines(void)
 {
 	zval * current;
 
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
-		const async_fiber_state_t *fiber_state = Z_PTR_P(current);
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), current) {
+		zend_coroutine_t *coroutine = Z_PTR_P(current);
 
-		if (fiber_state->resume != NULL) {
-			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
+		if (coroutine->waker != NULL) {
+			coroutine->waker->status = ZEND_ASYNC_WAKER_IGNORED;
 		}
 
-		zend_fiber_finalize(fiber_state->fiber);
+		coroutine->dispose(coroutine);
 
 		if (EG(exception)) {
 			zend_exception_save();
@@ -745,7 +114,7 @@ static void call_fiber_deferred_callbacks(void)
 	} ZEND_HASH_FOREACH_END();
 }
 
-static void cancel_deferred_fibers(void)
+static void cancel_queued_coroutines(void)
 {
 	zend_exception_save();
 
@@ -754,15 +123,15 @@ static void cancel_deferred_fibers(void)
 
 	zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
 
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
-		async_fiber_state_t *fiber_state = Z_PTR_P(current);
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutine_queue), current) {
+		zend_coroutine_t *coroutine = Z_PTR_P(current);
 
-		if (fiber_state->fiber->context.status == ZEND_FIBER_STATUS_INIT) {
+		if (coroutine->context.status == ZEND_FIBER_STATUS_INIT) {
 			// No need to cancel the fiber if it has not been started.
-			fiber_state->resume->status = ASYNC_RESUME_IGNORED;
-			zend_fiber_finalize(fiber_state->fiber);
+			coroutine->waker->status = ZEND_ASYNC_WAKER_IGNORED;
+			coroutine->dispose(coroutine);
 		} else {
-			async_cancel_fiber(fiber_state->fiber, cancellation_exception, false);
+			ZEND_ASYNC_CANCEL(coroutine, cancellation_exception, false);
 		}
 
 		if (EG(exception)) {
@@ -776,144 +145,24 @@ static void cancel_deferred_fibers(void)
 	zend_exception_restore();
 }
 
-static void finally_shutdown(void)
-{
-	if (ASYNC_G(exit_exception) != NULL && EG(exception) != NULL) {
-		zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
-		GC_DELREF(ASYNC_G(exit_exception));
-		ASYNC_G(exit_exception) = EG(exception);
-		GC_ADDREF(EG(exception));
-		zend_clear_exception();
-	}
-
-	cancel_deferred_fibers();
-	execute_deferred_fibers();
-
-	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
-							? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
-
-	execute_microtasks_handler();
-
-	if (UNEXPECTED(EG(exception))) {
-		if (ASYNC_G(exit_exception) != NULL) {
-			zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
-			GC_DELREF(ASYNC_G(exit_exception));
-			ASYNC_G(exit_exception) = EG(exception);
-			GC_ADDREF(EG(exception));
-		}
-	}
-}
-
 static void start_graceful_shutdown(void)
 {
-	ASYNC_G(graceful_shutdown) = true;
-	ASYNC_G(exit_exception) = EG(exception);
+	EG(graceful_shutdown) = true;
+	EG(exit_exception) = EG(exception);
 	GC_ADDREF(EG(exception));
 
 	zend_clear_exception();
-	cancel_deferred_fibers();
+	cancel_queued_coroutines();
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
-		zend_exception_set_previous(EG(exception), ASYNC_G(exit_exception));
-		GC_DELREF(ASYNC_G(exit_exception));
-		ASYNC_G(exit_exception) = EG(exception);
+		zend_exception_set_previous(EG(exception), EG(exit_exception));
+		GC_DELREF(EG(exit_exception));
+		EG(exit_exception) = EG(exception);
 		GC_ADDREF(EG(exception));
 		zend_clear_exception();
 	}
 }
 
-static void async_scheduler_dtor(void)
-{
-	ASYNC_G(in_scheduler_context) = true;
-
-	if (ASYNC_G(callbacks_fiber) != NULL) {
-
-		if (ASYNC_G(callbacks_fiber)->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zval parameter;
-			ZVAL_NULL(&parameter);
-			zend_fiber_resume(ASYNC_G(callbacks_fiber), &parameter, NULL);
-		}
-
-        OBJ_RELEASE(&ASYNC_G(callbacks_fiber)->std);
-        ASYNC_G(callbacks_fiber) = NULL;
-    }
-
-	if (ASYNC_G(microtask_fiber) != NULL) {
-
-        if (ASYNC_G(microtask_fiber)->context.status == ZEND_FIBER_STATUS_SUSPENDED) {
-            zval parameter;
-            ZVAL_NULL(&parameter);
-            zend_fiber_resume(ASYNC_G(microtask_fiber), &parameter, NULL);
-        }
-
-        OBJ_RELEASE(&ASYNC_G(microtask_fiber)->std);
-        ASYNC_G(microtask_fiber) = NULL;
-    }
-
-	ASYNC_G(in_scheduler_context) = false;
-
-	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
-		async_warning(
-			"%u microtasks were not executed", circular_buffer_count(&ASYNC_G(microtasks))
-		);
-	}
-
-	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(deferred_resumes)))) {
-		async_warning(
-			"%u deferred resumes were not executed",
-			circular_buffer_count(&ASYNC_G(deferred_resumes))
-		);
-	}
-
-	zval_c_buffer_cleanup(&ASYNC_G(deferred_resumes));
-	zval_c_buffer_cleanup(&ASYNC_G(microtasks));
-	zend_hash_clean(&ASYNC_G(defer_callbacks));
-
-	zval *current;
-	// foreach by fibers_state and release all fibers
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), current) {
-		async_fiber_state_t *fiber_state = Z_PTR_P(current);
-
-		if (fiber_state->fiber != NULL) {
-			OBJ_RELEASE(&fiber_state->fiber->std);
-		}
-	} ZEND_HASH_FOREACH_END();
-
-	zend_hash_clean(&ASYNC_G(fibers_state));
-
-	reactor_shutdown_fn();
-	ASYNC_G(graceful_shutdown) = false;
-	ASYNC_G(in_scheduler_context) = false;
-	ASYNC_G(is_async) = false;
-
-	zend_exception_restore();
-}
-
-void async_scheduler_startup(void)
-{
-	if (callbacks_internal_function.module == NULL) {
-        callbacks_internal_function.module = &async_module_entry;
-        callbacks_internal_function.function_name = zend_string_init(ZEND_STRL("async_callbacks_internal_function"), 1);
-    }
-
-	if (microtasks_internal_function.module == NULL) {
-		microtasks_internal_function.module = &async_module_entry;
-		microtasks_internal_function.function_name = zend_string_init(ZEND_STRL("async_microtasks_internal_function"), 1);
-    }
-}
-
-void async_scheduler_shutdown(void)
-{
-	if (microtasks_internal_function.function_name != NULL) {
-        zend_string_release(microtasks_internal_function.function_name);
-        microtasks_internal_function.function_name = NULL;
-    }
-
-	if (callbacks_internal_function.function_name != NULL) {
-        zend_string_release(callbacks_internal_function.function_name);
-        callbacks_internal_function.function_name = NULL;
-    }
-}
 
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL && handle_exception_handler != NULL)) { \
@@ -932,30 +181,23 @@ void async_scheduler_shutdown(void)
  */
 void async_scheduler_launch(void)
 {
-	if (EG(active_fiber) != NULL) {
-		async_throw_error("The scheduler cannot be started from a Fiber");
+	if (IS_ASYNC_ON) {
+		async_throw_error("The scheduler cannot be started when is already enabled");
 		return;
 	}
 
-	if (false == reactor_is_enabled()) {
+	if (false == zend_async_reactor_is_enabled()) {
 		async_throw_error("The scheduler cannot be started without the Reactor");
 		return;
 	}
 
-	ASYNC_G(is_async) = true;
+	ZEND_ASYNC_REACTOR_STARTUP();
 
-	reactor_startup_fn();
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
 
-	/**
-	 * Handlers for the scheduler.
-	 * This functions pointer will be set to the actual functions.
-	 */
-	const async_callbacks_handler_t execute_callbacks_handler = ASYNC_G(execute_callbacks_handler);
-	const async_microtasks_handler_t execute_microtasks_handler = ASYNC_G(execute_microtasks_handler)
-													? ASYNC_G(execute_microtasks_handler) : execute_microtasks;
-	const async_next_fiber_handler_t execute_next_fiber_handler = ASYNC_G(execute_next_fiber_handler)
-													? ASYNC_G(execute_next_fiber_handler) : execute_next_fiber;
-	const async_exception_handler_t handle_exception_handler = ASYNC_G(exception_handler);
+	ASYNC_ON;
 
 	zend_try
 	{
@@ -963,48 +205,48 @@ void async_scheduler_launch(void)
 
 		do {
 
-			ASYNC_G(in_scheduler_context) = true;
+			IN_SCHEDULER_CONTEXT = true;
 
-			execute_microtasks_handler();
+			execute_microtasks(&ASYNC_G(microtasks));
 			TRY_HANDLE_EXCEPTION();
 
-			has_handles = execute_callbacks_handler(circular_buffer_is_not_empty(&ASYNC_G(deferred_resumes)));
+			has_handles = ZEND_ASYNC_REACTOR_EXECUTE(circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue)));
 			TRY_HANDLE_EXCEPTION();
 
-			execute_microtasks_handler();
+			execute_microtasks(&ASYNC_G(microtasks));
 			TRY_HANDLE_EXCEPTION();
 
-			ASYNC_G(in_scheduler_context) = false;
+			IN_SCHEDULER_CONTEXT = false;
 
-			bool was_executed = execute_next_fiber_handler();
+			bool was_executed = execute_next_fiber();
 			TRY_HANDLE_EXCEPTION();
 
 			if (UNEXPECTED(
 				false == has_handles
 				&& false == was_executed
-				&& zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0
-				&& circular_buffer_is_empty(&ASYNC_G(deferred_resumes))
+				&& &ASYNC_G(active_coroutine_count) > 0
+				&& circular_buffer_is_empty(&ASYNC_G(coroutine_queue))
 				&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 				&& resolve_deadlocks()
 				)) {
 				break;
 			}
 
-		} while (zend_hash_num_elements(&ASYNC_G(fibers_state)) > 0
+		} while (zend_hash_num_elements(&ASYNC_G(coroutines)) > 0
 			|| circular_buffer_is_not_empty(&ASYNC_G(microtasks))
-			|| reactor_loop_alive_fn()
+			|| ZEND_ASYNC_REACTOR_LOOP_ALIVE()
 		);
 
 	} zend_catch {
-		call_fiber_deferred_callbacks();
+		dispose_coroutines();
 		async_scheduler_dtor();
 		zend_bailout();
 	} zend_end_try();
 
-	ZEND_ASSERT(reactor_loop_alive_fn() == false && "The event loop must be stopped");
+	ZEND_ASSERT(ZEND_ASYNC_REACTOR_LOOP_ALIVE() == false && "The event loop must be stopped");
 
-	zend_object * exit_exception = ASYNC_G(exit_exception);
-	ASYNC_G(exit_exception) = NULL;
+	zend_object * exit_exception = EG(exit_exception);
+	EG(exit_exception) = NULL;
 
 	async_scheduler_dtor();
 

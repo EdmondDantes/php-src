@@ -22,7 +22,7 @@
 typedef struct _zend_async_scope_t zend_async_scope_t;
 typedef struct _zend_async_microtask_t zend_async_microtask_t;
 typedef struct _zend_async_waker_t zend_async_waker_t;
-typedef struct _zend_async_coroutine_t zend_async_coroutine_t;
+typedef struct _zend_coroutine_t zend_coroutine_t;
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -39,12 +39,16 @@ typedef void (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
 typedef void (*zend_async_suspend_t)(zend_coroutine_t *coroutine);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine);
-typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine);
+typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_shutdown_t)();
 typedef void (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
 typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine_t * coroutine);
 
+typedef void (*zend_async_reactor_startup_t)();
+typedef void (*zend_async_reactor_shutdown_t)();
+typedef bool (*zend_async_reactor_execute_t)(bool no_wait);
+typedef bool (*zend_async_reactor_loop_alive_t)();
 typedef void (*zend_async_add_event_t)();
 typedef void (*zend_async_remove_event_t)();
 
@@ -124,14 +128,24 @@ struct _zend_async_scope_t {
 
 };
 
-typedef void (*zend_async_waker_dtor)(zend_async_coroutine_t *coroutine);
+typedef void (*zend_async_waker_dtor)(zend_coroutine_t *coroutine);
 
 typedef struct {
 	zend_async_event_t *event;
 	zend_async_event_callback_t *callback;
 } zend_async_waker_trigger_t;
 
+typedef enum {
+	ZEND_ASYNC_WAKER_NO_STATUS = 0,
+	ZEND_ASYNC_WAKER_WAITING = 1,
+	ZEND_ASYNC_WAKER_SUCCESS = 2,
+	ZEND_ASYNC_WAKER_ERROR = 3,
+	ZEND_ASYNC_WAKER_IGNORED = 4
+} ZEND_ASYNC_WAKER_STATUS;
+
 struct _zend_async_waker_t {
+	/* The waker status. */
+	ZEND_ASYNC_WAKER_STATUS status;
 	/* The array of zend_async_waker_trigger_t. */
 	HashTable events;
 	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
@@ -146,7 +160,9 @@ struct _zend_async_waker_t {
 	zend_async_waker_dtor dtor;
 };
 
-struct _zend_async_coroutine_t {
+typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
+
+struct _zend_coroutine_t {
 	/* Flags are defined in enum zend_fiber_flag. */
 	uint8_t flags;
 
@@ -169,6 +185,9 @@ struct _zend_async_coroutine_t {
 	/* Storage for return value. */
 	zval result;
 
+	// Dispose handler
+	zend_async_coroutine_dispose dispose;
+
 	/* PHP object handle. */
 	zend_object std;
 };
@@ -177,6 +196,9 @@ struct _zend_async_coroutine_t {
 
 #define IS_ASYNC_ON EG(is_async)
 #define IS_ASYNC_OFF !EG(is_async)
+#define ASYNC_ON EG(is_async) = true
+#define IN_SCHEDULER_CONTEXT EG(in_scheduler_context)
+#define IS_SCHEDULER_CONTEXT EG(in_scheduler_context) == true
 
 BEGIN_EXTERN_C()
 
@@ -200,6 +222,10 @@ ZEND_API zend_async_add_microtask_t zend_async_add_microtask_fn;
 /* Reactor API */
 
 ZEND_API bool zend_async_reactor_is_enabled(void);
+ZEND_API zend_async_reactor_startup_t zend_async_reactor_startup_fn;
+ZEND_API zend_async_reactor_shutdown_t zend_async_reactor_shutdown_fn;
+ZEND_API zend_async_reactor_execute_t zend_async_reactor_execute_fn;
+ZEND_API zend_async_reactor_loop_alive_t zend_async_reactor_loop_alive_fn;
 ZEND_API zend_async_add_event_t zend_async_add_event_fn;
 ZEND_API zend_async_remove_event_t zend_async_remove_event_fn;
 ZEND_API zend_async_new_socket_event_t zend_async_new_socket_event_fn;
@@ -227,6 +253,10 @@ ZEND_API void zend_async_scheduler_register(
 );
 
 ZEND_API void zend_async_reactor_register(
+	zend_async_reactor_startup_t reactor_startup_fn,
+	zend_async_reactor_shutdown_t reactor_shutdown_fn,
+	zend_async_reactor_execute_t reactor_execute_fn,
+	zend_async_reactor_loop_alive_t reactor_loop_alive_fn,
     zend_async_add_event_t add_event_fn,
     zend_async_remove_event_t remove_event_fn,
     zend_async_new_socket_event_t new_socket_event_fn,
@@ -241,20 +271,27 @@ ZEND_API void zend_async_reactor_register(
 ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn);
 
 /* Waker API */
-ZEND_API zend_async_waker_t *zend_async_waker_create(zend_async_coroutine_t *coroutine);
-ZEND_API void zend_async_waker_destroy(zend_async_coroutine_t *coroutine);
-ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event, zend_async_event_callback_t *callback);
-ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event);
+ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine);
+ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine);
+ZEND_API void zend_async_waker_add_event(zend_coroutine_t *coroutine, zend_async_event_t *event, zend_async_event_callback_t *callback);
+ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async_event_t *event);
 
 END_EXTERN_C()
 
 #define ZEND_ASYNC_SPAWN() zend_async_spawn_fn()
 #define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine)
-#define ZEND_ASYNC_CANCEL(coroutine) zend_async_cancel_fn(coroutine)
+#define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error)
 #define ZEND_ASYNC_SHUTDOWN() zend_async_shutdown_fn()
 #define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()
 #define ZEND_ASYNC_ADD_MICROTASK(microtask) zend_async_add_microtask_fn(microtask)
+
+#define ZEND_ASYNC_REACTOR_STARTUP() zend_async_reactor_startup_fn()
+#define ZEND_ASYNC_REACTOR_SHUTDOWN() zend_async_reactor_shutdown_fn()
+
+#define ZEND_ASYNC_REACTOR_EXECUTE(no_wait) zend_async_reactor_execute_fn(no_wait)
+#define ZEND_ASYNC_REACTOR_LOOP_ALIVE() zend_async_reactor_loop_alive_fn()
+
 #define ZEND_ASYNC_ADD_EVENT() zend_async_add_event_fn()
 #define ZEND_ASYNC_REMOVE_EVENT() zend_async_remove_event_fn()
 #define ZEND_ASYNC_NEW_SOCKET_EVENT() zend_async_new_socket_event_fn()

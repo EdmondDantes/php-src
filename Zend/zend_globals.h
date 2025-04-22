@@ -299,6 +299,8 @@ struct _zend_executor_globals {
 #ifdef PHP_ASYNC
 	/* Equal TRUE if the asynchronous context is enabled */
 	bool is_async;
+	/* Equal TRUE if the scheduler executed now */
+	bool in_scheduler_context;
 	/* Equal TRUE if the reactor is in the process of shutting down */
 	bool graceful_shutdown;
 	/* The current coroutine context. */

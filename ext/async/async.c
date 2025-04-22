@@ -23,6 +23,24 @@
 #include "async_arginfo.h"
 #include "php_scheduler.h"
 
+ZEND_DECLARE_MODULE_GLOBALS(async)
+
+static PHP_GINIT_FUNCTION(async)
+{
+#if defined(COMPILE_DL_ASYNC) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+}
+
+/* {{{ PHP_GSHUTDOWN_FUNCTION */
+static PHP_GSHUTDOWN_FUNCTION(async)
+{
+#ifdef PHP_WIN32
+	//zend_hash_destroy(&async_globals);
+#endif
+}
+/* }}} */
+
 /* Module registration */
 
 ZEND_MINIT_FUNCTION(async)
@@ -94,9 +112,9 @@ zend_module_entry async_module_entry = {
 	PHP_RSHUTDOWN(async),
 	PHP_MINFO(async),
 	PHP_ASYNC_VERSION,
-	//PHP_MODULE_GLOBALS(async),
-	//PHP_GINIT(async),
-	//PHP_GSHUTDOWN(async),
+	PHP_MODULE_GLOBALS(async),
+	PHP_GINIT(async),
+	PHP_GSHUTDOWN(async),
 	NULL,
 	STANDARD_MODULE_PROPERTIES_EX
 };
