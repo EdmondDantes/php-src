@@ -175,9 +175,13 @@ struct _zend_async_coroutine_t {
 
 #endif //ZEND_ASYNC_API_H
 
+#define IS_ASYNC_ON EG(is_async)
+#define IS_ASYNC_OFF !EG(is_async)
+
 BEGIN_EXTERN_C()
 
 ZEND_API bool zend_async_is_enabled(void);
+ZEND_API bool zend_scheduler_is_enabled(void);
 
 ZEND_API void zend_async_init(void);
 ZEND_API void zend_async_shutdown(void);

@@ -37,22 +37,27 @@ zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
 #define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
 
-bool zend_async_is_enabled(void)
+ZEND_API bool zend_async_is_enabled(void)
+{
+	return EG(is_async);
+}
+
+ZEND_API bool zend_scheduler_is_enabled(void)
 {
 	return zend_async_spawn_fn != NULL;
 }
 
-bool zend_async_reactor_is_enabled(void)
+ZEND_API bool zend_async_reactor_is_enabled(void)
 {
 	return zend_async_add_event_fn != NULL;
 }
 
-void zend_async_init(void)
+ZEND_API void zend_async_init(void)
 {
 	// Initialization code for async API
 }
 
-void zend_async_shutdown(void)
+ZEND_API void zend_async_shutdown(void)
 {
 	// Shutdown code for async API
 }
@@ -74,6 +79,10 @@ ZEND_API void zend_async_scheduler_register(
     zend_async_shutdown_fn = shutdown_fn;
     zend_async_get_coroutines_fn = get_coroutines_fn;
     zend_async_add_microtask_fn = add_microtask_fn;
+
+	if (zend_async_spawn_fn != NULL && zend_async_add_event_fn != NULL) {
+		EG(is_async) = true;
+	}
 }
 
 ZEND_API void zend_async_reactor_register(
@@ -97,6 +106,10 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_process_event_fn = new_process_event_fn;
     zend_async_new_thread_event_fn = new_thread_event_fn;
     zend_async_new_filesystem_event_fn = new_filesystem_event_fn;
+
+	if (zend_async_spawn_fn != NULL && zend_async_add_event_fn != NULL) {
+		EG(is_async) = true;
+	}
 }
 
 ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn)
@@ -194,7 +207,6 @@ ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend
 		return;
 	}
 
-	// foreach by coroutine->waker->events
 	zval *item;
 	zend_ulong index;
 
@@ -203,10 +215,13 @@ ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend
 		const zend_async_waker_trigger_t * waker_trigger = Z_PTR_P(item);
 
 		if (waker_trigger->event == event) {
-			event->del_callback(event, waker_trigger->callback);
 			zend_hash_index_del(&coroutine->waker->events, index);
 			break;
 		}
 	}
 	ZEND_HASH_FOREACH_END();
 }
+
+//////////////////////////////////////////////////////////////////////
+/* Waker API end */
+//////////////////////////////////////////////////////////////////////
