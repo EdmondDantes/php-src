@@ -138,9 +138,9 @@ struct _zend_async_waker_t {
 	HashTable *triggered_events;
 	/* Error object. */
 	zend_object *error;
-	/* Filename of the resume object creation point. */
+	/* Filename of the waker object creation point. */
 	zend_string *filename;
-	/* Line number of the resume object creation point. */
+	/* Line number of the waker object creation point. */
 	uint32_t lineno;
 	/* The waker destructor. */
 	zend_async_waker_dtor dtor;

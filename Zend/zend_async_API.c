@@ -35,6 +35,8 @@ zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn = NULL;
 
 zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
+#define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
+
 bool zend_async_is_enabled(void)
 {
 	return zend_async_spawn_fn != NULL;
@@ -172,6 +174,18 @@ ZEND_API void zend_async_waker_add_event(zend_async_coroutine_t *coroutine, zend
 	}
 
 	event->add_callback(event, callback);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	zval zval_callback;
+	ZVAL_PTR(&zval_callback, callback);
+
+	if (zend_hash_next_index_insert(&coroutine->waker->events, &zval_callback) == NULL) {
+		ASYNC_THROW_ERROR("Failed to add event to waker");
+		return;
+	}
 }
 
 ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend_async_event_t *event)
@@ -180,4 +194,19 @@ ZEND_API void zend_async_waker_del_event(zend_async_coroutine_t *coroutine, zend
 		return;
 	}
 
+	// foreach by coroutine->waker->events
+	zval *item;
+	zend_ulong index;
+
+	ZEND_HASH_FOREACH_NUM_KEY_VAL(&coroutine->waker->events, index, item)
+	{
+		const zend_async_waker_trigger_t * waker_trigger = Z_PTR_P(item);
+
+		if (waker_trigger->event == event) {
+			event->del_callback(event, waker_trigger->callback);
+			zend_hash_index_del(&coroutine->waker->events, index);
+			break;
+		}
+	}
+	ZEND_HASH_FOREACH_END();
 }
