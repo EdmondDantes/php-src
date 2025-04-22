@@ -15,8 +15,18 @@
 */
 #include "zend_async_API.h"
 
-zend_async_spawn_t zend_async_spawn_fn = NULL;
-zend_async_suspend_t zend_async_suspend_fn = NULL;
+#define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
+
+static zend_coroutine_t * spawn(zend_async_scope_t *scope)
+{
+	ASYNC_THROW_ERROR("Async API is not enabled");
+	return NULL;
+}
+
+static void suspend(zend_coroutine_t *coroutine) {}
+
+zend_async_spawn_t zend_async_spawn_fn = spawn;
+zend_async_suspend_t zend_async_suspend_fn = suspend;
 zend_async_resume_t zend_async_resume_fn = NULL;
 zend_async_cancel_t zend_async_cancel_fn = NULL;
 zend_async_shutdown_t zend_async_shutdown_fn = NULL;
@@ -35,8 +45,6 @@ zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn = NULL;
 
 zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
-#define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
-
 ZEND_API bool zend_async_is_enabled(void)
 {
 	return EG(is_async);
@@ -44,7 +52,7 @@ ZEND_API bool zend_async_is_enabled(void)
 
 ZEND_API bool zend_scheduler_is_enabled(void)
 {
-	return zend_async_spawn_fn != NULL;
+	return zend_async_spawn_fn != NULL && zend_async_spawn_fn != spawn;
 }
 
 ZEND_API bool zend_async_reactor_is_enabled(void)
@@ -80,7 +88,7 @@ ZEND_API void zend_async_scheduler_register(
     zend_async_get_coroutines_fn = get_coroutines_fn;
     zend_async_add_microtask_fn = add_microtask_fn;
 
-	if (zend_async_spawn_fn != NULL && zend_async_add_event_fn != NULL) {
+	if (zend_async_spawn_fn != NULL && zend_async_spawn_fn != spawn && zend_async_add_event_fn != NULL) {
 		EG(is_async) = true;
 	}
 }
@@ -107,7 +115,7 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_thread_event_fn = new_thread_event_fn;
     zend_async_new_filesystem_event_fn = new_filesystem_event_fn;
 
-	if (zend_async_spawn_fn != NULL && zend_async_add_event_fn != NULL) {
+	if (zend_async_spawn_fn != NULL && zend_async_spawn_fn != spawn && zend_async_add_event_fn != NULL) {
 		EG(is_async) = true;
 	}
 }
