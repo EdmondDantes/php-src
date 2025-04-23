@@ -199,6 +199,8 @@ struct _zend_coroutine_t {
 #define ASYNC_ON EG(is_async) = true
 #define IN_SCHEDULER_CONTEXT EG(in_scheduler_context)
 #define IS_SCHEDULER_CONTEXT EG(in_scheduler_context) == true
+#define ASYNC_GRACEFUL_SHUTDOWN EG(graceful_shutdown)
+#define ASYNC_EXIT_EXCEPTION EG(exit_exception)
 
 BEGIN_EXTERN_C()
 
