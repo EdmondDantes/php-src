@@ -69,6 +69,7 @@ PHP                                                                        NEWS
 
 - Fileinfo:
   . Upgrade to file 5.46. (nielsdos)
+  . Change return type of finfo_close() to true. (timwolla)
 
 - FPM:
   . Fixed GH-17645 (FPM with httpd ProxyPass does not decode script path).
@@ -87,6 +88,7 @@ PHP                                                                        NEWS
     (BogdanUngureanu)
   . Added Locale::isRightToLeft to check if a locale is written right to left.
     (David Carlier)
+  . Added null bytes presence in locale inputs for Locale class. (David Carlier)
 
 - MySQLi:
   . Fixed bugs GH-17900 and GH-8084 (calling mysqli::__construct twice).

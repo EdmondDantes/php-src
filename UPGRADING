@@ -97,7 +97,7 @@ PHP 8.5 UPGRADE NOTES
     long on a PDOStatement resulting from the Firebird driver.
 
 - SimpleXML:
-  - Passing an XPath expression that returns something other than a node set
+  . Passing an XPath expression that returns something other than a node set
     to SimpleXMLElement::xpath() will now emit a warning and return false,
     instead of silently failing and returning an empty array.
 
@@ -197,9 +197,9 @@ PHP 8.5 UPGRADE NOTES
 ========================================
 
 - Hash:
-  The MHASH_* constants have been deprecated.  These have been overlooked
-  when the mhash*() function family has been deprecated per
-  https://wiki.php.net/rfc/deprecations_php_8_1#mhash_function_family
+  . The MHASH_* constants have been deprecated.  These have been overlooked
+    when the mhash*() function family has been deprecated per
+    https://wiki.php.net/rfc/deprecations_php_8_1#mhash_function_family
 
 ========================================
 5. Changed Functions
@@ -212,6 +212,8 @@ PHP 8.5 UPGRADE NOTES
   . grapheme_extract() properly assigns $next value when skipping over
     invalid starting bytes. Previously there were cases where it would
     point to the start of the grapheme boundary instead of the end.
+  . Locale:: methods throw a ValueError when locale inputs contain null
+    bytes.
 
 - PCNTL:
   . pcntl_exec() now has a formal return type of false.
@@ -348,6 +350,9 @@ PHP 8.5 UPGRADE NOTES
 
 - Fileinfo:
   . Upgraded to file 5.46.
+  . The return type of finfo_close() has been changed to true, rather
+    than bool.
+
 
 - PCRE:
   . Upgraded to pcre2lib from 10.44 to 10.45.
