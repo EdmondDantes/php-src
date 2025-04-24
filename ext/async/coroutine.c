@@ -15,22 +15,3 @@
 */
 #include "coroutine.h"
 
-static void switch_context(async_coroutine_t *coroutine, bool exception)
-{
-	zend_fiber_transfer transfer = {
-		.context = &coroutine->context,
-		.flags = exception ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0,
-	};
-
-	ZVAL_NULL(&transfer.value);
-
-	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
-
-	zend_fiber_switch_context(&transfer);
-
-	/* Forward bailout into current coroutine. */
-	if (UNEXPECTED(transfer.flags & ZEND_FIBER_TRANSFER_FLAG_BAILOUT)) {
-		ZEND_CURRENT_COROUTINE = NULL;
-		zend_bailout();
-	}
-}

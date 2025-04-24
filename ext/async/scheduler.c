@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 #include <Zend/zend_async_API.h>
+
+#include "coroutine.h"
 #include "internal/zval_circular_buffer.h"
 #include "php_scheduler.h"
 #include "php_async.h"
@@ -53,13 +55,13 @@ zend_always_inline static void execute_microtasks(void)
 	}
 }
 
-zend_always_inline static zend_coroutine_t * next_coroutine(void)
+zend_always_inline static async_coroutine_t * next_coroutine(void)
 {
 	if (circular_buffer_is_empty(&ASYNC_G(coroutine_queue))) {
 		return NULL;
 	}
 
-	zend_coroutine_t *coroutine;
+	async_coroutine_t *coroutine;
 
 	if (UNEXPECTED(circular_buffer_pop(&ASYNC_G(coroutine_queue), &coroutine) == FAILURE)) {
 		ZEND_ASSERT("Failed to pop the coroutine from the pending queue.");
@@ -69,9 +71,35 @@ zend_always_inline static zend_coroutine_t * next_coroutine(void)
 	return coroutine;
 }
 
+static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend_object * exception)
+{
+	zend_fiber_transfer transfer = {
+		.context = &coroutine->context,
+		.flags = exception != NULL ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0,
+	};
+
+	if (exception != NULL) {
+		ZVAL_OBJ(&transfer.value, exception);
+	} else {
+		ZVAL_NULL(&transfer.value);
+	}
+
+	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
+
+	zend_fiber_switch_context(&transfer);
+
+	/* Forward bailout into current coroutine. */
+	if (UNEXPECTED(transfer.flags & ZEND_FIBER_TRANSFER_FLAG_BAILOUT)) {
+		ZEND_CURRENT_COROUTINE = NULL;
+		zend_bailout();
+	}
+}
+
+
 static bool execute_next_coroutine(void)
 {
-	zend_coroutine_t *coroutine = next_coroutine();
+	async_coroutine_t *async_coroutine = next_coroutine();
+	zend_coroutine_t *coroutine = &async_coroutine->coroutine;
 
 	if (UNEXPECTED(coroutine == NULL)) {
 		return false;
@@ -101,43 +129,14 @@ static bool execute_next_coroutine(void)
 		return false;
 	}
 
-	zval retval;
-	ZVAL_UNDEF(&retval);
-
-	// After the fiber is resumed, the resume object is no longer needed.
-	// So we need to release the reference to the object before resuming the fiber.
-	// Copy the resume object status and fiber to local variables.
 	ZEND_ASYNC_WAKER_STATUS status = waker->status;
 	waker->status = ZEND_ASYNC_WAKER_NO_STATUS;
-	zval result = coroutine->result;
-	ZVAL_UNDEF(&coroutine->result);
 
 	zend_object * error = waker->error;
 	waker->error = NULL;
 	waker->dtor(coroutine);
 
-	// @todo: need to refactoring this part
-	// @todo: we should define a switch function for coroutine context
-
-	if (EXPECTED(status == ZEND_ASYNC_WAKER_SUCCESS)) {
-
-		if (UNEXPECTED(coroutine->context.status == ZEND_FIBER_STATUS_INIT)) {
-			zend_fiber_start(fiber, &retval);
-		} else {
-			zend_fiber_resume(fiber, &result, &retval);
-		}
-
-	} else {
-
-		if (UNEXPECTED(coroutine->context.status == ZEND_FIBER_STATUS_INIT)) {
-			async_warning("Attempt to resume with error a fiber that has not been started");
-			zend_fiber_start(fiber, &retval);
-		} else {
-			zval zval_error;
-			ZVAL_OBJ(&zval_error, error);
-			zend_fiber_resume_exception(fiber, &zval_error, &retval);
-		}
-	}
+	switch_context(async_coroutine, error);
 
 	// Ignore the exception if it is a cancellation exception
 	if (UNEXPECTED(EG(exception) && instanceof_function(EG(exception)->ce, async_ce_cancellation_exception))) {
@@ -145,16 +144,13 @@ static bool execute_next_coroutine(void)
     }
 
 	// Free if it is completed
-	if (coroutine->context.status == ZEND_FIBER_STATUS_DEAD) {
+	if (async_coroutine->context.status == ZEND_FIBER_STATUS_DEAD) {
 		coroutine->dispose(coroutine);
 	}
 
 	if (error != NULL) {
 		OBJ_RELEASE(error);
 	}
-
-	zval_ptr_dtor(&result);
-	zval_ptr_dtor(&retval);
 
 	return true;
 }
@@ -399,7 +395,7 @@ void async_scheduler_launch(void)
 
 			ZEND_IN_SCHEDULER_CONTEXT = false;
 
-			bool was_executed = execute_next_fiber();
+			bool was_executed = execute_next_coroutine();
 			TRY_HANDLE_EXCEPTION();
 
 			if (UNEXPECTED(
