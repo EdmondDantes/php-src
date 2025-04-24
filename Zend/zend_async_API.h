@@ -19,10 +19,13 @@
 #include "zend_fibers.h"
 #include "zend_globals.h"
 
-typedef struct _zend_async_scope_t zend_async_scope_t;
-typedef struct _zend_async_microtask_t zend_async_microtask_t;
-typedef struct _zend_async_waker_t zend_async_waker_t;
+/**
+ * zend_coroutine_t is a Basic data structure that represents a coroutine in the Zend Engine.
+ */
 typedef struct _zend_coroutine_t zend_coroutine_t;
+typedef struct _zend_async_waker_t zend_async_waker_t;
+typedef struct _zend_async_microtask_t zend_async_microtask_t;
+typedef struct _zend_async_scope_t zend_async_scope_t;
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -163,21 +166,9 @@ struct _zend_async_waker_t {
 typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
 struct _zend_coroutine_t {
-	/* Flags are defined in enum zend_fiber_flag. */
-	uint8_t flags;
-
-	/* Native C fiber context. */
-	zend_fiber_context context;
-
-	/* Callback and info / cache to be used when fiber is started. */
+	/* Callback and info / cache to be used when coroutine is started. */
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
-
-	/* Current Zend VM execute data being run by the fiber. */
-	zend_execute_data *execute_data;
-
-	/* Active fiber vm stack. */
-	zend_vm_stack vm_stack;
 
 	/* Coroutine waker */
 	zend_async_waker_t *waker;
@@ -187,20 +178,18 @@ struct _zend_coroutine_t {
 
 	// Dispose handler
 	zend_async_coroutine_dispose dispose;
-
-	/* PHP object handle. */
-	zend_object std;
 };
 
 #endif //ZEND_ASYNC_API_H
 
-#define IS_ASYNC_ON EG(is_async)
-#define IS_ASYNC_OFF !EG(is_async)
-#define ASYNC_ON EG(is_async) = true
-#define IN_SCHEDULER_CONTEXT EG(in_scheduler_context)
-#define IS_SCHEDULER_CONTEXT EG(in_scheduler_context) == true
-#define ASYNC_GRACEFUL_SHUTDOWN EG(graceful_shutdown)
-#define ASYNC_EXIT_EXCEPTION EG(exit_exception)
+#define ZEND_IS_ASYNC_ON EG(is_async)
+#define ZEND_IS_ASYNC_OFF !EG(is_async)
+#define ZEND_ASYNC_ON EG(is_async) = true
+#define ZEND_IN_SCHEDULER_CONTEXT EG(in_scheduler_context)
+#define ZEND_IS_SCHEDULER_CONTEXT EG(in_scheduler_context) == true
+#define ZEND_GRACEFUL_SHUTDOWN EG(graceful_shutdown)
+#define ZEND_EXIT_EXCEPTION EG(exit_exception)
+#define ZEND_CURRENT_COROUTINE EG(coroutine)
 
 BEGIN_EXTERN_C()
 
@@ -271,7 +260,6 @@ ZEND_API void zend_async_reactor_register(
 );
 
 ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn);
-
 /* Waker API */
 ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine);
 ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine);

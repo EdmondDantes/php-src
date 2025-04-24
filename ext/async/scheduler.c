@@ -214,11 +214,11 @@ zend_always_inline static void execute_queued_coroutines(void)
 
 static void async_scheduler_dtor(void)
 {
-	IN_SCHEDULER_CONTEXT = true;
+	ZEND_IN_SCHEDULER_CONTEXT = true;
 
 	execute_microtasks();
 
-	IN_SCHEDULER_CONTEXT = false;
+	ZEND_IN_SCHEDULER_CONTEXT = false;
 
 	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
 		async_warning(
@@ -325,10 +325,10 @@ static void start_graceful_shutdown(void)
 
 static void finally_shutdown(void)
 {
-	if (ASYNC_EXIT_EXCEPTION != NULL && EG(exception) != NULL) {
-		zend_exception_set_previous(EG(exception), ASYNC_EXIT_EXCEPTION);
-		GC_DELREF(ASYNC_EXIT_EXCEPTION);
-		ASYNC_EXIT_EXCEPTION = EG(exception);
+	if (ZEND_EXIT_EXCEPTION != NULL && EG(exception) != NULL) {
+		zend_exception_set_previous(EG(exception), ZEND_EXIT_EXCEPTION);
+		GC_DELREF(ZEND_EXIT_EXCEPTION);
+		ZEND_EXIT_EXCEPTION = EG(exception);
 		GC_ADDREF(EG(exception));
 		zend_clear_exception();
 	}
@@ -339,10 +339,10 @@ static void finally_shutdown(void)
 	execute_microtasks();
 
 	if (UNEXPECTED(EG(exception))) {
-		if (ASYNC_EXIT_EXCEPTION != NULL) {
-			zend_exception_set_previous(EG(exception), ASYNC_EXIT_EXCEPTION);
-			GC_DELREF(ASYNC_EXIT_EXCEPTION);
-			ASYNC_EXIT_EXCEPTION = EG(exception);
+		if (ZEND_EXIT_EXCEPTION != NULL) {
+			zend_exception_set_previous(EG(exception), ZEND_EXIT_EXCEPTION);
+			GC_DELREF(ZEND_EXIT_EXCEPTION);
+			ZEND_EXIT_EXCEPTION = EG(exception);
 			GC_ADDREF(EG(exception));
 		}
 	}
@@ -350,7 +350,7 @@ static void finally_shutdown(void)
 
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
-	    if(ASYNC_GRACEFUL_SHUTDOWN) { \
+	    if(ZEND_GRACEFUL_SHUTDOWN) { \
 			finally_shutdown(); \
             break; \
         } \
@@ -362,7 +362,7 @@ static void finally_shutdown(void)
  */
 void async_scheduler_launch(void)
 {
-	if (IS_ASYNC_ON) {
+	if (ZEND_IS_ASYNC_ON) {
 		async_throw_error("The scheduler cannot be started when is already enabled");
 		return;
 	}
@@ -378,7 +378,7 @@ void async_scheduler_launch(void)
 		return;
 	}
 
-	ASYNC_ON;
+	ZEND_ASYNC_ON;
 
 	zend_try
 	{
@@ -386,7 +386,7 @@ void async_scheduler_launch(void)
 
 		do {
 
-			IN_SCHEDULER_CONTEXT = true;
+			ZEND_IN_SCHEDULER_CONTEXT = true;
 
 			execute_microtasks();
 			TRY_HANDLE_EXCEPTION();
@@ -397,7 +397,7 @@ void async_scheduler_launch(void)
 			execute_microtasks();
 			TRY_HANDLE_EXCEPTION();
 
-			IN_SCHEDULER_CONTEXT = false;
+			ZEND_IN_SCHEDULER_CONTEXT = false;
 
 			bool was_executed = execute_next_fiber();
 			TRY_HANDLE_EXCEPTION();
@@ -426,8 +426,8 @@ void async_scheduler_launch(void)
 
 	ZEND_ASSERT(ZEND_ASYNC_REACTOR_LOOP_ALIVE() == false && "The event loop must be stopped");
 
-	zend_object * exit_exception = ASYNC_EXIT_EXCEPTION;
-	ASYNC_EXIT_EXCEPTION = NULL;
+	zend_object * exit_exception = ZEND_EXIT_EXCEPTION;
+	ZEND_EXIT_EXCEPTION = NULL;
 
 	async_scheduler_dtor();
 
