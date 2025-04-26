@@ -15,3 +15,106 @@
 */
 #include "coroutine.h"
 
+#include "php_scheduler.h"
+#include "zend_exceptions.h"
+#include "zend_ini.h"
+
+static zend_function coroutine_root_function = { ZEND_INTERNAL_FUNCTION };
+
+static void async_coroutine_cleanup(zend_fiber_context *context)
+{
+	zend_fiber *fiber = zend_fiber_from_context(context);
+
+	zend_vm_stack current_stack = EG(vm_stack);
+	EG(vm_stack) = fiber->vm_stack;
+	zend_vm_stack_destroy();
+	EG(vm_stack) = current_stack;
+	fiber->execute_data = NULL;
+	fiber->stack_bottom = NULL;
+	fiber->caller = NULL;
+}
+
+static ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
+{
+	ZEND_ASSERT(Z_TYPE(transfer->value) == IS_NULL && "Initial transfer value to coroutine context must be NULL");
+	ZEND_ASSERT(!transfer->flags && "No flags should be set on initial transfer");
+
+	async_coroutine_t *coroutine = (async_coroutine_t *) EG(coroutine);
+
+	/* Determine the current error_reporting ini setting. */
+	zend_long error_reporting = INI_INT("error_reporting");
+	if (!error_reporting && !INI_STR("error_reporting")) {
+		error_reporting = E_ALL;
+	}
+
+	EG(vm_stack) = NULL;
+
+	zend_first_try {
+		zend_vm_stack stack = zend_vm_stack_new_page(ZEND_FIBER_VM_STACK_SIZE, NULL);
+		EG(vm_stack) = stack;
+		EG(vm_stack_top) = stack->top + ZEND_CALL_FRAME_SLOT;
+		EG(vm_stack_end) = stack->end;
+		EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
+
+		coroutine->execute_data = (zend_execute_data *) stack->top;
+
+		memset(coroutine->execute_data, 0, sizeof(zend_execute_data));
+
+		coroutine->execute_data->func = &coroutine_root_function;
+
+		EG(current_execute_data) = coroutine->execute_data;
+		EG(jit_trace_num) = 0;
+		EG(error_reporting) = (int) error_reporting;
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+		EG(stack_base) = zend_fiber_stack_base(coroutine->context.stack);
+		EG(stack_limit) = zend_fiber_stack_limit(coroutine->context.stack);
+#endif
+
+		coroutine->coroutine.fci.retval = &coroutine->coroutine.result;
+
+		zend_call_function(&coroutine->coroutine.fci, &coroutine->coroutine.fci_cache);
+
+		zval_ptr_dtor(&coroutine->coroutine.fci.function_name);
+		ZVAL_UNDEF(&coroutine->coroutine.fci.function_name);
+
+		if (EG(exception)) {
+			if (!(coroutine->flags & ZEND_FIBER_FLAG_DESTROYED)
+				|| !(zend_is_graceful_exit(EG(exception)) || zend_is_unwind_exit(EG(exception)))
+			) {
+				coroutine->flags |= ZEND_FIBER_FLAG_THREW;
+				transfer->flags = ZEND_FIBER_TRANSFER_FLAG_ERROR;
+
+				ZVAL_OBJ_COPY(&transfer->value, EG(exception));
+			}
+
+			zend_clear_exception();
+		}
+	} zend_catch {
+		coroutine->flags |= ZEND_FIBER_FLAG_BAILOUT;
+		transfer->flags = ZEND_FIBER_TRANSFER_FLAG_BAILOUT;
+	} zend_end_try();
+
+	coroutine->context.cleanup = &async_coroutine_cleanup;
+	coroutine->vm_stack = EG(vm_stack);
+
+	transfer->context = NULL;
+
+	async_scheduler_coroutine_suspend(transfer);
+}
+
+void async_coroutine_start(async_coroutine_t *coroutine)
+{
+	ZEND_ASSERT(coroutine->context.status == ZEND_FIBER_STATUS_INIT);
+
+	if (zend_fiber_init_context(&coroutine->context, async_ce_coroutine, async_coroutine_execute, EG(fiber_stack_size)) == FAILURE) {
+		zend_throw_error(NULL, "Failed to initialize coroutine context");
+		return;
+	}
+
+	zend_fiber_transfer transfer = zend_fiber_resume_internal(coroutine, NULL, false);
+
+	zend_fiber_delegate_transfer_result(&transfer, EG(current_execute_data), return_value);
+
+	return SUCCESS;
+}

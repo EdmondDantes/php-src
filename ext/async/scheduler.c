@@ -55,20 +55,18 @@ zend_always_inline static void execute_microtasks(void)
 	}
 }
 
-zend_always_inline static async_coroutine_t * next_coroutine(void)
+static zend_always_inline void define_transfer(async_coroutine_t *coroutine, zend_object * exception, zend_fiber_transfer *transfer)
 {
-	if (circular_buffer_is_empty(&ASYNC_G(coroutine_queue))) {
-		return NULL;
+	transfer->context = &coroutine->context;
+	transfer->flags = exception != NULL ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0;
+
+	if (exception != NULL) {
+		ZVAL_OBJ(&transfer->value, exception);
+	} else {
+		ZVAL_NULL(&transfer->value);
 	}
 
-	async_coroutine_t *coroutine;
-
-	if (UNEXPECTED(circular_buffer_pop(&ASYNC_G(coroutine_queue), &coroutine) == FAILURE)) {
-		ZEND_ASSERT("Failed to pop the coroutine from the pending queue.");
-		return NULL;
-	}
-
-	return coroutine;
+	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
 }
 
 static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend_object * exception)
@@ -84,9 +82,12 @@ static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend
 		ZVAL_NULL(&transfer.value);
 	}
 
+	zend_coroutine_t * previous_coroutine = ZEND_CURRENT_COROUTINE;
 	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
 
 	zend_fiber_switch_context(&transfer);
+
+	ZEND_CURRENT_COROUTINE = previous_coroutine;
 
 	/* Forward bailout into current coroutine. */
 	if (UNEXPECTED(transfer.flags & ZEND_FIBER_TRANSFER_FLAG_BAILOUT)) {
@@ -95,8 +96,19 @@ static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend
 	}
 }
 
+static zend_always_inline async_coroutine_t * next_coroutine(void)
+{
+	async_coroutine_t *coroutine;
 
-static bool execute_next_coroutine(void)
+	if (UNEXPECTED(circular_buffer_pop(&ASYNC_G(coroutine_queue), &coroutine) == FAILURE)) {
+		ZEND_ASSERT("Failed to pop the coroutine from the pending queue.");
+		return NULL;
+	}
+
+	return coroutine;
+}
+
+static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 {
 	async_coroutine_t *async_coroutine = next_coroutine();
 	zend_coroutine_t *coroutine = &async_coroutine->coroutine;
@@ -136,7 +148,16 @@ static bool execute_next_coroutine(void)
 	waker->error = NULL;
 	waker->dtor(coroutine);
 
-	switch_context(async_coroutine, error);
+	if (transfer != NULL) {
+		define_transfer(async_coroutine, error, transfer);
+		return true;
+	} else {
+		switch_context(async_coroutine, error);
+	}
+
+	if (error != NULL) {
+		OBJ_RELEASE(error);
+	}
 
 	// Ignore the exception if it is a cancellation exception
 	if (UNEXPECTED(EG(exception) && instanceof_function(EG(exception)->ce, async_ce_cancellation_exception))) {
@@ -148,11 +169,12 @@ static bool execute_next_coroutine(void)
 		coroutine->dispose(coroutine);
 	}
 
-	if (error != NULL) {
-		OBJ_RELEASE(error);
-	}
-
 	return true;
+}
+
+static void switch_to_scheduler(zend_fiber_transfer *transfer)
+{
+
 }
 
 static bool resolve_deadlocks(void)
@@ -341,6 +363,64 @@ static void finally_shutdown(void)
 			ZEND_EXIT_EXCEPTION = EG(exception);
 			GC_ADDREF(EG(exception));
 		}
+	}
+}
+
+#define TRY_HANDLE_SUSPEND_EXCEPTION() \
+	if (UNEXPECTED(EG(exception) != NULL)) { \
+	    if(ZEND_GRACEFUL_SHUTDOWN) { \
+			finally_shutdown(); \
+            return; \
+        } \
+		start_graceful_shutdown(); \
+	}
+
+static void async_scheduler_launch(void);
+
+void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
+{
+	/**
+	 * Note that the Scheduler is initialized after the first use of suspend,
+	 * not at the start of the Zend engine.
+	 */
+	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
+		async_scheduler_launch();
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			return;
+		}
+	}
+
+	ZEND_IN_SCHEDULER_CONTEXT = true;
+
+	execute_microtasks();
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	const bool has_handles = ZEND_ASYNC_REACTOR_EXECUTE(circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue)));
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	execute_microtasks();
+
+	ZEND_IN_SCHEDULER_CONTEXT = false;
+
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	const bool is_next_coroutine = circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue));
+
+	if (UNEXPECTED(
+		false == has_handles
+		&& false == is_next_coroutine
+		&& &ASYNC_G(active_coroutine_count) > 0
+		&& circular_buffer_is_empty(&ASYNC_G(microtasks))
+		&& resolve_deadlocks()
+		)) {
+			switch_to_scheduler(transfer);
+		}
+
+	if (EXPECTED(is_next_coroutine)) {
+		execute_next_coroutine(transfer);
+	} else {
+		switch_to_scheduler(transfer);
 	}
 }
 

@@ -16,10 +16,21 @@
 #ifndef PHP_SCHEDULER_H
 #define PHP_SCHEDULER_H
 
+#include <Zend/zend_fibers.h>
+
 BEGIN_EXTERN_C()
 
 void async_scheduler_startup(void);
 void async_scheduler_shutdown(void);
+
+/**
+ * A function that is called when control needs to be transferred from a coroutine to the Scheduler.
+ * In reality, no context switch occurs.
+ * The Scheduler's logic runs directly within the coroutine that called suspend.
+ *
+ * @param transfer (optional) The transfer object that contains the context of the coroutine.
+ */
+void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer);
 
 END_EXTERN_C()
 
