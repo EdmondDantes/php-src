@@ -338,8 +338,8 @@ static void cancel_queued_coroutines(void)
 
 static void start_graceful_shutdown(void)
 {
-	EG(graceful_shutdown) = true;
-	EG(exit_exception) = EG(exception);
+	ZEND_GRACEFUL_SHUTDOWN = true;
+	ZEND_EXIT_EXCEPTION = EG(exception);
 	GC_ADDREF(EG(exception));
 
 	zend_clear_exception();
@@ -347,8 +347,8 @@ static void start_graceful_shutdown(void)
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		zend_exception_set_previous(EG(exception), EG(exit_exception));
-		GC_DELREF(EG(exit_exception));
-		EG(exit_exception) = EG(exception);
+		GC_DELREF(ZEND_EXIT_EXCEPTION);
+		ZEND_EXIT_EXCEPTION = EG(exception);
 		GC_ADDREF(EG(exception));
 		zend_clear_exception();
 	}
@@ -379,64 +379,9 @@ static void finally_shutdown(void)
 	}
 }
 
-#define TRY_HANDLE_SUSPEND_EXCEPTION() \
-	if (UNEXPECTED(EG(exception) != NULL)) { \
-	    if(ZEND_GRACEFUL_SHUTDOWN) { \
-			finally_shutdown(); \
-            return; \
-        } \
-		start_graceful_shutdown(); \
-	}
-
 static void async_scheduler_launch(void);
 void async_scheduler_main_loop(void);
 
-void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
-{
-	/**
-	 * Note that the Scheduler is initialized after the first use of suspend,
-	 * not at the start of the Zend engine.
-	 */
-	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
-		async_scheduler_launch();
-
-		if (UNEXPECTED(EG(exception) != NULL)) {
-			return;
-		}
-	}
-
-	ZEND_IN_SCHEDULER_CONTEXT = true;
-
-	execute_microtasks();
-	TRY_HANDLE_SUSPEND_EXCEPTION();
-
-	const bool has_handles = ZEND_ASYNC_REACTOR_EXECUTE(circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue)));
-	TRY_HANDLE_SUSPEND_EXCEPTION();
-
-	execute_microtasks();
-
-	ZEND_IN_SCHEDULER_CONTEXT = false;
-
-	TRY_HANDLE_SUSPEND_EXCEPTION();
-
-	const bool is_next_coroutine = circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue));
-
-	if (UNEXPECTED(
-		false == has_handles
-		&& false == is_next_coroutine
-		&& &ASYNC_G(active_coroutine_count) > 0
-		&& circular_buffer_is_empty(&ASYNC_G(microtasks))
-		&& resolve_deadlocks()
-		)) {
-			switch_to_scheduler(transfer);
-		}
-
-	if (EXPECTED(is_next_coroutine)) {
-		execute_next_coroutine(transfer);
-	} else {
-		switch_to_scheduler(transfer);
-	}
-}
 
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
@@ -482,6 +427,64 @@ void async_scheduler_launch(void)
 
 	coroutine->internal_function = async_scheduler_main_loop;
 	ASYNC_G(scheduler) = coroutine;
+}
+
+#define TRY_HANDLE_SUSPEND_EXCEPTION() \
+	if (UNEXPECTED(EG(exception) != NULL)) { \
+		if(ZEND_GRACEFUL_SHUTDOWN) { \
+			finally_shutdown(); \
+			return; \
+		} \
+		start_graceful_shutdown(); \
+	}
+
+void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
+{
+	ZEND_ASSERT(EG(exception) == NULL && "The current exception must be NULL");
+
+	/**
+	 * Note that the Scheduler is initialized after the first use of suspend,
+	 * not at the start of the Zend engine.
+	 */
+	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
+		async_scheduler_launch();
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			return;
+		}
+	}
+
+	ZEND_IN_SCHEDULER_CONTEXT = true;
+
+	execute_microtasks();
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	const bool has_handles = ZEND_ASYNC_REACTOR_EXECUTE(circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue)));
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	execute_microtasks();
+
+	ZEND_IN_SCHEDULER_CONTEXT = false;
+
+	TRY_HANDLE_SUSPEND_EXCEPTION();
+
+	const bool is_next_coroutine = circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue));
+
+	if (UNEXPECTED(
+		false == has_handles
+		&& false == is_next_coroutine
+		&& &ASYNC_G(active_coroutine_count) > 0
+		&& circular_buffer_is_empty(&ASYNC_G(microtasks))
+		&& resolve_deadlocks()
+		)) {
+			switch_to_scheduler(transfer);
+		}
+
+	if (EXPECTED(is_next_coroutine)) {
+		execute_next_coroutine(transfer);
+	} else {
+		switch_to_scheduler(transfer);
+	}
 }
 
 void async_scheduler_main_loop(void)
