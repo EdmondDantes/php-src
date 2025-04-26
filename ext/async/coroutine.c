@@ -34,7 +34,7 @@ static void async_coroutine_cleanup(zend_fiber_context *context)
 	fiber->caller = NULL;
 }
 
-static ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
+ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 {
 	ZEND_ASSERT(Z_TYPE(transfer->value) == IS_NULL && "Initial transfer value to coroutine context must be NULL");
 	ZEND_ASSERT(!transfer->flags && "No flags should be set on initial transfer");
@@ -71,12 +71,17 @@ static ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *tran
 		EG(stack_limit) = zend_fiber_stack_limit(coroutine->context.stack);
 #endif
 
-		coroutine->coroutine.fci.retval = &coroutine->coroutine.result;
+		if (EXPECTED(coroutine->coroutine.internal_function == NULL))
+		{
+			coroutine->coroutine.fcall->fci.retval = &coroutine->coroutine.result;
 
-		zend_call_function(&coroutine->coroutine.fci, &coroutine->coroutine.fci_cache);
+			zend_call_function(&coroutine->coroutine.fcall->fci, &coroutine->coroutine.fcall->fci_cache);
 
-		zval_ptr_dtor(&coroutine->coroutine.fci.function_name);
-		ZVAL_UNDEF(&coroutine->coroutine.fci.function_name);
+			zval_ptr_dtor(&coroutine->coroutine.fcall->fci.function_name);
+			ZVAL_UNDEF(&coroutine->coroutine.fcall->fci.function_name);
+		} else {
+			coroutine->coroutine.internal_function();
+		}
 
 		if (EG(exception)) {
 			if (!(coroutine->flags & ZEND_FIBER_FLAG_DESTROYED)
@@ -103,18 +108,7 @@ static ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *tran
 	async_scheduler_coroutine_suspend(transfer);
 }
 
-void async_coroutine_start(async_coroutine_t *coroutine)
+zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
 {
-	ZEND_ASSERT(coroutine->context.status == ZEND_FIBER_STATUS_INIT);
 
-	if (zend_fiber_init_context(&coroutine->context, async_ce_coroutine, async_coroutine_execute, EG(fiber_stack_size)) == FAILURE) {
-		zend_throw_error(NULL, "Failed to initialize coroutine context");
-		return;
-	}
-
-	zend_fiber_transfer transfer = zend_fiber_resume_internal(coroutine, NULL, false);
-
-	zend_fiber_delegate_transfer_result(&transfer, EG(current_execute_data), return_value);
-
-	return SUCCESS;
 }

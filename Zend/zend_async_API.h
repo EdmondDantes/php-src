@@ -26,6 +26,8 @@ typedef struct _zend_coroutine_t zend_coroutine_t;
 typedef struct _zend_async_waker_t zend_async_waker_t;
 typedef struct _zend_async_microtask_t zend_async_microtask_t;
 typedef struct _zend_async_scope_t zend_async_scope_t;
+typedef struct _zend_fcall_t zend_fcall_t;
+typedef void (*zend_coroutine_internal_t)(void);
 
 typedef struct _zend_async_poll_event zend_async_poll_event;
 typedef struct _zend_async_socket_event zend_async_socket_event;
@@ -38,7 +40,7 @@ typedef struct _zend_async_thread_event zend_async_thread_event;
 
 typedef struct _zend_async_task zend_async_task;
 
-typedef void (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
+typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
 typedef void (*zend_async_suspend_t)(zend_coroutine_t *coroutine);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine);
@@ -76,6 +78,11 @@ typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_
 typedef bool (*zend_async_event_is_closed_t)(zend_async_event_t *event);
 
 typedef void (*zend_async_microtask_handler_t)(zend_async_microtask_t *microtask);
+
+struct _zend_fcall_t {
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+};
 
 struct _zend_async_microtask_t {
 	zend_async_microtask_handler_t handler;
@@ -167,8 +174,9 @@ typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
 struct _zend_coroutine_t {
 	/* Callback and info / cache to be used when coroutine is started. */
-	zend_fcall_info fci;
-	zend_fcall_info_cache fci_cache;
+	zend_fcall_t *fcall;
+
+	zend_coroutine_internal_t internal_function;
 
 	/* Coroutine waker */
 	zend_async_waker_t *waker;
@@ -269,6 +277,7 @@ ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async
 END_EXTERN_C()
 
 #define ZEND_ASYNC_SPAWN() zend_async_spawn_fn()
+#define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
 #define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine)
 #define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error)

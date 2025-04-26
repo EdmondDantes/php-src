@@ -18,6 +18,7 @@
 
 #include <php.h>
 
+#include "coroutine.h"
 #include "internal/circular_buffer.h"
 
 #ifdef PHP_WIN32
@@ -42,6 +43,8 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	circular_buffer_t coroutine_queue;
 	/* List of coroutines  */
 	HashTable coroutines;
+	/* Scheduler coroutine */
+	zend_coroutine_t *scheduler;
 
 	/* Link to the reactor structure */
 	void * reactor;

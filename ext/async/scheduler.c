@@ -76,6 +76,12 @@ static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend
 		.flags = exception != NULL ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0,
 	};
 
+	if (coroutine->context.status == ZEND_FIBER_STATUS_INIT
+		&& zend_fiber_init_context(&coroutine->context, async_ce_coroutine, async_coroutine_execute, EG(fiber_stack_size)) == FAILURE) {
+		zend_throw_error(NULL, "Failed to initialize coroutine context");
+		return;
+	}
+
 	if (exception != NULL) {
 		ZVAL_OBJ(&transfer.value, exception);
 	} else {
@@ -141,7 +147,6 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 		return false;
 	}
 
-	ZEND_ASYNC_WAKER_STATUS status = waker->status;
 	waker->status = ZEND_ASYNC_WAKER_NO_STATUS;
 
 	zend_object * error = waker->error;
@@ -172,9 +177,17 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 	return true;
 }
 
-static void switch_to_scheduler(zend_fiber_transfer *transfer)
+static zend_always_inline void switch_to_scheduler(zend_fiber_transfer *transfer)
 {
+	async_coroutine_t *async_coroutine = (async_coroutine_t *) ASYNC_G(scheduler);
 
+	ZEND_ASSERT(async_coroutine == NULL && "Scheduler coroutine is not initialized");
+
+	if (transfer != NULL) {
+		define_transfer(async_coroutine, NULL, transfer);
+	} else {
+		switch_context(async_coroutine, NULL);
+	}
 }
 
 static bool resolve_deadlocks(void)
@@ -376,6 +389,7 @@ static void finally_shutdown(void)
 	}
 
 static void async_scheduler_launch(void);
+void async_scheduler_main_loop(void);
 
 void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 {
@@ -456,6 +470,22 @@ void async_scheduler_launch(void)
 
 	ZEND_ASYNC_ON;
 
+	zend_coroutine_t * coroutine = ZEND_ASYNC_NEW_COROUTINE(NULL);
+	if (UNEXPECTED(coroutine == NULL)) {
+		async_throw_error("Failed to create the coroutine");
+		return;
+	}
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	coroutine->internal_function = async_scheduler_main_loop;
+	ASYNC_G(scheduler) = coroutine;
+}
+
+void async_scheduler_main_loop(void)
+{
 	zend_try
 	{
 		bool has_handles = true;
@@ -475,7 +505,7 @@ void async_scheduler_launch(void)
 
 			ZEND_IN_SCHEDULER_CONTEXT = false;
 
-			bool was_executed = execute_next_coroutine();
+			bool was_executed = execute_next_coroutine(NULL);
 			TRY_HANDLE_EXCEPTION();
 
 			if (UNEXPECTED(
@@ -486,8 +516,8 @@ void async_scheduler_launch(void)
 				&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 				&& resolve_deadlocks()
 				)) {
-				break;
-			}
+					break;
+				}
 
 		} while (zend_hash_num_elements(&ASYNC_G(coroutines)) > 0
 			|| circular_buffer_is_not_empty(&ASYNC_G(microtasks))
