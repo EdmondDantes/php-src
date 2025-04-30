@@ -115,7 +115,6 @@ zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
 
 }
 
-ZEND_API zend_class_entry * async_ce_coroutine;
 static zend_object_handlers coroutine_handlers;
 
 void async_register_coroutine_ce(void)
