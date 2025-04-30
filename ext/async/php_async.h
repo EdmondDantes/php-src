@@ -30,6 +30,8 @@
 extern zend_module_entry async_module_entry;
 # define phpext_async_ptr &async_module_entry
 
+extern ZEND_API zend_class_entry * async_ce_awaitable;
+
 # define PHP_ASYNC_VERSION "1.0.0-dev"
 
 ZEND_BEGIN_MODULE_GLOBALS(async)

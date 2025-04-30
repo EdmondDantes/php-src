@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 #include "coroutine.h"
+#include "coroutine_arginfo.h"
+#include "php_async.h"
 
 #include "php_scheduler.h"
 #include "zend_exceptions.h"
@@ -111,4 +113,16 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
 {
 
+}
+
+ZEND_API zend_class_entry * async_ce_coroutine;
+static zend_object_handlers coroutine_handlers;
+
+void async_register_coroutine_ce(void)
+{
+	async_ce_coroutine = register_class_Async_Coroutine(async_ce_awaitable);
+
+	coroutine_handlers = std_object_handlers;
+	coroutine_handlers.dtor_obj = async_coroutine_object_destroy;
+	coroutine_handlers.clone_obj = async_coroutine_clone;
 }

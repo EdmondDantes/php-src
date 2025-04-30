@@ -7,6 +7,18 @@ namespace Async;
 interface Awaitable {}
 
 /**
+ * Suspends the execution of a Coroutine until the Scheduler takes control.
+ */
+function suspend(): void {}
+
+/**
+ * Returns the current Coroutine.
+ *
+ * @return Coroutine
+ */
+function spawn(callable $task, mixed ... $args): Coroutine {}
+
+/**
  * Execute the provided closure in non-cancellable mode.
  */
 function protect(\Closure $closure): void {}
@@ -16,8 +28,6 @@ function any(iterable $triggers): Awaitable {}
 function all(iterable $triggers): Awaitable {}
 
 function anyOf(int $count, iterable $triggers): Awaitable {}
-
-function ignoreErrors(Awaitable $awaitable, callable $handler): Awaitable {}
 
 function captureErrors(Awaitable $awaitable): Awaitable {}
 
