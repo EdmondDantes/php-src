@@ -195,16 +195,16 @@ static bool resolve_deadlocks(void)
 	zval *value;
 
 	async_warning(
-		"No active fibers, deadlock detected. Fibers in waiting: %u", zend_hash_num_elements(&ASYNC_G(fibers_state))
+		"No active coroutines, deadlock detected. Coroutines in waiting: %u", ASYNC_G(active_coroutine_count)
 	);
 
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(fibers_state), value)
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), value)
 
-		const async_fiber_state_t* fiber_state = (async_fiber_state_t*)Z_PTR_P(value);
+		async_coroutine_t* coroutine = (async_coroutine_t*)Z_PTR_P(value);
 
-		ZEND_ASSERT(fiber_state->resume != NULL && "Fiber state has no resume object");
+		ZEND_ASSERT(coroutine->coroutine.waker != NULL && "The Coroutine has no waker object");
 
-		if (fiber_state->resume != NULL && fiber_state->resume->filename != NULL) {
+		if (coroutine->coroutine.waker != NULL && coroutine->coroutine.waker->filename != NULL) {
 
 			//Maybe we need to get the function name
 			//zend_string * function_name = NULL;
@@ -212,13 +212,13 @@ static bool resolve_deadlocks(void)
 
 			async_warning(
 				"Resume that suspended in file: %s, line: %d will be canceled",
-				ZSTR_VAL(fiber_state->resume->filename),
-				fiber_state->resume->lineno
+				ZSTR_VAL(coroutine->coroutine.waker->filename),
+				coroutine->coroutine.waker->lineno
 			);
 		}
 
-		async_cancel_fiber(
-			fiber_state->fiber,
+		ZEND_ASYNC_CANCEL(
+			&coroutine->coroutine,
 			async_new_exception(async_ce_cancellation_exception, "Deadlock detected"),
 			true
 		);
@@ -235,7 +235,7 @@ static bool resolve_deadlocks(void)
 zend_always_inline static void execute_queued_coroutines(void)
 {
 	while (false == circular_buffer_is_empty(&ASYNC_G(coroutine_queue))) {
-		execute_next_coroutine();
+		execute_next_coroutine(NULL);
 
 		if (UNEXPECTED(EG(exception))) {
 			zend_exception_save();
@@ -270,7 +270,7 @@ static void async_scheduler_dtor(void)
 	zval *current;
 	// foreach by fibers_state and release all fibers
 	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), current) {
-		zend_coroutine_t *coroutine = Z_PTR_P(current);
+		async_coroutine_t *coroutine = Z_PTR_P(current);
 		OBJ_RELEASE(&coroutine->std);
 	} ZEND_HASH_FOREACH_END();
 
@@ -317,7 +317,7 @@ static void cancel_queued_coroutines(void)
 	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutine_queue), current) {
 		zend_coroutine_t *coroutine = Z_PTR_P(current);
 
-		if (coroutine->context.status == ZEND_FIBER_STATUS_INIT) {
+		if (((async_coroutine_t *) coroutine)->context.status == ZEND_FIBER_STATUS_INIT) {
 			// No need to cancel the fiber if it has not been started.
 			coroutine->waker->status = ZEND_ASYNC_WAKER_IGNORED;
 			coroutine->dispose(coroutine);
