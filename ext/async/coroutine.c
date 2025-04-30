@@ -18,6 +18,7 @@
 #include "php_async.h"
 
 #include "php_scheduler.h"
+#include "zend_common.h"
 #include "zend_exceptions.h"
 #include "zend_ini.h"
 
@@ -110,9 +111,29 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	async_scheduler_coroutine_suspend(transfer);
 }
 
-zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
+static zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
+{
+	DEFINE_ZEND_INTERNAL_OBJECT(async_coroutine_t, coroutine, async_ce_coroutine);
+	return &coroutine->coroutine;
+}
+
+static void async_coroutine_dispose(zend_coroutine_t *coroutine)
 {
 
+}
+
+static zend_object *async_coroutine_object_create(zend_class_entry *class_entry)
+{
+	async_coroutine_t *coroutine = pecalloc(1, sizeof(async_coroutine_t), 0);
+
+	ZVAL_UNDEF(&coroutine->coroutine.result);
+
+	coroutine->coroutine.dispose = async_coroutine_dispose;
+	coroutine->flags = ZEND_FIBER_STATUS_INIT;
+
+	zend_object_std_init(&coroutine->std, class_entry);
+
+	return &coroutine->std;
 }
 
 static zend_object_handlers coroutine_handlers;
