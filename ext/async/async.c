@@ -21,9 +21,8 @@
 #include "php_async.h"
 #include "ext/standard/info.h"
 #include "async_arginfo.h"
+#include "exceptions.h"
 #include "php_scheduler.h"
-
-ZEND_API zend_class_entry * async_ce_awaitable;
 
 ZEND_DECLARE_MODULE_GLOBALS(async)
 
@@ -50,13 +49,12 @@ static void async_register_awaitable_ce(void);
 ZEND_MINIT_FUNCTION(async)
 {
 	async_register_awaitable_ce();
-	//async_register_closure_ce();
+	async_register_coroutine_ce();
+	async_register_exceptions_ce();
 	//async_register_notifier_ce();
 	//async_register_handlers_ce();
-	//async_register_resume_ce();
-	//async_register_exceptions_ce();
 	//async_register_channel_ce();
-	//async_register_walker_ce();
+	//async_register_iterator_ce();
 	//async_register_context_ce();
 	//async_register_future_ce();
 
@@ -65,8 +63,6 @@ ZEND_MINIT_FUNCTION(async)
 #ifdef PHP_ASYNC_LIBUV
 	//async_libuv_startup();
 #endif
-
-
 
 	return SUCCESS;
 }
@@ -126,5 +122,5 @@ zend_module_entry async_module_entry = {
 
 static void async_register_awaitable_ce(void)
 {
-
+	async_ce_awaitable = register_class_Async_Awaitable();
 }

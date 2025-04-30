@@ -44,5 +44,6 @@ struct _async_coroutine_t {
 	zend_object std;
 };
 
+void async_register_coroutine_ce(void);
 
 #endif //COROUTINE_H
