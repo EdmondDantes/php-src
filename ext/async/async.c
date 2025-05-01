@@ -22,6 +22,7 @@
 #include "ext/standard/info.h"
 #include "php_scheduler.h"
 #include "exceptions.h"
+#include "scope.h"
 #include "functions.h"
 #include "async_API.h"
 
@@ -48,6 +49,7 @@ static PHP_GSHUTDOWN_FUNCTION(async)
 ZEND_MINIT_FUNCTION(async)
 {
 	async_register_awaitable_ce();
+	async_register_scope_ce();
 	async_register_coroutine_ce();
 	async_register_exceptions_ce();
 	//async_register_notifier_ce();
