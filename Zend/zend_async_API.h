@@ -134,8 +134,13 @@ struct _zend_async_task {
 	zend_async_event_t event;
 };
 
-struct _zend_async_scope_t {
+typedef void (*zend_async_before_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope, zval *result);
+typedef void (*zend_async_after_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope);
 
+struct _zend_async_scope_t {
+	bool is_closed;
+	zend_async_before_coroutine_enqueue_t before_coroutine_enqueue;
+	zend_async_after_coroutine_enqueue_t after_coroutine_enqueue;
 };
 
 typedef void (*zend_async_waker_dtor)(zend_coroutine_t *coroutine);
@@ -198,6 +203,7 @@ struct _zend_coroutine_t {
 #define ZEND_GRACEFUL_SHUTDOWN EG(graceful_shutdown)
 #define ZEND_EXIT_EXCEPTION EG(exit_exception)
 #define ZEND_CURRENT_COROUTINE EG(coroutine)
+#define ZEND_CURRENT_ASYNC_SCOPE EG(async_scope)
 
 BEGIN_EXTERN_C()
 

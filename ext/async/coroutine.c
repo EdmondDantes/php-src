@@ -111,12 +111,6 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	async_scheduler_coroutine_suspend(transfer);
 }
 
-static zend_coroutine_t * async_coroutine_new(zend_async_scope_t *scope)
-{
-	DEFINE_ZEND_INTERNAL_OBJECT(async_coroutine_t, coroutine, async_ce_coroutine);
-	return &coroutine->coroutine;
-}
-
 static void async_coroutine_dispose(zend_coroutine_t *coroutine)
 {
 

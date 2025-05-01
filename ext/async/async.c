@@ -20,9 +20,10 @@
 
 #include "php_async.h"
 #include "ext/standard/info.h"
-#include "async_arginfo.h"
-#include "exceptions.h"
 #include "php_scheduler.h"
+#include "exceptions.h"
+#include "functions.h"
+#include "async_API.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(async)
 
@@ -42,8 +43,6 @@ static PHP_GSHUTDOWN_FUNCTION(async)
 }
 /* }}} */
 
-static void async_register_awaitable_ce(void);
-
 /* Module registration */
 
 ZEND_MINIT_FUNCTION(async)
@@ -60,8 +59,10 @@ ZEND_MINIT_FUNCTION(async)
 
 	async_scheduler_startup();
 
+	async_api_register();
+
 #ifdef PHP_ASYNC_LIBUV
-	//async_libuv_startup();
+	//async_libuv_register();
 #endif
 
 	return SUCCESS;
@@ -119,8 +120,3 @@ zend_module_entry async_module_entry = {
 	NULL,
 	STANDARD_MODULE_PROPERTIES_EX
 };
-
-static void async_register_awaitable_ce(void)
-{
-	async_ce_awaitable = register_class_Async_Awaitable();
-}

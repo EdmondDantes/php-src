@@ -13,52 +13,12 @@
   | Author: Edmond                                                       |
   +----------------------------------------------------------------------+
 */
-#ifndef PHP_ASYNC_H
-#define PHP_ASYNC_H
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
 
 #include <php.h>
 
-#include "coroutine.h"
-#include "internal/circular_buffer.h"
+extern ZEND_API zend_class_entry * async_ce_awaitable;
+void async_register_awaitable_ce(void);
 
-#ifdef PHP_WIN32
-
-#else
-
-#endif
-
-extern zend_module_entry async_module_entry;
-# define phpext_async_ptr &async_module_entry
-
-# define PHP_ASYNC_VERSION "1.0.0-dev"
-
-ZEND_BEGIN_MODULE_GLOBALS(async)
-	/* Number of active coroutines */
-	unsigned int active_coroutine_count;
-	/* Number of active event handles */
-	unsigned int active_event_count;
-	// Microtask queue
-	circular_buffer_t microtasks;
-	/* Queue of coroutine_queue */
-	circular_buffer_t coroutine_queue;
-	/* List of coroutines  */
-	HashTable coroutines;
-	/* Scheduler coroutine */
-	zend_coroutine_t *scheduler;
-
-	/* Link to the reactor structure */
-	void * reactor;
-
-	#ifdef PHP_WIN32
-	#endif
-ZEND_END_MODULE_GLOBALS(async)
-
-ZEND_EXTERN_MODULE_GLOBALS(async)
-
-#define ASYNC_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(async, v)
-
-# if defined(ZTS) && defined(COMPILE_DL_ASYNC)
-ZEND_TSRMLS_CACHE_EXTERN()
-# endif
-
-#endif //ASYNC_H
+#endif //FUNCTIONS_H
