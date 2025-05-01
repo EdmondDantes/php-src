@@ -15,6 +15,10 @@ PHP                                                                        NEWS
   . Fixed GH-17956 - development server 404 page does not adapt to mobiles.
     (pascalchevrel)
 
+- CURL:
+  . Added CURLFOLLOW_ALL, CURLFOLLOW_OBEYCODE and CURLFOLLOW_FIRSTONLY
+    values for CURLOPT_FOLLOLOCATION curl_easy_setopt option. (David Carlier)
+
 - COM:
   . Fixed property access of PHP objects wrapped in variant. (cmb)
   . Fixed method calls for PHP objects wrapped in variant. (cmb)
@@ -89,6 +93,7 @@ PHP                                                                        NEWS
   . Added Locale::isRightToLeft to check if a locale is written right to left.
     (David Carlier)
   . Added null bytes presence in locale inputs for Locale class. (David Carlier)
+  . Added grapheme_levenshtein() function. (Yuya Hamada)
 
 - MySQLi:
   . Fixed bugs GH-17900 and GH-8084 (calling mysqli::__construct twice).
