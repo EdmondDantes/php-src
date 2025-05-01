@@ -46,7 +46,7 @@ typedef void (*zend_async_suspend_t)(zend_coroutine_t *coroutine);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_shutdown_t)();
-typedef void (*zend_async_get_coroutines_t)();
+typedef zend_array* (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
 typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine_t * coroutine);
 
@@ -153,9 +153,8 @@ typedef struct {
 typedef enum {
 	ZEND_ASYNC_WAKER_NO_STATUS = 0,
 	ZEND_ASYNC_WAKER_WAITING = 1,
-	ZEND_ASYNC_WAKER_SUCCESS = 2,
-	ZEND_ASYNC_WAKER_ERROR = 3,
-	ZEND_ASYNC_WAKER_IGNORED = 4
+	ZEND_ASYNC_WAKER_QUEUED = 2,
+	ZEND_ASYNC_WAKER_IGNORED = 3
 } ZEND_ASYNC_WAKER_STATUS;
 
 struct _zend_async_waker_t {

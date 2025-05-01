@@ -17,6 +17,7 @@
 
 #include "exceptions.h"
 #include "php_async.h"
+#include "php_scheduler.h"
 #include "scope.h"
 #include "zend_common.h"
 
@@ -93,7 +94,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 		return NULL;
 	}
 
-	waker->status = ZEND_ASYNC_WAKER_SUCCESS;
+	waker->status = ZEND_ASYNC_WAKER_QUEUED;
 
 	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true)) == FAILURE) {
 		coroutine->coroutine.dispose(&coroutine->coroutine);
@@ -120,14 +121,63 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 
 void suspend(zend_coroutine_t *coroutine)
 {
+	async_scheduler_coroutine_suspend(NULL);
 }
 
 void resume(zend_coroutine_t *coroutine)
 {
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		async_throw_error("Cannot resume a coroutine that has not been suspended");
+		return;
+	}
+
+	if (UNEXPECTED(coroutine->waker->status == ZEND_ASYNC_WAKER_QUEUED)) {
+		return;
+	}
+
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true)) == FAILURE) {
+		async_throw_error("Failed to enqueue coroutine");
+		return;
+	}
+
+	coroutine->waker->status = ZEND_ASYNC_WAKER_QUEUED;
 }
 
 void cancel(zend_coroutine_t *coroutine, zend_object *error, const bool transfer_error)
 {
+	if (coroutine->waker == NULL) {
+		zend_async_waker_create(coroutine);
+	}
+
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		async_throw_error("Waker is not initialized");
+
+		if (transfer_error) {
+			OBJ_RELEASE(error);
+		}
+
+		return;
+	}
+
+	const bool is_error_null = (error == NULL);
+
+	if (is_error_null) {
+		error = async_new_exception(async_ce_cancellation_exception, "Coroutine cancelled");
+		if (UNEXPECTED(EG(exception))) {
+			return;
+		}
+	}
+
+	if (coroutine->waker->error != NULL) {
+		zend_exception_set_previous(error, coroutine->waker->error);
+		OBJ_RELEASE(coroutine->waker->error);
+	}
+
+	coroutine->waker->error = error;
+
+	if (false == transfer_error && false == is_error_null) {
+		GC_ADDREF(error);
+	}
 }
 
 void shutdown(void)
@@ -135,18 +185,26 @@ void shutdown(void)
 
 }
 
-void get_coroutines(void)
+zend_array * get_coroutines(void)
 {
-
+	return &ASYNC_G(coroutines);
 }
 
 void add_microtask(zend_async_microtask_t *microtask)
 {
+	if (microtask->is_cancelled) {
+		return;
+	}
 
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(microtasks), microtask, true) == FAILURE)) {
+		async_throw_error("Failed to enqueue microtask");
+		return;
+	}
 }
 
 zend_array *get_awaiting_info(zend_coroutine_t *coroutine)
 {
+	/* @todo: implement get_awaiting_info */
 	return NULL;
 }
 
