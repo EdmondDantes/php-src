@@ -211,6 +211,8 @@ zend_array *get_awaiting_info(zend_coroutine_t *coroutine)
 void async_api_register(void)
 {
 	zend_async_scheduler_register(
+		zend_string_init(PHP_ASYNC_NAME_VERSION, sizeof(PHP_ASYNC_NAME_VERSION) - 1, 0),
+		false,
 		new_coroutine,
 		spawn,
 		suspend,

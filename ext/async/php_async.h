@@ -28,9 +28,11 @@
 #endif
 
 extern zend_module_entry async_module_entry;
-# define phpext_async_ptr &async_module_entry
+#define phpext_async_ptr &async_module_entry
 
-# define PHP_ASYNC_VERSION "1.0.0-dev"
+#define PHP_ASYNC_NAME "TrueAsync"
+#define PHP_ASYNC_VERSION "0.5.0"
+#define PHP_ASYNC_NAME_VERSION "TrueAsync v0.5.0"
 
 ZEND_BEGIN_MODULE_GLOBALS(async)
 	/* Number of active coroutines */

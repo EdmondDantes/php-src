@@ -25,6 +25,7 @@ static zend_coroutine_t * spawn(zend_async_scope_t *scope)
 
 static void suspend(zend_coroutine_t *coroutine) {}
 
+static zend_string * scheduler_module_name = NULL;
 zend_async_spawn_t zend_async_spawn_fn = spawn;
 zend_async_suspend_t zend_async_suspend_fn = suspend;
 zend_async_resume_t zend_async_resume_fn = NULL;
@@ -34,6 +35,7 @@ zend_async_get_coroutines_t zend_async_get_coroutines_fn = NULL;
 zend_async_add_microtask_t zend_async_add_microtask_fn = NULL;
 zend_async_get_awaiting_info_t zend_async_get_awaiting_info_fn = NULL;
 
+static zend_string * reactor_module_name = NULL;
 zend_async_reactor_startup_t zend_async_reactor_startup_fn = NULL;
 zend_async_reactor_shutdown_t zend_async_reactor_shutdown_fn = NULL;
 zend_async_reactor_execute_t zend_async_reactor_execute_fn = NULL;
@@ -48,6 +50,7 @@ zend_async_new_process_event_t zend_async_new_process_event_fn = NULL;
 zend_async_new_thread_event_t zend_async_new_thread_event_fn = NULL;
 zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn = NULL;
 
+static zend_string * thread_pool_module_name = NULL;
 zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
 ZEND_API bool zend_async_is_enabled(void)
@@ -76,6 +79,8 @@ ZEND_API void zend_async_shutdown(void)
 }
 
 ZEND_API void zend_async_scheduler_register(
+	zend_string *module,
+	bool allow_override,
 	zend_async_new_coroutine_t new_coroutine_fn,
     zend_async_spawn_t spawn_fn,
     zend_async_suspend_t suspend_fn,
@@ -87,6 +92,20 @@ ZEND_API void zend_async_scheduler_register(
     zend_async_get_awaiting_info_t get_awaiting_info_fn
 )
 {
+	if (scheduler_module_name != NULL && false == allow_override) {
+		zend_error(
+			E_CORE_ERROR, "The module %s is trying to override Scheduler, which was registered by the module %s.",
+			ZSTR_VAL(module), ZSTR_VAL(scheduler_module_name)
+		);
+		return;
+	}
+
+	if (scheduler_module_name != NULL) {
+		zend_string_release(scheduler_module_name);
+	}
+
+	scheduler_module_name = zend_string_copy(module);
+
 	zend_async_new_coroutine_fn = new_coroutine_fn;
     zend_async_spawn_fn = spawn_fn;
     zend_async_suspend_fn = suspend_fn;
@@ -99,6 +118,8 @@ ZEND_API void zend_async_scheduler_register(
 }
 
 ZEND_API void zend_async_reactor_register(
+	zend_string *module,
+	bool allow_override,
 	zend_async_reactor_startup_t reactor_startup_fn,
 	zend_async_reactor_shutdown_t reactor_shutdown_fn,
 	zend_async_reactor_execute_t reactor_execute_fn,
@@ -114,6 +135,20 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_filesystem_event_t new_filesystem_event_fn
 )
 {
+	if (reactor_module_name != NULL && false == allow_override) {
+		zend_error(
+			E_CORE_ERROR, "The module %s is trying to override Reactor, which was registered by the module %s.",
+			ZSTR_VAL(module), ZSTR_VAL(reactor_module_name)
+		);
+		return;
+	}
+
+	if (reactor_module_name != NULL) {
+		zend_string_release(reactor_module_name);
+	}
+
+	reactor_module_name = zend_string_copy(module);
+
 	zend_async_reactor_startup_fn = reactor_startup_fn;
 	zend_async_reactor_shutdown_fn = reactor_shutdown_fn;
 	zend_async_reactor_execute_fn = reactor_execute_fn;
@@ -131,8 +166,20 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_filesystem_event_fn = new_filesystem_event_fn;
 }
 
-ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn)
+ZEND_API void zend_async_thread_pool_register(zend_string *module, bool allow_override, zend_async_queue_task_t queue_task_fn)
 {
+	if (thread_pool_module_name != NULL && false == allow_override) {
+		zend_error(
+			E_CORE_ERROR, "The module %s is trying to override Thread Pool, which was registered by the module %s.",
+			ZSTR_VAL(module), ZSTR_VAL(thread_pool_module_name)
+		);
+	}
+
+	if (thread_pool_module_name != NULL) {
+		zend_string_release(thread_pool_module_name);
+	}
+
+	thread_pool_module_name = zend_string_copy(module);
     zend_async_queue_task_fn = queue_task_fn;
 }
 

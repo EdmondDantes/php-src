@@ -245,6 +245,8 @@ ZEND_API bool zend_async_thread_pool_is_enabled(void);
 ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
 
 ZEND_API void zend_async_scheduler_register(
+	zend_string *module,
+	bool allow_override,
 	zend_async_new_coroutine_t new_coroutine_fn,
     zend_async_spawn_t spawn_fn,
     zend_async_suspend_t suspend_fn,
@@ -257,6 +259,8 @@ ZEND_API void zend_async_scheduler_register(
 );
 
 ZEND_API void zend_async_reactor_register(
+	zend_string *module,
+	bool allow_override,
 	zend_async_reactor_startup_t reactor_startup_fn,
 	zend_async_reactor_shutdown_t reactor_shutdown_fn,
 	zend_async_reactor_execute_t reactor_execute_fn,
@@ -272,7 +276,9 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_filesystem_event_t new_filesystem_event_fn
 );
 
-ZEND_API void zend_async_thread_pool_register(zend_async_queue_task_t queue_task_fn);
+ZEND_API void zend_async_thread_pool_register(
+	zend_string *module, bool allow_override, zend_async_queue_task_t queue_task_fn
+);
 /* Waker API */
 ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine);
 ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine);
