@@ -182,7 +182,7 @@ void cancel(zend_coroutine_t *coroutine, zend_object *error, const bool transfer
 
 void shutdown(void)
 {
-
+	start_graceful_shutdown();
 }
 
 zend_array * get_coroutines(void)

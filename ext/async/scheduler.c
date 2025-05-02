@@ -336,8 +336,16 @@ static void cancel_queued_coroutines(void)
 	zend_exception_restore();
 }
 
-static void start_graceful_shutdown(void)
+void start_graceful_shutdown(void)
 {
+	if (ZEND_GRACEFUL_SHUTDOWN) {
+		return;
+	}
+
+	if (EG(exception) == NULL) {
+		async_throw_error("Graceful shutdown mode is activated");
+	}
+
 	ZEND_GRACEFUL_SHUTDOWN = true;
 	ZEND_EXIT_EXCEPTION = EG(exception);
 	GC_ADDREF(EG(exception));

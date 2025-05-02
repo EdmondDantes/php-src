@@ -23,6 +23,8 @@ BEGIN_EXTERN_C()
 void async_scheduler_startup(void);
 void async_scheduler_shutdown(void);
 
+void start_graceful_shutdown(void);
+
 /**
  * A function that is called when control needs to be transferred from a coroutine to the Scheduler.
  * In reality, no context switch occurs.
