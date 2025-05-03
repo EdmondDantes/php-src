@@ -867,6 +867,11 @@ static void executor_globals_dtor(zend_executor_globals *executor_globals) /* {{
 		zend_hash_destroy(executor_globals->zend_constants);
 		free(executor_globals->zend_constants);
 	}
+
+	if (executor_globals->deferred_backtrace_frames != NULL) {
+		zend_array_release(executor_globals->deferred_backtrace_frames);
+		executor_globals->deferred_backtrace_frames = NULL;
+	}
 }
 /* }}} */
 

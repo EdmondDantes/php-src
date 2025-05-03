@@ -370,8 +370,16 @@ static zend_always_inline zend_execute_data *zend_vm_stack_push_call_frame(uint3
 		func, num_args, object_or_called_scope);
 }
 
+ZEND_API void zend_generate_backtrace_frame(zend_backtrace_reference *backtrace_reference, zend_execute_data *call);
+
 static zend_always_inline void zend_vm_stack_free_extra_args_ex(uint32_t call_info, zend_execute_data *call)
 {
+	zend_backtrace_reference *backtrace_reference;
+	if (EG(deferred_backtrace_frames) != NULL
+		&& (backtrace_reference = zend_hash_index_find_ptr(EG(deferred_backtrace_frames), (zend_ulong)call)) != NULL) {
+		zend_generate_backtrace_frame(backtrace_reference, call);
+	}
+
 	if (UNEXPECTED(call_info & ZEND_CALL_FREE_EXTRA_ARGS)) {
 		uint32_t count = ZEND_CALL_NUM_ARGS(call) - call->func->op_array.num_args;
 		zval *p = ZEND_CALL_VAR_NUM(call, call->func->op_array.last_var + call->func->op_array.T);

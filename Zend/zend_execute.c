@@ -5840,3 +5840,13 @@ ZEND_API zval *zend_get_zval_ptr(const zend_op *opline, int op_type, const znode
 	}
 	return ret;
 }
+
+ZEND_API void zend_generate_backtrace_frame(zend_backtrace_reference *backtrace_reference, zend_execute_data *call)
+{
+	zend_backtrace_frame *bt_frame = ecalloc(1, sizeof(zend_backtrace_frame));
+
+	backtrace_reference->frame = bt_frame;
+	backtrace_reference->source = NULL;
+
+	zend_hash_index_del(EG(deferred_backtrace_frames), (zend_ulong) call);
+}

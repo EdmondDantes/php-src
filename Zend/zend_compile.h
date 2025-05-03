@@ -632,6 +632,22 @@ struct _zend_execute_data {
 	zend_array          *extra_named_params;
 };
 
+/* The following structure is used to store the backtrace information */
+struct _zend_backtrace_frame {
+	zend_string *function_name;
+	zend_string *filename;
+	uint32_t lineno;
+	uint32_t num_args;
+	zval *args; /* can be NULL */
+};
+
+/* The following structure is used to store the backtrace-frame reference information */
+struct _zend_backtrace_reference {
+	uint32_t ref_count;
+	zend_execute_data *source; /* the source call-frame that created this reference, can be NULL if frame IS NOT NULL */
+	zend_backtrace_frame *frame; /* the result backtrace-frame, can be NULL if source IS NOT NULL */
+};
+
 #define ZEND_CALL_HAS_THIS           IS_OBJECT_EX
 
 /* Top 16 bits of Z_TYPE_INFO(EX(This)) are used as call_info flags */

@@ -304,6 +304,13 @@ struct _zend_executor_globals {
 	zend_string *filename_override;
 	zend_long lineno_override;
 
+	/**
+	 * A list of zend_backtrace_reference structures,
+	 * where the key is the address of the call frame.
+	 * Can be NULL.
+	 */
+	HashTable *deferred_backtrace_frames;
+
 #ifdef ZEND_CHECK_STACK_LIMIT
 	zend_call_stack call_stack;
 	zend_long max_allowed_stack_size;

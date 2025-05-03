@@ -264,6 +264,7 @@ static zend_object *zend_default_exception_new(zend_class_entry *class_type) /* 
 	zend_object *object = zend_objects_new(class_type);
 	object_properties_init(object, class_type);
 
+	/*
 	if (EG(current_execute_data)) {
 		zend_fetch_debug_backtrace(&trace,
 			0,
@@ -272,6 +273,7 @@ static zend_object *zend_default_exception_new(zend_class_entry *class_type) /* 
 		array_init(&trace);
 	}
 	Z_SET_REFCOUNT(trace, 0);
+	*/
 
 	base_ce = i_get_exception_base(object);
 
@@ -288,7 +290,7 @@ static zend_object *zend_default_exception_new(zend_class_entry *class_type) /* 
 		ZVAL_LONG(&tmp, zend_get_compiled_lineno());
 		zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
 	}
-	zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
+	//zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
 
 	return object;
 }
