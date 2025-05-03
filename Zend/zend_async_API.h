@@ -240,6 +240,14 @@ ZEND_API zend_async_new_process_event_t zend_async_new_process_event_fn;
 ZEND_API zend_async_new_thread_event_t zend_async_new_thread_event_fn;
 ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
 
+/* Reactor Poll API */
+typedef enum {
+	ASYNC_READABLE = 1,
+	ASYNC_WRITABLE = 2,
+	ASYNC_DISCONNECT = 4,
+	ASYNC_PRIORITIZED = 8
+} async_poll_event;
+
 /* Thread pool API */
 ZEND_API bool zend_async_thread_pool_is_enabled(void);
 ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
