@@ -734,15 +734,10 @@ PHP_FUNCTION(grapheme_extract)
 	}
 
 	if ( NULL != next ) {
-		if ( !Z_ISREF_P(next) ) {
-			intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-				 "grapheme_extract: 'next' was not passed by reference", 0 );
-			RETURN_FALSE;
-		} else {
-			ZVAL_DEREF(next);
-			/* initialize next */
-			zval_ptr_dtor(next);
-			ZVAL_LONG(next, lstart);
+		ZEND_ASSERT(Z_ISREF_P(next));
+		ZEND_TRY_ASSIGN_REF_LONG(next, lstart);
+		if (UNEXPECTED(EG(exception))) {
+			RETURN_THROWS();
 		}
 	}
 
@@ -800,7 +795,7 @@ PHP_FUNCTION(grapheme_extract)
 	if ( -1 != grapheme_ascii_check((unsigned char *)pstr, MIN(size + 1, str_len)) ) {
 		size_t nsize = MIN(size, str_len);
 		if ( NULL != next ) {
-			ZVAL_LONG(next, start+nsize);
+			ZEND_TRY_ASSIGN_REF_LONG(next, start + nsize);
 		}
 		RETURN_STRINGL(pstr, nsize);
 	}
@@ -834,7 +829,7 @@ PHP_FUNCTION(grapheme_extract)
 	ubrk_close(bi);
 
 	if ( NULL != next ) {
-		ZVAL_LONG(next, start+ret_pos);
+		ZEND_TRY_ASSIGN_REF_LONG(next, start + ret_pos);
 	}
 
 	RETURN_STRINGL(((char *)pstr), ret_pos);
@@ -999,6 +994,10 @@ PHP_FUNCTION(grapheme_levenshtein)
 	int32_t strlen_1, strlen_2;
 	strlen_1 = grapheme_split_string(ustring1, ustring1_len, NULL, 0);
 	strlen_2 = grapheme_split_string(ustring2, ustring2_len, NULL, 0);
+	if (UNEXPECTED(strlen_1 < 0 || strlen_2 < 0)) {
+		RETVAL_FALSE;
+		goto out_ustring2;
+	}
 
 	if (strlen_1 == 0) {
 		RETVAL_LONG(strlen_2 * cost_ins);
@@ -1054,8 +1053,8 @@ PHP_FUNCTION(grapheme_levenshtein)
 	}
 
 	zend_long *p1, *p2, *tmp;
-	p1 = safe_emalloc(strlen_2 + 1, sizeof(zend_long), 0);
-	p2 = safe_emalloc(strlen_2 + 1, sizeof(zend_long), 0);
+	p1 = safe_emalloc((size_t) strlen_2 + 1, sizeof(zend_long), 0);
+	p2 = safe_emalloc((size_t) strlen_2 + 1, sizeof(zend_long), 0);
 
 	for (i2 = 0; i2 <= strlen_2; i2++) {
 		p1[i2] = i2 * cost_ins;
