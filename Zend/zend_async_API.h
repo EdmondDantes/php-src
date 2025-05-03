@@ -19,6 +19,29 @@
 #include "zend_fibers.h"
 #include "zend_globals.h"
 
+/* Reactor Poll API */
+typedef enum {
+	ASYNC_READABLE = 1,
+	ASYNC_WRITABLE = 2,
+	ASYNC_DISCONNECT = 4,
+	ASYNC_PRIORITIZED = 8
+} async_poll_event;
+
+//
+// Definitions compatibles with proc_open()
+//
+#ifdef PHP_WIN32
+typedef HANDLE zend_file_descriptor_t;
+typedef DWORD zend_process_id_t;
+typedef HANDLE zend_process_t;
+typedef SOCKET zend_socket_t;
+#else
+typedef int zend_file_descriptor_t;
+typedef pid_t zend_process_id_t;
+typedef pid_t zend_process_t;
+typedef int zend_socket_t;
+#endif
+
 /**
  * zend_coroutine_t is a Basic data structure that represents a coroutine in the Zend Engine.
  */
@@ -29,16 +52,27 @@ typedef struct _zend_async_scope_t zend_async_scope_t;
 typedef struct _zend_fcall_t zend_fcall_t;
 typedef void (*zend_coroutine_internal_t)(void);
 
-typedef struct _zend_async_poll_event zend_async_poll_event;
-typedef struct _zend_async_socket_event zend_async_socket_event;
-typedef struct _zend_async_timer_event zend_async_timer_event;
-typedef struct _zend_async_signal_event zend_async_signal_event;
-typedef struct _zend_async_filesystem_event zend_async_filesystem_event;
+typedef struct _zend_async_event_t zend_async_event_t;
+typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
+typedef void (*zend_async_event_callback_fn)(
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+);
+typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_start_t) (zend_async_event_t *event);
+typedef void (*zend_async_event_stop_t) (zend_async_event_t *event);
+typedef void (*zend_async_event_dispose_t) (zend_async_event_t *event);
 
-typedef struct _zend_async_process_event zend_async_process_event;
-typedef struct _zend_async_thread_event zend_async_thread_event;
+typedef struct _zend_async_poll_event_t zend_async_poll_event_t;
+typedef struct _zend_async_timer_event_t zend_async_timer_event_t;
+typedef struct _zend_async_signal_event_t zend_async_signal_event_t;
+typedef struct _zend_async_filesystem_event_t zend_async_filesystem_event_t;
 
-typedef struct _zend_async_task zend_async_task;
+typedef struct _zend_async_process_event_t zend_async_process_event_t;
+typedef struct _zend_async_thread_event_t zend_async_thread_event_t;
+
+typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
@@ -54,28 +88,16 @@ typedef void (*zend_async_reactor_startup_t)();
 typedef void (*zend_async_reactor_shutdown_t)();
 typedef bool (*zend_async_reactor_execute_t)(bool no_wait);
 typedef bool (*zend_async_reactor_loop_alive_t)();
-typedef void (*zend_async_add_event_t)();
-typedef void (*zend_async_remove_event_t)();
 
-typedef void (*zend_async_new_socket_event_t)();
-typedef void (*zend_async_new_poll_event_t)();
-typedef void (*zend_async_new_timer_event_t)();
-typedef void (*zend_async_new_signal_event_t)();
-typedef void (*zend_async_new_process_event_t)();
-typedef void (*zend_async_new_thread_event_t)();
-typedef void (*zend_async_new_filesystem_event_t)();
+typedef zend_async_poll_event_t* (*zend_async_new_socket_event_t)(zend_socket_t socket, async_poll_event events);
+typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events);
+typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(int timeout);
+typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)();
+typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
+typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)();
+typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)();
 
-typedef void (*zend_async_queue_task_t)(zend_async_task *task);
-
-typedef struct _zend_async_event_t zend_async_event_t;
-typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
-typedef void (*zend_async_event_callback_fn)(
-	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
-);
-typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
-typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
-typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
-typedef bool (*zend_async_event_is_closed_t)(zend_async_event_t *event);
+typedef void (*zend_async_queue_task_t)(zend_async_task_t *task);
 
 typedef void (*zend_async_microtask_handler_t)(zend_async_microtask_t *microtask);
 
@@ -96,42 +118,111 @@ struct _zend_async_event_callback_t {
 	zend_async_event_callback_dispose_fn dispose;
 };
 
+/* Dynamic array of async event callbacks */
+typedef struct _zend_async_callbacks_vector_t {
+	uint32_t                      length;   /* current number of callbacks          */
+	uint32_t                      capacity; /* allocated slots in the array         */
+	zend_async_event_callback_t  **data;    /* dynamically allocated callback array */
+} zend_async_callbacks_vector_t;
+
 struct _zend_async_event_t {
+	/* If event is closed, it cannot be started or stopped. */
+	bool is_closed;
+	/* The refcount of the event. */
+	unsigned int ref_count;
+	/* The Event loop reference count. */
+	unsigned int loop_ref_count;
+	zend_async_callbacks_vector_t callbacks;
+	/* Methods */
 	zend_async_event_add_callback_t add_callback;
 	zend_async_event_del_callback_t del_callback;
-	zend_async_event_is_closed_t is_closed;
+	zend_async_event_start_t start;
+	zend_async_event_stop_t stop;
+	zend_async_event_dispose_t dispose;
 };
 
-struct _zend_async_poll_event {
-	zend_async_event_t event;
+/* Append a callback; grows the buffer when needed */
+static zend_always_inline void
+zend_async_callbacks_push(zend_async_event_t *event, zend_async_event_callback_t *callback)
+{
+	if (event->callbacks.data == NULL) {
+		event->callbacks.data = safe_emalloc(4, sizeof(zend_async_event_callback_t *), 0);
+		event->callbacks.capacity = 4;
+	}
+
+	zend_async_callbacks_vector_t *vector = &event->callbacks;
+
+	if (vector->length == vector->capacity) {
+		vector->capacity = vector->capacity ? vector->capacity * 2 : 4;
+		vector->data = safe_erealloc(vector->data,
+									 vector->capacity,
+									 sizeof(zend_async_event_callback_t),
+									 0);
+	}
+
+	vector->data[vector->length++] = callback;
+}
+
+/* Remove a specific callback; order is NOT preserved */
+static zend_always_inline void
+zend_async_callbacks_remove(zend_async_event_t *event, const zend_async_event_callback_t *callback)
+{
+	zend_async_callbacks_vector_t *vector = &event->callbacks;
+
+	for (uint32_t i = 0; i < vector->length; ++i) {
+		if (vector->data[i] == callback) {
+			vector->data[i] = vector->data[--vector->length]; /* O(1) removal */
+			callback->dispose(event, vector->data[i]);
+			return;
+		}
+	}
+}
+
+/* Free the vector’s memory */
+static zend_always_inline void
+zend_async_callbacks_free(zend_async_callbacks_vector_t *vector)
+{
+	if (vector->data) {
+		efree(vector->data);
+	}
+	vector->data     = NULL;
+	vector->length   = 0;
+	vector->capacity = 0;
+}
+
+struct _zend_async_poll_event_t {
+	zend_async_event_t base;
+	bool is_socket;
+	union {
+		zend_file_descriptor_t file;
+		zend_socket_t socket;
+	};
+	async_poll_event events;
+	async_poll_event triggered_events;
 };
 
-struct _zend_async_socket_event {
-	zend_async_poll_event poll_event;
+struct _zend_async_timer_event_t {
+	zend_async_event_t base;
 };
 
-struct _zend_async_timer_event {
-	zend_async_event_t event;
+struct _zend_async_signal_event_t {
+	zend_async_event_t base;
 };
 
-struct _zend_async_signal_event {
-	zend_async_event_t event;
+struct _zend_async_process_event_t {
+	zend_async_event_t base;
 };
 
-struct _zend_async_process_event {
-	zend_async_event_t event;
+struct _zend_async_thread_event_t {
+	zend_async_event_t base;
 };
 
-struct _zend_async_thread_event {
-	zend_async_event_t event;
+struct _zend_async_filesystem_event_t {
+	zend_async_event_t base;
 };
 
-struct _zend_async_filesystem_event {
-	zend_async_event_t event;
-};
-
-struct _zend_async_task {
-	zend_async_event_t event;
+struct _zend_async_task_t {
+	zend_async_event_t base;
 };
 
 typedef void (*zend_async_before_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope, zval *result);
@@ -230,8 +321,6 @@ ZEND_API zend_async_reactor_startup_t zend_async_reactor_startup_fn;
 ZEND_API zend_async_reactor_shutdown_t zend_async_reactor_shutdown_fn;
 ZEND_API zend_async_reactor_execute_t zend_async_reactor_execute_fn;
 ZEND_API zend_async_reactor_loop_alive_t zend_async_reactor_loop_alive_fn;
-ZEND_API zend_async_add_event_t zend_async_add_event_fn;
-ZEND_API zend_async_remove_event_t zend_async_remove_event_fn;
 ZEND_API zend_async_new_socket_event_t zend_async_new_socket_event_fn;
 ZEND_API zend_async_new_poll_event_t zend_async_new_poll_event_fn;
 ZEND_API zend_async_new_timer_event_t zend_async_new_timer_event_fn;
@@ -239,14 +328,6 @@ ZEND_API zend_async_new_signal_event_t zend_async_new_signal_event_fn;
 ZEND_API zend_async_new_process_event_t zend_async_new_process_event_fn;
 ZEND_API zend_async_new_thread_event_t zend_async_new_thread_event_fn;
 ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
-
-/* Reactor Poll API */
-typedef enum {
-	ASYNC_READABLE = 1,
-	ASYNC_WRITABLE = 2,
-	ASYNC_DISCONNECT = 4,
-	ASYNC_PRIORITIZED = 8
-} async_poll_event;
 
 /* Thread pool API */
 ZEND_API bool zend_async_thread_pool_is_enabled(void);
@@ -273,8 +354,6 @@ ZEND_API void zend_async_reactor_register(
 	zend_async_reactor_shutdown_t reactor_shutdown_fn,
 	zend_async_reactor_execute_t reactor_execute_fn,
 	zend_async_reactor_loop_alive_t reactor_loop_alive_fn,
-    zend_async_add_event_t add_event_fn,
-    zend_async_remove_event_t remove_event_fn,
     zend_async_new_socket_event_t new_socket_event_fn,
     zend_async_new_poll_event_t new_poll_event_fn,
     zend_async_new_timer_event_t new_timer_event_fn,
@@ -295,6 +374,7 @@ ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async
 
 END_EXTERN_C()
 
+#define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
 #define ZEND_ASYNC_SPAWN() zend_async_spawn_fn()
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
 #define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
@@ -304,14 +384,13 @@ END_EXTERN_C()
 #define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()
 #define ZEND_ASYNC_ADD_MICROTASK(microtask) zend_async_add_microtask_fn(microtask)
 
+#define ZEND_ASYNC_REACTOR_IS_ENABLED() zend_async_reactor_is_enabled()
 #define ZEND_ASYNC_REACTOR_STARTUP() zend_async_reactor_startup_fn()
 #define ZEND_ASYNC_REACTOR_SHUTDOWN() zend_async_reactor_shutdown_fn()
 
 #define ZEND_ASYNC_REACTOR_EXECUTE(no_wait) zend_async_reactor_execute_fn(no_wait)
 #define ZEND_ASYNC_REACTOR_LOOP_ALIVE() zend_async_reactor_loop_alive_fn()
 
-#define ZEND_ASYNC_ADD_EVENT() zend_async_add_event_fn()
-#define ZEND_ASYNC_REMOVE_EVENT() zend_async_remove_event_fn()
 #define ZEND_ASYNC_NEW_SOCKET_EVENT() zend_async_new_socket_event_fn()
 #define ZEND_ASYNC_NEW_POLL_EVENT() zend_async_new_poll_event_fn()
 #define ZEND_ASYNC_NEW_TIMER_EVENT() zend_async_new_timer_event_fn()
@@ -320,5 +399,3 @@ END_EXTERN_C()
 #define ZEND_ASYNC_NEW_THREAD_EVENT() zend_async_new_thread_event_fn()
 #define ZEND_ASYNC_NEW_FILESYSTEM_EVENT() zend_async_new_filesystem_event_fn()
 #define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)
-#define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
-#define ZEND_ASYNC_REACTOR_IS_ENABLED() zend_async_reactor_is_enabled()

@@ -25,6 +25,9 @@
 #include "scope.h"
 #include "functions.h"
 #include "async_API.h"
+#ifdef PHP_ASYNC_LIBUV
+#include "libuv_reactor.h"
+#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(async)
 
@@ -64,7 +67,7 @@ ZEND_MINIT_FUNCTION(async)
 	async_api_register();
 
 #ifdef PHP_ASYNC_LIBUV
-	//async_libuv_register();
+	async_libuv_reactor_register();
 #endif
 
 	return SUCCESS;

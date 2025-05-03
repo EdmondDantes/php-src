@@ -40,8 +40,6 @@ zend_async_reactor_startup_t zend_async_reactor_startup_fn = NULL;
 zend_async_reactor_shutdown_t zend_async_reactor_shutdown_fn = NULL;
 zend_async_reactor_execute_t zend_async_reactor_execute_fn = NULL;
 zend_async_reactor_loop_alive_t zend_async_reactor_loop_alive_fn = NULL;
-zend_async_add_event_t zend_async_add_event_fn = NULL;
-zend_async_remove_event_t zend_async_remove_event_fn = NULL;
 zend_async_new_socket_event_t zend_async_new_socket_event_fn = NULL;
 zend_async_new_poll_event_t zend_async_new_poll_event_fn = NULL;
 zend_async_new_timer_event_t zend_async_new_timer_event_fn = NULL;
@@ -124,8 +122,6 @@ ZEND_API void zend_async_reactor_register(
 	zend_async_reactor_shutdown_t reactor_shutdown_fn,
 	zend_async_reactor_execute_t reactor_execute_fn,
 	zend_async_reactor_loop_alive_t reactor_loop_alive_fn,
-    zend_async_add_event_t add_event_fn,
-    zend_async_remove_event_t remove_event_fn,
     zend_async_new_socket_event_t new_socket_event_fn,
     zend_async_new_poll_event_t new_poll_event_fn,
     zend_async_new_timer_event_t new_timer_event_fn,
@@ -153,9 +149,6 @@ ZEND_API void zend_async_reactor_register(
 	zend_async_reactor_shutdown_fn = reactor_shutdown_fn;
 	zend_async_reactor_execute_fn = reactor_execute_fn;
 	zend_async_reactor_loop_alive_fn = reactor_loop_alive_fn;
-
-    zend_async_add_event_fn = add_event_fn;
-    zend_async_remove_event_fn = remove_event_fn;
 
     zend_async_new_socket_event_fn = new_socket_event_fn;
     zend_async_new_poll_event_fn = new_poll_event_fn;
