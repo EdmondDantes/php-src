@@ -372,6 +372,40 @@ static zend_always_inline zend_execute_data *zend_vm_stack_push_call_frame(uint3
 
 ZEND_API void zend_generate_backtrace_frame(zend_backtrace_reference *backtrace_reference, zend_execute_data *call);
 
+static zend_always_inline zend_backtrace_reference* zend_get_backtrace_reference(zend_execute_data *call)
+{
+	if (call == NULL) {
+		call = EG(current_execute_data);
+	}
+
+	if (UNEXPECTED(call == NULL)) {
+		return NULL;
+	}
+
+	zend_backtrace_reference *backtrace_reference;
+	if (EG(deferred_backtrace_frames) != NULL
+		&& (backtrace_reference = zend_hash_index_find_ptr(EG(deferred_backtrace_frames), (zend_ulong)call)) != NULL) {
+			return backtrace_reference;
+		}
+
+	backtrace_reference = emalloc(sizeof(zend_backtrace_reference));
+	backtrace_reference->ref_count = 0;
+	backtrace_reference->source = call;
+	backtrace_reference->frame = NULL;
+
+	if (EG(deferred_backtrace_frames) == NULL) {
+		EG(deferred_backtrace_frames) = zend_new_array(0);
+	}
+
+	if (zend_hash_index_add_new_ptr(EG(deferred_backtrace_frames), (zend_ulong)call, backtrace_reference) == NULL) {
+		efree(backtrace_reference);
+		zend_error(E_CORE_ERROR, "Failed to allocate memory for backtrace reference");
+		return NULL;
+	}
+
+	return backtrace_reference;
+}
+
 static zend_always_inline void zend_vm_stack_free_extra_args_ex(uint32_t call_info, zend_execute_data *call)
 {
 	zend_backtrace_reference *backtrace_reference;

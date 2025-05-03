@@ -275,6 +275,17 @@ static zend_object *zend_default_exception_new(zend_class_entry *class_type) /* 
 	Z_SET_REFCOUNT(trace, 0);
 	*/
 
+	if (EG(current_execute_data)) {
+		zend_backtrace_reference *bc_ref = zend_get_backtrace_reference(NULL);
+
+		if (EXPECTED(bc_ref != NULL)) {
+			bc_ref->ref_count++;
+			ZVAL_PTR(&trace, bc_ref);
+		}
+	} else {
+		array_init(&trace);
+	}
+
 	base_ce = i_get_exception_base(object);
 
 	if (EXPECTED((class_type != zend_ce_parse_error && class_type != zend_ce_compile_error)
@@ -290,7 +301,7 @@ static zend_object *zend_default_exception_new(zend_class_entry *class_type) /* 
 		ZVAL_LONG(&tmp, zend_get_compiled_lineno());
 		zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
 	}
-	//zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
+	zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
 
 	return object;
 }
@@ -754,6 +765,46 @@ static void zend_init_exception_class_entry(zend_class_entry *ce) {
 	ce->default_object_handlers = &default_exception_handlers;
 }
 
+static zend_always_inline void
+zend_exception_build_deferred_trace(zend_object *obj, zval *rv, zend_backtrace_reference* bc_ref)
+{
+	// TODO: Implement deferred trace building
+}
+
+static zval *zend_exception_read_property(zend_object *obj, zend_string *name,
+										  int type, void **cache_slot, zval *rv)
+{
+	if (zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_TRACE))) {
+
+		const zend_property_info *property_info = zend_hash_find_ptr(&obj->ce->properties_info, name);
+
+		zval *slot = NULL;
+
+		if (property_info && !(property_info->flags & ZEND_ACC_STATIC)) {
+			if (property_info->offset != ZEND_VIRTUAL_PROPERTY_OFFSET) {
+				slot = OBJ_PROP_NUM(obj, property_info->offset);
+			} else if (obj->properties) {
+				slot = zend_hash_find(obj->properties, name);
+			}
+		}
+
+		if (!slot || Z_TYPE_P(slot) == IS_PTR) {
+			zend_exception_build_deferred_trace(obj, rv, Z_PTR_P(slot));
+
+			if (slot) {
+				ZVAL_COPY_VALUE(slot, rv);
+			}
+
+			return rv;
+		}
+
+		return slot;
+	}
+
+	return std_object_handlers.read_property(obj, name, type, cache_slot, rv);
+}
+
+
 void zend_register_default_exception(void) /* {{{ */
 {
 	zend_ce_throwable = register_class_Throwable(zend_ce_stringable);
@@ -761,6 +812,7 @@ void zend_register_default_exception(void) /* {{{ */
 
 	memcpy(&default_exception_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	default_exception_handlers.clone_obj = NULL;
+	default_exception_handlers.read_property = zend_exception_read_property;
 
 	zend_ce_exception = register_class_Exception(zend_ce_throwable);
 	zend_init_exception_class_entry(zend_ce_exception);
