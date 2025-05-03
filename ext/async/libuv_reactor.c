@@ -34,10 +34,12 @@ typedef struct
 #endif
 } libuv_reactor_t;
 
+static void libuv_reactor_stop_with_exception(void);
+
 #define UVLOOP ((uv_loop_t *) ASYNC_G(reactor))
 #define LIBUV_REACTOR ((libuv_reactor_t *) ASYNC_G(reactor))
 #define WATCHER ((libuv_reactor_t *) ASYNC_G(reactor))->watcherThread
-#define IF_EXCEPTION_STOP if (UNEXPECTED(EG(exception) != NULL)) { reactor_stop_fn; }
+#define IF_EXCEPTION_STOP_REACTOR if (UNEXPECTED(EG(exception) != NULL)) { libuv_reactor_stop_with_exception(); }
 
 /* {{{ libuv_reactor_startup */
 void libuv_reactor_startup(void)
@@ -55,6 +57,13 @@ void libuv_reactor_startup(void)
 	}
 
 	uv_loop_set_data(ASYNC_G(reactor), ASYNC_G(reactor));
+}
+/* }}} */
+
+/* {{{ libuv_reactor_stop_with_exception */
+static void libuv_reactor_stop_with_exception(void)
+{
+	// TODO: implement libuv_reactor_stop_with_exception
 }
 /* }}} */
 
@@ -100,6 +109,13 @@ bool libuv_reactor_loop_alive(void)
 }
 /* }}} */
 
+/* {{{ libuv_close_handle_cb */
+static void libuv_close_handle_cb(uv_handle_t *handle)
+{
+	pefree(handle->data, 0);
+}
+/* }}} */
+
 /* {{{ libuv_add_callback */
 static void libuv_add_callback(zend_async_event_t *event, zend_async_event_callback_t *callback)
 {
@@ -111,6 +127,101 @@ static void libuv_add_callback(zend_async_event_t *event, zend_async_event_callb
 static void libuv_remove_callback(zend_async_event_t *event, zend_async_event_callback_t *callback)
 {
 	zend_async_callbacks_remove(event, callback);
+}
+/* }}} */
+
+/////////////////////////////////////////////////////////////////////////////
+/// Poll API
+//////////////////////////////////////////////////////////////////////////////
+
+/* {{{ on_poll_event */
+static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
+{
+	async_poll_event_t *poll = handle->data;
+	zend_object *exception = NULL;
+
+	if (status < 0) {
+		exception = async_new_exception(
+			async_ce_input_output_exception, "Input output error: %s", uv_strerror(status)
+		);
+	}
+
+	poll->event.triggered_events = events;
+
+	zend_async_callbacks_notify(&poll->event.base, NULL, exception);
+
+	if (exception != NULL) {
+		zend_object_release(exception);
+	}
+
+	IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_poll_start */
+static void libuv_poll_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+    async_poll_event_t *poll = (async_poll_event_t *)(event);
+
+    const int error = uv_poll_start(&poll->uv_handle, poll->event.events, on_poll_event);
+
+    if (error < 0) {
+        async_throw_error("Failed to start poll handle: %s", uv_strerror(error));
+    	return;
+    }
+
+	event->loop_ref_count++;
+    ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_poll_stop */
+static void libuv_poll_stop(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 1) {
+		event->loop_ref_count--;
+		return;
+	}
+
+	async_poll_event_t *poll = (async_poll_event_t *)(event);
+
+	const int error = uv_poll_stop(&poll->uv_handle);
+
+	event->loop_ref_count = 0;
+	ASYNC_G(active_event_count)--;
+
+	if (error < 0) {
+		async_throw_error("Failed to stop poll handle: %s", uv_strerror(error));
+		return;
+	}
+}
+/* }}} */
+
+/* {{{ libuv_poll_dispose */
+static void libuv_poll_dispose(zend_async_event_t *event)
+{
+	if (event->ref_count > 1) {
+		event->ref_count--;
+		return;
+	}
+
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count = 1;
+		libuv_poll_stop(event);
+	}
+
+	zend_async_callbacks_free(event);
+
+	async_poll_event_t *poll = (async_poll_event_t *)(event);
+
+	uv_close((uv_handle_t *)&poll->uv_handle, libuv_close_handle_cb);
+
+	pefree(event, 0);
 }
 /* }}} */
 
@@ -142,7 +253,7 @@ zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_so
 	poll->event.base.add_callback = libuv_add_callback;
 	poll->event.base.del_callback = libuv_remove_callback;
 	poll->event.base.start = libuv_poll_start;
-	poll->event.base.stop = libuv_poll_start;
+	poll->event.base.stop = libuv_poll_stop;
 	poll->event.base.dispose = libuv_poll_dispose;
 
 	return &poll->event;
@@ -155,6 +266,10 @@ zend_async_poll_event_t* libuv_new_socket_event(zend_socket_t socket, async_poll
 	return libuv_new_poll_event(NULL, socket, events);
 }
 /* }}} */
+
+/////////////////////////////////////////////////////////////////////////////////
+/// Timer API
+/////////////////////////////////////////////////////////////////////////////////
 
 /* {{{ libuv_new_timer_event */
 zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const bool is_periodic)

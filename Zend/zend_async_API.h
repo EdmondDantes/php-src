@@ -178,16 +178,39 @@ zend_async_callbacks_remove(zend_async_event_t *event, const zend_async_event_ca
 	}
 }
 
+/* Call all callbacks */
+static zend_always_inline void
+zend_async_callbacks_notify(zend_async_event_t *event, void *result, zend_object *exception)
+{
+	if (event->callbacks.data == NULL) {
+		return;
+	}
+
+	const zend_async_callbacks_vector_t *vector = &event->callbacks;
+
+	for (uint32_t i = 0; i < vector->length; ++i) {
+		vector->data[i]->callback(event, vector->data[i], result, exception);
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			break;
+		}
+	}
+}
+
 /* Free the vector’s memory */
 static zend_always_inline void
-zend_async_callbacks_free(zend_async_callbacks_vector_t *vector)
+zend_async_callbacks_free(zend_async_event_t *event)
 {
-	if (vector->data) {
-		efree(vector->data);
+	if (event->callbacks.data != NULL) {
+		for (uint32_t i = 0; i < event->callbacks.length; ++i) {
+			event->callbacks.data[i]->dispose(event, event->callbacks.data[i]);
+		}
+
+		efree(event->callbacks.data);
 	}
-	vector->data     = NULL;
-	vector->length   = 0;
-	vector->capacity = 0;
+
+	event->callbacks.data     = NULL;
+	event->callbacks.length   = 0;
+	event->callbacks.capacity = 0;
 }
 
 struct _zend_async_poll_event_t {
