@@ -91,11 +91,11 @@ typedef bool (*zend_async_reactor_loop_alive_t)();
 
 typedef zend_async_poll_event_t* (*zend_async_new_socket_event_t)(zend_socket_t socket, async_poll_event events);
 typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events);
-typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(int timeout);
-typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)();
+typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(int timeout, bool is_periodic);
+typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum);
 typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
 typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)();
-typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)();
+typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags);
 
 typedef void (*zend_async_queue_task_t)(zend_async_task_t *task);
 
@@ -423,11 +423,12 @@ END_EXTERN_C()
 #define ZEND_ASYNC_REACTOR_EXECUTE(no_wait) zend_async_reactor_execute_fn(no_wait)
 #define ZEND_ASYNC_REACTOR_LOOP_ALIVE() zend_async_reactor_loop_alive_fn()
 
-#define ZEND_ASYNC_NEW_SOCKET_EVENT() zend_async_new_socket_event_fn()
-#define ZEND_ASYNC_NEW_POLL_EVENT() zend_async_new_poll_event_fn()
-#define ZEND_ASYNC_NEW_TIMER_EVENT() zend_async_new_timer_event_fn()
-#define ZEND_ASYNC_NEW_SIGNAL_EVENT() zend_async_new_signal_event_fn()
+#define ZEND_ASYNC_NEW_SOCKET_EVENT(socket, events) zend_async_new_socket_event_fn(socket, events)
+#define ZEND_ASYNC_NEW_POLL_EVENT(fh, socket, events) zend_async_new_poll_event_fn(fh, socket, events)
+#define ZEND_ASYNC_NEW_TIMER_EVENT(timeout, is_periodic) zend_async_new_timer_event_fn(timeout, is_periodic)
+#define ZEND_ASYNC_NEW_SIGNAL_EVENT(signum) zend_async_new_signal_event_fn(signum)
 #define ZEND_ASYNC_NEW_PROCESS_EVENT() zend_async_new_process_event_fn()
 #define ZEND_ASYNC_NEW_THREAD_EVENT() zend_async_new_thread_event_fn()
-#define ZEND_ASYNC_NEW_FILESYSTEM_EVENT() zend_async_new_filesystem_event_fn()
+#define ZEND_ASYNC_NEW_FILESYSTEM_EVENT(path, flags) zend_async_new_filesystem_event_fn(path, flags)
+
 #define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)
