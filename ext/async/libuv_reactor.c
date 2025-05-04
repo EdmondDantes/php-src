@@ -234,8 +234,12 @@ zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_so
 
 	if (socket != 0) {
 		error = uv_poll_init_socket(UVLOOP, &poll->uv_handle, socket);
+		poll->event.is_socket = true;
+		poll->event.socket = socket;
 	} else if (fh != NULL) {
 		error = uv_poll_init(UVLOOP, &poll->uv_handle, (int) fh);
+		poll->event.is_socket = false;
+		poll->event.file = fh;
 	} else {
 
 	}
@@ -248,6 +252,7 @@ zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_so
 
 	// Link the handle to the loop.
 	poll->uv_handle.data = poll;
+	poll->event.events = events;
 
 	// Initialize the event methods
 	poll->event.base.add_callback = libuv_add_callback;
