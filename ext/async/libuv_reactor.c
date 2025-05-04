@@ -517,10 +517,147 @@ void libuv_new_thread_event(zend_async_thread_event_t *thread_event)
 }
 /* }}} */
 
-/* {{{ libuv_new_filesystem_event */
-void libuv_new_filesystem_event(zend_async_filesystem_event_t *filesystem_event)
+/////////////////////////////////////////////////////////////////////////////////
+/// File System API
+/////////////////////////////////////////////////////////////////////////////////
+
+/* {{{ on_filesystem_event */
+static void on_filesystem_event(uv_fs_event_t *handle, const char *filename, int events, int status)
 {
-    //TODO: libuv_new_filesystem_event
+    async_filesystem_event_t *fs_event = handle->data;
+
+	// Reset previous triggered filename
+	if (fs_event->event.triggered_filename) {
+		zend_string_release(fs_event->event.triggered_filename);
+		fs_event->event.triggered_filename = NULL;
+	}
+
+	fs_event->event.triggered_events = 0;
+
+    if (status < 0) {
+        zend_object *exception = async_new_exception(
+            async_ce_input_output_exception, "Filesystem monitoring error: %s", uv_strerror(status)
+        );
+        zend_async_callbacks_notify(&fs_event->event.base, NULL, exception);
+        zend_object_release(exception);
+        return;
+    }
+
+    fs_event->event.triggered_events = events;
+    fs_event->event.triggered_filename = filename ? zend_string_init(filename, strlen(filename), 0) : NULL;
+
+    zend_async_callbacks_notify(&fs_event->event.base, NULL, NULL);
+
+    IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_filesystem_start */
+static void libuv_filesystem_start(zend_async_event_t *event)
+{
+    if (event->loop_ref_count > 0) {
+        event->loop_ref_count++;
+        return;
+    }
+
+    async_filesystem_event_t *fs_event = (async_filesystem_event_t *)(event);
+
+    const int error = uv_fs_event_start(
+        &fs_event->uv_handle,
+        on_filesystem_event,
+        ZSTR_VAL(fs_event->event.path),
+        fs_event->event.flags
+    );
+
+    if (error < 0) {
+        async_throw_error("Failed to start filesystem handle: %s", uv_strerror(error));
+        return;
+    }
+
+    event->loop_ref_count++;
+    ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_filesystem_stop */
+static void libuv_filesystem_stop(zend_async_event_t *event)
+{
+    if (event->loop_ref_count > 1) {
+        event->loop_ref_count--;
+        return;
+    }
+
+    async_filesystem_event_t *fs_event = (async_filesystem_event_t *)(event);
+
+    const int error = uv_fs_event_stop(&fs_event->uv_handle);
+
+    event->loop_ref_count = 0;
+    ASYNC_G(active_event_count)--;
+
+    if (error < 0) {
+        async_throw_error("Failed to stop filesystem handle: %s", uv_strerror(error));
+        return;
+    }
+}
+/* }}} */
+
+/* {{{ libuv_filesystem_dispose */
+static void libuv_filesystem_dispose(zend_async_event_t *event)
+{
+    if (event->ref_count > 1) {
+        event->ref_count--;
+        return;
+    }
+
+    if (event->loop_ref_count > 0) {
+        event->loop_ref_count = 1;
+        libuv_filesystem_stop(event);
+    }
+
+    zend_async_callbacks_free(event);
+
+    async_filesystem_event_t *fs_event = (async_filesystem_event_t *)(event);
+
+    if (fs_event->event.path) {
+        zend_string_release(fs_event->event.path);
+    	fs_event->event.path = NULL;
+    }
+
+	if (fs_event->event.triggered_filename) {
+		zend_string_release(fs_event->event.triggered_filename);
+		fs_event->event.triggered_filename = NULL;
+	}
+
+    uv_close((uv_handle_t *)&fs_event->uv_handle, libuv_close_handle_cb);
+
+    pefree(event, 0);
+}
+/* }}} */
+
+/* {{{ libuv_new_filesystem_event */
+zend_async_filesystem_event_t* libuv_new_filesystem_event(zend_string * path, const unsigned int flags)
+{
+    async_filesystem_event_t *fs_event = pecalloc(1, sizeof(async_filesystem_event_t), 0);
+
+    const int error = uv_fs_event_init(UVLOOP, &fs_event->uv_handle);
+
+    if (error < 0) {
+        async_throw_error("Failed to initialize filesystem handle: %s", uv_strerror(error));
+        pefree(fs_event, 0);
+        return NULL;
+    }
+
+    fs_event->uv_handle.data = fs_event;
+    fs_event->event.path = zend_string_copy(path);
+    fs_event->event.flags = flags;
+
+    fs_event->event.base.add_callback = libuv_add_callback;
+    fs_event->event.base.del_callback = libuv_remove_callback;
+    fs_event->event.base.start = libuv_filesystem_start;
+    fs_event->event.base.stop = libuv_filesystem_stop;
+    fs_event->event.base.dispose = libuv_filesystem_dispose;
+
+    return &fs_event->event;
 }
 /* }}} */
 

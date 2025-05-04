@@ -247,6 +247,10 @@ struct _zend_async_thread_event_t {
 
 struct _zend_async_filesystem_event_t {
 	zend_async_event_t base;
+	zend_string *path;
+	unsigned int flags;
+	unsigned int triggered_events;
+	zend_string *triggered_filename;
 };
 
 struct _zend_async_task_t {
