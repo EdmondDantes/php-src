@@ -72,6 +72,9 @@ typedef struct _zend_async_filesystem_event_t zend_async_filesystem_event_t;
 typedef struct _zend_async_process_event_t zend_async_process_event_t;
 typedef struct _zend_async_thread_event_t zend_async_thread_event_t;
 
+typedef struct _zend_async_dns_nameinfo_t zend_async_dns_nameinfo_t;
+typedef struct _zend_async_dns_addrinfo_t zend_async_dns_addrinfo_t;
+
 typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
@@ -96,6 +99,9 @@ typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum);
 typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
 typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)();
 typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags);
+
+typedef zend_async_dns_nameinfo_t* (*zend_async_getnameinfo_t)(const struct sockaddr* addr, int flags);
+typedef zend_async_dns_addrinfo_t* (*zend_async_getaddrinfo_t)(const char *node, const char *service, const struct addrinfo *hints, int flags);
 
 typedef void (*zend_async_queue_task_t)(zend_async_task_t *task);
 
@@ -253,6 +259,20 @@ struct _zend_async_filesystem_event_t {
 	zend_string *triggered_filename;
 };
 
+struct _zend_async_dns_nameinfo_t {
+	zend_async_event_t base;
+	const char *hostname;
+	const char *service;
+};
+
+struct _zend_async_dns_addrinfo_t {
+	zend_async_event_t base;
+	const char *node;
+	const char *service;
+	const struct addrinfo *hints;
+	int flags;
+};
+
 struct _zend_async_task_t {
 	zend_async_event_t base;
 };
@@ -360,6 +380,11 @@ ZEND_API zend_async_new_signal_event_t zend_async_new_signal_event_fn;
 ZEND_API zend_async_new_process_event_t zend_async_new_process_event_fn;
 ZEND_API zend_async_new_thread_event_t zend_async_new_thread_event_fn;
 ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
+
+/* DNS API */
+
+ZEND_API zend_async_getnameinfo_t zend_async_getnameinfo_fn;
+ZEND_API zend_async_getaddrinfo_t zend_async_getaddrinfo_fn;
 
 /* Thread pool API */
 ZEND_API bool zend_async_thread_pool_is_enabled(void);

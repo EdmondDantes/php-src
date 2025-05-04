@@ -27,6 +27,12 @@ typedef struct _async_timer_event_t async_timer_event_t;
 typedef struct _async_signal_event_t async_signal_event_t;
 typedef struct _async_filesystem_event_t async_filesystem_event_t;
 
+typedef struct _async_process_event_t async_process_event_t;
+typedef struct _async_thread_event_t async_thread_event_t;
+
+typedef struct _async_dns_nameinfo_t async_dns_nameinfo_t;
+typedef struct _async_dns_addrinfo_t async_dns_addrinfo_t;
+
 struct _async_poll_event_t {
 	zend_async_poll_event_t event;
 	uv_poll_t uv_handle;
@@ -45,6 +51,16 @@ struct _async_signal_event_t {
 struct _async_filesystem_event_t {
 	zend_async_filesystem_event_t event;
 	uv_fs_event_t uv_handle;
+};
+
+struct _async_dns_nameinfo_t {
+	zend_async_dns_nameinfo_t event;
+	uv_getnameinfo_t uv_handle;
+};
+
+struct _async_dns_addrinfo_t {
+	zend_async_dns_addrinfo_t event;
+	uv_getaddrinfo_t uv_handle;
 };
 
 struct _async_process_event_t {

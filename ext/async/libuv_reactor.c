@@ -212,7 +212,7 @@ static void libuv_poll_dispose(zend_async_event_t *event)
 
 	if (event->loop_ref_count > 0) {
 		event->loop_ref_count = 1;
-		libuv_poll_stop(event);
+		event->stop(event);
 	}
 
 	zend_async_callbacks_free(event);
@@ -346,7 +346,7 @@ static void libuv_timer_dispose(zend_async_event_t *event)
 
 	if (event->loop_ref_count > 0) {
 		event->loop_ref_count = 1;
-		libuv_timer_stop(event);
+		event->stop(event);
 	}
 
 	zend_async_callbacks_free(event);
@@ -464,7 +464,7 @@ static void libuv_signal_dispose(zend_async_event_t *event)
 
     if (event->loop_ref_count > 0) {
         event->loop_ref_count = 1;
-        libuv_signal_stop(event);
+    	event->stop(event);
     }
 
     zend_async_callbacks_free(event);
@@ -611,7 +611,7 @@ static void libuv_filesystem_dispose(zend_async_event_t *event)
 
     if (event->loop_ref_count > 0) {
         event->loop_ref_count = 1;
-        libuv_filesystem_stop(event);
+    	event->stop(event);
     }
 
     zend_async_callbacks_free(event);
@@ -661,6 +661,216 @@ zend_async_filesystem_event_t* libuv_new_filesystem_event(zend_string * path, co
 }
 /* }}} */
 
+///////////////////////////////////////////////////////////////////////////////////
+/// DNS API
+///////////////////////////////////////////////////////////////////////////////////
+
+/* {{{ on_nameinfo_event */
+static void on_nameinfo_event(uv_getnameinfo_t *req, int status, const char *hostname, const char *service)
+{
+    async_dns_nameinfo_t *name_info = req->data;
+    zend_object *exception = NULL;
+
+	name_info->event.hostname = NULL;
+	name_info->event.service = NULL;
+
+    if (UNEXPECTED(status < 0)) {
+        exception = async_new_exception(
+            async_ce_dns_exception, "DNS error: %s", uv_strerror(status)
+        );
+
+    	zend_async_callbacks_notify(&name_info->event.base, NULL, exception);
+
+    	if (exception != NULL) {
+            zend_object_release(exception);
+        }
+
+    	return;
+    }
+
+	name_info->event.hostname = hostname;
+	name_info->event.service = service;
+
+    zend_async_callbacks_notify(&name_info->event.base, NULL, NULL);
+
+    IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_dns_nameinfo_start */
+static void libuv_dns_nameinfo_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+	event->loop_ref_count++;
+	ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_dns_nameinfo_stop */
+static void libuv_dns_nameinfo_stop(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 1) {
+		event->loop_ref_count--;
+		return;
+	}
+
+	event->loop_ref_count = 0;
+	ASYNC_G(active_event_count)--;
+}
+/* }}} */
+
+/* {{{ libuv_dns_nameinfo_dispose */
+static void libuv_dns_nameinfo_dispose(zend_async_event_t *event)
+{
+	if (event->ref_count > 1) {
+		event->ref_count--;
+		return;
+	}
+
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count = 1;
+		event->stop(event);
+	}
+
+	zend_async_callbacks_free(event);
+
+	async_dns_nameinfo_t *name_info = (async_dns_nameinfo_t *)(event);
+
+	uv_close((uv_handle_t *)&name_info->uv_handle, libuv_close_handle_cb);
+
+	pefree(event, 0);
+}
+/* }}} */
+
+/* {{{ libuv_getnameinfo */
+static zend_async_dns_nameinfo_t * libuv_getnameinfo(const struct sockaddr *addr, int flags)
+{
+	async_dns_nameinfo_t *name_info = pecalloc(1, sizeof(async_dns_nameinfo_t), 0);
+
+	const int error = uv_getnameinfo(
+		UVLOOP, &name_info->uv_handle, on_nameinfo_event, (const struct sockaddr*) &addr, flags
+	);
+
+	if (error < 0) {
+		async_throw_error("Failed to initialize getnameinfo handle: %s", uv_strerror(error));
+		pefree(name_info, 0);
+		return NULL;
+	}
+
+	name_info->uv_handle.data = name_info;
+
+	name_info->event.base.add_callback = libuv_add_callback;
+	name_info->event.base.del_callback = libuv_remove_callback;
+	name_info->event.base.start = libuv_dns_nameinfo_start;
+	name_info->event.base.stop = libuv_dns_nameinfo_stop;
+	name_info->event.base.dispose = libuv_dns_nameinfo_dispose;
+
+	return &name_info->event;
+}
+/* }}} */
+
+/* {{{ on_addrinfo_event */
+static void on_addrinfo_event(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+	async_dns_addrinfo_t *addr_info = req->data;
+	zend_object *exception = NULL;
+
+	if (status < 0) {
+		exception = async_new_exception(
+			async_ce_dns_exception, "DNS error: %s", uv_strerror(status)
+		);
+	}
+
+	zend_async_callbacks_notify(&addr_info->event.base, res, exception);
+
+	if (exception != NULL) {
+		zend_object_release(exception);
+	}
+
+	IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_dns_getaddrinfo_start */
+static void libuv_dns_getaddrinfo_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+	event->loop_ref_count++;
+	ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_dns_getaddrinfo_stop */
+static void libuv_dns_getaddrinfo_stop(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 1) {
+		event->loop_ref_count--;
+		return;
+	}
+
+	event->loop_ref_count = 0;
+	ASYNC_G(active_event_count)--;
+}
+/* }}} */
+
+/* {{{ libuv_dns_getaddrinfo_dispose */
+static void libuv_dns_getaddrinfo_dispose(zend_async_event_t *event)
+{
+	if (event->ref_count > 1) {
+		event->ref_count--;
+		return;
+	}
+
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count = 1;
+		event->stop(event);
+	}
+
+	zend_async_callbacks_free(event);
+
+	async_dns_addrinfo_t *addr_info = (async_dns_addrinfo_t *)(event);
+
+	uv_close((uv_handle_t *)&addr_info->uv_handle, libuv_close_handle_cb);
+
+	pefree(event, 0);
+}
+/* }}} */
+
+/* {{{ libuv_getaddrinfo */
+static zend_async_dns_addrinfo_t* libuv_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints)
+{
+	async_dns_addrinfo_t *addr_info = pecalloc(1, sizeof(async_dns_nameinfo_t), 0);
+
+	const int error = uv_getaddrinfo(
+		UVLOOP, &addr_info->uv_handle, on_addrinfo_event, node, service, hints
+	);
+
+	if (error < 0) {
+		async_throw_error("Failed to initialize getaddrinfo handle: %s", uv_strerror(error));
+		pefree(addr_info, 0);
+		return NULL;
+	}
+
+	addr_info->uv_handle.data = addr_info;
+
+	addr_info->event.base.add_callback = libuv_add_callback;
+	addr_info->event.base.del_callback = libuv_remove_callback;
+	addr_info->event.base.start = libuv_dns_getaddrinfo_start;
+	addr_info->event.base.stop = libuv_dns_getaddrinfo_stop;
+	addr_info->event.base.dispose = libuv_dns_getaddrinfo_dispose;
+
+	return &addr_info->event;
+}
+/* }}} */
+
 void async_libuv_reactor_register(void)
 {
 	zend_string * module_name = zend_string_init(LIBUV_REACTOR_NAME, sizeof(LIBUV_REACTOR_NAME) - 1, 0);
@@ -678,7 +888,9 @@ void async_libuv_reactor_register(void)
 		libuv_new_signal_event,
 		libuv_new_process_event,
 		libuv_new_thread_event,
-		libuv_new_filesystem_event
+		libuv_new_filesystem_event,
+		libuv_getnameinfo,
+		libuv_getaddrinfo
 	);
 
 	zend_string_release(module_name);
