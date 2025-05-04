@@ -276,6 +276,89 @@ zend_async_poll_event_t* libuv_new_socket_event(zend_socket_t socket, async_poll
 /// Timer API
 /////////////////////////////////////////////////////////////////////////////////
 
+/* {{{ on_timer_event */
+static void on_timer_event(uv_timer_t *handle)
+{
+	async_timer_event_t *poll = handle->data;
+
+	zend_async_callbacks_notify(&poll->event.base, NULL, NULL);
+
+	IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_timer_start */
+static void libuv_timer_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+	async_timer_event_t *timer = (async_timer_event_t *)(event);
+
+	const int error = uv_timer_start(
+		&timer->uv_handle,
+		on_timer_event,
+		timer->event.timeout,
+		timer->event.is_periodic ? timer->event.timeout : 0
+	);
+
+	if (error < 0) {
+		async_throw_error("Failed to start timer handle: %s", uv_strerror(error));
+		return;
+	}
+
+	event->loop_ref_count++;
+	ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_timer_stop */
+static void libuv_timer_stop(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 1) {
+		event->loop_ref_count--;
+		return;
+	}
+
+	async_timer_event_t *timer = (async_timer_event_t *)(event);
+
+	const int error = uv_timer_stop(&timer->uv_handle);
+
+	event->loop_ref_count = 0;
+	ASYNC_G(active_event_count)--;
+
+	if (error < 0) {
+		async_throw_error("Failed to stop timer handle: %s", uv_strerror(error));
+		return;
+	}
+}
+/* }}} */
+
+/* {{{ libuv_timer_dispose */
+static void libuv_timer_dispose(zend_async_event_t *event)
+{
+	if (event->ref_count > 1) {
+		event->ref_count--;
+		return;
+	}
+
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count = 1;
+		libuv_timer_stop(event);
+	}
+
+	zend_async_callbacks_free(event);
+
+	async_timer_event_t *timer = (async_timer_event_t *)(event);
+
+	uv_close((uv_handle_t *)&timer->uv_handle, libuv_close_handle_cb);
+
+	pefree(event, 0);
+}
+/* }}} */
+
 /* {{{ libuv_new_timer_event */
 zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const bool is_periodic)
 {
@@ -295,13 +378,128 @@ zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const 
 	}
 
 	event->uv_handle.data = event;
+	event->event.timeout = timeout;
+	event->event.is_periodic = is_periodic;
+
+	event->event.base.add_callback = libuv_add_callback;
+	event->event.base.del_callback = libuv_remove_callback;
+	event->event.base.start = libuv_timer_start;
+	event->event.base.stop = libuv_timer_stop;
+	event->event.base.dispose = libuv_timer_dispose;
+
+	return &event->event;
+}
+/* }}} */
+
+/////////////////////////////////////////////////////////////////////////////////
+///// Signal API
+////////////////////////////////////////////////////////////////////////////////
+
+/* {{{ on_signal_event */
+static void on_signal_event(uv_signal_t *handle, int signum)
+{
+    async_signal_event_t *signal = handle->data;
+
+    zend_async_callbacks_notify(&signal->event.base, &signum, NULL);
+
+    IF_EXCEPTION_STOP_REACTOR;
+}
+/* }}} */
+
+/* {{{ libuv_signal_start */
+static void libuv_signal_start(zend_async_event_t *event)
+{
+    if (event->loop_ref_count > 0) {
+        event->loop_ref_count++;
+        return;
+    }
+
+    async_signal_event_t *signal = (async_signal_event_t *)(event);
+
+    const int error = uv_signal_start(
+        &signal->uv_handle,
+        on_signal_event,
+        signal->event.signal
+    );
+
+    if (error < 0) {
+        async_throw_error("Failed to start signal handle: %s", uv_strerror(error));
+        return;
+    }
+
+    event->loop_ref_count++;
+    ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_signal_stop */
+static void libuv_signal_stop(zend_async_event_t *event)
+{
+    if (event->loop_ref_count > 1) {
+        event->loop_ref_count--;
+        return;
+    }
+
+    async_signal_event_t *signal = (async_signal_event_t *)(event);
+
+    const int error = uv_signal_stop(&signal->uv_handle);
+
+    event->loop_ref_count = 0;
+    ASYNC_G(active_event_count)--;
+
+    if (error < 0) {
+        async_throw_error("Failed to stop signal handle: %s", uv_strerror(error));
+        return;
+    }
+}
+/* }}} */
+
+/* {{{ libuv_signal_dispose */
+static void libuv_signal_dispose(zend_async_event_t *event)
+{
+    if (event->ref_count > 1) {
+        event->ref_count--;
+        return;
+    }
+
+    if (event->loop_ref_count > 0) {
+        event->loop_ref_count = 1;
+        libuv_signal_stop(event);
+    }
+
+    zend_async_callbacks_free(event);
+
+    async_signal_event_t *signal = (async_signal_event_t *)(event);
+
+    uv_close((uv_handle_t *)&signal->uv_handle, libuv_close_handle_cb);
+
+    pefree(event, 0);
 }
 /* }}} */
 
 /* {{{ libuv_new_signal_event */
-void libuv_new_signal_event(zend_async_signal_event_t *signal_event)
+zend_async_signal_event_t* libuv_new_signal_event(int signum)
 {
-    //TODO: libuv_new_signal_event
+    async_signal_event_t *signal = pecalloc(1, sizeof(async_signal_event_t), 0);
+
+    const int error = uv_signal_init(UVLOOP, &signal->uv_handle);
+
+    if (error < 0) {
+        async_throw_error("Failed to initialize signal handle: %s", uv_strerror(error));
+        pefree(signal, 0);
+        return NULL;
+    }
+
+    signal->uv_handle.data = signal;
+    signal->event.signal = signum;
+
+    signal->event.base.add_callback = libuv_add_callback;
+    signal->event.base.del_callback = libuv_remove_callback;
+    signal->event.base.start = libuv_signal_start;
+    signal->event.base.stop = libuv_signal_stop;
+    signal->event.base.dispose = libuv_signal_dispose;
+
+    return &signal->event;
 }
 /* }}} */
 

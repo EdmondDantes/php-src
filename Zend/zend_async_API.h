@@ -226,10 +226,15 @@ struct _zend_async_poll_event_t {
 
 struct _zend_async_timer_event_t {
 	zend_async_event_t base;
+	/* The timeout in milliseconds. */
+	unsigned int timeout;
+	/* The timer is periodic. */
+	bool is_periodic;
 };
 
 struct _zend_async_signal_event_t {
 	zend_async_event_t base;
+	int signal;
 };
 
 struct _zend_async_process_event_t {
