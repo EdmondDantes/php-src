@@ -22,6 +22,11 @@ class AsyncException extends \Exception {}
 class InputOutputException extends \Exception {}
 
 /**
+ * Exception for Dns related errors: getaddrinfo and getnameinfo.
+ */
+class DnsException extends \Exception {}
+
+/**
  * Exception thrown when a timeout occurs.
  */
 class TimeoutException extends \Exception {}

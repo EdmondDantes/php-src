@@ -29,6 +29,7 @@ void async_register_exceptions_ce(void)
 	async_ce_input_output_exception = register_class_Async_InputOutputException(exception_ce);
 	async_ce_timeout_exception = register_class_Async_TimeoutException(exception_ce);
 	async_ce_poll_exception = register_class_Async_PollException(exception_ce);
+	async_ce_dns_exception = register_class_Async_DnsException(exception_ce);
 }
 
 zend_object * async_new_exception(zend_class_entry *exception_ce, const char *format, ...)
