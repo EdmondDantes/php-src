@@ -417,7 +417,9 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_signal_event_t new_signal_event_fn,
     zend_async_new_process_event_t new_process_event_fn,
     zend_async_new_thread_event_t new_thread_event_fn,
-    zend_async_new_filesystem_event_t new_filesystem_event_fn
+    zend_async_new_filesystem_event_t new_filesystem_event_fn,
+    zend_async_getnameinfo_t getnameinfo_fn,
+    zend_async_getaddrinfo_t getaddrinfo_fn
 );
 
 ZEND_API void zend_async_thread_pool_register(
