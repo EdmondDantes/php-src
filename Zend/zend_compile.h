@@ -637,8 +637,11 @@ struct _zend_backtrace_frame {
 	zend_string *function_name;
 	zend_string *filename;
 	uint32_t lineno;
+	zend_uchar call_type;			/* ZEND_CALL_NESTED_FUNC | ZEND_CALL_TOP | ZEND_CALL_NESTED_CODE | ZEND_CALL_TOP_CODE */
+	zend_object *object;            /* PROVIDE_OBJECT */
+	zend_backtrace_frame *prev;		/* previous frame. Can be NULL */
 	uint32_t num_args;
-	zval *args; /* can be NULL */
+	zval *args;						/* can be NULL */
 };
 
 /* The following structure is used to store the backtrace-frame reference information */

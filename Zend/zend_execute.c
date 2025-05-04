@@ -5849,4 +5849,24 @@ ZEND_API void zend_generate_backtrace_frame(zend_backtrace_reference *backtrace_
 	backtrace_reference->source = NULL;
 
 	zend_hash_index_del(EG(deferred_backtrace_frames), (zend_ulong) call);
+
+	const zend_function *func = call->func;
+
+	if (func->common.function_name) {
+		bt_frame->function_name = zend_string_copy(func->common.function_name);
+	}
+
+	// File and line number
+	if (ZEND_USER_CODE(func->common.type)) {
+		bt_frame->filename = zend_string_copy(func->op_array.filename);
+		if (call->opline && call->opline->opcode == ZEND_HANDLE_EXCEPTION) {
+			if (EG(opline_before_exception)) {
+				bt_frame->lineno = EG(opline_before_exception)->lineno;
+			} else {
+				bt_frame->lineno = func->op_array.line_end;
+			}
+		} else if (call->opline) {
+			bt_frame->lineno = call->opline->lineno;
+		}
+	}
 }
