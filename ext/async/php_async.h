@@ -63,4 +63,16 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 ZEND_TSRMLS_CACHE_EXTERN()
 # endif
 
+#define DECREASE_EVENT_HANDLE_COUNT  if (ASYNC_G(active_event_count) > 0) { \
+		ASYNC_G(active_event_count)--; \
+	} else { \
+		ZEND_ASSERT("The event handle count is already zero."); \
+	}
+
+#define DECREASE_COROUTINE_COUNT  if (ASYNC_G(active_coroutine_count) > 0) { \
+		ASYNC_G(active_coroutine_count)--; \
+	} else { \
+		ZEND_ASSERT("The coroutine count is already zero."); \
+	}
+
 #endif //ASYNC_H

@@ -51,6 +51,8 @@ zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn = NULL;
 zend_async_getnameinfo_t zend_async_getnameinfo_fn = NULL;
 zend_async_getaddrinfo_t zend_async_getaddrinfo_fn = NULL;
 
+zend_async_exec_t zend_async_exec_fn = NULL;
+
 static zend_string * thread_pool_module_name = NULL;
 zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
@@ -133,7 +135,8 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_thread_event_t new_thread_event_fn,
     zend_async_new_filesystem_event_t new_filesystem_event_fn,
     zend_async_getnameinfo_t getnameinfo_fn,
-    zend_async_getaddrinfo_t getaddrinfo_fn
+    zend_async_getaddrinfo_t getaddrinfo_fn,
+    zend_async_exec_t exec_fn
 )
 {
 	if (reactor_module_name != NULL && false == allow_override) {
@@ -166,6 +169,8 @@ ZEND_API void zend_async_reactor_register(
 
 	zend_async_getnameinfo_fn = getnameinfo_fn;
 	zend_async_getaddrinfo_fn = getaddrinfo_fn;
+
+	zend_async_exec_fn = exec_fn;
 }
 
 ZEND_API void zend_async_thread_pool_register(zend_string *module, bool allow_override, zend_async_queue_task_t queue_task_fn)

@@ -43,6 +43,22 @@ typedef int zend_socket_t;
 #endif
 
 /**
+ * php_exec
+ * If type==0, only last line of output is returned (exec)
+ * If type==1, all lines will be printed and last lined returned (system)
+ * If type==2, all lines will be saved to given array (exec with &$array)
+ * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
+ * If type==4, output will be saved to a memory buffer (shell_exec)
+ */
+typedef enum {
+	ZEND_ASYNC_EXEC_MODE_EXEC = 0,
+	ZEND_ASYNC_EXEC_MODE_SYSTEM = 1,
+	ZEND_ASYNC_EXEC_MODE_EXEC_ARRAY = 2,
+	ZEND_ASYNC_EXEC_MODE_PASSTHRU = 3,
+	ZEND_ASYNC_EXEC_MODE_SHELL_EXEC = 4
+} zend_async_exec_mode;
+
+/**
  * zend_coroutine_t is a Basic data structure that represents a coroutine in the Zend Engine.
  */
 typedef struct _zend_coroutine_t zend_coroutine_t;
@@ -75,6 +91,8 @@ typedef struct _zend_async_thread_event_t zend_async_thread_event_t;
 typedef struct _zend_async_dns_nameinfo_t zend_async_dns_nameinfo_t;
 typedef struct _zend_async_dns_addrinfo_t zend_async_dns_addrinfo_t;
 
+typedef struct _zend_async_exec_event_t zend_async_exec_event_t;
+
 typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
@@ -93,7 +111,9 @@ typedef bool (*zend_async_reactor_execute_t)(bool no_wait);
 typedef bool (*zend_async_reactor_loop_alive_t)();
 
 typedef zend_async_poll_event_t* (*zend_async_new_socket_event_t)(zend_socket_t socket, async_poll_event events);
-typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events);
+typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(
+	zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events
+);
 typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(int timeout, bool is_periodic);
 typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum);
 typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
@@ -101,7 +121,19 @@ typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)();
 typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags);
 
 typedef zend_async_dns_nameinfo_t* (*zend_async_getnameinfo_t)(const struct sockaddr* addr, int flags);
-typedef zend_async_dns_addrinfo_t* (*zend_async_getaddrinfo_t)(const char *node, const char *service, const struct addrinfo *hints, int flags);
+typedef zend_async_dns_addrinfo_t* (*zend_async_getaddrinfo_t)(
+	const char *node, const char *service, const struct addrinfo *hints, int flags
+);
+
+typedef int (* zend_async_exec_t)(
+	zend_async_exec_mode exec_mode,
+	const char *cmd,
+	zval *return_buffer,
+	zval *return_value,
+	const char *cwd,
+	const char *env,
+	zend_long timeout
+);
 
 typedef void (*zend_async_queue_task_t)(zend_async_task_t *task);
 
@@ -273,6 +305,19 @@ struct _zend_async_dns_addrinfo_t {
 	int flags;
 };
 
+struct _zend_async_exec_event_t
+{
+	zend_async_event_t base;
+	zend_async_exec_mode exec_mode;
+	bool terminated;
+	char * cmd;
+	zval * return_value;
+	zval * result_buffer;
+	size_t output_len;
+	char * output_buffer;
+	zval * std_error;
+};
+
 struct _zend_async_task_t {
 	zend_async_event_t base;
 };
@@ -386,6 +431,9 @@ ZEND_API zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn;
 ZEND_API zend_async_getnameinfo_t zend_async_getnameinfo_fn;
 ZEND_API zend_async_getaddrinfo_t zend_async_getaddrinfo_fn;
 
+/* Exec API */
+ZEND_API zend_async_exec_t zend_async_exec_fn;
+
 /* Thread pool API */
 ZEND_API bool zend_async_thread_pool_is_enabled(void);
 ZEND_API zend_async_queue_task_t zend_async_queue_task_fn;
@@ -419,7 +467,8 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_thread_event_t new_thread_event_fn,
     zend_async_new_filesystem_event_t new_filesystem_event_fn,
     zend_async_getnameinfo_t getnameinfo_fn,
-    zend_async_getaddrinfo_t getaddrinfo_fn
+    zend_async_getaddrinfo_t getaddrinfo_fn,
+    zend_async_exec_t exec_fn
 );
 
 ZEND_API void zend_async_thread_pool_register(
@@ -457,5 +506,11 @@ END_EXTERN_C()
 #define ZEND_ASYNC_NEW_PROCESS_EVENT() zend_async_new_process_event_fn()
 #define ZEND_ASYNC_NEW_THREAD_EVENT() zend_async_new_thread_event_fn()
 #define ZEND_ASYNC_NEW_FILESYSTEM_EVENT(path, flags) zend_async_new_filesystem_event_fn(path, flags)
+
+#define ZEND_ASYNC_GETNAMEINFO(addr, flags) zend_async_getnameinfo_fn(addr, flags)
+#define ZEND_ASYNC_GETADDRINFO(node, service, hints, flags) zend_async_getaddrinfo_fn(node, service, hints, flags)
+
+#define ZEND_ASYNC_EXEC(exec_mode, cmd, return_buffer, return_value, cwd, env, timeout) \
+	zend_async_exec_fn(exec_mode, cmd, return_buffer, return_value, cwd, env, timeout)
 
 #define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)
