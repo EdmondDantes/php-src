@@ -27,6 +27,20 @@ typedef enum {
 	ASYNC_PRIORITIZED = 8
 } async_poll_event;
 
+/* Signal Constants */
+#define ZEND_ASYNC_SIGHUP    1
+#define ZEND_ASYNC_SIGINT    2
+#define ZEND_ASYNC_SIGQUIT   3
+#define ZEND_ASYNC_SIGILL    4
+#define ZEND_ASYNC_SIGABRT_COMPAT 6
+#define ZEND_ASYNC_SIGFPE    8
+#define ZEND_ASYNC_SIGKILL   9
+#define ZEND_ASYNC_SIGSEGV   11
+#define ZEND_ASYNC_SIGTERM   15
+#define ZEND_ASYNC_SIGBREAK  21
+#define ZEND_ASYNC_SIGABRT   22
+#define ZEND_ASYNC_SIGWINCH  28
+
 //
 // Definitions compatibles with proc_open()
 //
@@ -125,11 +139,22 @@ typedef zend_async_dns_addrinfo_t* (*zend_async_getaddrinfo_t)(
 	const char *node, const char *service, const struct addrinfo *hints, int flags
 );
 
-typedef int (* zend_async_exec_t)(
+typedef zend_async_exec_event_t* (*zend_async_new_exec_event_t) (
 	zend_async_exec_mode exec_mode,
 	const char *cmd,
 	zval *return_buffer,
 	zval *return_value,
+	zval *std_error,
+	const char *cwd,
+	const char *env
+);
+
+typedef int (* zend_async_exec_t) (
+	zend_async_exec_mode exec_mode,
+	const char *cmd,
+	zval *return_buffer,
+	zval *return_value,
+	zval *std_error,
 	const char *cwd,
 	const char *env,
 	zend_long timeout
@@ -432,6 +457,7 @@ ZEND_API zend_async_getnameinfo_t zend_async_getnameinfo_fn;
 ZEND_API zend_async_getaddrinfo_t zend_async_getaddrinfo_fn;
 
 /* Exec API */
+ZEND_API zend_async_new_exec_event_t zend_async_new_exec_event_fn;
 ZEND_API zend_async_exec_t zend_async_exec_fn;
 
 /* Thread pool API */
@@ -468,6 +494,7 @@ ZEND_API void zend_async_reactor_register(
     zend_async_new_filesystem_event_t new_filesystem_event_fn,
     zend_async_getnameinfo_t getnameinfo_fn,
     zend_async_getaddrinfo_t getaddrinfo_fn,
+    zend_async_new_exec_event_t new_exec_event_fn,
     zend_async_exec_t exec_fn
 );
 
@@ -510,7 +537,9 @@ END_EXTERN_C()
 #define ZEND_ASYNC_GETNAMEINFO(addr, flags) zend_async_getnameinfo_fn(addr, flags)
 #define ZEND_ASYNC_GETADDRINFO(node, service, hints, flags) zend_async_getaddrinfo_fn(node, service, hints, flags)
 
-#define ZEND_ASYNC_EXEC(exec_mode, cmd, return_buffer, return_value, cwd, env, timeout) \
-	zend_async_exec_fn(exec_mode, cmd, return_buffer, return_value, cwd, env, timeout)
+#define ZEND_ASYNC_NEW_EXEC_EVENT(exec_mode, cmd, return_buffer, return_value, std_error, cwd, env) \
+	zend_async_new_exec_event_fn(exec_mode, cmd, return_buffer, return_value, std_error, cwd, env)
+#define ZEND_ASYNC_EXEC(exec_mode, cmd, return_buffer, return_value, std_error, cwd, env, timeout) \
+	zend_async_exec_fn(exec_mode, cmd, return_buffer, return_value, std_error, cwd, env, timeout)
 
 #define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)

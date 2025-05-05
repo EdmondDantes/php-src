@@ -80,6 +80,10 @@ struct _async_exec_event_t {
 	uv_process_t * process;
 	uv_pipe_t * stdout_pipe;
 	uv_pipe_t * stderr_pipe;
+	uv_process_options_t options;
+#ifdef PHP_WIN32
+	char * quoted_cmd;
+#endif
 };
 
 void async_libuv_reactor_register(void);

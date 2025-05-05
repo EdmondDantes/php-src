@@ -994,13 +994,16 @@ static void exec_std_err_read_cb(uv_stream_t *stream, ssize_t nread, const uv_bu
 	zend_async_exec_event_t * exec = &event->event;
 
 	if (nread > 0) {
-		if (Z_TYPE_P(exec->std_error) != IS_STRING) {
-			ZVAL_NEW_STR(exec->std_error, zend_string_init(buf->base, nread, 0));
-		} else {
-			zend_string * string = Z_STR_P(exec->std_error);
-			string = zend_string_extend(string, ZSTR_LEN(string) + nread, 0);
-			memcpy(ZSTR_VAL(string) + ZSTR_LEN(string) - nread, buf->base, nread);
-			ZVAL_STR(exec->std_error, string);
+
+		if (exec->std_error != NULL) {
+			if (Z_TYPE_P(exec->std_error) != IS_STRING) {
+				ZVAL_NEW_STR(exec->std_error, zend_string_init(buf->base, nread, 0));
+			} else {
+				zend_string * string = Z_STR_P(exec->std_error);
+				string = zend_string_extend(string, ZSTR_LEN(string) + nread, 0);
+				memcpy(ZSTR_VAL(string) + ZSTR_LEN(string) - nread, buf->base, nread);
+				ZVAL_STR(exec->std_error, string);
+			}
 		}
 
 	} else if (nread < 0) {
@@ -1014,71 +1017,152 @@ static void exec_std_err_read_cb(uv_stream_t *stream, ssize_t nread, const uv_bu
 
 	efree(buf->base);
 }
+/* }}} */
 
-/* {{{ libuv_exec */
-static int libuv_exec(
+/* {{{ libuv_exec_start */
+static void libuv_exec_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+	async_exec_event_t *exec = (async_exec_event_t *)(event);
+
+	if (exec->process == NULL) {
+		return;
+	}
+
+	event->loop_ref_count++;
+	ASYNC_G(active_event_count)++;
+}
+/* }}} */
+
+/* {{{ libuv_exec_stop */
+static void libuv_exec_stop(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 1) {
+		event->loop_ref_count--;
+		return;
+	}
+
+	async_exec_event_t *exec = (async_exec_event_t *)(event);
+
+	if (exec->process == NULL) {
+		return;
+	}
+
+	event->loop_ref_count = 0;
+	ASYNC_G(active_event_count)--;
+
+	if (exec->process != NULL) {
+		uv_process_kill(exec->process, ZEND_ASYNC_SIGTERM);
+	}
+}
+/* }}} */
+
+/* {{{ libuv_exec_dispose */
+static void libuv_exec_dispose(zend_async_event_t *event)
+{
+    if (event->ref_count > 1) {
+        event->ref_count--;
+        return;
+    }
+
+    if (event->loop_ref_count > 0) {
+        event->loop_ref_count = 1;
+        event->stop(event);
+    }
+
+    zend_async_callbacks_free(event);
+
+    async_exec_event_t *exec = (async_exec_event_t *)(event);
+
+    if (exec->event.output_buffer != NULL) {
+        efree(exec->event.output_buffer);
+        exec->event.output_buffer = NULL;
+        exec->event.output_len = 0;
+    }
+
+    if (exec->process != NULL && !uv_is_closing((uv_handle_t *)exec->process)) {
+        uv_process_kill(exec->process, ZEND_ASYNC_SIGTERM);
+        uv_close((uv_handle_t *)exec->process, libuv_close_handle_cb);
+        exec->process = NULL;
+    }
+
+    if (exec->stdout_pipe != NULL && !uv_is_closing((uv_handle_t *)exec->stdout_pipe)) {
+        uv_read_stop((uv_stream_t *)exec->stdout_pipe);
+        uv_close((uv_handle_t *)exec->stdout_pipe, libuv_close_handle_cb);
+        exec->stdout_pipe = NULL;
+    }
+
+    if (exec->stderr_pipe != NULL && !uv_is_closing((uv_handle_t *)exec->stderr_pipe)) {
+        uv_read_stop((uv_stream_t *)exec->stderr_pipe);
+        uv_close((uv_handle_t *)exec->stderr_pipe, libuv_close_handle_cb);
+        exec->stderr_pipe = NULL;
+    }
+
+#ifdef PHP_WIN32
+    if (exec->quoted_cmd != NULL) {
+        efree(exec->quoted_cmd);
+        exec->quoted_cmd = NULL;
+    }
+#endif
+
+    pefree(event, 0);
+}
+/* }}} */
+
+/* {{{ libuv_new_process_event */
+static zend_async_exec_event_t * libuv_new_exec_event(
 	zend_async_exec_mode exec_mode,
 	const char *cmd,
 	zval *return_buffer,
 	zval *return_value,
+	zval *std_error,
 	const char *cwd,
-	const char *env,
-	zend_long timeout
+	const char *env
 )
 {
-	zval tmp_return_value, tmp_return_buffer, tmp_std_error;
-
-	ZVAL_UNDEF(&tmp_return_value);
-	ZVAL_UNDEF(&tmp_return_buffer);
-	ZVAL_UNDEF(&tmp_std_error);
-
-	uv_process_options_t options = {0};
-
-	async_resume_t *resume = async_new_resume_with_timeout(NULL, timeout, NULL);
-
-	if (UNEXPECTED(EG(exception) != NULL)) {
-		return FAILURE;
-	}
-
 	async_exec_event_t * exec = pecalloc(1, sizeof(async_exec_event_t), 0);
 	zend_async_exec_event_t * base = &exec->event;
+	uv_process_options_t *options = &exec->options;
 
 	if (exec == NULL || EG(exception)) {
-		OBJ_RELEASE(&resume->std);
-        return FAILURE;
+        return NULL;
     }
 
 	base->exec_mode = exec_mode;
 	base->cmd = (char *) cmd;
-	base->return_value = return_value != NULL ? return_value : &tmp_return_value;
-	base->result_buffer = return_buffer != NULL ? return_buffer : &tmp_return_buffer;
-	base->std_error = &tmp_std_error;
+	base->return_value = return_value;
+	base->result_buffer = return_buffer;
+	base->std_error = std_error;
 
 	exec->process = pecalloc(sizeof(uv_process_t), 1, 0);
 	exec->stdout_pipe = pecalloc(sizeof(uv_pipe_t), 1, 0);
 	exec->stderr_pipe = pecalloc(sizeof(uv_pipe_t), 1, 0);
 
-	exec->process->data = libuv_exec;
-	exec->stdout_pipe->data = libuv_exec;
-	exec->stderr_pipe->data = libuv_exec;
+	exec->process->data = exec;
+	exec->stdout_pipe->data = exec;
+	exec->stderr_pipe->data = exec;
 
 	uv_pipe_init(UVLOOP, exec->stdout_pipe, 0);
 	uv_pipe_init(UVLOOP, exec->stderr_pipe, 0);
 
-	options.exit_cb = exec_on_exit;
+	options->exit_cb = exec_on_exit;
 #ifdef PHP_WIN32
-	options.flags = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-	options.file = "cmd.exe";
+	options->flags = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+	options->file = "cmd.exe";
 	size_t cmd_buffer_size = strlen(cmd) + 2;
-	char * quoted_cmd = emalloc(cmd_buffer_size);
-	snprintf(quoted_cmd, cmd_buffer_size, "\"%s\"", cmd);
-	options.args = (char*[]) { "cmd.exe", "/s", "/c", quoted_cmd, NULL };
+	exec->quoted_cmd = emalloc(cmd_buffer_size);
+	snprintf(exec->quoted_cmd, cmd_buffer_size, "\"%s\"", cmd);
+	options->args = (char*[]) { "cmd.exe", "/s", "/c", exec->quoted_cmd, NULL };
 #else
 	options.file = "/bin/sh";
 	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
 #endif
 
-	options.stdio = (uv_stdio_container_t[]) {
+	options->stdio = (uv_stdio_container_t[]) {
 	        { UV_IGNORE },
 			{
 				.data.stream = (uv_stream_t*) exec->stdout_pipe,
@@ -1090,17 +1174,17 @@ static int libuv_exec(
 			}
 	};
 
-	options.stdio_count = 3;
+	options->stdio_count = 3;
 
 	if(cwd != NULL && cwd[0] != '\0') {
-		options.cwd = cwd;
+		options->cwd = cwd;
 	}
 
 	if(env != NULL) {
-		options.env = (char **)env;
+		options->env = (char **)env;
 	}
 
-	const int result = uv_spawn(UVLOOP, exec->process, &options);
+	const int result = uv_spawn(UVLOOP, exec->process, options);
 
 	if (result) {
 		php_error_docref(NULL, E_WARNING, "Failed to spawn process: %s", uv_strerror(result));
@@ -1108,29 +1192,52 @@ static int libuv_exec(
 		uv_close((uv_handle_t *) exec->process, libuv_close_handle_cb);
 		exec->process = NULL;
 		exec->stdout_pipe = NULL;
-		OBJ_RELEASE(&resume->std);
-		return FAILURE;
+		return NULL;
 	}
 
 	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
 	uv_read_start((uv_stream_t*) exec->stderr_pipe, exec_std_err_alloc_cb, exec_std_err_read_cb);
 
-	async_resume_when(resume, &exec->notifier.notifier, true, async_resume_when_callback_resolve);
-
 	ASYNC_G(active_event_count)++;
 
-	async_wait(resume);
+	exec->event.base.add_callback = libuv_add_callback;
+	exec->event.base.del_callback = libuv_remove_callback;
+	exec->event.base.start = libuv_exec_start;
+	exec->event.base.stop = libuv_exec_stop;
+	exec->event.base.dispose = libuv_exec_dispose;
 
-#ifdef PHP_WIN32
-	efree(quoted_cmd);
-#endif
+	return &exec->event;
+}
+
+/* {{{ libuv_exec */
+static int libuv_exec(
+	zend_async_exec_mode exec_mode,
+	const char *cmd,
+	zval *return_buffer,
+	zval *return_value,
+	zval *std_error,
+	const char *cwd,
+	const char *env,
+	const zend_ulong timeout
+)
+{
+	zval tmp_return_value, tmp_return_buffer;
+
+	ZVAL_UNDEF(&tmp_return_value);
+	ZVAL_UNDEF(&tmp_return_buffer);
+
+	zend_async_exec_event_t * exec_event = ZEND_ASYNC_NEW_EXEC_EVENT(
+		exec_mode,
+		cmd,
+		return_buffer != NULL ? return_buffer : &tmp_return_buffer,
+		return_value != NULL ? return_value : &tmp_return_value,
+		std_error,
+		cwd,
+		env
+	);
 
 	zval_ptr_dtor(&tmp_return_value);
 	zval_ptr_dtor(&tmp_return_buffer);
-	zval_ptr_dtor(&tmp_std_error);
-
-	ZEND_ASSERT(GC_REFCOUNT(&resume->std) == 1 && "Resume object has references more than 1");
-	OBJ_RELEASE(&resume->std);
 
 	return 0;
 }
@@ -1156,6 +1263,7 @@ void async_libuv_reactor_register(void)
 		libuv_new_filesystem_event,
 		libuv_getnameinfo,
 		libuv_getaddrinfo,
+		libuv_new_exec_event,
 		libuv_exec
 	);
 
