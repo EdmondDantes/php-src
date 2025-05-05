@@ -503,12 +503,322 @@ zend_async_signal_event_t* libuv_new_signal_event(int signum)
 }
 /* }}} */
 
-/* {{{ libuv_new_process_event */
-void libuv_new_process_event(zend_async_process_event_t *process_event)
+/////////////////////////////////////////////////////////////////////////////////
+/// Process API
+/////////////////////////////////////////////////////////////////////////////////
+
+#ifdef PHP_WIN32
+static void process_watcher_thread(void * args)
 {
-    //TODO: libuv_new_process_event
+	libuv_reactor_t *reactor = (libuv_reactor_t *) args;
+
+	ULONG_PTR completionKey;
+
+	while (reactor->isRunning && reactor->ioCompletionPort != NULL) {
+
+		DWORD lpNumberOfBytesTransferred;
+		//OVERLAPPED overlapped = {0};
+		LPOVERLAPPED lpOverlapped = NULL;
+
+		if (false == GetQueuedCompletionStatus(
+			reactor->ioCompletionPort, &lpNumberOfBytesTransferred, &completionKey, &lpOverlapped, INFINITE)
+			)
+		{
+			break;
+		}
+
+		if (completionKey == 0) {
+			continue;
+		}
+
+		if (reactor->isRunning == false) {
+            break;
+        }
+
+		async_process_event_t * process_event = (async_process_event_t *) completionKey;
+
+		if (UNEXPECTED(circular_buffer_is_full(reactor->pid_queue))) {
+
+			uv_async_send(reactor->uvloop_wakeup);
+
+			unsigned int delay = 1;
+
+			while (reactor->isRunning && circular_buffer_is_full(reactor->pid_queue)) {
+				usleep(delay);
+				delay = MIN(delay << 1, 1000);
+			}
+
+			if (false == reactor->isRunning) {
+				break;
+			}
+        }
+
+		circular_buffer_push(reactor->pid_queue, &process_event, false);
+		uv_async_send(reactor->uvloop_wakeup);
+	}
+}
+
+static void libuv_start_process_watcher(void);
+static void libuv_stop_process_watcher(void);
+
+static void on_process_event(uv_async_t *handle)
+{
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
+
+	if (reactor->pid_queue == NULL || circular_buffer_is_empty(reactor->pid_queue)) {
+		return;
+	}
+
+	async_process_event_t * process_event;
+
+	while (reactor->pid_queue && circular_buffer_is_not_empty(reactor->pid_queue)) {
+		circular_buffer_pop(reactor->pid_queue, &process_event);
+
+		DWORD exit_code;
+		GetExitCodeProcess(process_event->hProcess, &exit_code);
+
+		process_event->event.exit_code = exit_code;
+
+		if (reactor->countWaitingDescriptors > 0) {
+			reactor->countWaitingDescriptors--;
+			DECREASE_EVENT_HANDLE_COUNT;
+
+			if (reactor->countWaitingDescriptors == 0) {
+				libuv_stop_process_watcher();
+			}
+        }
+
+		zend_async_callbacks_notify(&process_event->event.base, &exit_code, NULL);
+		IF_EXCEPTION_STOP_REACTOR;
+	}
+}
+
+static void libuv_start_process_watcher(void)
+{
+	if (WATCHER != NULL) {
+		return;
+	}
+
+	uv_thread_t *thread = pecalloc(1, sizeof(uv_thread_t), 0);
+
+	if (thread == NULL) {
+		return;
+	}
+
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
+
+	// Create IoCompletionPort
+	reactor->ioCompletionPort = CreateIoCompletionPort(
+		INVALID_HANDLE_VALUE, NULL, 0, 1
+	);
+
+	if (reactor->ioCompletionPort == NULL) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create IO completion port: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	reactor->isRunning = true;
+	reactor->countWaitingDescriptors = 0;
+
+	int error = uv_thread_create(thread, process_watcher_thread, reactor);
+
+	if (error < 0) {
+		uv_thread_detach(thread);
+		pefree(thread, 0);
+		reactor->isRunning = false;
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to create process watcher thread: %s", uv_strerror(error));
+		return;
+	}
+
+	WATCHER = thread;
+	reactor->uvloop_wakeup = pecalloc(1, sizeof(uv_async_t), 0);
+
+	error = uv_async_init(UVLOOP, reactor->uvloop_wakeup, on_process_event);
+	reactor->pid_queue = pecalloc(1, sizeof(circular_buffer_t), 0);
+	circular_buffer_ctor(reactor->pid_queue, 64, sizeof(async_process_event_t *), NULL);
+
+	if (error < 0) {
+		uv_thread_detach(thread);
+		reactor->isRunning = false;
+		pefree(thread, 0);
+		WATCHER = NULL;
+		php_error_docref(NULL, E_CORE_ERROR, "Failed to initialize async handle: %s", uv_strerror(error));
+	}
+}
+
+static void libuv_wakeup_close_cb(uv_handle_t *handle)
+{
+    pefree(handle, 0);
+}
+
+/* {{{ libuv_stop_process_watcher */
+static void libuv_stop_process_watcher(void)
+{
+	if (WATCHER == NULL) {
+		return;
+	}
+
+	libuv_reactor_t * reactor = LIBUV_REACTOR;
+
+	reactor->isRunning = false;
+
+	uv_close((uv_handle_t *) reactor->uvloop_wakeup, libuv_wakeup_close_cb);
+	reactor->uvloop_wakeup = NULL;
+
+	// send wake up event to stop the thread
+	PostQueuedCompletionStatus(reactor->ioCompletionPort, 0, (ULONG_PTR)0, NULL);
+	uv_thread_detach(WATCHER);
+	pefree(WATCHER, 0);
+	WATCHER = NULL;
+
+	// Stop IO completion port
+	CloseHandle(reactor->ioCompletionPort);
+	reactor->ioCompletionPort = NULL;
+
+	// Stop circular buffer
+	circular_buffer_destroy(reactor->pid_queue);
+	efree(reactor->pid_queue);
+	reactor->pid_queue = NULL;
 }
 /* }}} */
+
+/* {{{ libuv_process_event_start */
+static void libuv_process_event_start(zend_async_event_t *event)
+{
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count++;
+		return;
+	}
+
+	async_process_event_t *process = (async_process_event_t *)(event);
+
+	if (process->hJob != NULL) {
+		return;
+	}
+
+	DWORD exitCode;
+	if (GetExitCodeProcess(process->hProcess, &exitCode) && exitCode != STILL_ACTIVE) {
+		async_throw_error("Process has already terminated: %d", exitCode);
+		return;
+	}
+
+	process->hJob = CreateJobObject(NULL, NULL);
+
+	if (AssignProcessToJobObject(process->hJob, process->hProcess) == 0) {
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		async_throw_error("Failed to assign process to job object: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+		return;
+	}
+
+	if (WATCHER == NULL) {
+		libuv_start_process_watcher();
+	}
+
+	JOBOBJECT_ASSOCIATE_COMPLETION_PORT info = {0};
+	info.CompletionKey = (PVOID)process;
+	info.CompletionPort = LIBUV_REACTOR->ioCompletionPort;
+
+	if (!SetInformationJobObject(
+		process->hJob,
+		JobObjectAssociateCompletionPortInformation,
+		&info, sizeof(info)
+		)
+		)
+	{
+		CloseHandle(process->hJob);
+		char * error_msg = php_win32_error_to_msg((HRESULT) GetLastError());
+		async_throw_error("Failed to associate IO completion port with Job for process: %s", error_msg);
+		php_win32_error_msg_free(error_msg);
+	}
+
+	event->loop_ref_count++;
+	ASYNC_G(active_event_count)++;
+	LIBUV_REACTOR->countWaitingDescriptors++;
+}
+/* }}} */
+
+/* {{{ libuv_process_event_stop */
+static void libuv_process_event_stop(zend_async_process_event_t *event)
+{
+	async_process_event_t *process = (async_process_event_t *) event;
+
+	if (process->hJob != NULL) {
+		CloseHandle(process->hJob);
+		process->hJob = NULL;
+	}
+}
+/* }}} */
+
+#else
+// Unix process handle
+static void libuv_process_event_start(reactor_handle_t *handle)
+{
+	libuv_process_t *process = (libuv_process_t *) handle;
+
+}
+
+static void libuv_process_event_stop(reactor_handle_t *handle)
+{
+	libuv_process_t *process = (libuv_process_t *) handle;
+
+}
+#endif
+
+/* {{{ libuv_process_event_dispose */
+static void libuv_process_event_dispose(zend_async_event_t *event)
+{
+	if (event->ref_count > 1) {
+		event->ref_count--;
+		return;
+	}
+
+	if (event->loop_ref_count > 0) {
+		event->loop_ref_count = 1;
+		event->stop(event);
+	}
+
+	zend_async_callbacks_free(event);
+
+	async_process_event_t *process = (async_process_event_t *)(event);
+
+#ifdef PHP_WIN32
+	if (process->hProcess != NULL) {
+		CloseHandle(process->hProcess);
+		process->hProcess = NULL;
+	}
+
+	if (process->hJob != NULL) {
+		CloseHandle(process->hJob);
+		process->hJob = NULL;
+	}
+#endif
+
+	pefree(event, 0);
+}
+/* }}} */
+
+/* {{{ libuv_new_process_event */
+zend_async_process_event_t * libuv_new_process_event(zend_process_t process_handle)
+{
+	async_process_event_t *process_event = pecalloc(1, sizeof(async_process_event_t), 0);
+	process_event->event.process = process_handle;
+
+	process_event->event.base.add_callback = libuv_add_callback;
+	process_event->event.base.del_callback = libuv_remove_callback;
+	process_event->event.base.start = libuv_process_event_start;
+	process_event->event.base.stop = libuv_process_event_stop;
+	process_event->event.base.dispose = libuv_process_event_dispose;
+
+	return &process_event->event;
+}
+/* }}} */
+
+/////////////////////////////////////////////////////////////////////////////////
+/// Thread API
+/////////////////////////////////////////////////////////////////////////////////
 
 /* {{{ libuv_new_thread_event */
 void libuv_new_thread_event(zend_async_thread_event_t *thread_event)

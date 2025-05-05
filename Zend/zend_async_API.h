@@ -302,6 +302,8 @@ struct _zend_async_signal_event_t {
 
 struct _zend_async_process_event_t {
 	zend_async_event_t base;
+	zend_process_t process;
+	zend_long exit_code;
 };
 
 struct _zend_async_thread_event_t {
