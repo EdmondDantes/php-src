@@ -237,9 +237,15 @@ zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_so
 		poll->event.is_socket = true;
 		poll->event.socket = socket;
 	} else if (fh != NULL) {
+#ifdef PHP_WIN32
+		async_throw_error("Windows does not support file descriptor polling");
+		pefree(poll, 0);
+		return NULL;
+#else
 		error = uv_poll_init(UVLOOP, &poll->uv_handle, (int) fh);
 		poll->event.is_socket = false;
 		poll->event.file = fh;
+#endif
 	} else {
 
 	}
@@ -741,7 +747,7 @@ static void libuv_process_event_start(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_process_event_stop */
-static void libuv_process_event_stop(zend_async_process_event_t *event)
+static void libuv_process_event_stop(zend_async_event_t *event)
 {
 	async_process_event_t *process = (async_process_event_t *) event;
 
@@ -821,12 +827,13 @@ zend_async_process_event_t * libuv_new_process_event(zend_process_t process_hand
 /////////////////////////////////////////////////////////////////////////////////
 
 /* {{{ libuv_new_thread_event */
-void libuv_new_thread_event(zend_async_thread_event_t *thread_event)
+zend_async_thread_event_t * libuv_new_thread_event(zend_async_thread_entry_t entry, void *arg)
 {
     //TODO: libuv_new_thread_event
 	// We need to design a mechanism for creating a Thread and running a function
 	// in another thread in such a way that it can be awaited like an event.
 	//
+	return NULL;
 }
 /* }}} */
 

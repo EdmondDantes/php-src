@@ -128,15 +128,16 @@ typedef zend_async_poll_event_t* (*zend_async_new_socket_event_t)(zend_socket_t 
 typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(
 	zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events
 );
-typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(int timeout, bool is_periodic);
+typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(const zend_ulong timeout, const bool is_periodic);
 typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum);
 typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
-typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)();
+typedef void (*zend_async_thread_entry_t)(void *arg);
+typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)(zend_async_thread_entry_t entry, void *arg);
 typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags);
 
 typedef zend_async_dns_nameinfo_t* (*zend_async_getnameinfo_t)(const struct sockaddr* addr, int flags);
 typedef zend_async_dns_addrinfo_t* (*zend_async_getaddrinfo_t)(
-	const char *node, const char *service, const struct addrinfo *hints, int flags
+	const char *node, const char *service, const struct addrinfo *hints
 );
 
 typedef zend_async_exec_event_t* (*zend_async_new_exec_event_t) (
@@ -157,7 +158,7 @@ typedef int (* zend_async_exec_t) (
 	zval *std_error,
 	const char *cwd,
 	const char *env,
-	zend_long timeout
+	const zend_ulong timeout
 );
 
 typedef void (*zend_async_queue_task_t)(zend_async_task_t *task);

@@ -23,13 +23,18 @@
 #include "scheduler.h"
 #include "exceptions.h"
 #include "scope.h"
-#include "functions.h"
 #include "async_API.h"
+#include "async_arginfo.h"
 #ifdef PHP_ASYNC_LIBUV
 #include "libuv_reactor.h"
 #endif
 
 ZEND_DECLARE_MODULE_GLOBALS(async)
+
+void async_register_awaitable_ce(void)
+{
+	async_ce_awaitable = register_class_Async_Awaitable();
+}
 
 static PHP_GINIT_FUNCTION(async)
 {

@@ -4,7 +4,8 @@ ARG_ENABLE('async', 'Enable True Async API', 'no');
 ARG_WITH('async_libuv', 'Build True Async API with libuv support', 'no');
 
 if (PHP_ASYNC == "yes") {
-    ADD_SOURCES("ext/async","async.c scope.c scheduler.c exceptions.c zend_common.c");
+    EXTENSION("async", "async.c scope.c scheduler.c exceptions.c");
+    ADD_SOURCES("ext/async","zend_common.c");
     ADD_SOURCES("ext/async/internal", "allocator.c circular_buffer.c");
 
     ADD_FLAG("CFLAGS", "/D PHP_ASYNC");
