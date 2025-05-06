@@ -20,7 +20,7 @@
 
 #include "php_async.h"
 #include "ext/standard/info.h"
-#include "php_scheduler.h"
+#include "scheduler.h"
 #include "exceptions.h"
 #include "scope.h"
 #include "functions.h"

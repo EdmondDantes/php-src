@@ -17,7 +17,7 @@
 #include "coroutine_arginfo.h"
 #include "php_async.h"
 
-#include "php_scheduler.h"
+#include "scheduler.h"
 #include "zend_common.h"
 #include "zend_exceptions.h"
 #include "zend_ini.h"

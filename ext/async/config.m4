@@ -29,7 +29,7 @@ if test "$PHP_ASYNC" = "yes"; then
   )
 
   dnl Optionally install headers (if desired for public use).
-  PHP_INSTALL_HEADERS([ext/async], [php_async.h php_reactor.h php_scheduler.h])
+  PHP_INSTALL_HEADERS([ext/async], [php_async.h scheduler.h])
   PHP_INSTALL_HEADERS([ext/async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
 
   if test "$PHP_ASYNC_LIBUV" = "yes"; then

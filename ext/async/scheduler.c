@@ -17,7 +17,7 @@
 
 #include "coroutine.h"
 #include "internal/zval_circular_buffer.h"
-#include "php_scheduler.h"
+#include "scheduler.h"
 #include "php_async.h"
 #include "exceptions.h"
 #include "zend_common.h"
