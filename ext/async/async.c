@@ -29,6 +29,199 @@
 #include "libuv_reactor.h"
 #endif
 
+///////////////////////////////////////////////////////////////
+/// Module functions
+///////////////////////////////////////////////////////////////
+
+#define THROW_IF_SCHEDULER_CONTEXT if (UNEXPECTED(ZEND_IN_SCHEDULER_CONTEXT)) {				\
+		async_throw_error("The operation cannot be executed in the scheduler context");		\
+		RETURN_THROWS();																	\
+	}
+
+#define THROW_IF_ASYNC_OFF if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {								\
+		async_throw_error("The operation cannot be executed while async is off");			\
+		RETURN_THROWS();																	\
+	}
+
+PHP_FUNCTION(Async_spawn)
+{
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
+
+	zval *args = NULL;
+	int args_count = 0;
+	HashTable *named_args = NULL;
+
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_FUNC(fci, fcc);
+		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
+	ZEND_PARSE_PARAMETERS_END();
+
+	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN(NULL);
+
+	if (UNEXPECTED(EG(exception))) {
+		return;
+	}
+
+	zend_fcall_t * fcall = ecalloc(1, sizeof(zend_fcall_t));
+	fcall->fci = fci;
+	fcall->fci_cache = fcc;
+
+	if (args_count) {
+		fcall->fci.param_count = args_count;
+		fcall->fci.params = safe_emalloc(args_count, sizeof(zval), 0);
+
+		for (uint32_t i = 0; i < args_count; i++) {
+			ZVAL_COPY(&fcall->fci.params[i], &args[i]);
+		}
+	}
+
+	if (named_args) {
+		fcall->fci.named_params = named_args;
+		GC_ADDREF(named_args);
+	}
+
+	coroutine->coroutine.fcall = fcall;
+
+	RETURN_OBJ(&coroutine->std);
+}
+
+PHP_FUNCTION(Async_spawnWith)
+{
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
+
+	zval *args = NULL;
+	int args_count = 0;
+	HashTable *named_args = NULL;
+
+	zend_object * scope = NULL;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+
+	ZEND_PARSE_PARAMETERS_START(2, -1)
+		Z_PARAM_OBJ_OF_CLASS(scope, async_ce_scope_provider)
+		Z_PARAM_FUNC(fci, fcc);
+		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
+	ZEND_PARSE_PARAMETERS_END();
+
+	// @TODO: Check if scope is a valid scope provider
+
+	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN(scope);
+
+	if (UNEXPECTED(EG(exception))) {
+		return;
+	}
+
+	zend_fcall_t * fcall = ecalloc(1, sizeof(zend_fcall_t));
+	fcall->fci = fci;
+	fcall->fci_cache = fcc;
+
+	if (args_count) {
+		fcall->fci.param_count = args_count;
+		fcall->fci.params = safe_emalloc(args_count, sizeof(zval), 0);
+
+		for (uint32_t i = 0; i < args_count; i++) {
+			ZVAL_COPY(&fcall->fci.params[i], &args[i]);
+		}
+	}
+
+	if (named_args) {
+		fcall->fci.named_params = named_args;
+		GC_ADDREF(named_args);
+	}
+
+	coroutine->coroutine.fcall = fcall;
+
+	RETURN_OBJ(&coroutine->std);
+}
+
+PHP_FUNCTION(Async_suspend)
+{
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
+}
+
+PHP_FUNCTION(Async_protect)
+{
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
+}
+
+PHP_FUNCTION(Async_any)
+{
+
+}
+
+PHP_FUNCTION(Async_all)
+{
+
+}
+
+PHP_FUNCTION(Async_anyOff)
+{
+
+}
+
+PHP_FUNCTION(Async_captureErrors)
+{
+
+}
+
+PHP_FUNCTION(Async_delay)
+{
+
+}
+
+PHP_FUNCTION(Async_timeout)
+{
+
+}
+
+PHP_FUNCTION(Async_currentContext)
+{
+
+}
+
+PHP_FUNCTION(Async_coroutineContext)
+{
+
+}
+
+PHP_FUNCTION(Async_currentCoroutine)
+{
+
+}
+
+PHP_FUNCTION(Async_rootContext)
+{
+
+}
+
+PHP_FUNCTION(Async_getCoroutines)
+{
+
+}
+
+PHP_FUNCTION(Async_gracefulShutdown)
+{
+
+}
+
+/*
+PHP_FUNCTION(Async_exec)
+{
+
+}
+*/
+
+///////////////////////////////////////////////////////////////
+/// Register Async Module
+///////////////////////////////////////////////////////////////
+
 ZEND_DECLARE_MODULE_GLOBALS(async)
 
 void async_register_awaitable_ce(void)

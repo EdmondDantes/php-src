@@ -513,7 +513,7 @@ ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async
 END_EXTERN_C()
 
 #define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
-#define ZEND_ASYNC_SPAWN() zend_async_spawn_fn()
+#define ZEND_ASYNC_SPAWN(scope) zend_async_spawn_fn(scope)
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
 #define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine)

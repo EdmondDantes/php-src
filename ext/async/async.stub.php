@@ -7,16 +7,23 @@ namespace Async;
 interface Awaitable {}
 
 /**
- * Suspends the execution of a Coroutine until the Scheduler takes control.
+ * Returns the current Coroutine.
+ *
+ * @return Coroutine
  */
-function suspend(): void {}
+function spawn(callable $task, mixed ... $args): Coroutine {}
 
 /**
  * Returns the current Coroutine.
  *
  * @return Coroutine
  */
-function spawn(callable $task, mixed ... $args): Coroutine {}
+function spawnWith(ScopeProvider $provider, callable $task, mixed ... $args): Coroutine {}
+
+/**
+ * Suspends the execution of a Coroutine until the Scheduler takes control.
+ */
+function suspend(): void {}
 
 /**
  * Execute the provided closure in non-cancellable mode.
@@ -65,6 +72,7 @@ function gracefulShutdown(?CancellationException $cancellationException = null):
  * Execute an external program.
  * @return Future<array{string, int}>
  */
+/*
 function exec(
     string $command,
     int $timeout        = 0,
@@ -72,3 +80,4 @@ function exec(
     ?array $env         = null,
     bool $returnAll     = false
 ): Future {}
+*/
