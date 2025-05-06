@@ -824,6 +824,9 @@ zend_async_process_event_t * libuv_new_process_event(zend_process_t process_hand
 void libuv_new_thread_event(zend_async_thread_event_t *thread_event)
 {
     //TODO: libuv_new_thread_event
+	// We need to design a mechanism for creating a Thread and running a function
+	// in another thread in such a way that it can be awaited like an event.
+	//
 }
 /* }}} */
 
