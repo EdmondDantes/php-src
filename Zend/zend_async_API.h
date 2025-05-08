@@ -80,7 +80,7 @@ typedef struct _zend_async_waker_t zend_async_waker_t;
 typedef struct _zend_async_microtask_t zend_async_microtask_t;
 typedef struct _zend_async_scope_t zend_async_scope_t;
 typedef struct _zend_fcall_t zend_fcall_t;
-typedef void (*zend_coroutine_internal_t)(void);
+typedef void (*zend_coroutine_entry_t)(void);
 
 typedef struct _zend_async_event_t zend_async_event_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
@@ -93,6 +93,7 @@ typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_
 typedef void (*zend_async_event_start_t) (zend_async_event_t *event);
 typedef void (*zend_async_event_stop_t) (zend_async_event_t *event);
 typedef void (*zend_async_event_dispose_t) (zend_async_event_t *event);
+typedef zend_string* (*zend_async_event_info_t) (zend_async_event_t *event);
 
 typedef struct _zend_async_poll_event_t zend_async_poll_event_t;
 typedef struct _zend_async_timer_event_t zend_async_timer_event_t;
@@ -174,7 +175,7 @@ struct _zend_async_microtask_t {
 	zend_async_microtask_handler_t handler;
 	zend_async_microtask_handler_t dtor;
 	bool is_cancelled;
-	int ref_count;
+	unsigned int ref_count;
 };
 
 struct _zend_async_event_callback_t {
@@ -203,6 +204,8 @@ struct _zend_async_event_t {
 	zend_async_event_start_t start;
 	zend_async_event_stop_t stop;
 	zend_async_event_dispose_t dispose;
+	/* Event info: can be NULL */
+	zend_async_event_info_t info;
 };
 
 /* Append a callback; grows the buffer when needed */
@@ -258,6 +261,14 @@ zend_async_callbacks_notify(zend_async_event_t *event, void *result, zend_object
 			break;
 		}
 	}
+}
+
+/* Call all callbacks and close the event (Like future) */
+static zend_always_inline void
+zend_async_callbacks_notify_and_close(zend_async_event_t *event, void *result, zend_object *exception)
+{
+	event->is_closed = true;
+	zend_async_callbacks_notify(event, result, exception);
 }
 
 /* Free the vector’s memory */
@@ -390,13 +401,26 @@ struct _zend_async_waker_t {
 	zend_async_waker_dtor dtor;
 };
 
+/**
+ * Coroutine destructor. Called when the coroutine needs to clean up all its data.
+ */
 typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
 struct _zend_coroutine_t {
-	/* Callback and info / cache to be used when coroutine is started. */
+	/*
+	 * Callback and info / cache to be used when coroutine is started.
+	 * If NULL, the coroutine is not a userland coroutine and internal_entry is used.
+	 */
 	zend_fcall_t *fcall;
 
-	zend_coroutine_internal_t internal_function;
+	/*
+	 * The internal entry point of the coroutine.
+	 * If NULL, the coroutine is a userland coroutine and fcall is used.
+	 */
+	zend_coroutine_entry_t internal_entry;
+
+	/* The custom data for the coroutine. Can be NULL */
+	void *extended_data;
 
 	/* Coroutine waker */
 	zend_async_waker_t *waker;
@@ -404,8 +428,10 @@ struct _zend_coroutine_t {
 	/* Storage for return value. */
 	zval result;
 
-	// Dispose handler
+	/* Dispose handler for the coroutine. */
 	zend_async_coroutine_dispose dispose;
+	/* Extended dispose handler */
+	zend_async_coroutine_dispose extended_dispose;
 };
 
 #endif //ZEND_ASYNC_API_H

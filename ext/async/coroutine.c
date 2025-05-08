@@ -74,7 +74,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 		EG(stack_limit) = zend_fiber_stack_limit(coroutine->context.stack);
 #endif
 
-		if (EXPECTED(coroutine->coroutine.internal_function == NULL))
+		if (EXPECTED(coroutine->coroutine.internal_entry == NULL))
 		{
 			coroutine->coroutine.fcall->fci.retval = &coroutine->coroutine.result;
 
@@ -83,7 +83,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 			zval_ptr_dtor(&coroutine->coroutine.fcall->fci.function_name);
 			ZVAL_UNDEF(&coroutine->coroutine.fcall->fci.function_name);
 		} else {
-			coroutine->coroutine.internal_function();
+			coroutine->coroutine.internal_entry();
 		}
 
 		if (EG(exception)) {

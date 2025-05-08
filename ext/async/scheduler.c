@@ -433,7 +433,7 @@ void async_scheduler_launch(void)
 		return;
 	}
 
-	coroutine->internal_function = async_scheduler_main_loop;
+	coroutine->internal_entry = async_scheduler_main_loop;
 	ASYNC_G(scheduler) = coroutine;
 }
 
