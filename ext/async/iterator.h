@@ -40,12 +40,14 @@ typedef enum
 } async_iterator_state_t;
 
 async_iterator_t * async_new_iterator(
-	HashTable *array,
+	zval *array,
 	zend_object_iterator *zend_iterator,
-	zend_fcall_t * fcall,
-	zend_coroutine_entry_t internal_entry,
+	zend_fcall_t *fcall,
+	async_iterator_handler_t handler,
 	unsigned int concurrency
 );
+
+void async_run_iterator(async_iterator_t *iterator);
 
 struct _async_iterator_t {
 	zend_async_microtask_t microtask;
