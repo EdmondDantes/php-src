@@ -60,7 +60,7 @@ PHP_FUNCTION(Async_spawn)
 		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
 	ZEND_PARSE_PARAMETERS_END();
 
-	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN(NULL);
+	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN();
 
 	if (UNEXPECTED(EG(exception))) {
 		return;
@@ -110,7 +110,7 @@ PHP_FUNCTION(Async_spawnWith)
 
 	// @TODO: Check if scope is a valid scope provider
 
-	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN(scope);
+	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN_WITH(scope);
 
 	if (UNEXPECTED(EG(exception))) {
 		return;

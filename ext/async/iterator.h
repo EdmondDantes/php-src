@@ -24,14 +24,6 @@ typedef void (*async_iterator_spawn_next_t)(async_iterator_t *iterator);
 typedef void (*async_iterator_dtor_t)(async_iterator_t *iterator);
 typedef zend_result (*async_iterator_handler_t)(async_iterator_t *iterator, zval *current, zval *key);
 
-typedef struct
-{
-	unsigned int total;
-	unsigned int waiting_count;
-	unsigned int resolved_count;
-	bool ignore_errors;
-} async_await_conditions_t;
-
 typedef enum
 {
 	ASYNC_ITERATOR_INIT = 0,
@@ -61,8 +53,6 @@ struct _async_iterator_t {
 	async_iterator_handler_t handler;
 	/* Callback and info / cache to be used when coroutine is started. */
 	zend_fcall_t *fcall;
-	/* The conditions that will be used to wait for the completion of all tasks */
-	zend_async_event_t *future;
 	/* An array. */
 	zval array;
 	HashTable *target_hash;

@@ -84,8 +84,13 @@ typedef void (*zend_coroutine_entry_t)(void);
 
 typedef struct _zend_async_event_t zend_async_event_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
-typedef void (*zend_async_event_callback_fn)(
-	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+typedef struct _zend_coroutine_event_callback_t zend_coroutine_event_callback_t;
+typedef void (*zend_async_event_callback_fn)
+(
+	zend_async_event_t *event,
+	zend_async_event_callback_t *callback,
+	void * result,
+	zend_object *exception
 );
 typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
@@ -112,8 +117,8 @@ typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
-typedef void (*zend_async_suspend_t)(zend_coroutine_t *coroutine);
-typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine);
+typedef void (*zend_async_suspend_t)(void);
+typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_shutdown_t)();
 typedef zend_array* (*zend_async_get_coroutines_t)();
@@ -179,8 +184,14 @@ struct _zend_async_microtask_t {
 };
 
 struct _zend_async_event_callback_t {
+	unsigned int ref_count;
 	zend_async_event_callback_fn callback;
 	zend_async_event_callback_dispose_fn dispose;
+};
+
+struct _zend_coroutine_event_callback_t {
+	zend_async_event_callback_t base;
+	zend_coroutine_t *coroutine;
 };
 
 /* Dynamic array of async event callbacks */
@@ -539,10 +550,12 @@ ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async
 END_EXTERN_C()
 
 #define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
-#define ZEND_ASYNC_SPAWN(scope) zend_async_spawn_fn(scope)
+#define ZEND_ASYNC_SPAWN() zend_async_spawn_fn(NULL)
+#define ZEND_ASYNC_SPAWN_WITH(scope) zend_async_spawn_fn(scope)
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
-#define ZEND_ASYNC_SUSPEND(coroutine) zend_async_suspend_fn(coroutine)
-#define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine)
+#define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn()
+#define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine, NULL, false)
+#define ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, error, transfer_error) zend_async_resume_fn(coroutine, error, transfer_error)
 #define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error)
 #define ZEND_ASYNC_SHUTDOWN() zend_async_shutdown_fn()
 #define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()

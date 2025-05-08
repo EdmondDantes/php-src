@@ -16,6 +16,16 @@
 #ifndef ASYNC_API_H
 #define ASYNC_API_H
 
+#include <stdbool.h>
+
+typedef struct
+{
+	unsigned int total;
+	unsigned int waiting_count;
+	unsigned int resolved_count;
+	bool ignore_errors;
+} async_await_conditions_t;
+
 void async_api_register(void);
 
 #endif //ASYNC_API_H

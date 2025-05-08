@@ -47,7 +47,7 @@ void iterator_microtask(zend_async_microtask_t *microtask)
 		return;
 	}
 
-	zend_coroutine_t * coroutine = ZEND_ASYNC_SPAWN(NULL);
+	zend_coroutine_t * coroutine = ZEND_ASYNC_SPAWN();
 
 	if (coroutine == NULL) {
 		return;
