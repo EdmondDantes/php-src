@@ -37,7 +37,7 @@ ZEND_API void async_resume_when_callback_resolve(
 	zend_coroutine_t * coroutine = ((zend_coroutine_event_callback_t *) callback)->coroutine;
 
 	if (exception == NULL && coroutine->waker != NULL) {
-		zend_hash_index_add_ptr(&coroutine->waker->events, (zend_ulong)event, result);
+		zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, result);
 	}
 
 	ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, exception, false);
