@@ -207,15 +207,17 @@ ZEND_API void zend_async_thread_pool_register(zend_string *module, bool allow_ov
 
 static void waker_events_dtor(zval *item)
 {
-	zend_async_event_callback_t * callback = Z_PTR_P(item);
+	zend_async_waker_trigger_t * trigger = Z_PTR_P(item);
 
-	callback->event->del_callback(callback->event, callback);
+	trigger->event->del_callback(trigger->event, trigger->callback);
 
-	if (callback->ref_count > 1) {
-		callback->ref_count--;
+	if (trigger->event->ref_count > 1) {
+		trigger->event->ref_count--;
 	} else {
-		callback->dispose(callback);
+		trigger->event->dispose(trigger->event);
 	}
+
+	efree(trigger);
 }
 
 static void waker_triggered_events_dtor(zval *item)
@@ -229,10 +231,38 @@ static void waker_triggered_events_dtor(zval *item)
 	}
 }
 
-ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine)
+ZEND_API zend_async_waker_t *zend_async_waker_define(zend_coroutine_t *coroutine)
 {
+	if (coroutine == NULL) {
+		coroutine = ZEND_CURRENT_COROUTINE;
+	}
+
+	if (UNEXPECTED(coroutine) == NULL) {
+		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
+		return NULL;
+	}
+
 	if (UNEXPECTED(coroutine->waker != NULL)) {
 		return coroutine->waker;
+	}
+
+	return zend_async_waker_new(coroutine);
+}
+
+ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine)
+{
+	if (coroutine == NULL) {
+		coroutine = ZEND_CURRENT_COROUTINE;
+	}
+
+	if (UNEXPECTED(coroutine) == NULL) {
+		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
+		return NULL;
+	}
+
+	if (UNEXPECTED(coroutine->waker != NULL)) {
+		coroutine->waker->dtor(coroutine);
+		coroutine->waker = NULL;
 	}
 
 	zend_async_waker_t *waker = pecalloc(1, sizeof(zend_async_waker_t), 0);
@@ -280,7 +310,7 @@ ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine)
 	zend_hash_destroy(&waker->events);
 }
 
-static void event_callback_dispose(zend_async_event_callback_t *callback)
+static void event_callback_dispose(zend_async_event_callback_t *callback, zend_async_event_t * event)
 {
 	if (callback->ref_count != 0) {
 		return;
@@ -288,12 +318,12 @@ static void event_callback_dispose(zend_async_event_callback_t *callback)
 
 	zend_async_waker_t * waker = ((zend_coroutine_event_callback_t *) callback)->coroutine->waker;
 
-	if (waker != NULL) {
+	if (event != NULL && waker != NULL) {
 		// remove the event from the waker
-		zend_hash_index_del(&waker->events, (zend_ulong)callback->event);
+		zend_hash_index_del(&waker->events, (zend_ulong)event);
 
 		if (waker->triggered_events != NULL) {
-			zend_hash_index_del(waker->triggered_events, (zend_ulong)callback->event);
+			zend_hash_index_del(waker->triggered_events, (zend_ulong)event);
 		}
 	}
 
@@ -344,7 +374,11 @@ ZEND_API void zend_async_resume_when(
 		event_callback->base.ref_count = 1;
 		event_callback->base.callback = callback;
 		event_callback->base.dispose = event_callback_dispose;
-		event_callback->base.event = event;
+	}
+
+	// Set up the default dispose function if not set
+	if (event_callback->base.dispose == NULL) {
+		event_callback->base.dispose = event_callback_dispose;
 	}
 
 	event_callback->coroutine = coroutine;
@@ -359,7 +393,11 @@ ZEND_API void zend_async_resume_when(
 	}
 
 	if (EXPECTED(coroutine->waker != NULL)) {
-		if (UNEXPECTED(zend_hash_index_add_ptr(&coroutine->waker->events, (zend_ulong)event, event) == NULL)) {
+		zend_async_waker_trigger_t *trigger = emalloc(sizeof(zend_async_waker_trigger_t));
+		trigger->event = event;
+		trigger->callback = &event_callback->base;
+
+		if (UNEXPECTED(zend_hash_index_add_ptr(&coroutine->waker->events, (zend_ulong)event, trigger) == NULL)) {
 			zend_throw_error(NULL, "Failed to add event to the waker");
 			return;
 		}
@@ -370,7 +408,7 @@ ZEND_API void zend_async_resume_when(
 	}
 }
 
-ZEND_API void zend_async_resume_when_callback_resolve(
+ZEND_API void zend_async_waker_callback_resolve(
 	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
 )
 {
@@ -391,7 +429,7 @@ ZEND_API void zend_async_resume_when_callback_resolve(
 	ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, exception, false);
 }
 
-ZEND_API void zend_async_resume_when_callback_cancel(
+ZEND_API void zend_async_waker_callback_cancel(
 	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
 )
 {
@@ -413,7 +451,7 @@ ZEND_API void zend_async_resume_when_callback_cancel(
 	}
 }
 
-ZEND_API void zend_async_resume_when_callback_timeout(
+ZEND_API void zend_async_waker_callback_timeout(
 	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
 )
 {
@@ -426,6 +464,38 @@ ZEND_API void zend_async_resume_when_callback_timeout(
 
 		ZEND_ASYNC_RESUME_WITH_ERROR(((zend_coroutine_event_callback_t *) callback)->coroutine, exception, true);
 	}
+}
+
+ZEND_API zend_async_waker_t * zend_async_waker_new_with_timeout(
+	zend_coroutine_t * coroutine, const zend_ulong timeout, zend_async_event_t *cancellation
+)
+{
+	if (coroutine == NULL) {
+		coroutine = ZEND_CURRENT_COROUTINE;
+	}
+
+	if (UNEXPECTED(coroutine) == NULL) {
+		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
+		return NULL;
+	}
+
+	zend_async_waker_t *waker = zend_async_waker_new(coroutine);
+
+	if (timeout > 0) {
+		zend_async_resume_when(
+			coroutine,
+			&ZEND_ASYNC_NEW_TIMER_EVENT(timeout, false)->base,
+			true,
+			zend_async_waker_callback_resolve,
+			NULL
+		);
+	}
+
+	if (cancellation != NULL) {
+		zend_async_resume_when(coroutine, cancellation, false, zend_async_waker_callback_cancel, NULL);
+	}
+
+	return waker;
 }
 
 //////////////////////////////////////////////////////////////////////

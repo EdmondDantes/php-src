@@ -92,7 +92,9 @@ typedef struct _zend_fcall_t zend_fcall_t;
 typedef void (*zend_coroutine_entry_t)(void);
 
 typedef struct _zend_async_event_t zend_async_event_t;
+typedef struct _zend_async_awaitable_t zend_async_awaitable_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
+typedef struct _zend_async_waker_trigger_t zend_async_waker_trigger_t;
 typedef struct _zend_coroutine_event_callback_t zend_coroutine_event_callback_t;
 typedef void (*zend_async_event_callback_fn)
 (
@@ -101,7 +103,7 @@ typedef void (*zend_async_event_callback_fn)
 	void * result,
 	zend_object *exception
 );
-typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_callback_t *callback, zend_async_event_t * event);
 typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_start_t) (zend_async_event_t *event);
@@ -197,12 +199,16 @@ struct _zend_async_event_callback_t {
 	unsigned int ref_count;
 	zend_async_event_callback_fn callback;
 	zend_async_event_callback_dispose_fn dispose;
-	zend_async_event_t *event;
 };
 
 struct _zend_coroutine_event_callback_t {
 	zend_async_event_callback_t base;
 	zend_coroutine_t *coroutine;
+};
+
+struct _zend_async_waker_trigger_t {
+	zend_async_event_t *event;
+	zend_async_event_callback_t *callback;
 };
 
 /* Dynamic array of async event callbacks */
@@ -230,6 +236,13 @@ struct _zend_async_event_t {
 	zend_async_event_info_t info;
 };
 
+struct _zend_async_awaitable_t {
+	zend_async_event_t event;
+	bool is_used;
+	bool will_exception_caught;
+	zend_object zend_object;
+};
+
 /* Append a callback; grows the buffer when needed */
 static zend_always_inline void
 zend_async_callbacks_push(zend_async_event_t *event, zend_async_event_callback_t *callback)
@@ -245,7 +258,7 @@ zend_async_callbacks_push(zend_async_event_t *event, zend_async_event_callback_t
 		vector->capacity = vector->capacity ? vector->capacity * 2 : 4;
 		vector->data = safe_erealloc(vector->data,
 									 vector->capacity,
-									 sizeof(zend_async_event_callback_t),
+									 sizeof(zend_async_event_callback_t *),
 									 0);
 	}
 
@@ -261,7 +274,7 @@ zend_async_callbacks_remove(zend_async_event_t *event, const zend_async_event_ca
 	for (uint32_t i = 0; i < vector->length; ++i) {
 		if (vector->data[i] == callback) {
 			vector->data[i] = vector->data[--vector->length]; /* O(1) removal */
-			callback->dispose(event, vector->data[i]);
+			callback->dispose(vector->data[i], event);
 			return;
 		}
 	}
@@ -299,7 +312,7 @@ zend_async_callbacks_free(zend_async_event_t *event)
 {
 	if (event->callbacks.data != NULL) {
 		for (uint32_t i = 0; i < event->callbacks.length; ++i) {
-			event->callbacks.data[i]->dispose(event, event->callbacks.data[i]);
+			event->callbacks.data[i]->dispose(event->callbacks.data[i], event);
 		}
 
 		efree(event->callbacks.data);
@@ -404,7 +417,7 @@ typedef enum {
 struct _zend_async_waker_t {
 	/* The waker status. */
 	ZEND_ASYNC_WAKER_STATUS status;
-	/* The array of zend_async_event_callback_t. */
+	/* The array of zend_async_trigger_callback_t. */
 	HashTable events;
 	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
 	HashTable *triggered_events;
@@ -555,11 +568,34 @@ ZEND_API void zend_async_reactor_register(
 ZEND_API void zend_async_thread_pool_register(
 	zend_string *module, bool allow_override, zend_async_queue_task_t queue_task_fn
 );
+
 /* Waker API */
-ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine);
+ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine);
+ZEND_API zend_async_waker_t * zend_async_waker_new_with_timeout(
+	zend_coroutine_t * coroutine, const zend_ulong timeout, zend_async_event_t *cancellation
+);
 ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine);
-ZEND_API void zend_async_waker_add_event(zend_coroutine_t *coroutine, zend_async_event_t *event, zend_async_event_callback_t *callback);
-ZEND_API void zend_async_waker_del_event(zend_coroutine_t *coroutine, zend_async_event_t *event);
+ZEND_API void zend_async_waker_add_triggered_event(zend_coroutine_t *coroutine, zend_async_event_t *event);
+
+ZEND_API void zend_async_resume_when(
+		zend_coroutine_t			*coroutine,
+		zend_async_event_t			*event,
+		const bool					trans_event,
+		zend_async_event_callback_fn callback,
+		zend_coroutine_event_callback_t *event_callback
+	);
+
+ZEND_API void zend_async_waker_callback_resolve(
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+);
+
+ZEND_API void zend_async_waker_callback_cancel(
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+);
+
+ZEND_API void zend_async_waker_callback_timeout(
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
+);
 
 END_EXTERN_C()
 

@@ -88,7 +88,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 		return NULL;
 	}
 
-	zend_async_waker_t *waker = zend_async_waker_create(&coroutine->coroutine);
+	zend_async_waker_t *waker = zend_async_waker_new(&coroutine->coroutine);
 	if (UNEXPECTED(EG(exception))) {
 		coroutine->coroutine.dispose(&coroutine->coroutine);
 		return NULL;
@@ -158,7 +158,7 @@ void resume(zend_coroutine_t *coroutine, zend_object * error, const bool transfe
 void cancel(zend_coroutine_t *coroutine, zend_object *error, const bool transfer_error)
 {
 	if (coroutine->waker == NULL) {
-		zend_async_waker_create(coroutine);
+		zend_async_waker_new(coroutine);
 	}
 
 	if (UNEXPECTED(coroutine->waker == NULL)) {
@@ -220,6 +220,20 @@ zend_array *get_awaiting_info(zend_coroutine_t *coroutine)
 	return NULL;
 }
 
+static zend_class_entry* async_get_exception_ce(zend_async_exception_type type)
+{
+	switch (type) {
+		case ZEND_ASYNC_EXCEPTION_CANCELLATION:
+			return async_ce_cancellation_exception;
+		case ZEND_ASYNC_EXCEPTION_TIMEOUT:
+			return async_ce_timeout_exception;
+		case ZEND_ASYNC_EXCEPTION_POLL:
+			return async_ce_poll_exception;
+		default:
+			return async_ce_async_exception;
+	}
+}
+
 void async_await_futures(
 	zval *iterable,
 	int count,
@@ -254,85 +268,80 @@ void async_await_futures(
 	zend_ulong index;
 	zend_string *key;
 	zval * current;
-	zend_async_event_t * future_state;
+
+	zend_async_awaitable_t *awaitable;
 
 	zend_async_waker_t *waker;
-	async_await_conditions_t *conditions = NULL;
-	future_resume_callback_t *callback = NULL;
+	async_await_callback_t *await_callback = NULL;
+
+	if (UNEXPECTED(futures != NULL && zend_hash_num_elements(futures) == 0)) {
+		return;
+	}
+
+	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
+
+	if (UNEXPECTED(coroutine == NULL)) {
+		async_throw_error("Cannot await futures outside of a coroutine");
+		return;
+	}
+
+	waker = zend_async_waker_new_with_timeout(coroutine, timeout, cancellation);
+
+	if (waker == NULL) {
+		return;
+	}
+
+	await_callback = ecalloc(1, sizeof(async_await_callback_t));
+	await_callback->total = futures != NULL ? (int) zend_hash_num_elements(futures) : 0;
+	await_callback->waiting_count = count > 0 ? count : await_callback->total;
+	await_callback->resolved_count = 0;
+	await_callback->ignore_errors = ignore_errors;
 
 	if (futures != NULL)
 	{
-		if (zend_hash_num_elements(futures) == 0) {
-			return;
-		}
-
-		waker = async_new_waker_with_timeout(NULL, timeout, cancellation);
-
-		if (waker == NULL) {
-			return;
-		}
-
-		conditions = emalloc(sizeof(future_await_conditions_t));
-		conditions->total = (int) zend_hash_num_elements(futures);
-		conditions->waiting_count = count > 0 ? count : conditions->total;
-		conditions->resolved_count = 0;
-		conditions->ignore_errors = ignore_errors;
-
 		ZEND_HASH_FOREACH_KEY_VAL(futures, index, key, current) {
-			if (Z_TYPE_P(current) != IS_OBJECT) {
-				continue;
-			}
 
-			// Resolve the Future object to the FutureState object.
-			if (instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
-				future_state = (async_future_state_t *) Z_OBJ_P(current);
-			} else if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-				future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
+			// An array element can be either an object implementing
+			// the Awaitable interface
+			// or an internal structure zend_async_event_t.
+
+			if (Z_TYPE_P(current) == IS_OBJECT
+				&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
+				awaitable = (zend_async_awaitable_t *) Z_OBJ_P(current);
+
+				// We mark that the object has been used and will be used for exception handling.
+				awaitable->is_used = true;
+				awaitable->will_exception_caught = true;
+			} else if (Z_TYPE_P(current) == IS_PTR) {
+				awaitable = (zend_async_awaitable_t *) Z_PTR_P(current);
+			} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {
+				continue;
 			} else {
+				async_throw_error("Expected parameter to be an Async\\Awaitable object");
 				continue;
 			}
 
-			if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+			if (((zend_async_event_t * )awaitable)->is_closed) {
 				continue;
 			}
 
-			callback = emalloc(sizeof(future_resume_callback_t));
-			ZVAL_PTR(&callback->resume_notifier.callback, future_resume_callback);
-			callback->conditions = conditions;
-
-			future_state->is_used = true;
-			future_state->will_exception_caught = true;
-
-			async_resume_when_ex(waker, &future_state->notifier, false, (async_resume_notifier_t *)callback);
+			zend_async_resume_when(
+				coroutine, (zend_async_event_t *) awaitable, false, NULL, &await_callback->callback
+			);
 
 		} ZEND_HASH_FOREACH_END();
 	} else {
 
-		waker = async_new_resume_with_timeout(NULL, timeout, cancellation);
-
-		if (waker == NULL) {
-			return;
-		}
-
 		futures = zend_new_array(8);
-		future_state = (async_future_state_t *) async_future_state_new();
-		async_resume_when(waker, &future_state->notifier, false, async_resume_when_callback_resolve);
+		zend_async_event_t * iterator_finished_event = ecalloc(1, sizeof(zend_async_event_t));
+		zend_async_resume_when(coroutine, iterator_finished_event, false, zend_async_waker_callback_resolve, NULL);
 
-		conditions = emalloc(sizeof(future_await_conditions_t));
-		conditions->total = (int) zend_hash_num_elements(futures);
-		conditions->waiting_count = count > 0 ? count : conditions->total;
-		conditions->resolved_count = 0;
-		conditions->ignore_errors = ignore_errors;
-
-		start_concurrent_iterator(future_state, zend_iterator, waker, futures, conditions);
+		start_concurrent_iterator(awaitable, zend_iterator, coroutine, futures, await_callback);
 	}
 
-	async_wait(waker);
+	ZEND_ASYNC_SUSPEND();
 
-	if (conditions != NULL) {
-		efree(conditions);
-		conditions = NULL;
-	}
+	await_callback->callback.base.dispose(&await_callback->callback.base, NULL);
 
 	// Save the results and errors.
 
@@ -344,19 +353,19 @@ void async_await_futures(
 
 		// Resolve the Future object to the FutureState object.
 		if (instanceof_function(Z_OBJCE_P(current), async_ce_future_state)) {
-			future_state = (async_future_state_t *) Z_OBJ_P(current);
+			awaitable = (async_future_state_t *) Z_OBJ_P(current);
 		} else if (instanceof_function(Z_OBJCE_P(current), async_ce_future)) {
-			future_state = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
+			awaitable = (async_future_state_t * )((async_future_t *) Z_OBJ_P(current))->future_state;
 		} else {
 			continue;
 		}
 
-		if (Z_TYPE(future_state->notifier.is_closed) == IS_TRUE) {
+		if (Z_TYPE(awaitable->notifier.is_closed) == IS_TRUE) {
 
-			if (future_state->throwable != NULL) {
+			if (awaitable->throwable != NULL) {
 				if (errors != NULL) {
 					zval error;
-					ZVAL_OBJ(&error, future_state->throwable);
+					ZVAL_OBJ(&error, awaitable->throwable);
 
 					if (key != NULL) {
 						zend_hash_update(errors, key, &error);
@@ -364,26 +373,26 @@ void async_await_futures(
 						zend_hash_index_update(errors, index, &error);
 					}
 
-					GC_ADDREF(future_state->throwable);
+					GC_ADDREF(awaitable->throwable);
                 }
             } else {
                 if (results != NULL) {
                     if (key != NULL) {
-                    	zend_hash_update(errors, key, &future_state->result);
+                    	zend_hash_update(errors, key, &awaitable->result);
                     } else {
-                    	zend_hash_index_update(results, index, &future_state->result);
+                    	zend_hash_index_update(results, index, &awaitable->result);
                     }
 
-                	Z_TRY_ADDREF_P(&future_state->result);
+                	Z_TRY_ADDREF_P(&awaitable->result);
                 }
 			}
 		}
 
 	} ZEND_HASH_FOREACH_END();
 
-	OBJ_RELEASE(&waker->std);
+	waker->dtor(coroutine);
 
-	if (zend_iterator != NULL) {
+	if (futures != NULL) {
 		zend_array_release(futures);
 	}
 }
@@ -403,7 +412,8 @@ void async_api_register(void)
 		shutdown,
 		get_coroutines,
 		add_microtask,
-		get_awaiting_info
+		get_awaiting_info,
+		async_get_exception_ce
 	);
 
 	zend_string_release(module);

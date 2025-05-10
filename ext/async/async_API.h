@@ -18,13 +18,16 @@
 
 #include <stdbool.h>
 
+#include "zend_async_API.h"
+
 typedef struct
 {
+	zend_coroutine_event_callback_t callback;
 	unsigned int total;
 	unsigned int waiting_count;
 	unsigned int resolved_count;
 	bool ignore_errors;
-} async_await_conditions_t;
+} async_await_callback_t;
 
 void async_api_register(void);
 
