@@ -131,6 +131,18 @@ void resume(zend_coroutine_t *coroutine, zend_object * error, const bool transfe
 		return;
 	}
 
+	if (error != NULL) {
+		if (coroutine->waker->error != NULL) {
+			zend_exception_set_previous(error, coroutine->waker->error);
+			OBJ_RELEASE(coroutine->waker->error);
+			coroutine->waker->error = error;
+		}
+
+		if (false == transfer_error) {
+			GC_ADDREF(error);
+		}
+	}
+
 	if (UNEXPECTED(coroutine->waker->status == ZEND_ASYNC_WAKER_QUEUED)) {
 		return;
 	}
