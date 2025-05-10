@@ -101,7 +101,7 @@ typedef void (*zend_async_event_callback_fn)
 	void * result,
 	zend_object *exception
 );
-typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_t *event, zend_async_event_callback_t *callback);
+typedef void (*zend_async_event_callback_dispose_fn)(zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_add_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_del_callback_t)(zend_async_event_t *event, zend_async_event_callback_t *callback);
 typedef void (*zend_async_event_start_t) (zend_async_event_t *event);
@@ -394,11 +394,6 @@ struct _zend_async_scope_t {
 
 typedef void (*zend_async_waker_dtor)(zend_coroutine_t *coroutine);
 
-typedef struct {
-	zend_async_event_t *event;
-	zend_async_event_callback_t *callback;
-} zend_async_waker_trigger_t;
-
 typedef enum {
 	ZEND_ASYNC_WAKER_NO_STATUS = 0,
 	ZEND_ASYNC_WAKER_WAITING = 1,
@@ -409,7 +404,7 @@ typedef enum {
 struct _zend_async_waker_t {
 	/* The waker status. */
 	ZEND_ASYNC_WAKER_STATUS status;
-	/* The array of zend_async_waker_trigger_t. */
+	/* The array of zend_async_event_callback_t. */
 	HashTable events;
 	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
 	HashTable *triggered_events;

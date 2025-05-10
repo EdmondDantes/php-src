@@ -207,10 +207,26 @@ ZEND_API void zend_async_thread_pool_register(zend_string *module, bool allow_ov
 
 static void waker_events_dtor(zval *item)
 {
-	zend_async_waker_trigger_t * waker_trigger = Z_PTR_P(item);
+	zend_async_event_callback_t * callback = Z_PTR_P(item);
 
-	waker_trigger->event->del_callback(waker_trigger->event, waker_trigger->callback);
-	efree(waker_trigger);
+	callback->event->del_callback(callback->event, callback);
+
+	if (callback->ref_count > 1) {
+		callback->ref_count--;
+	} else {
+		callback->dispose(callback);
+	}
+}
+
+static void waker_triggered_events_dtor(zval *item)
+{
+	zend_async_event_t * event = Z_PTR_P(item);
+
+	if (event->ref_count > 1) {
+		event->ref_count--;
+	} else {
+		event->dispose(event);
+	}
 }
 
 ZEND_API zend_async_waker_t *zend_async_waker_create(zend_coroutine_t *coroutine)
@@ -284,6 +300,22 @@ static void event_callback_dispose(zend_async_event_callback_t *callback)
 	efree(callback);
 }
 
+ZEND_API void zend_async_waker_add_triggered_event(zend_coroutine_t *coroutine, zend_async_event_t *event)
+{
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		return;
+	}
+
+	if (coroutine->waker->triggered_events == NULL) {
+		coroutine->waker->triggered_events = (HashTable *) malloc(sizeof(HashTable));
+		zend_hash_init(coroutine->waker->triggered_events, 2, NULL, waker_triggered_events_dtor, 0);
+	}
+
+	if (EXPECTED(zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event) != NULL)) {
+		event->ref_count++;
+	}
+}
+
 ZEND_API void zend_async_resume_when(
 		zend_coroutine_t			*coroutine,
 		zend_async_event_t			*event,
@@ -326,15 +358,15 @@ ZEND_API void zend_async_resume_when(
 		return;
 	}
 
-	if (false == trans_event) {
-		event->ref_count++;
-	}
-
 	if (EXPECTED(coroutine->waker != NULL)) {
 		if (UNEXPECTED(zend_hash_index_add_ptr(&coroutine->waker->events, (zend_ulong)event, event) == NULL)) {
 			zend_throw_error(NULL, "Failed to add event to the waker");
 			return;
 		}
+	}
+
+	if (false == trans_event) {
+		event->ref_count++;
 	}
 }
 
@@ -345,7 +377,15 @@ ZEND_API void zend_async_resume_when_callback_resolve(
 	zend_coroutine_t * coroutine = ((zend_coroutine_event_callback_t *) callback)->coroutine;
 
 	if (exception == NULL && coroutine->waker != NULL) {
-		zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event);
+
+		if (coroutine->waker->triggered_events == NULL) {
+			coroutine->waker->triggered_events = (HashTable *) malloc(sizeof(HashTable));
+			zend_hash_init(coroutine->waker->triggered_events, 2, NULL, waker_triggered_events_dtor, 0);
+		}
+
+		if (EXPECTED(zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event) != NULL)) {
+			event->ref_count++;
+		}
 	}
 
 	ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, exception, false);
