@@ -127,6 +127,7 @@ typedef struct _zend_async_exec_event_t zend_async_exec_event_t;
 typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
+typedef zend_async_scope_t * (*zend_async_new_scope_t)(zend_async_scope_t * parent_scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
 typedef void (*zend_async_suspend_t)(void);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
@@ -493,6 +494,8 @@ ZEND_API ZEND_COLD zend_object * zend_async_throw_timeout(const char *format, co
 
 ZEND_API zend_async_spawn_t zend_async_spawn_fn;
 ZEND_API zend_async_new_coroutine_t zend_async_new_coroutine_fn;
+ZEND_API zend_async_new_scope_t zend_async_new_scope_fn;
+ZEND_API zend_async_new_scope_t zend_async_new_scope_fn;
 ZEND_API zend_async_suspend_t zend_async_suspend_fn;
 ZEND_API zend_async_resume_t zend_async_resume_fn;
 ZEND_API zend_async_cancel_t zend_async_cancel_fn;
@@ -534,6 +537,7 @@ ZEND_API void zend_async_scheduler_register(
 	zend_string *module,
 	bool allow_override,
 	zend_async_new_coroutine_t new_coroutine_fn,
+	zend_async_new_scope_t new_scope_fn,
     zend_async_spawn_t spawn_fn,
     zend_async_suspend_t suspend_fn,
     zend_async_resume_t resume_fn,
@@ -603,6 +607,7 @@ END_EXTERN_C()
 #define ZEND_ASYNC_SPAWN() zend_async_spawn_fn(NULL)
 #define ZEND_ASYNC_SPAWN_WITH(scope) zend_async_spawn_fn(scope)
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
+#define ZEND_ASYNC_NEW_SCOPE(parent) zend_async_new_scope_fn(parent)
 #define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn()
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine, NULL, false)
 #define ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, error, transfer_error) zend_async_resume_fn(coroutine, error, transfer_error)

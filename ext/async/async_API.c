@@ -21,7 +21,7 @@
 #include "scope.h"
 #include "zend_common.h"
 
-async_scope_t * new_scope(void)
+async_scope_t * new_scope(async_scope_t * parent_scope)
 {
 	DEFINE_ZEND_INTERNAL_OBJECT(async_scope_t, scope, async_ce_scope);
 
@@ -234,6 +234,39 @@ static zend_class_entry* async_get_exception_ce(zend_async_exception_type type)
 	}
 }
 
+void iterator_coroutine_entry(void)
+{
+	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
+
+	if (UNEXPECTED(coroutine == NULL)) {
+		async_throw_error("Cannot run iterator coroutine");
+		return;
+	}
+
+	zend_async_event_t *event = (zend_async_event_t *) coroutine->extended_data;
+	async_await_callback_t *await_callback = (async_await_callback_t *) event->extended_data;
+
+	if (UNEXPECTED(EG(exception))) {
+		return;
+	}
+
+	if (UNEXPECTED(coroutine->waker == NULL)) {
+		async_throw_error("Waker is not initialized");
+		return;
+	}
+
+	if (UNEXPECTED(coroutine->waker->status == ZEND_ASYNC_WAKER_QUEUED)) {
+		return;
+	}
+
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true) == FAILURE)) {
+		async_throw_error("Failed to enqueue coroutine");
+		return;
+	}
+
+	coroutine->waker->status = ZEND_ASYNC_WAKER_QUEUED;
+}
+
 void async_await_futures(
 	zval *iterable,
 	int count,
@@ -332,11 +365,27 @@ void async_await_futures(
 		} ZEND_HASH_FOREACH_END();
 	} else {
 
-		futures = zend_new_array(8);
 		zend_async_event_t * iterator_finished_event = ecalloc(1, sizeof(zend_async_event_t));
 		zend_async_resume_when(coroutine, iterator_finished_event, false, zend_async_waker_callback_resolve, NULL);
 
-		start_concurrent_iterator(awaitable, zend_iterator, coroutine, futures, await_callback);
+		// To launch the concurrent iterator,
+		// we need a separate coroutine because we're needed to suspend the current one.
+
+		zend_coroutine_t * iterator_coroutine = ZEND_ASYNC_SPAWN_WITH(NULL);
+
+		if (UNEXPECTED(iterator_coroutine == NULL || EG(exception))) {
+			return;
+		}
+
+		iterator_coroutine->internal_entry = iterator_coroutine_entry;
+
+		async_await_iterator_t * iterator = ecalloc(1, sizeof(async_await_iterator_t));
+		iterator->iterator = zend_iterator;
+		iterator->waiting_coroutine = coroutine;
+		iterator->iterator_finished_event = iterator_finished_event;
+
+		iterator_coroutine->extended_data = iterator;
+		iterator_coroutine->extended_dispose = async_await_iterator_coroutine_dispose;
 	}
 
 	ZEND_ASYNC_SUSPEND();
@@ -405,6 +454,7 @@ void async_api_register(void)
 		module,
 		false,
 		new_coroutine,
+		new_scope,
 		spawn,
 		suspend,
 		resume,

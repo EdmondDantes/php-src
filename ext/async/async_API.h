@@ -27,7 +27,18 @@ typedef struct
 	unsigned int waiting_count;
 	unsigned int resolved_count;
 	bool ignore_errors;
+	// Scope for the new coroutines
+	zend_async_scope_t * scope;
 } async_await_callback_t;
+
+typedef struct
+{
+	zend_object_iterator * iterator;
+	HashTable * futures;
+	zend_async_event_t * iterator_finished_event;
+	zend_coroutine_t * waiting_coroutine;
+	async_await_callback_t * await_callback;
+} async_await_iterator_t;
 
 void async_api_register(void);
 

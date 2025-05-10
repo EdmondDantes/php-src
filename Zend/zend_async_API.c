@@ -92,6 +92,7 @@ ZEND_API void zend_async_scheduler_register(
 	zend_string *module,
 	bool allow_override,
 	zend_async_new_coroutine_t new_coroutine_fn,
+	zend_async_new_scope_t new_scope_fn,
     zend_async_spawn_t spawn_fn,
     zend_async_suspend_t suspend_fn,
     zend_async_resume_t resume_fn,
@@ -118,6 +119,7 @@ ZEND_API void zend_async_scheduler_register(
 	scheduler_module_name = zend_string_copy(module);
 
 	zend_async_new_coroutine_fn = new_coroutine_fn;
+	zend_async_new_scope_fn = new_scope_fn;
     zend_async_spawn_fn = spawn_fn;
     zend_async_suspend_fn = suspend_fn;
     zend_async_resume_fn = resume_fn;
