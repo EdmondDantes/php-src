@@ -197,6 +197,7 @@ struct _zend_async_event_callback_t {
 	unsigned int ref_count;
 	zend_async_event_callback_fn callback;
 	zend_async_event_callback_dispose_fn dispose;
+	zend_async_event_t *event;
 };
 
 struct _zend_coroutine_event_callback_t {
@@ -475,6 +476,7 @@ ZEND_API bool zend_scheduler_is_enabled(void);
 ZEND_API void zend_async_init(void);
 ZEND_API void zend_async_shutdown(void);
 
+ZEND_API ZEND_COLD zend_object * zend_async_new_exception(zend_async_exception_type type, const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw(zend_async_exception_type type, const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw_cancellation(const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw_timeout(const char *format, const zend_long timeout);

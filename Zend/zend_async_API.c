@@ -270,6 +270,17 @@ static void event_callback_dispose(zend_async_event_callback_t *callback)
 		return;
 	}
 
+	zend_async_waker_t * waker = ((zend_coroutine_event_callback_t *) callback)->coroutine->waker;
+
+	if (waker != NULL) {
+		// remove the event from the waker
+		zend_hash_index_del(&waker->events, (zend_ulong)callback->event);
+
+		if (waker->triggered_events != NULL) {
+			zend_hash_index_del(waker->triggered_events, (zend_ulong)callback->event);
+		}
+	}
+
 	efree(callback);
 }
 
@@ -301,6 +312,7 @@ ZEND_API void zend_async_resume_when(
 		event_callback->base.ref_count = 1;
 		event_callback->base.callback = callback;
 		event_callback->base.dispose = event_callback_dispose;
+		event_callback->base.event = event;
 	}
 
 	event_callback->coroutine = coroutine;
@@ -343,38 +355,38 @@ ZEND_API void zend_async_resume_when_callback_cancel(
 	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
 )
 {
-	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
-		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
-	} else {
-		zend_object * exception;
+	zend_coroutine_t * coroutine = ((zend_coroutine_event_callback_t *) callback)->coroutine;
 
-		if (notifier->std.ce == async_ce_timer_handle) {
-			exception = async_new_exception(async_ce_cancellation_exception, "Operation has been cancelled by timeout");
+	if (UNEXPECTED(exception != NULL)) {
+		ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, exception, false);
+	} else {
+
+		if (result == NULL) {
+			exception = zend_async_new_exception(
+				ZEND_ASYNC_EXCEPTION_CANCELLATION, "Operation has been cancelled"
+			);
 		} else {
-			exception = async_new_exception(async_ce_cancellation_exception, "Operation has been cancelled");
+			exception = result;
 		}
 
-		async_resume_fiber(resume, NULL, exception);
-		GC_DELREF(exception);
+		ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, exception, false);
 	}
 }
 
 ZEND_API void zend_async_resume_when_callback_timeout(
-	async_resume_t *resume, reactor_notifier_t *notifier, zval* event, zval* error, async_resume_notifier_t *resume_notifier
+	zend_async_event_t *event, zend_async_event_callback_t *callback, void * result, zend_object *exception
 )
 {
-	if (UNEXPECTED(error != NULL) && Z_TYPE_P(error) == IS_OBJECT) {
-		async_resume_fiber(resume, NULL, Z_OBJ_P(error));
-	} else if (resume->status == ASYNC_RESUME_WAITING) {
-		//
-		// If the operation has not been completed yet, we will resume the Fiber with a timeout exception.
-		//
-		zend_object * exception = async_new_exception(async_ce_timeout_exception, "Operation has been cancelled by timeout");
-		async_resume_fiber(resume, NULL, exception);
-		GC_DELREF(exception);
+	if (UNEXPECTED(exception != NULL)) {
+		ZEND_ASYNC_RESUME_WITH_ERROR(((zend_coroutine_event_callback_t *) callback)->coroutine, exception, false);
+	} else {
+		exception = zend_async_new_exception(
+			ZEND_ASYNC_EXCEPTION_TIMEOUT, "Operation has been cancelled by timeout"
+		);
+
+		ZEND_ASYNC_RESUME_WITH_ERROR(((zend_coroutine_event_callback_t *) callback)->coroutine, exception, true);
 	}
 }
-
 
 //////////////////////////////////////////////////////////////////////
 /* Waker API end */
@@ -383,6 +395,31 @@ ZEND_API void zend_async_resume_when_callback_timeout(
 //////////////////////////////////////////////////////////////////////
 /* Exception API */
 //////////////////////////////////////////////////////////////////////
+
+ZEND_API ZEND_COLD zend_object * zend_async_new_exception(zend_async_exception_type type, const char *format, ...)
+{
+	zend_class_entry *exception_ce = ZEND_ASYNC_GET_EXCEPTION_CE(type);
+	zval exception, message_val;
+
+	ZEND_ASSERT(instanceof_function(exception_ce, zend_ce_throwable)
+		&& "Exceptions must implement Throwable");
+
+	object_init_ex(&exception, exception_ce);
+
+	va_list args;
+	va_start(args, format);
+	zend_string *message = zend_vstrpprintf(0, format, args);
+	va_end(args);
+
+	if (message) {
+		ZVAL_STR(&message_val, message);
+		zend_update_property_ex(exception_ce, Z_OBJ(exception), ZSTR_KNOWN(ZEND_STR_MESSAGE), &message_val);
+	}
+
+	zend_string_release(message);
+
+	return Z_OBJ(exception);
+}
 
 ZEND_API ZEND_COLD zend_object * zend_async_throw(zend_async_exception_type type, const char *format, ...)
 {
