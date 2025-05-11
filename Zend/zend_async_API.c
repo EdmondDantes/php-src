@@ -356,7 +356,7 @@ ZEND_API void zend_async_resume_when(
 		zend_coroutine_event_callback_t *event_callback
 	)
 {
-	if (UNEXPECTED(Z_TYPE(event->is_closed) == IS_TRUE)) {
+	if (UNEXPECTED(ZEND_ASYNC_EVENT_IS_CLOSED(event))) {
 		zend_throw_error(NULL, "The event cannot be used after it has been terminated");
 		return;
 	}

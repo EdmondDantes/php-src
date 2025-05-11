@@ -292,7 +292,7 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 		return FAILURE;
 	}
 
-	if (((zend_async_event_t *) awaitable)->is_closed) {
+	if (ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
 		return SUCCESS;
 	}
 
@@ -418,7 +418,7 @@ void async_await_futures(
 	zend_string *key;
 	zval * current;
 
-	zend_async_awaitable_t *awaitable;
+	zend_async_event_t *awaitable;
 
 	zend_async_waker_t *waker;
 	async_await_context_t *await_context = NULL;
@@ -457,13 +457,11 @@ void async_await_futures(
 
 			if (Z_TYPE_P(current) == IS_OBJECT
 				&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
-				awaitable = (zend_async_awaitable_t *) Z_OBJ_P(current);
+				awaitable = ZEND_AWAITABLE_TO_EVENT(Z_OBJ_P(current));
 
 				// We mark that the object has been used and will be used for exception handling.
-				awaitable->is_used = true;
-				awaitable->will_exception_caught = true;
 			} else if (Z_TYPE_P(current) == IS_PTR) {
-				awaitable = (zend_async_awaitable_t *) Z_PTR_P(current);
+				awaitable = (zend_async_event_t *) Z_PTR_P(current);
 			} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {
 				continue;
 			} else {
@@ -471,13 +469,16 @@ void async_await_futures(
 				continue;
 			}
 
-			if (((zend_async_event_t * )awaitable)->is_closed) {
+			if (ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
 				continue;
 			}
 
 			async_await_callback_t * callback = ecalloc(1, sizeof(async_await_callback_t));
 			callback->callback.base.callback = async_waiting_callback;
 			callback->await_context = await_context;
+
+			ZEND_ASYNC_EVENT_SET_RESULT_USED(awaitable);
+			ZEND_ASYNC_EVENT_SET_EXC_CAUGHT(awaitable);
 
 			if (key != NULL) {
 				ZVAL_STR(&callback->key, key);

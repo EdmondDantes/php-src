@@ -92,7 +92,6 @@ typedef struct _zend_fcall_t zend_fcall_t;
 typedef void (*zend_coroutine_entry_t)(void);
 
 typedef struct _zend_async_event_t zend_async_event_t;
-typedef struct _zend_async_awaitable_t zend_async_awaitable_t;
 typedef struct _zend_async_event_callback_t zend_async_event_callback_t;
 typedef struct _zend_async_waker_trigger_t zend_async_waker_trigger_t;
 typedef struct _zend_coroutine_event_callback_t zend_coroutine_event_callback_t;
@@ -221,7 +220,7 @@ typedef struct _zend_async_callbacks_vector_t {
 
 struct _zend_async_event_t {
 	/* If event is closed, it cannot be started or stopped. */
-	bool is_closed;
+	unsigned int flags;
 	/* The refcount of the event. */
 	unsigned int ref_count;
 	/* The Event loop reference count. */
@@ -237,12 +236,22 @@ struct _zend_async_event_t {
 	zend_async_event_info_t info;
 };
 
-struct _zend_async_awaitable_t {
-	zend_async_event_t event;
-	bool is_used;
-	bool will_exception_caught;
-	zend_object zend_object;
-};
+#define ZEND_ASYNC_EVENT_F_CLOSED        (1u << 0)  /* event was closed */
+#define ZEND_ASYNC_EVENT_F_RESULT_USED   (1u << 1)  /* result will be used in exception handler */
+#define ZEND_ASYNC_EVENT_F_EXC_CAUGHT    (1u << 2)  /* error was caught in exception handler */
+
+#define ZEND_ASYNC_EVENT_IS_CLOSED(ev)         (((ev)->flags & ZEND_ASYNC_EVENT_F_CLOSED) != 0)
+#define ZEND_ASYNC_EVENT_WILL_RESULT_USED(ev)  (((ev)->flags & ZEND_ASYNC_EVENT_F_RESULT_USED) != 0)
+#define ZEND_ASYNC_EVENT_WILL_EXC_CAUGHT(ev)   (((ev)->flags & ZEND_ASYNC_EVENT_F_EXC_CAUGHT) != 0)
+
+#define ZEND_ASYNC_EVENT_SET_CLOSED(ev)        ((ev)->flags |=  ZEND_ASYNC_EVENT_F_CLOSED)
+#define ZEND_ASYNC_EVENT_CLR_CLOSED(ev)        ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_CLOSED)
+
+#define ZEND_ASYNC_EVENT_SET_RESULT_USED(ev)   ((ev)->flags |=  ZEND_ASYNC_EVENT_F_RESULT_USED)
+#define ZEND_ASYNC_EVENT_CLR_RESULT_USED(ev)   ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_RESULT_USED)
+
+#define ZEND_ASYNC_EVENT_SET_EXC_CAUGHT(ev)    ((ev)->flags |=  ZEND_ASYNC_EVENT_F_EXC_CAUGHT)
+#define ZEND_ASYNC_EVENT_CLR_EXC_CAUGHT(ev)    ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_EXC_CAUGHT)
 
 /* Append a callback; grows the buffer when needed */
 static zend_always_inline void
@@ -303,7 +312,7 @@ zend_async_callbacks_notify(zend_async_event_t *event, void *result, zend_object
 static zend_always_inline void
 zend_async_callbacks_notify_and_close(zend_async_event_t *event, void *result, zend_object *exception)
 {
-	event->is_closed = true;
+	ZEND_ASYNC_EVENT_SET_CLOSED(event);
 	zend_async_callbacks_notify(event, result, exception);
 }
 
@@ -440,6 +449,7 @@ struct _zend_async_waker_t {
 typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
 struct _zend_coroutine_t {
+	zend_async_event_t base;
 	/*
 	 * Callback and info / cache to be used when coroutine is started.
 	 * If NULL, the coroutine is not a userland coroutine and internal_entry is used.
@@ -478,6 +488,9 @@ struct _zend_coroutine_t {
 #define ZEND_EXIT_EXCEPTION EG(exit_exception)
 #define ZEND_CURRENT_COROUTINE EG(coroutine)
 #define ZEND_CURRENT_ASYNC_SCOPE EG(async_scope)
+
+// Convert awaitable Zend object to zend_async_event_t pointer
+#define ZEND_AWAITABLE_TO_EVENT(obj) ((zend_async_event_t *)((char *)(obj) - (obj)->handlers->offset))
 
 BEGIN_EXTERN_C()
 
