@@ -349,6 +349,33 @@ void iterator_coroutine_entry(void)
 	efree(iterator);
 }
 
+void iterator_coroutine_finish_callback(
+	zend_async_event_t *event,
+	zend_async_event_callback_t *callback,
+	void * result,
+	zend_object *exception
+)
+{
+	async_await_iterator_t * iterator = (async_await_iterator_t *)
+			((zend_coroutine_event_callback_t*) callback)->coroutine->extended_data;
+
+	if (exception != NULL) {
+		// Resume the waiting coroutine with the exception
+		ZEND_ASYNC_RESUME_WITH_ERROR(
+			iterator->waiting_coroutine,
+			exception,
+			false
+		);
+	} else if (iterator->await_context->resolved_count >= iterator->await_context->waiting_count) {
+		// If iteration is finished, resume the waiting coroutine
+		ZEND_ASYNC_RESUME(
+			iterator->waiting_coroutine,
+			NULL,
+			false
+		);
+	}
+}
+
 void async_await_iterator_coroutine_dispose(zend_coroutine_t *coroutine)
 {
 	if (coroutine == NULL || coroutine->extended_data == NULL) {
@@ -470,9 +497,6 @@ void async_await_futures(
 		} ZEND_HASH_FOREACH_END();
 	} else {
 
-		zend_async_event_t * iterator_finished_event = ecalloc(1, sizeof(zend_async_event_t));
-		zend_async_resume_when(coroutine, iterator_finished_event, false, zend_async_waker_callback_resolve, NULL);
-
 		// To launch the concurrent iterator,
 		// we need a separate coroutine because we're needed to suspend the current one.
 
@@ -498,10 +522,14 @@ void async_await_futures(
 		async_await_iterator_t * iterator = ecalloc(1, sizeof(async_await_iterator_t));
 		iterator->zend_iterator = zend_iterator;
 		iterator->waiting_coroutine = coroutine;
-		iterator->iterator_finished_event = iterator_finished_event;
+		iterator->iterator_coroutine = iterator_coroutine;
 
 		iterator_coroutine->extended_data = iterator;
 		iterator_coroutine->extended_dispose = async_await_iterator_coroutine_dispose;
+
+		zend_async_resume_when(
+			coroutine, iterator_coroutine, false, iterator_coroutine_finish_callback, NULL
+		);
 	}
 
 	ZEND_ASYNC_SUSPEND();

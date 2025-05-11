@@ -45,7 +45,7 @@ typedef struct
 {
 	zend_object_iterator * zend_iterator;
 	HashTable * futures;
-	zend_async_event_t * iterator_finished_event;
+	zend_coroutine_t * iterator_coroutine;
 	zend_coroutine_t * waiting_coroutine;
 	async_await_context_t * await_context;
 } async_await_iterator_t;
