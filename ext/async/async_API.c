@@ -368,11 +368,7 @@ void iterator_coroutine_finish_callback(
 		);
 	} else if (iterator->await_context->resolved_count >= iterator->await_context->waiting_count) {
 		// If iteration is finished, resume the waiting coroutine
-		ZEND_ASYNC_RESUME(
-			iterator->waiting_coroutine,
-			NULL,
-			false
-		);
+		ZEND_ASYNC_RESUME(iterator->waiting_coroutine);
 	}
 }
 
