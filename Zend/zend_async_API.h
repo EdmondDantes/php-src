@@ -399,11 +399,13 @@ struct _zend_async_task_t {
 
 typedef void (*zend_async_before_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope, zval *result);
 typedef void (*zend_async_after_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope);
+typedef void (*zend_async_scope_dispose_t)(zend_async_scope_t *scope);
 
 struct _zend_async_scope_t {
 	bool is_closed;
 	zend_async_before_coroutine_enqueue_t before_coroutine_enqueue;
 	zend_async_after_coroutine_enqueue_t after_coroutine_enqueue;
+	zend_async_scope_dispose_t dispose;
 };
 
 typedef void (*zend_async_waker_dtor)(zend_coroutine_t *coroutine);

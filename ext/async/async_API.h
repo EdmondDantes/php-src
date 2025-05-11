@@ -18,27 +18,43 @@
 
 #include <stdbool.h>
 
+#include "iterator.h"
 #include "zend_async_API.h"
 
 typedef struct
 {
-	zend_coroutine_event_callback_t callback;
 	unsigned int total;
 	unsigned int waiting_count;
 	unsigned int resolved_count;
 	bool ignore_errors;
+	unsigned int concurrency;
+	HashTable *futures;
 	// Scope for the new coroutines
 	zend_async_scope_t * scope;
+} async_await_context_t;
+
+typedef struct
+{
+	zend_coroutine_event_callback_t callback;
+	async_await_context_t *await_context;
+	// The key index for the result
+	zval key;
 } async_await_callback_t;
 
 typedef struct
 {
-	zend_object_iterator * iterator;
+	zend_object_iterator * zend_iterator;
 	HashTable * futures;
 	zend_async_event_t * iterator_finished_event;
 	zend_coroutine_t * waiting_coroutine;
-	async_await_callback_t * await_callback;
+	async_await_context_t * await_context;
 } async_await_iterator_t;
+
+typedef struct
+{
+	async_iterator_t iterator;
+	async_await_iterator_t * await_iterator;
+} async_await_iterator_iterator_t;
 
 void async_api_register(void);
 

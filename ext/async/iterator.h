@@ -36,7 +36,8 @@ async_iterator_t * async_new_iterator(
 	zend_object_iterator *zend_iterator,
 	zend_fcall_t *fcall,
 	async_iterator_handler_t handler,
-	unsigned int concurrency
+	unsigned int concurrency,
+	size_t iterator_size
 );
 
 void async_run_iterator(async_iterator_t *iterator);

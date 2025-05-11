@@ -68,10 +68,15 @@ async_iterator_t * async_new_iterator(
 		zend_object_iterator *zend_iterator,
 		zend_fcall_t *fcall,
 		async_iterator_handler_t handler,
-		unsigned int concurrency
+		unsigned int concurrency,
+		size_t iterator_size
 	)
 {
-	async_iterator_t * iterator = ecalloc(1, sizeof(async_iterator_t));
+	if (iterator_size == 0) {
+		iterator_size = sizeof(async_iterator_t);
+	}
+
+	async_iterator_t * iterator = ecalloc(1, iterator_size);
 
 	iterator->microtask.handler = iterator_microtask;
 	iterator->microtask.dtor = iterator_dtor;
