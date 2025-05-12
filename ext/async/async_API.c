@@ -235,6 +235,29 @@ static zend_class_entry* async_get_exception_ce(zend_async_exception_type type)
 	}
 }
 
+////////////////////////////////////////////////////////////////////
+/// async_await_futures
+////////////////////////////////////////////////////////////////////
+
+static zend_always_inline zend_async_event_t * zval_to_event(const zval * current)
+{
+	// An array element can be either an object implementing
+	// the Awaitable interface
+	// or an internal structure zend_async_event_t.
+
+	if (Z_TYPE_P(current) == IS_OBJECT
+		&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
+		return ZEND_AWAITABLE_TO_EVENT(Z_OBJ_P(current));
+	} else if (Z_TYPE_P(current) == IS_PTR) {
+		return (zend_async_event_t *) Z_PTR_P(current);
+	} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {
+		return NULL;
+	} else {
+		async_throw_error("Expected item to be an Async\\Awaitable object");
+		return NULL;
+	}
+}
+
 void async_waiting_callback(
 	zend_async_event_t *event,
 	zend_async_event_callback_t *callback,
@@ -247,6 +270,27 @@ void async_waiting_callback(
 
 	await_context->resolved_count++;
 
+	// remove the callback from the event
+	// We remove the callback because we treat all events
+	// as FUTURE-type objects, where the trigger can be activated only once.
+	event->del_callback(event, callback);
+
+	if (await_context->errors != NULL && exception != NULL) {
+		const zval *success = NULL;
+		zval exception_obj;
+		ZVAL_OBJ(&exception_obj, exception);
+
+		if (Z_TYPE(await_callback->key) == IS_STRING) {
+			success = zend_hash_update(await_context->errors, Z_STR(await_callback->key), &exception_obj);
+		} else if (Z_TYPE(await_callback->key) == IS_LONG) {
+			success = zend_hash_index_update(await_context->errors, Z_LVAL(await_callback->key), &exception_obj);
+		}
+
+		if (success != NULL) {
+			GC_ADDREF(exception);
+		}
+	}
+
 	if (exception != NULL && false == await_context->ignore_errors) {
 		ZEND_ASYNC_RESUME_WITH_ERROR(
 			await_callback->callback.coroutine,
@@ -255,6 +299,21 @@ void async_waiting_callback(
 		);
 
 		return;
+	}
+
+	if (await_context->results != NULL && ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(event) && result != NULL) {
+
+		const zval *success = NULL;
+
+		if (Z_TYPE(await_callback->key) == IS_STRING) {
+			success = zend_hash_update(await_context->results, Z_STR(await_callback->key), result);
+		} else if (Z_TYPE(await_callback->key) == IS_LONG) {
+			success = zend_hash_index_update(await_context->results, Z_LVAL(await_callback->key), result);
+		}
+
+		if (success != NULL) {
+			zval_add_ref(result);
+		}
 	}
 
 	if (await_context->resolved_count >= await_context->waiting_count) {
@@ -274,25 +333,13 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 	// the Awaitable interface
 	// or an internal structure zend_async_event_t.
 
-	zend_async_awaitable_t *awaitable;
+	zend_async_event_t* awaitable = zval_to_event(current);
 
-	if (Z_TYPE_P(current) == IS_OBJECT
-		&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
-		awaitable = (zend_async_awaitable_t *) Z_OBJ_P(current);
-
-		// We mark that the object has been used and will be used for exception handling.
-		awaitable->is_used = true;
-		awaitable->will_exception_caught = true;
-	} else if (Z_TYPE_P(current) == IS_PTR) {
-		awaitable = (zend_async_awaitable_t *) Z_PTR_P(current);
-	} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {
-		return SUCCESS;
-	} else {
-		async_throw_error("Expected item to be an Async\\Awaitable object");
+	if (UNEXPECTED(EG(exception))) {
 		return FAILURE;
 	}
 
-	if (ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
+	if (awaitable == NULL || ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
 		return SUCCESS;
 	}
 
@@ -302,9 +349,7 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 
 	ZVAL_COPY(&callback->key, key);
 
-	zend_async_resume_when(
-		await_iterator->waiting_coroutine, (zend_async_event_t *) awaitable, false, NULL, &callback->callback
-	);
+	zend_async_resume_when(await_iterator->waiting_coroutine, awaitable, false, NULL, &callback->callback);
 
 	return SUCCESS;
 }
@@ -380,7 +425,6 @@ void async_await_iterator_coroutine_dispose(zend_coroutine_t *coroutine)
 
 	async_await_iterator_t * iterator = (async_await_iterator_t *) coroutine->extended_data;
 	coroutine->extended_data = NULL;
-	iterator->iterator_finished_event->dispose(iterator->iterator_finished_event);
 
 	efree(iterator);
 }
@@ -418,9 +462,6 @@ void async_await_futures(
 	zend_string *key;
 	zval * current;
 
-	zend_async_event_t *awaitable;
-
-	zend_async_waker_t *waker;
 	async_await_context_t *await_context = NULL;
 
 	if (UNEXPECTED(futures != NULL && zend_hash_num_elements(futures) == 0)) {
@@ -434,9 +475,7 @@ void async_await_futures(
 		return;
 	}
 
-	waker = zend_async_waker_new_with_timeout(coroutine, timeout, cancellation);
-
-	if (waker == NULL) {
+	if (UNEXPECTED(zend_async_waker_new_with_timeout(coroutine, timeout, cancellation) == NULL)) {
 		return;
 	}
 
@@ -455,21 +494,14 @@ void async_await_futures(
 			// the Awaitable interface
 			// or an internal structure zend_async_event_t.
 
-			if (Z_TYPE_P(current) == IS_OBJECT
-				&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
-				awaitable = ZEND_AWAITABLE_TO_EVENT(Z_OBJ_P(current));
+			zend_async_event_t* awaitable = zval_to_event(current);
 
-				// We mark that the object has been used and will be used for exception handling.
-			} else if (Z_TYPE_P(current) == IS_PTR) {
-				awaitable = (zend_async_event_t *) Z_PTR_P(current);
-			} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {
-				continue;
-			} else {
-				async_throw_error("Expected item to be an Async\\Awaitable object");
-				continue;
+			if (UNEXPECTED(EG(exception))) {
+				efree(await_context);
+				return;
 			}
 
-			if (ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
+			if (awaitable == NULL || ZEND_ASYNC_EVENT_IS_CLOSED(awaitable)) {
 				continue;
 			}
 
@@ -502,14 +534,14 @@ void async_await_futures(
 		zend_async_scope_t * scope = ZEND_ASYNC_NEW_SCOPE(ZEND_CURRENT_ASYNC_SCOPE);
 
 		if (UNEXPECTED(scope == NULL || EG(exception))) {
-			await_context->callback.base.dispose(&await_context->callback.base, NULL);
+			efree(await_context);
 			return;
 		}
 
 		zend_coroutine_t * iterator_coroutine = ZEND_ASYNC_SPAWN_WITH(scope);
 
 		if (UNEXPECTED(iterator_coroutine == NULL || EG(exception))) {
-			await_context->callback.base.dispose(&await_context->callback.base, NULL);
+			efree(await_context);
 			return;
 		}
 

@@ -239,10 +239,13 @@ struct _zend_async_event_t {
 #define ZEND_ASYNC_EVENT_F_CLOSED        (1u << 0)  /* event was closed */
 #define ZEND_ASYNC_EVENT_F_RESULT_USED   (1u << 1)  /* result will be used in exception handler */
 #define ZEND_ASYNC_EVENT_F_EXC_CAUGHT    (1u << 2)  /* error was caught in exception handler */
+/* Indicates that the event produces a ZVAL pointer during the callback. */
+#define ZEND_ASYNC_EVENT_F_ZVAL_RESULT   (1u << 3)
 
 #define ZEND_ASYNC_EVENT_IS_CLOSED(ev)         (((ev)->flags & ZEND_ASYNC_EVENT_F_CLOSED) != 0)
 #define ZEND_ASYNC_EVENT_WILL_RESULT_USED(ev)  (((ev)->flags & ZEND_ASYNC_EVENT_F_RESULT_USED) != 0)
 #define ZEND_ASYNC_EVENT_WILL_EXC_CAUGHT(ev)   (((ev)->flags & ZEND_ASYNC_EVENT_F_EXC_CAUGHT) != 0)
+#define ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(ev)  (((ev)->flags & ZEND_ASYNC_EVENT_F_ZVAL_RESULT) != 0)
 
 #define ZEND_ASYNC_EVENT_SET_CLOSED(ev)        ((ev)->flags |=  ZEND_ASYNC_EVENT_F_CLOSED)
 #define ZEND_ASYNC_EVENT_CLR_CLOSED(ev)        ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_CLOSED)
@@ -252,6 +255,8 @@ struct _zend_async_event_t {
 
 #define ZEND_ASYNC_EVENT_SET_EXC_CAUGHT(ev)    ((ev)->flags |=  ZEND_ASYNC_EVENT_F_EXC_CAUGHT)
 #define ZEND_ASYNC_EVENT_CLR_EXC_CAUGHT(ev)    ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_EXC_CAUGHT)
+
+#define ZEND_ASYNC_EVENT_SET_ZVAL_RESULT(ev)   ((ev)->flags |=  ZEND_ASYNC_EVENT_F_ZVAL_RESULT)
 
 /* Append a callback; grows the buffer when needed */
 static zend_always_inline void
@@ -297,6 +302,8 @@ zend_async_callbacks_notify(zend_async_event_t *event, void *result, zend_object
 	if (event->callbacks.data == NULL) {
 		return;
 	}
+
+	// TODO: Consider the case when the callback is removed during iteration!
 
 	const zend_async_callbacks_vector_t *vector = &event->callbacks;
 

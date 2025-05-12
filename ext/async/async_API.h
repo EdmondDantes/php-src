@@ -31,6 +31,8 @@ typedef struct
 	HashTable *futures;
 	// Scope for the new coroutines
 	zend_async_scope_t * scope;
+	HashTable *results;
+	HashTable *errors;
 } async_await_context_t;
 
 typedef struct
