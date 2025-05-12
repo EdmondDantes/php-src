@@ -21,19 +21,24 @@
 #include "iterator.h"
 #include "zend_async_API.h"
 
-typedef struct
+typedef struct _async_await_context_t async_await_context_t;
+typedef void (*async_await_context_dtor_t) (async_await_context_t *context);
+
+struct _async_await_context_t
 {
+	unsigned int ref_count;
 	unsigned int total;
 	unsigned int waiting_count;
 	unsigned int resolved_count;
 	bool ignore_errors;
 	unsigned int concurrency;
+	async_await_context_dtor_t dtor;
 	HashTable *futures;
 	// Scope for the new coroutines
 	zend_async_scope_t * scope;
 	HashTable *results;
 	HashTable *errors;
-} async_await_context_t;
+};
 
 typedef struct
 {

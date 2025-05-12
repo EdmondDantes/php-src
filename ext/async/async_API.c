@@ -429,6 +429,20 @@ void async_await_iterator_coroutine_dispose(zend_coroutine_t *coroutine)
 	efree(iterator);
 }
 
+void await_context_dtor(async_await_context_t *context)
+{
+	if (context == NULL) {
+		return;
+	}
+
+	if (context->ref_count > 1) {
+		context->ref_count--;
+		return;
+	}
+
+	efree(context);
+}
+
 void async_await_futures(
 	zval *iterable,
 	int count,
@@ -489,6 +503,8 @@ void async_await_futures(
 	await_context->concurrency = concurrency;
 	await_context->results = results;
 	await_context->errors = errors;
+	await_context->dtor = await_context_dtor;
+	await_context->ref_count = 1;
 
 	if (futures != NULL)
 	{
@@ -501,7 +517,7 @@ void async_await_futures(
 			zend_async_event_t* awaitable = zval_to_event(current);
 
 			if (UNEXPECTED(EG(exception))) {
-				efree(await_context);
+				await_context->dtor(await_context);
 				return;
 			}
 
@@ -525,6 +541,13 @@ void async_await_futures(
 
 			zend_async_resume_when(coroutine, awaitable, false, NULL, &callback->callback);
 
+			if (UNEXPECTED(EG(exception))) {
+				await_context->dtor(await_context);
+				return;
+			}
+
+			await_context->ref_count++;
+
 		} ZEND_HASH_FOREACH_END();
 	} else {
 
@@ -536,14 +559,14 @@ void async_await_futures(
 		zend_async_scope_t * scope = ZEND_ASYNC_NEW_SCOPE(ZEND_CURRENT_ASYNC_SCOPE);
 
 		if (UNEXPECTED(scope == NULL || EG(exception))) {
-			efree(await_context);
+			await_context->dtor(await_context);
 			return;
 		}
 
 		zend_coroutine_t * iterator_coroutine = ZEND_ASYNC_SPAWN_WITH(scope);
 
 		if (UNEXPECTED(iterator_coroutine == NULL || EG(exception))) {
-			efree(await_context);
+			await_context->dtor(await_context);
 			return;
 		}
 
@@ -571,7 +594,7 @@ void async_await_futures(
 		await_context->scope = NULL;
 	}
 
-	efree(await_context);
+	await_context->dtor(await_context);
 
 	if (futures != NULL) {
 		zend_array_release(futures);
