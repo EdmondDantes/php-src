@@ -456,7 +456,7 @@ struct _zend_async_waker_t {
 typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
 struct _zend_coroutine_t {
-	zend_async_event_t base;
+	zend_async_event_t event;
 	/*
 	 * Callback and info / cache to be used when coroutine is started.
 	 * If NULL, the coroutine is not a userland coroutine and internal_entry is used.

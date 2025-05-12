@@ -435,7 +435,9 @@ void async_await_futures(
 	bool ignore_errors,
 	zend_async_event_t *cancellation,
 	zend_ulong timeout,
-	unsigned int concurrency
+	unsigned int concurrency,
+	HashTable *results,
+	HashTable *errors
 )
 {
 	HashTable *futures = NULL;
@@ -485,6 +487,8 @@ void async_await_futures(
 	await_context->resolved_count = 0;
 	await_context->ignore_errors = ignore_errors;
 	await_context->concurrency = concurrency;
+	await_context->results = results;
+	await_context->errors = errors;
 
 	if (futures != NULL)
 	{
@@ -519,9 +523,7 @@ void async_await_futures(
 				ZVAL_LONG(&callback->key, index);
 			}
 
-			zend_async_resume_when(
-				coroutine, (zend_async_event_t *) awaitable, false, NULL, &callback->callback
-			);
+			zend_async_resume_when(coroutine, awaitable, false, NULL, &callback->callback);
 
 		} ZEND_HASH_FOREACH_END();
 	} else {
@@ -557,7 +559,7 @@ void async_await_futures(
 		iterator_coroutine->extended_dispose = async_await_iterator_coroutine_dispose;
 
 		zend_async_resume_when(
-			coroutine, iterator_coroutine, false, iterator_coroutine_finish_callback, NULL
+			coroutine, &iterator_coroutine->event, false, iterator_coroutine_finish_callback, NULL
 		);
 	}
 
@@ -569,8 +571,7 @@ void async_await_futures(
 		await_context->scope = NULL;
 	}
 
-	await_context->callback.base.dispose(&await_context->callback.base, NULL);
-	waker->dtor(coroutine);
+	efree(await_context);
 
 	if (futures != NULL) {
 		zend_array_release(futures);
