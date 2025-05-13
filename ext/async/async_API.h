@@ -38,6 +38,7 @@ struct _async_await_context_t
 	zend_async_scope_t * scope;
 	HashTable *results;
 	HashTable *errors;
+	bool fill_missing_with_null;
 };
 
 typedef struct

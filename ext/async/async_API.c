@@ -382,6 +382,12 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 		} else if (Z_TYPE(callback->key) == IS_LONG) {
 			zend_hash_index_add_empty_element(await_iterator->await_context->results, Z_LVAL_P(key));
 		}
+	} else if (await_iterator->await_context->results != NULL && await_iterator->await_context->fill_missing_with_null) {
+		if (Z_TYPE(callback->key) == IS_STRING) {
+			zend_hash_add(await_iterator->await_context->results, Z_STR_P(key), &EG(uninitialized_zval));
+		} else if (Z_TYPE(callback->key) == IS_LONG) {
+			zend_hash_index_add(await_iterator->await_context->results, Z_LVAL_P(key), &EG(uninitialized_zval));
+		}
 	}
 
 	zend_async_resume_when(await_iterator->waiting_coroutine, awaitable, false, NULL, &callback->callback);
@@ -486,7 +492,8 @@ void async_await_futures(
 	zend_ulong timeout,
 	unsigned int concurrency,
 	HashTable *results,
-	HashTable *errors
+	HashTable *errors,
+	bool fill_missing_with_null
 )
 {
 	HashTable *futures = NULL;
@@ -537,6 +544,7 @@ void async_await_futures(
 	await_context->resolved_count = 0;
 	await_context->ignore_errors = ignore_errors;
 	await_context->concurrency = concurrency;
+	await_context->fill_missing_with_null = fill_missing_with_null;
 
 	if (AWAIT_ALL(await_context)) {
 		tmp_results = zend_new_array(await_context->total);
@@ -581,6 +589,8 @@ void async_await_futures(
 
 				if (await_context->results != NULL && AWAIT_ALL(await_context)) {
 					zend_hash_add_empty_element(await_context->results, key);
+				} else if (await_context->results != NULL && await_context->fill_missing_with_null) {
+					zend_hash_add(await_context->results, key, &EG(uninitialized_zval));
 				}
 
 			} else {
@@ -588,6 +598,8 @@ void async_await_futures(
 
 				if (await_context->results != NULL && AWAIT_ALL(await_context)) {
 					zend_hash_index_add_empty_element(await_context->results, index);
+				} else if (await_context->results != NULL && await_context->fill_missing_with_null) {
+					zend_hash_index_add_new(await_context->results, index, &EG(uninitialized_zval));
 				}
 			}
 
