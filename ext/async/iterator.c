@@ -268,5 +268,14 @@ static void coroutine_entry(void)
 		return;
 	}
 
-	async_run_iterator(ZEND_CURRENT_COROUTINE->extended_data);
+	async_iterator_t *iterator = (async_iterator_t *) ZEND_CURRENT_COROUTINE->extended_data;
+
+	async_run_iterator(iterator);
+
+	if (iterator->active_coroutines > 1) {
+		iterator->active_coroutines--;
+	} else {
+		iterator->active_coroutines = 0;
+		iterator->state = ASYNC_ITERATOR_FINISHED;
+	}
 }

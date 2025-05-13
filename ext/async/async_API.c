@@ -239,6 +239,8 @@ static zend_class_entry* async_get_exception_ce(zend_async_exception_type type)
 /// async_await_futures
 ////////////////////////////////////////////////////////////////////
 
+#define AWAIT_ALL(await_context) ((await_context)->waiting_count == 0 || (await_context)->waiting_count == (await_context)->total)
+
 static zend_always_inline zend_async_event_t * zval_to_event(const zval * current)
 {
 	// An array element can be either an object implementing
@@ -284,6 +286,11 @@ void async_waiting_callback(
 			success = zend_hash_update(await_context->errors, Z_STR(await_callback->key), &exception_obj);
 		} else if (Z_TYPE(await_callback->key) == IS_LONG) {
 			success = zend_hash_index_update(await_context->errors, Z_LVAL(await_callback->key), &exception_obj);
+		} else if (Z_TYPE(await_callback->key) == IS_NULL || Z_TYPE(await_callback->key) == IS_UNDEF) {
+			success = zend_hash_next_index_insert_new(await_context->errors, &exception_obj);
+			ZVAL_LONG(&await_callback->key, await_context->errors->nNextFreeElement - 1);
+		} else {
+			ZEND_ASSERT("Invalid key type: must be string, long or null");
 		}
 
 		if (success != NULL) {
@@ -309,6 +316,11 @@ void async_waiting_callback(
 			success = zend_hash_update(await_context->results, Z_STR(await_callback->key), result);
 		} else if (Z_TYPE(await_callback->key) == IS_LONG) {
 			success = zend_hash_index_update(await_context->results, Z_LVAL(await_callback->key), result);
+		} else if (Z_TYPE(await_callback->key) == IS_NULL || Z_TYPE(await_callback->key) == IS_UNDEF) {
+			success = zend_hash_next_index_insert_new(await_context->results, result);
+			ZVAL_LONG(&await_callback->key, await_context->results->nNextFreeElement - 1);
+		} else {
+			ZEND_ASSERT("Invalid key type: must be string, long or null");
 		}
 
 		if (success != NULL) {
@@ -348,6 +360,29 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 	callback->await_context = await_iterator->await_context;
 
 	ZVAL_COPY(&callback->key, key);
+
+	// If the futures array is defined, we collect all new objects into it.
+	if (await_iterator->futures != NULL) {
+		if (Z_TYPE_P(key) == IS_STRING) {
+			zend_hash_update(await_iterator->futures, Z_STR_P(key), current);
+		} else if (Z_TYPE_P(key) == IS_LONG) {
+			zend_hash_index_update(await_iterator->futures, Z_LVAL_P(key), current);
+		} else if (Z_TYPE_P(key) == IS_NULL || Z_TYPE_P(key) == IS_UNDEF) {
+			// If the key is NULL, we use the next index
+			if (zend_hash_next_index_insert_new(await_iterator->futures, current) != NULL) {
+				ZVAL_LONG(&callback->key, await_iterator->futures->nNextFreeElement - 1);
+			}
+		}
+	}
+
+	// Add the empty element to the results array if all elements are awaited
+	if (await_iterator->await_context->results != NULL && AWAIT_ALL(await_iterator->await_context)) {
+		if (Z_TYPE(callback->key) == IS_STRING) {
+			zend_hash_add_empty_element(await_iterator->await_context->results, Z_STR_P(key));
+		} else if (Z_TYPE(callback->key) == IS_LONG) {
+			zend_hash_index_add_empty_element(await_iterator->await_context->results, Z_LVAL_P(key));
+		}
+	}
 
 	zend_async_resume_when(await_iterator->waiting_coroutine, awaitable, false, NULL, &callback->callback);
 
@@ -456,6 +491,7 @@ void async_await_futures(
 {
 	HashTable *futures = NULL;
 	zend_object_iterator *zend_iterator = NULL;
+	HashTable *tmp_results = NULL;
 
 	if (Z_TYPE_P(iterable) == IS_ARRAY) {
 		futures = Z_ARR_P(iterable);
@@ -501,7 +537,14 @@ void async_await_futures(
 	await_context->resolved_count = 0;
 	await_context->ignore_errors = ignore_errors;
 	await_context->concurrency = concurrency;
-	await_context->results = results;
+
+	if (AWAIT_ALL(await_context)) {
+		tmp_results = zend_new_array(await_context->total);
+		await_context->results = tmp_results;
+	} else {
+		await_context->results = results;
+	}
+
 	await_context->errors = errors;
 	await_context->dtor = await_context_dtor;
 	await_context->ref_count = 1;
@@ -535,8 +578,17 @@ void async_await_futures(
 			if (key != NULL) {
 				ZVAL_STR(&callback->key, key);
 				zval_add_ref(&callback->key);
+
+				if (await_context->results != NULL && AWAIT_ALL(await_context)) {
+					zend_hash_add_empty_element(await_context->results, key);
+				}
+
 			} else {
 				ZVAL_LONG(&callback->key, index);
+
+				if (await_context->results != NULL && AWAIT_ALL(await_context)) {
+					zend_hash_index_add_empty_element(await_context->results, index);
+				}
 			}
 
 			zend_async_resume_when(coroutine, awaitable, false, NULL, &callback->callback);
@@ -592,6 +644,27 @@ void async_await_futures(
 	if (await_context->scope != NULL) {
 		await_context->scope->dispose(await_context->scope);
 		await_context->scope = NULL;
+	}
+
+	// Remove all undefined buckets from the results array.
+	if (tmp_results != NULL) {
+
+		// foreach results as key => value
+		// if value is UNDEFINED then continue
+		ZEND_HASH_FOREACH_KEY_VAL(tmp_results, index, key, current) {
+			if (Z_TYPE_P(current) == IS_UNDEF) {
+				continue;
+			}
+
+			if (key != NULL) {
+				zend_hash_update(results, key, current);
+			} else {
+				zend_hash_index_update(results, index, current);
+			}
+		} ZEND_HASH_FOREACH_END();
+
+		await_context->results = NULL;
+		zend_array_release(tmp_results);
 	}
 
 	await_context->dtor(await_context);
