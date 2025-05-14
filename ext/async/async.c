@@ -155,24 +155,248 @@ PHP_FUNCTION(Async_protect)
 	THROW_IF_SCHEDULER_CONTEXT;
 }
 
-PHP_FUNCTION(Async_any)
+PHP_FUNCTION(Async_awaitAny)
 {
+	zval * futures;
+	zend_object * cancellation = NULL;
 
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+
+	async_await_futures(futures,
+		1,
+		false,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		NULL,
+		false
+	);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		RETURN_THROWS();
+	}
+
+	if (zend_hash_num_elements(results) == 0) {
+		zend_array_release(results);
+		RETURN_NULL();
+	}
+
+	zval result;
+	ZVAL_COPY(&result, zend_hash_index_find(results, 0));
+	zend_array_release(results);
+
+	RETURN_ZVAL(&result, 0, 0);
 }
 
-PHP_FUNCTION(Async_all)
+PHP_FUNCTION(Async_awaitFirstSuccess)
 {
+	zval * futures;
+	zend_object * cancellation = NULL;
 
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+	HashTable * errors = zend_new_array(8);
+
+	async_await_futures(futures,
+		1,
+		true,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		errors,
+		false
+	);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		zend_array_release(errors);
+		RETURN_THROWS();
+	}
+
+	HashTable * return_array = zend_new_array(2);
+
+	zval val;
+
+	if (zend_hash_num_elements(results) == 0) {
+		ZVAL_NULL(&val);
+	} else {
+		ZVAL_COPY(&val, zend_hash_index_find(results, 0));
+	}
+
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	ZVAL_ARR(&val, errors);
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	RETURN_ARR(return_array);
 }
 
-PHP_FUNCTION(Async_anyOff)
+PHP_FUNCTION(Async_awaitAll)
 {
+	zval * futures;
+	zend_object * cancellation = NULL;
 
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+
+	async_await_futures(futures,
+		0,
+		false,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		NULL,
+		false
+		);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		RETURN_THROWS();
+	}
+
+	RETURN_ARR(results);
 }
 
-PHP_FUNCTION(Async_captureErrors)
+PHP_FUNCTION(Async_awaitAllWithErrors)
 {
+	zval * futures;
+	zend_object * cancellation = NULL;
 
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+	HashTable * errors = zend_new_array(8);
+
+	async_await_futures(futures,
+		0,
+		true,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		errors,
+		false
+		);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		zend_array_release(errors);
+		RETURN_THROWS();
+	}
+
+	HashTable * return_array = zend_new_array(2);
+
+	zval val;
+	ZVAL_ARR(&val, results);
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	ZVAL_ARR(&val, errors);
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	RETURN_ARR(return_array);
+}
+
+PHP_FUNCTION(Async_awaitAnyOff)
+{
+	zval * futures;
+	zend_object * cancellation = NULL;
+	zend_long count = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3)
+		Z_PARAM_LONG(count)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+
+	async_await_futures(futures,
+		(int)count,
+		false,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		NULL,
+		false
+		);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		RETURN_THROWS();
+	}
+
+	RETURN_ARR(results);
+}
+
+PHP_FUNCTION(Async_awaitAnyOfWithErrors)
+{
+	zval * futures;
+	zend_object * cancellation = NULL;
+	zend_long count = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3)
+		Z_PARAM_LONG(count)
+		Z_PARAM_ZVAL(futures);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	HashTable * results = zend_new_array(8);
+	HashTable * errors = zend_new_array(8);
+
+	async_await_futures(futures,
+		(int)count,
+		true,
+		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		0,
+		0,
+		results,
+		errors,
+		false
+		);
+
+	if (EG(exception)) {
+		zend_array_release(results);
+		zend_array_release(errors);
+		RETURN_THROWS();
+	}
+
+	HashTable * return_array = zend_new_array(2);
+
+	zval val;
+	ZVAL_ARR(&val, results);
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	ZVAL_ARR(&val, errors);
+	zend_hash_next_index_insert_new(return_array, &val);
+
+	RETURN_ARR(return_array);
 }
 
 PHP_FUNCTION(Async_delay)

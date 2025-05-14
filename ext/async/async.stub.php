@@ -30,13 +30,17 @@ function suspend(): void {}
  */
 function protect(\Closure $closure): void {}
 
-function any(iterable $triggers): Awaitable {}
+function awaitAny(iterable $triggers, ?Awaitable $cancellation = null): mixed {}
 
-function all(iterable $triggers): Awaitable {}
+function awaitFirstSuccess(iterable $triggers, ?Awaitable $cancellation = null): mixed {}
 
-function anyOf(int $count, iterable $triggers): Awaitable {}
+function awaitAll(iterable $triggers, ?Awaitable $cancellation = null, bool $fillNull = false): array {}
 
-function captureErrors(Awaitable $awaitable): Awaitable {}
+function awaitAllWithErrors(iterable $triggers, ?Awaitable $cancellation = null, bool $fillNull = false): array {}
+
+function awaitAnyOf(int $count, iterable $triggers, ?Awaitable $cancellation = null): array {}
+
+function awaitAnyOfWithErrors(int $count, iterable $triggers, ?Awaitable $cancellation = null): array {}
 
 function delay(int $ms): void {}
 

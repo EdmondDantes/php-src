@@ -66,4 +66,16 @@ typedef struct
 
 void async_api_register(void);
 
+void async_await_futures(
+	zval *iterable,
+	int count,
+	bool ignore_errors,
+	zend_async_event_t *cancellation,
+	zend_ulong timeout,
+	unsigned int concurrency,
+	HashTable *results,
+	HashTable *errors,
+	bool fill_missing_with_null
+);
+
 #endif //ASYNC_API_H
