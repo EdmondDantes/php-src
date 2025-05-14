@@ -272,6 +272,7 @@ ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine)
 	waker->triggered_events = NULL;
 	waker->error = NULL;
 	waker->dtor = NULL;
+	ZVAL_UNDEF(&waker->result);
 
 	zend_hash_init(&waker->events, 2, NULL, waker_events_dtor, 0);
 
@@ -309,6 +310,7 @@ ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine)
 		waker->lineno = 0;
 	}
 
+	zval_ptr_dtor(&waker->result);
 	zend_hash_destroy(&waker->events);
 }
 
@@ -425,6 +427,11 @@ ZEND_API void zend_async_waker_callback_resolve(
 
 		if (EXPECTED(zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event) != NULL)) {
 			event->ref_count++;
+		}
+
+		// Copy the result to the waker if it is not NULL
+		if (ZEND_ASYNC_EVENT_WILL_RESULT_USED(event) && result != NULL) {
+			ZVAL_COPY(&coroutine->waker->result, result);
 		}
 	}
 

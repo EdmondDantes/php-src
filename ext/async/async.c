@@ -155,6 +155,62 @@ PHP_FUNCTION(Async_protect)
 	THROW_IF_SCHEDULER_CONTEXT;
 }
 
+PHP_FUNCTION(Async_await)
+{
+	zend_object * awaitable = NULL;
+	zend_object * cancellation = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_OBJ_OF_CLASS(awaitable, async_ce_awaitable);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_OBJ_OF_CLASS_OR_NULL(cancellation, async_ce_awaitable);
+	ZEND_PARSE_PARAMETERS_END();
+
+	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
+
+	if (UNEXPECTED(coroutine == NULL)) {
+		return;
+	}
+
+	zend_async_waker_new(coroutine);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
+	}
+
+	zend_async_resume_when(
+		coroutine,
+		ZEND_AWAITABLE_TO_EVENT(awaitable),
+		false,
+		zend_async_waker_callback_resolve,
+		NULL
+	);
+
+	if (cancellation != NULL) {
+		zend_async_resume_when(
+			coroutine,
+			ZEND_AWAITABLE_TO_EVENT(cancellation),
+			false,
+			zend_async_waker_callback_cancel,
+			NULL
+		);
+	}
+
+	ZEND_ASYNC_SUSPEND();
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
+	}
+
+	if (Z_TYPE(coroutine->waker->result) == IS_UNDEF) {
+		ZVAL_NULL(return_value);
+	} else {
+		ZVAL_COPY(return_value, &coroutine->waker->result);
+	}
+
+	coroutine->waker->dtor(coroutine);
+}
+
 PHP_FUNCTION(Async_awaitAny)
 {
 	zval * futures;
@@ -401,6 +457,13 @@ PHP_FUNCTION(Async_awaitAnyOfWithErrors)
 
 PHP_FUNCTION(Async_delay)
 {
+	zend_long ms = 0;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_LONG(ms)
+	ZEND_PARSE_PARAMETERS_END();
+
+
 
 }
 

@@ -440,6 +440,8 @@ struct _zend_async_waker_t {
 	HashTable events;
 	/* A list of events objects (zend_async_event_t) that occurred during the last iteration of the event loop. */
 	HashTable *triggered_events;
+	/* Result of the waker. */
+	zval result;
 	/* Error object. */
 	zend_object *error;
 	/* Filename of the waker object creation point. */

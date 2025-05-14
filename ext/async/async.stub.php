@@ -6,6 +6,11 @@ namespace Async;
 
 interface Awaitable {}
 
+final class Timeout implements Awaitable
+{
+    private function __construct() {}
+}
+
 /**
  * Returns the current Coroutine.
  *
@@ -29,6 +34,8 @@ function suspend(): void {}
  * Execute the provided closure in non-cancellable mode.
  */
 function protect(\Closure $closure): void {}
+
+function await(Awaitable $awaitable, ?Awaitable $cancellation = null): mixed {}
 
 function awaitAny(iterable $triggers, ?Awaitable $cancellation = null): mixed {}
 
