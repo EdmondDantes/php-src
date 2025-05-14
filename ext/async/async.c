@@ -463,8 +463,21 @@ PHP_FUNCTION(Async_delay)
 		Z_PARAM_LONG(ms)
 	ZEND_PARSE_PARAMETERS_END();
 
+	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
 
+	if (UNEXPECTED(coroutine == NULL)) {
+		return;
+	}
 
+	zend_async_waker_new_with_timeout(coroutine, ms, NULL);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
+	}
+
+	ZEND_ASYNC_SUSPEND();
+
+	coroutine->waker->dtor(coroutine);
 }
 
 PHP_FUNCTION(Async_timeout)
