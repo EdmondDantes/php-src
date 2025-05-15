@@ -33,6 +33,8 @@
 /// Module functions
 ///////////////////////////////////////////////////////////////
 
+static zend_object *async_timeout_create(zend_ulong ms, bool is_periodic);
+
 #define THROW_IF_SCHEDULER_CONTEXT if (UNEXPECTED(ZEND_IN_SCHEDULER_CONTEXT)) {				\
 		async_throw_error("The operation cannot be executed in the scheduler context");		\
 		RETURN_THROWS();																	\
@@ -482,7 +484,24 @@ PHP_FUNCTION(Async_delay)
 
 PHP_FUNCTION(Async_timeout)
 {
+	zend_long ms = 0;
 
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_LONG(ms)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (ms <= 0) {
+		zend_value_error("Timeout value must be greater than 0");
+		RETURN_THROWS();
+	}
+
+	zend_object * zend_object = async_timeout_create(ms, false);
+
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ(zend_object);
 }
 
 PHP_FUNCTION(Async_currentContext)
@@ -562,14 +581,14 @@ static void async_timeout_dispose(zend_async_event_t *event)
 	OBJ_RELEASE(&timeout->std);
 }
 
-static zend_object *async_timeout_create(zend_class_entry *ce)
+static zend_object *async_timeout_create(const zend_ulong ms, const bool is_periodic)
 {
 	async_timeout_t *timeout = (async_timeout_t *) ZEND_ASYNC_NEW_TIMER_EVENT_EX(
-		0, false, sizeof(async_timeout_t) + zend_object_properties_size(ce)
+		ms, is_periodic, sizeof(async_timeout_t) + zend_object_properties_size(async_ce_timeout)
 	);
 
-	zend_object_std_init(&timeout->std, ce);
-	object_properties_init(&timeout->std, ce);
+	zend_object_std_init(&timeout->std, async_ce_timeout);
+	object_properties_init(&timeout->std, async_ce_timeout);
 
 	ZEND_ASYNC_EVENT_SET_ZEND_OBJ(&timeout->event);
 	ZEND_ASYNC_EVENT_SET_NO_FREE_MEMORY(&timeout->event);
@@ -586,7 +605,7 @@ void async_register_timeout_ce(void)
 {
 	async_ce_timeout = register_class_Async_Timeout(async_ce_awaitable);
 
-	async_ce_timeout->create_object = async_timeout_create;
+	async_ce_timeout->create_object = NULL;
 
 	async_timeout_handlers = std_object_handlers;
 
