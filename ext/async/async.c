@@ -533,6 +533,40 @@ void async_register_awaitable_ce(void)
 	async_ce_awaitable = register_class_Async_Awaitable();
 }
 
+static zend_object_handlers async_timeout_handlers;
+
+static void async_timeout_free(zend_object *object)
+{
+	async_timeout_t *t = ASYNC_TIMEOUT_FROM_OBJ(object);
+
+	zend_object_std_dtor(&t->std);
+}
+
+static zend_object *async_timeout_create(zend_class_entry *ce)
+{
+	async_timeout_t *t = ecalloc(1, sizeof(async_timeout_t) + zend_object_properties_size(ce));
+
+	zend_object_std_init(&t->std, ce);
+	object_properties_init(&t->std, ce);
+
+	memset(&t->event, 0, sizeof(t->event));
+
+	t->std.handlers = &async_timeout_handlers;
+	return &t->std;
+}
+
+void async_register_timeout_ce(void)
+{
+	async_ce_timeout = register_class_Async_Timeout(async_ce_awaitable);
+
+	async_ce_timeout->create_object = async_timeout_create;
+
+	async_timeout_handlers = std_object_handlers;
+
+	async_timeout_handlers.offset   = XtOffsetOf(async_timeout_t, std);
+	async_timeout_handlers.free_obj = async_timeout_free;
+}
+
 static PHP_GINIT_FUNCTION(async)
 {
 #if defined(COMPILE_DL_ASYNC) && defined(ZTS)

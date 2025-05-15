@@ -31,10 +31,20 @@ extern zend_module_entry async_module_entry;
 #define phpext_async_ptr &async_module_entry
 
 extern ZEND_API zend_class_entry * async_ce_awaitable;
+extern ZEND_API zend_class_entry * async_ce_timeout;
 
 #define PHP_ASYNC_NAME "TrueAsync"
 #define PHP_ASYNC_VERSION "0.5.0"
 #define PHP_ASYNC_NAME_VERSION "TrueAsync v0.5.0"
+
+typedef struct
+{
+	zend_async_event_t event;
+	zend_object std;
+} async_timeout_t;
+
+#define ASYNC_TIMEOUT_FROM_OBJ(obj) ((async_timeout_t *)((char *)(obj) - XtOffsetOf(async_timeout_t, std)))
+#define Z_ASYNC_TIMEOUT_P(zv)  ASYNC_TIMEOUT_FROM_OBJ(Z_OBJ_P(zv))
 
 ZEND_BEGIN_MODULE_GLOBALS(async)
 	/* Number of active coroutines */
