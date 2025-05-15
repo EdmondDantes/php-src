@@ -213,11 +213,7 @@ static void waker_events_dtor(zval *item)
 
 	trigger->event->del_callback(trigger->event, trigger->callback);
 
-	if (trigger->event->ref_count > 1) {
-		trigger->event->ref_count--;
-	} else {
-		trigger->event->dispose(trigger->event);
-	}
+	ZEND_ASYNC_EVENT_RELEASE(trigger->event);
 
 	efree(trigger);
 }
@@ -226,11 +222,7 @@ static void waker_triggered_events_dtor(zval *item)
 {
 	zend_async_event_t * event = Z_PTR_P(item);
 
-	if (event->ref_count > 1) {
-		event->ref_count--;
-	} else {
-		event->dispose(event);
-	}
+	ZEND_ASYNC_EVENT_RELEASE(event);
 }
 
 ZEND_API zend_async_waker_t *zend_async_waker_define(zend_coroutine_t *coroutine)
@@ -346,7 +338,7 @@ ZEND_API void zend_async_waker_add_triggered_event(zend_coroutine_t *coroutine, 
 	}
 
 	if (EXPECTED(zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event) != NULL)) {
-		event->ref_count++;
+		ZEND_ASYNC_EVENT_ADD_REF(event);
 	}
 }
 
@@ -408,7 +400,7 @@ ZEND_API void zend_async_resume_when(
 	}
 
 	if (false == trans_event) {
-		event->ref_count++;
+		ZEND_ASYNC_EVENT_ADD_REF(event);
 	}
 }
 
@@ -426,7 +418,7 @@ ZEND_API void zend_async_waker_callback_resolve(
 		}
 
 		if (EXPECTED(zend_hash_index_add_ptr(coroutine->waker->triggered_events, (zend_ulong)event, event) != NULL)) {
-			event->ref_count++;
+			ZEND_ASYNC_EVENT_ADD_REF(event);
 		}
 
 		// Copy the result to the waker if it is not NULL

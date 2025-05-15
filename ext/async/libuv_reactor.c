@@ -205,8 +205,8 @@ static void libuv_poll_stop(zend_async_event_t *event)
 /* {{{ libuv_poll_dispose */
 static void libuv_poll_dispose(zend_async_event_t *event)
 {
-	if (event->ref_count > 1) {
-		event->ref_count--;
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
 		return;
 	}
 
@@ -345,8 +345,8 @@ static void libuv_timer_stop(zend_async_event_t *event)
 /* {{{ libuv_timer_dispose */
 static void libuv_timer_dispose(zend_async_event_t *event)
 {
-	if (event->ref_count > 1) {
-		event->ref_count--;
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
 		return;
 	}
 
@@ -463,10 +463,10 @@ static void libuv_signal_stop(zend_async_event_t *event)
 /* {{{ libuv_signal_dispose */
 static void libuv_signal_dispose(zend_async_event_t *event)
 {
-    if (event->ref_count > 1) {
-        event->ref_count--;
-        return;
-    }
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
+		return;
+	}
 
     if (event->loop_ref_count > 0) {
         event->loop_ref_count = 1;
@@ -776,8 +776,8 @@ static void libuv_process_event_stop(reactor_handle_t *handle)
 /* {{{ libuv_process_event_dispose */
 static void libuv_process_event_dispose(zend_async_event_t *event)
 {
-	if (event->ref_count > 1) {
-		event->ref_count--;
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
 		return;
 	}
 
@@ -924,10 +924,10 @@ static void libuv_filesystem_stop(zend_async_event_t *event)
 /* {{{ libuv_filesystem_dispose */
 static void libuv_filesystem_dispose(zend_async_event_t *event)
 {
-    if (event->ref_count > 1) {
-        event->ref_count--;
-        return;
-    }
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
+		return;
+	}
 
     if (event->loop_ref_count > 0) {
         event->loop_ref_count = 1;
@@ -1046,8 +1046,8 @@ static void libuv_dns_nameinfo_stop(zend_async_event_t *event)
 /* {{{ libuv_dns_nameinfo_dispose */
 static void libuv_dns_nameinfo_dispose(zend_async_event_t *event)
 {
-	if (event->ref_count > 1) {
-		event->ref_count--;
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
 		return;
 	}
 
@@ -1144,8 +1144,8 @@ static void libuv_dns_getaddrinfo_stop(zend_async_event_t *event)
 /* {{{ libuv_dns_getaddrinfo_dispose */
 static void libuv_dns_getaddrinfo_dispose(zend_async_event_t *event)
 {
-	if (event->ref_count > 1) {
-		event->ref_count--;
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
 		return;
 	}
 
@@ -1384,10 +1384,10 @@ static void libuv_exec_stop(zend_async_event_t *event)
 /* {{{ libuv_exec_dispose */
 static void libuv_exec_dispose(zend_async_event_t *event)
 {
-    if (event->ref_count > 1) {
-        event->ref_count--;
-        return;
-    }
+	if (ZEND_ASYNC_EVENT_REF(event) > 1) {
+		ZEND_ASYNC_EVENT_DEL_REF(event);
+		return;
+	}
 
     if (event->loop_ref_count > 0) {
         event->loop_ref_count = 1;

@@ -282,6 +282,11 @@ struct _zend_async_event_t {
 #define ZEND_ASYNC_OBJECT_TO_EVENT(obj) ((zend_async_event_t *)((char *)(obj) - (obj)->handlers->offset))
 #define ZEND_ASYNC_EVENT_TO_OBJECT(event) ((zend_object *)((char *)(event) + (event)->zend_object_offset))
 
+// Get refcount of the event object
+#define ZEND_ASYNC_EVENT_REF(ev) (ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev) ? \
+		GC_REFCOUNT(ZEND_ASYNC_EVENT_TO_OBJECT(ev)) : \
+		(ev)->ref_count)
+
 // Proper increment of the event object's reference count.
 #define ZEND_ASYNC_EVENT_ADD_REF(ev) (ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev) ? \
 		GC_ADDREF(ZEND_ASYNC_EVENT_TO_OBJECT(ev)) : \
