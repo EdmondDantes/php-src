@@ -506,26 +506,47 @@ PHP_FUNCTION(Async_timeout)
 
 PHP_FUNCTION(Async_currentContext)
 {
-
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
 }
 
 PHP_FUNCTION(Async_coroutineContext)
 {
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
 
 }
 
 PHP_FUNCTION(Async_currentCoroutine)
 {
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
 
+	async_coroutine_t *coroutine = (async_coroutine_t *) ZEND_CURRENT_COROUTINE;
+
+	if (UNEXPECTED(coroutine == NULL)) {
+		zend_async_throw(
+			ZEND_ASYNC_EXCEPTION_DEFAULT,
+			"The current coroutine is not defined"
+		);
+
+		RETURN_THROWS();
+	}
+
+	RETURN_OBJ_COPY(&coroutine->std);
 }
 
 PHP_FUNCTION(Async_rootContext)
 {
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
 
 }
 
 PHP_FUNCTION(Async_getCoroutines)
 {
+	THROW_IF_ASYNC_OFF;
+	THROW_IF_SCHEDULER_CONTEXT;
 
 }
 
