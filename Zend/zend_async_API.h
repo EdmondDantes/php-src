@@ -193,11 +193,15 @@ struct _zend_async_microtask_t {
 	zend_async_microtask_handler_t handler;
 	zend_async_microtask_handler_t dtor;
 	bool is_cancelled;
-	unsigned int ref_count;
+	uint32_t ref_count;
 };
 
+///////////////////////////////////////////////////////////////////
+/// Event Structures
+///////////////////////////////////////////////////////////////////
+
 struct _zend_async_event_callback_t {
-	unsigned int ref_count;
+	uint32_t ref_count;
 	zend_async_event_callback_fn callback;
 	zend_async_event_callback_dispose_fn dispose;
 };
@@ -231,16 +235,16 @@ typedef struct _zend_async_callbacks_vector_t {
  */
 struct _zend_async_event_t {
 	/* If event is closed, it cannot be started or stopped. */
-	unsigned int flags;
+	uint32_t flags;
 	union
 	{
 		/* The refcount of the event. */
-		unsigned int ref_count;
+		uint32_t ref_count;
 		/* The offset of Zend object structure. */
-		unsigned int zend_object_offset;
+		uint32_t zend_object_offset;
 	};
 	/* The Event loop reference count. */
-	unsigned int loop_ref_count;
+	uint32_t loop_ref_count;
 	zend_async_callbacks_vector_t callbacks;
 	/* Methods */
 	zend_async_event_add_callback_t add_callback;
@@ -472,16 +476,105 @@ struct _zend_async_task_t {
 	zend_async_event_t base;
 };
 
+///////////////////////////////////////////////////////////////////
+/// Scope Structures
+///////////////////////////////////////////////////////////////////
+
 typedef void (*zend_async_before_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope, zval *result);
 typedef void (*zend_async_after_coroutine_enqueue_t)(zend_coroutine_t *coroutine, zend_async_scope_t *scope);
 typedef void (*zend_async_scope_dispose_t)(zend_async_scope_t *scope);
 
+/* Dynamic array of async event callbacks */
+typedef struct _zend_async_scopes_vector_t {
+	uint32_t                      length;   /* current number of items              */
+	uint32_t                      capacity; /* allocated slots in the array         */
+	zend_async_scope_t			  **data;    /* dynamically allocated array			*/
+} zend_async_scopes_vector_t;
+
 struct _zend_async_scope_t {
-	bool is_closed;
+	/* The scope ZEND_ASYNC_SCOPE_F flags */
+	uint32_t flags;
+	union
+	{
+		/* The refcount of the scope. */
+		uint32_t ref_count;
+		/* The offset of Zend object structure. */
+		uint32_t zend_object_offset;
+	};
+
+	zend_async_scopes_vector_t scopes;
+	zend_async_scope_t *parent_scope;
+
 	zend_async_before_coroutine_enqueue_t before_coroutine_enqueue;
 	zend_async_after_coroutine_enqueue_t after_coroutine_enqueue;
 	zend_async_scope_dispose_t dispose;
 };
+
+#define ZEND_ASYNC_SCOPE_F_CLOSED        (1u << 0)  /* scope was closed */
+#define ZEND_ASYNC_SCOPE_F_ZEND_OBJ 	 (1u << 1)  /* scope is a zend object */
+#define ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY (1u << 2) /* scope will not free memory in dispose handler */
+
+#define ZEND_ASYNC_SCOPE_IS_CLOSED(scope)         (((scope)->flags & ZEND_ASYNC_SCOPE_F_CLOSED) != 0)
+#define ZEND_ASYNC_SCOPE_IS_ZEND_OBJ(scope)      (((scope)->flags & ZEND_ASYNC_SCOPE_F_ZEND_OBJ) != 0)
+#define ZEND_ASYNC_SCOPE_IS_NO_FREE_MEMORY(scope) (((scope)->flags & ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY) != 0)
+
+#define ZEND_ASYNC_SCOPE_SET_CLOSED(scope)        ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_CLOSED)
+#define ZEND_ASYNC_SCOPE_CLR_CLOSED(scope)        ((scope)->flags &= ~ZEND_ASYNC_SCOPE_F_CLOSED)
+
+#define ZEND_ASYNC_SCOPE_SET_ZEND_OBJ(scope)      ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_ZEND_OBJ)
+#define ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(scope, offset) ((scope)->zend_object_offset = (uint32_t) (offset))
+#define ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(scope) ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY)
+
+static zend_always_inline void
+zend_async_scope_add_child(zend_async_scope_t *parent_scope, zend_async_scope_t *child_scope)
+{
+	zend_async_scopes_vector_t *vector = &parent_scope->scopes;
+
+	child_scope->parent_scope = parent_scope;
+
+	if (vector->data == NULL) {
+		vector->data = safe_emalloc(4, sizeof(zend_async_scope_t *), 0);
+		vector->capacity = 4;
+	}
+
+	if (vector->length == vector->capacity) {
+		vector->capacity *= 2;
+		vector->data = safe_erealloc(vector->data, vector->capacity, sizeof(zend_async_scope_t *), 0);
+	}
+
+	vector->data[vector->length++] = child_scope;
+}
+
+static zend_always_inline void
+zend_async_scope_remove_child(zend_async_scope_t *parent_scope, zend_async_scope_t *child_scope)
+{
+	zend_async_scopes_vector_t *vector = &parent_scope->scopes;
+	for (uint32_t i = 0; i < vector->length; ++i) {
+		if (vector->data[i] == child_scope) {
+			vector->data[i] = vector->data[--vector->length];
+			child_scope->parent_scope = NULL;
+			return;
+		}
+	}
+}
+
+static zend_always_inline void
+zend_async_scope_free_children(zend_async_scope_t *parent_scope)
+{
+	zend_async_scopes_vector_t *vector = &parent_scope->scopes;
+
+	if (vector->data != NULL) {
+		efree(vector->data);
+	}
+
+	vector->data = NULL;
+	vector->length = 0;
+	vector->capacity = 0;
+}
+
+///////////////////////////////////////////////////////////////////
+/// Waker Structures
+///////////////////////////////////////////////////////////////////
 
 typedef void (*zend_async_waker_dtor)(zend_coroutine_t *coroutine);
 
