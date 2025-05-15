@@ -22,17 +22,6 @@
 #include "scope.h"
 #include "zend_common.h"
 
-async_scope_t * new_scope(async_scope_t * parent_scope)
-{
-	DEFINE_ZEND_INTERNAL_OBJECT(async_scope_t, scope, async_ce_scope);
-
-	if (UNEXPECTED(EG(exception))) {
-		return NULL;
-	}
-
-	return scope;
-}
-
 zend_coroutine_t *new_coroutine(zend_async_scope_t *scope)
 {
 	DEFINE_ZEND_INTERNAL_OBJECT(async_coroutine_t, coroutine, async_ce_coroutine);
@@ -86,7 +75,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	if (scope == NULL) {
 
 		if (UNEXPECTED(ZEND_CURRENT_ASYNC_SCOPE == NULL)) {
-			ZEND_CURRENT_ASYNC_SCOPE = (zend_async_scope_t *) new_scope(NULL);
+			ZEND_CURRENT_ASYNC_SCOPE = async_new_scope(NULL);
 
 			if (UNEXPECTED(EG(exception))) {
 				return NULL;
@@ -770,7 +759,7 @@ void async_api_register(void)
 		module,
 		false,
 		new_coroutine,
-		new_scope,
+		async_new_scope,
 		spawn,
 		suspend,
 		resume,

@@ -24,10 +24,19 @@ extern ZEND_API zend_class_entry * async_ce_spawn_strategy;
 
 typedef struct _async_scope_t async_scope_t;
 
+typedef struct async_coroutines_vector_t {
+	uint32_t                      length;    /* current number of items      */
+	uint32_t                      capacity;  /* allocated slots in the array */
+	async_coroutine_t			  **data;    /* dynamically allocated array	 */
+} async_coroutines_vector_t;
+
 struct _async_scope_t {
 	zend_async_scope_t scope;
+	async_coroutines_vector_t coroutines;
+	zend_object std;
 };
 
+zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope);
 void async_register_scope_ce(void);
 
 #endif //SCOPE_H
