@@ -40,6 +40,8 @@ extern ZEND_API zend_class_entry * async_ce_timeout;
 typedef struct
 {
 	zend_async_event_t event;
+	/* Reactor original handle */
+	zend_async_event_dispose_t reactor_dispose;
 	zend_object std;
 } async_timeout_t;
 

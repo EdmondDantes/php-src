@@ -542,17 +542,44 @@ static void async_timeout_free(zend_object *object)
 	zend_object_std_dtor(&t->std);
 }
 
+static void async_timeout_dispose(zend_async_event_t *event)
+{
+	async_timeout_t *timeout = (async_timeout_t *) event;
+
+	if (timeout->reactor_dispose == NULL) {
+		return;
+	}
+
+	if (GC_REFCOUNT(&timeout->std) > 1) {
+		OBJ_RELEASE(&timeout->std);
+		return;
+	}
+
+	ZEND_ASYNC_EVENT_SET_NO_FREE_MEMORY(&timeout->event);
+
+	timeout->reactor_dispose(event);
+	timeout->reactor_dispose = NULL;
+	OBJ_RELEASE(&timeout->std);
+}
+
 static zend_object *async_timeout_create(zend_class_entry *ce)
 {
-	async_timeout_t *t = ecalloc(1, sizeof(async_timeout_t) + zend_object_properties_size(ce));
+	async_timeout_t *timeout = (async_timeout_t *) ZEND_ASYNC_NEW_TIMER_EVENT_EX(
+		0, false, sizeof(async_timeout_t) + zend_object_properties_size(ce)
+	);
 
-	zend_object_std_init(&t->std, ce);
-	object_properties_init(&t->std, ce);
+	zend_object_std_init(&timeout->std, ce);
+	object_properties_init(&timeout->std, ce);
 
-	memset(&t->event, 0, sizeof(t->event));
+	ZEND_ASYNC_EVENT_SET_ZEND_OBJ(&timeout->event);
+	ZEND_ASYNC_EVENT_SET_NO_FREE_MEMORY(&timeout->event);
+	ZEND_ASYNC_EVENT_SET_ZEND_OBJ_OFFSET(&timeout->event, XtOffsetOf(async_timeout_t, std));
 
-	t->std.handlers = &async_timeout_handlers;
-	return &t->std;
+	timeout->reactor_dispose = timeout->event.dispose;
+	timeout->event.dispose = async_timeout_dispose;
+
+	timeout->std.handlers = &async_timeout_handlers;
+	return &timeout->std;
 }
 
 void async_register_timeout_ce(void)

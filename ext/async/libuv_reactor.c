@@ -226,9 +226,11 @@ static void libuv_poll_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_new_poll_event */
-zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events)
+zend_async_poll_event_t* libuv_new_poll_event(
+	zend_file_descriptor_t fh, zend_socket_t socket, async_poll_event events, size_t size
+)
 {
-	async_poll_event_t *poll = pecalloc(1, sizeof(async_poll_event_t), 0);
+	async_poll_event_t *poll = pecalloc(1, size != 0 ? size : sizeof(async_poll_event_t), 0);
 
 	int error = 0;
 
@@ -272,9 +274,9 @@ zend_async_poll_event_t* libuv_new_poll_event(zend_file_descriptor_t fh, zend_so
 /* }}} */
 
 /* {{{ libuv_new_socket_event */
-zend_async_poll_event_t* libuv_new_socket_event(zend_socket_t socket, async_poll_event events)
+zend_async_poll_event_t* libuv_new_socket_event(zend_socket_t socket, async_poll_event events, size_t size)
 {
-	return libuv_new_poll_event(NULL, socket, events);
+	return libuv_new_poll_event(NULL, socket, events, size);
 }
 /* }}} */
 
@@ -366,14 +368,14 @@ static void libuv_timer_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_new_timer_event */
-zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const bool is_periodic)
+zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const bool is_periodic, size_t size)
 {
 	if (UNEXPECTED(timeout < 0)) {
 		zend_throw_exception(zend_ce_type_error, "Invalid timeout", 0);
 		return NULL;
 	}
 
-	async_timer_event_t *event = pecalloc(1, sizeof(async_timer_event_t), 0);
+	async_timer_event_t *event = pecalloc(1, size != 0 ? size : sizeof(async_timer_event_t), 0);
 
 	const int error = uv_timer_init(UVLOOP, &event->uv_handle);
 
@@ -484,9 +486,9 @@ static void libuv_signal_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_new_signal_event */
-zend_async_signal_event_t* libuv_new_signal_event(int signum)
+zend_async_signal_event_t* libuv_new_signal_event(int signum, size_t size)
 {
-    async_signal_event_t *signal = pecalloc(1, sizeof(async_signal_event_t), 0);
+    async_signal_event_t *signal = pecalloc(1, size != 0 ? size : sizeof(async_signal_event_t), 0);
 
     const int error = uv_signal_init(UVLOOP, &signal->uv_handle);
 
@@ -807,9 +809,9 @@ static void libuv_process_event_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_new_process_event */
-zend_async_process_event_t * libuv_new_process_event(zend_process_t process_handle)
+zend_async_process_event_t * libuv_new_process_event(zend_process_t process_handle, size_t size)
 {
-	async_process_event_t *process_event = pecalloc(1, sizeof(async_process_event_t), 0);
+	async_process_event_t *process_event = pecalloc(1, size != 0 ? size : sizeof(async_process_event_t), 0);
 	process_event->event.process = process_handle;
 
 	process_event->event.base.add_callback = libuv_add_callback;
@@ -827,7 +829,7 @@ zend_async_process_event_t * libuv_new_process_event(zend_process_t process_hand
 /////////////////////////////////////////////////////////////////////////////////
 
 /* {{{ libuv_new_thread_event */
-zend_async_thread_event_t * libuv_new_thread_event(zend_async_thread_entry_t entry, void *arg)
+zend_async_thread_event_t * libuv_new_thread_event(zend_async_thread_entry_t entry, void *arg, size_t size)
 {
     //TODO: libuv_new_thread_event
 	// We need to design a mechanism for creating a Thread and running a function
@@ -955,9 +957,9 @@ static void libuv_filesystem_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_new_filesystem_event */
-zend_async_filesystem_event_t* libuv_new_filesystem_event(zend_string * path, const unsigned int flags)
+zend_async_filesystem_event_t* libuv_new_filesystem_event(zend_string * path, const unsigned int flags, size_t size)
 {
-    async_filesystem_event_t *fs_event = pecalloc(1, sizeof(async_filesystem_event_t), 0);
+    async_filesystem_event_t *fs_event = pecalloc(1, size != 0 ? size : sizeof(async_filesystem_event_t), 0);
 
     const int error = uv_fs_event_init(UVLOOP, &fs_event->uv_handle);
 
@@ -1067,9 +1069,9 @@ static void libuv_dns_nameinfo_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_getnameinfo */
-static zend_async_dns_nameinfo_t * libuv_getnameinfo(const struct sockaddr *addr, int flags)
+static zend_async_dns_nameinfo_t * libuv_getnameinfo(const struct sockaddr *addr, int flags, size_t size)
 {
-	async_dns_nameinfo_t *name_info = pecalloc(1, sizeof(async_dns_nameinfo_t), 0);
+	async_dns_nameinfo_t *name_info = pecalloc(1, size != 0 ? size : sizeof(async_dns_nameinfo_t), 0);
 
 	const int error = uv_getnameinfo(
 		UVLOOP, &name_info->uv_handle, on_nameinfo_event, (const struct sockaddr*) &addr, flags
@@ -1165,9 +1167,9 @@ static void libuv_dns_getaddrinfo_dispose(zend_async_event_t *event)
 /* }}} */
 
 /* {{{ libuv_getaddrinfo */
-static zend_async_dns_addrinfo_t* libuv_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints)
+static zend_async_dns_addrinfo_t* libuv_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, size_t size)
 {
-	async_dns_addrinfo_t *addr_info = pecalloc(1, sizeof(async_dns_nameinfo_t), 0);
+	async_dns_addrinfo_t *addr_info = pecalloc(1, size != 0 ? size : sizeof(async_dns_nameinfo_t), 0);
 
 	const int error = uv_getaddrinfo(
 		UVLOOP, &addr_info->uv_handle, on_addrinfo_event, node, service, hints
@@ -1441,10 +1443,11 @@ static zend_async_exec_event_t * libuv_new_exec_event(
 	zval *return_value,
 	zval *std_error,
 	const char *cwd,
-	const char *env
+	const char *env,
+	size_t size
 )
 {
-	async_exec_event_t * exec = pecalloc(1, sizeof(async_exec_event_t), 0);
+	async_exec_event_t * exec = pecalloc(1, size != 0 ? size : sizeof(async_exec_event_t), 0);
 	zend_async_exec_event_t * base = &exec->event;
 	uv_process_options_t *options = &exec->options;
 
