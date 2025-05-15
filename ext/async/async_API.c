@@ -249,7 +249,7 @@ static zend_always_inline zend_async_event_t * zval_to_event(const zval * curren
 
 	if (Z_TYPE_P(current) == IS_OBJECT
 		&& instanceof_function(Z_OBJCE_P(current), async_ce_awaitable)) {
-		return ZEND_AWAITABLE_TO_EVENT(Z_OBJ_P(current));
+		return ZEND_ASYNC_OBJECT_TO_EVENT(Z_OBJ_P(current));
 	} else if (Z_TYPE_P(current) == IS_PTR) {
 		return (zend_async_event_t *) Z_PTR_P(current);
 	} else if (Z_TYPE_P(current) == IS_NULL || Z_TYPE_P(current) == IS_UNDEF) {

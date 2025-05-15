@@ -218,11 +218,26 @@ typedef struct _zend_async_callbacks_vector_t {
 	zend_async_event_callback_t  **data;    /* dynamically allocated callback array */
 } zend_async_callbacks_vector_t;
 
+/**
+ * Basic structure for representing events.
+ * An event can be either an internal C object or a Zend object implementing the Awaitable interface.
+ * In that case, the ZEND_ASYNC_EVENT_F_ZEND_OBJ flag is set to TRUE,
+ * and the zend_object_offset field points to the offset of the zend_object structure.
+ *
+ * To manage the reference counter, use the macros:
+ * ZEND_ASYNC_EVENT_ADD_REF, ZEND_ASYNC_EVENT_DEL_REF, ZEND_ASYNC_EVENT_RELEASE.
+ *
+ */
 struct _zend_async_event_t {
 	/* If event is closed, it cannot be started or stopped. */
 	unsigned int flags;
-	/* The refcount of the event. */
-	unsigned int ref_count;
+	union
+	{
+		/* The refcount of the event. */
+		unsigned int ref_count;
+		/* The offset of Zend object structure. */
+		unsigned int zend_object_offset;
+	};
 	/* The Event loop reference count. */
 	unsigned int loop_ref_count;
 	zend_async_callbacks_vector_t callbacks;
@@ -241,11 +256,13 @@ struct _zend_async_event_t {
 #define ZEND_ASYNC_EVENT_F_EXC_CAUGHT    (1u << 2)  /* error was caught in exception handler */
 /* Indicates that the event produces a ZVAL pointer during the callback. */
 #define ZEND_ASYNC_EVENT_F_ZVAL_RESULT   (1u << 3)
+#define ZEND_ASYNC_EVENT_F_ZEND_OBJ 	 (1u << 4)  /* event is a zend object */
 
 #define ZEND_ASYNC_EVENT_IS_CLOSED(ev)         (((ev)->flags & ZEND_ASYNC_EVENT_F_CLOSED) != 0)
 #define ZEND_ASYNC_EVENT_WILL_RESULT_USED(ev)  (((ev)->flags & ZEND_ASYNC_EVENT_F_RESULT_USED) != 0)
 #define ZEND_ASYNC_EVENT_WILL_EXC_CAUGHT(ev)   (((ev)->flags & ZEND_ASYNC_EVENT_F_EXC_CAUGHT) != 0)
 #define ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(ev)  (((ev)->flags & ZEND_ASYNC_EVENT_F_ZVAL_RESULT) != 0)
+#define ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev)      (((ev)->flags & ZEND_ASYNC_EVENT_F_ZEND_OBJ) != 0)
 
 #define ZEND_ASYNC_EVENT_SET_CLOSED(ev)        ((ev)->flags |=  ZEND_ASYNC_EVENT_F_CLOSED)
 #define ZEND_ASYNC_EVENT_CLR_CLOSED(ev)        ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_CLOSED)
@@ -257,6 +274,37 @@ struct _zend_async_event_t {
 #define ZEND_ASYNC_EVENT_CLR_EXC_CAUGHT(ev)    ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_EXC_CAUGHT)
 
 #define ZEND_ASYNC_EVENT_SET_ZVAL_RESULT(ev)   ((ev)->flags |=  ZEND_ASYNC_EVENT_F_ZVAL_RESULT)
+#define ZEND_ASYNC_EVENT_CLR_ZVAL_RESULT(ev)   ((ev)->flags &= ~ZEND_ASYNC_EVENT_F_ZVAL_RESULT)
+
+#define ZEND_ASYNC_EVENT_SET_ZEND_OBJ(ev)      ((ev)->flags |=  ZEND_ASYNC_EVENT_F_ZEND_OBJ)
+
+// Convert awaitable Zend object to zend_async_event_t pointer
+#define ZEND_ASYNC_OBJECT_TO_EVENT(obj) ((zend_async_event_t *)((char *)(obj) - (obj)->handlers->offset))
+#define ZEND_ASYNC_EVENT_TO_OBJECT(event) ((zend_object *)((char *)(event) + (event)->zend_object_offset))
+
+// Proper increment of the event object's reference count.
+#define ZEND_ASYNC_EVENT_ADD_REF(ev) (ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev) ? \
+		GC_ADDREF(ZEND_ASYNC_EVENT_TO_OBJECT(ev)) : \
+		++(ev)->ref_count)
+
+// Proper decrement of the event object's reference count.
+#define ZEND_ASYNC_EVENT_DEL_REF(ev) (ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev) ? \
+		GC_DELREF(ZEND_ASYNC_EVENT_TO_OBJECT(ev)) : \
+		--(ev)->ref_count)
+
+/* Properly release the event object */
+#define ZEND_ASYNC_EVENT_RELEASE(ev) do { \
+	if (ZEND_ASYNC_EVENT_IS_ZEND_OBJ(ev)) { \
+		OBJ_RELEASE(ZEND_ASYNC_EVENT_TO_OBJECT(ev)); \
+	} else { \
+		if ((ev)->ref_count == 1) { \
+			(ev)->ref_count = 0; \
+			(ev)->dispose(ev); \
+		} else { \
+			(ev)->ref_count--; \
+		} \
+	} \
+} while (0)
 
 /* Append a callback; grows the buffer when needed */
 static zend_always_inline void
@@ -497,9 +545,6 @@ struct _zend_coroutine_t {
 #define ZEND_EXIT_EXCEPTION EG(exit_exception)
 #define ZEND_CURRENT_COROUTINE EG(coroutine)
 #define ZEND_CURRENT_ASYNC_SCOPE EG(async_scope)
-
-// Convert awaitable Zend object to zend_async_event_t pointer
-#define ZEND_AWAITABLE_TO_EVENT(obj) ((zend_async_event_t *)((char *)(obj) - (obj)->handlers->offset))
 
 BEGIN_EXTERN_C()
 

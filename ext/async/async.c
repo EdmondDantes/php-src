@@ -180,7 +180,7 @@ PHP_FUNCTION(Async_await)
 
 	zend_async_resume_when(
 		coroutine,
-		ZEND_AWAITABLE_TO_EVENT(awaitable),
+		ZEND_ASYNC_OBJECT_TO_EVENT(awaitable),
 		false,
 		zend_async_waker_callback_resolve,
 		NULL
@@ -189,7 +189,7 @@ PHP_FUNCTION(Async_await)
 	if (cancellation != NULL) {
 		zend_async_resume_when(
 			coroutine,
-			ZEND_AWAITABLE_TO_EVENT(cancellation),
+			ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 			false,
 			zend_async_waker_callback_cancel,
 			NULL
@@ -227,7 +227,7 @@ PHP_FUNCTION(Async_awaitAny)
 	async_await_futures(futures,
 		1,
 		false,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
@@ -269,7 +269,7 @@ PHP_FUNCTION(Async_awaitFirstSuccess)
 	async_await_futures(futures,
 		1,
 		true,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
@@ -317,7 +317,7 @@ PHP_FUNCTION(Async_awaitAll)
 	async_await_futures(futures,
 		0,
 		false,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
@@ -350,7 +350,7 @@ PHP_FUNCTION(Async_awaitAllWithErrors)
 	async_await_futures(futures,
 		0,
 		true,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
@@ -394,7 +394,7 @@ PHP_FUNCTION(Async_awaitAnyOff)
 	async_await_futures(futures,
 		(int)count,
 		false,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
@@ -429,7 +429,7 @@ PHP_FUNCTION(Async_awaitAnyOfWithErrors)
 	async_await_futures(futures,
 		(int)count,
 		true,
-		ZEND_AWAITABLE_TO_EVENT(cancellation),
+		ZEND_ASYNC_OBJECT_TO_EVENT(cancellation),
 		0,
 		0,
 		results,
