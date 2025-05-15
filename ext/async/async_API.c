@@ -44,17 +44,49 @@ zend_coroutine_t *new_coroutine(zend_async_scope_t *scope)
 	return &coroutine->coroutine;
 }
 
-zend_coroutine_t *spawn(zend_async_scope_t *scope)
+zend_async_scope_t * async_provide_scope(zend_object *scope_provider)
+{
+	zval retval;
+
+	if (zend_call_method_with_0_params(scope_provider, scope_provider->ce, NULL, "provideScope", &retval) == NULL) {
+		return NULL;
+	}
+
+	if (Z_TYPE(retval) == IS_OBJECT && instanceof_function(Z_OBJCE(retval), async_ce_scope)) {
+		zend_async_scope_t *scope = ZEND_ASYNC_OBJECT_TO_SCOPE(Z_OBJ(retval));
+		zval_ptr_dtor(&retval);
+		return scope;
+	}
+
+	zval_ptr_dtor(&retval);
+
+	zend_async_throw(
+		ZEND_ASYNC_EXCEPTION_DEFAULT,
+		"Scope provider must return an instance of Async\\Scope"
+	);
+
+	return NULL;
+}
+
+zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 {
 	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
 		async_throw_error("Cannot spawn a coroutine when async is disabled");
 		return NULL;
 	}
 
+	if (scope == NULL && scope_provider != NULL) {
+		scope = async_provide_scope(scope_provider);
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			return NULL;
+		}
+	}
+
 	if (scope == NULL) {
 
 		if (UNEXPECTED(ZEND_CURRENT_ASYNC_SCOPE == NULL)) {
-			ZEND_CURRENT_ASYNC_SCOPE = (zend_async_scope_t *) new_scope();
+			ZEND_CURRENT_ASYNC_SCOPE = (zend_async_scope_t *) new_scope(NULL);
 
 			if (UNEXPECTED(EG(exception))) {
 				return NULL;
@@ -69,7 +101,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 		return NULL;
 	}
 
-	if (UNEXPECTED(scope->is_closed)) {
+	if (UNEXPECTED(ZEND_ASYNC_SCOPE_IS_CLOSED(scope))) {
 		async_throw_error("Cannot spawn a coroutine in a closed scope");
 		return NULL;
 	}
@@ -87,6 +119,28 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 	if (UNEXPECTED(EG(exception))) {
 		coroutine->coroutine.dispose(&coroutine->coroutine);
 		return NULL;
+	}
+
+	// call SpawnStrategy::beforeCoroutineEnqueue
+	if (scope_provider != NULL) {
+		zval coroutine_zval, scope_zval;
+		ZVAL_OBJ(&coroutine_zval, &coroutine->std);
+		ZVAL_OBJ(&scope_zval, ZEND_ASYNC_SCOPE_TO_OBJECT(scope));
+
+		if (zend_call_method_with_2_params(
+			scope_provider,
+			scope_provider->ce,
+			NULL,
+			"beforeCoroutineEnqueue",
+			&options,
+			&coroutine_zval,
+			&scope_zval) == NULL) {
+
+			coroutine->coroutine.dispose(&coroutine->coroutine);
+			return NULL;
+		}
+
+		zval_dtor(&options);
 	}
 
 	zend_async_waker_t *waker = zend_async_waker_new(&coroutine->coroutine);
@@ -107,6 +161,28 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope)
 	if (UNEXPECTED(EG(exception))) {
 		waker->status = ZEND_ASYNC_WAKER_IGNORED;
 		return NULL;
+	}
+
+	// call SpawnStrategy::afterCoroutineEnqueue
+	if (scope_provider != NULL) {
+		zval coroutine_zval, scope_zval;
+		ZVAL_OBJ(&coroutine_zval, &coroutine->std);
+		ZVAL_OBJ(&scope_zval, ZEND_ASYNC_SCOPE_TO_OBJECT(scope));
+
+		if (zend_call_method_with_2_params(
+			scope_provider,
+			scope_provider->ce,
+			NULL,
+			"afterCoroutineEnqueue",
+			&options,
+			&coroutine_zval,
+			&scope_zval) == NULL) {
+
+				waker->status = ZEND_ASYNC_WAKER_IGNORED;
+				return NULL;
+			}
+
+		zval_dtor(&options);
 	}
 
 	if (UNEXPECTED(zend_hash_index_add_ptr(&ASYNC_G(coroutines), coroutine->std.handle, coroutine) == NULL)) {

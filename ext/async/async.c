@@ -25,6 +25,7 @@
 #include "scope.h"
 #include "async_API.h"
 #include "async_arginfo.h"
+#include "zend_interfaces.h"
 #ifdef PHP_ASYNC_LIBUV
 #include "libuv_reactor.h"
 #endif
@@ -100,22 +101,27 @@ PHP_FUNCTION(Async_spawnWith)
 	int args_count = 0;
 	HashTable *named_args = NULL;
 
-	zend_object * scope = NULL;
+	zend_async_scope_t * scope = NULL;
+	zend_object * scope_provider = NULL;
 	zend_fcall_info fci;
 	zend_fcall_info_cache fcc;
 
 	ZEND_PARSE_PARAMETERS_START(2, -1)
-		Z_PARAM_OBJ_OF_CLASS(scope, async_ce_scope_provider)
+		Z_PARAM_OBJ_OF_CLASS(scope_provider, async_ce_scope_provider)
 		Z_PARAM_FUNC(fci, fcc);
 		Z_PARAM_VARIADIC_WITH_NAMED(args, args_count, named_args);
 	ZEND_PARSE_PARAMETERS_END();
 
-	// @TODO: Check if scope is a valid scope provider
+	// If scope_provider is an instance of async_ce_scope
+	if (instanceof_function(scope_provider->ce, async_ce_scope)) {
+		scope = ZEND_ASYNC_OBJECT_TO_SCOPE(scope_provider);
+	}
 
-	async_coroutine_t * coroutine = (async_coroutine_t *) ZEND_ASYNC_SPAWN_WITH(scope);
+	async_coroutine_t * coroutine = scope_provider ? ZEND_ASYNC_SPAWN_WITH_PROVIDER(scope_provider)
+							 : (async_coroutine_t *) ZEND_ASYNC_SPAWN_WITH(scope);
 
-	if (UNEXPECTED(EG(exception))) {
-		return;
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		RETURN_THROWS();
 	}
 
 	zend_fcall_t * fcall = ecalloc(1, sizeof(zend_fcall_t));

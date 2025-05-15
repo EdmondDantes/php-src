@@ -127,7 +127,7 @@ typedef struct _zend_async_task_t zend_async_task_t;
 
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_async_scope_t * (*zend_async_new_scope_t)(zend_async_scope_t * parent_scope);
-typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope);
+typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope, zend_object *scope_provider);
 typedef void (*zend_async_suspend_t)(void);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
@@ -525,6 +525,9 @@ struct _zend_async_scope_t {
 #define ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(scope, offset) ((scope)->zend_object_offset = (uint32_t) (offset))
 #define ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(scope) ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY)
 
+#define ZEND_ASYNC_OBJECT_TO_SCOPE(obj) ((zend_async_scope_t *)((char *)(obj) - (obj)->handlers->offset))
+#define ZEND_ASYNC_SCOPE_TO_OBJECT(scope) ((zend_object *)((char *)(scope) + (scope)->zend_object_offset))
+
 static zend_always_inline void
 zend_async_scope_add_child(zend_async_scope_t *parent_scope, zend_async_scope_t *child_scope)
 {
@@ -777,8 +780,9 @@ ZEND_API void zend_async_waker_callback_timeout(
 END_EXTERN_C()
 
 #define ZEND_ASYNC_IS_ENABLED() zend_async_is_enabled()
-#define ZEND_ASYNC_SPAWN() zend_async_spawn_fn(NULL)
-#define ZEND_ASYNC_SPAWN_WITH(scope) zend_async_spawn_fn(scope)
+#define ZEND_ASYNC_SPAWN() zend_async_spawn_fn(NULL, NULL)
+#define ZEND_ASYNC_SPAWN_WITH(scope) zend_async_spawn_fn(scope, NULL)
+#define ZEND_ASYNC_SPAWN_WITH_PROVIDER(scope_provider) zend_async_spawn_fn(NULL, scope_provider)
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
 #define ZEND_ASYNC_NEW_SCOPE(parent) zend_async_new_scope_fn(parent)
 #define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn()
