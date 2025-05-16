@@ -635,13 +635,22 @@ struct _zend_coroutine_t {
 	/* Storage for return value. */
 	zval result;
 
-	/* Dispose handler for the coroutine. */
-	zend_async_coroutine_dispose dispose;
+	/* Spawned file and line number */
+	zend_string *filename;
+	uint32_t lineno;
+
 	/* Extended dispose handler */
 	zend_async_coroutine_dispose extended_dispose;
 };
 
-#endif //ZEND_ASYNC_API_H
+static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_coroutine_t *coroutine)
+{
+	if (coroutine->fcall) {
+		return zend_get_callable_name_ex(&coroutine->fcall->fci.function_name, NULL);
+	}
+
+	return zend_string_init("internal function", sizeof("internal function") - 1, 0);
+}
 
 #define ZEND_IS_ASYNC_ON EG(is_async)
 #define ZEND_IS_ASYNC_OFF !EG(is_async)
@@ -828,3 +837,5 @@ END_EXTERN_C()
 	zend_async_exec_fn(exec_mode, cmd, return_buffer, return_value, std_error, cwd, env, timeout)
 
 #define ZEND_ASYNC_QUEUE_TASK(task) zend_async_queue_task_fn(task)
+
+#endif //ZEND_ASYNC_API_H

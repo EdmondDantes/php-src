@@ -63,19 +63,6 @@ async_scope_free_coroutines(async_scope_t *scope)
 	vector->capacity = 0;
 }
 
-static void async_scope_free(zend_object *object)
-{
-	async_scope_t *scope = (async_scope_t *) object;
-
-	async_scope_free_coroutines(scope);
-
-	if (scope->scope.parent_scope) {
-		zend_async_scope_remove_child(scope->scope.parent_scope, &scope->scope);
-	}
-
-	zend_object_std_dtor(&scope->std);
-}
-
 static void scope_before_coroutine_enqueue(zend_async_scope_t *zend_scope, zend_coroutine_t *coroutine)
 {
 	async_scope_t *scope = (async_scope_t *) zend_scope;
@@ -113,15 +100,71 @@ zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope)
 	return &scope->scope;
 }
 
+zend_object *scope_object_create(zend_class_entry *class_entry)
+{
+	async_scope_t *scope = (async_scope_t *) zend_object_alloc(
+		sizeof(async_scope_t) + zend_object_properties_size(async_ce_scope), class_entry
+	);
+
+	zend_object_std_init(&scope->std, class_entry);
+	object_properties_init(&scope->std, class_entry);
+
+	if (UNEXPECTED(EG(exception))) {
+		return NULL;
+	}
+
+	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ(&scope->scope);
+	ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(&scope->scope);
+	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(&scope->scope, XtOffsetOf(async_scope_t, std));
+
+	scope->scope.before_coroutine_enqueue = scope_before_coroutine_enqueue;
+	scope->scope.after_coroutine_enqueue = scope_after_coroutine_enqueue;
+	scope->scope.dispose = scope_dispose;
+
+	return &scope->std;
+}
+
+static void scope_destroy(zend_object *object)
+{
+	async_scope_t *scope = (async_scope_t *) object;
+
+	if (scope->scope.parent_scope) {
+		zend_async_scope_remove_child(scope->scope.parent_scope, &scope->scope);
+	}
+
+	scope->scope.before_coroutine_enqueue = NULL;
+	scope->scope.after_coroutine_enqueue = NULL;
+	scope->scope.dispose = NULL;
+
+	zend_object_std_dtor(&scope->std);
+}
+
+static void scope_free(zend_object *object)
+{
+	async_scope_t *scope = (async_scope_t *) object;
+
+	async_scope_free_coroutines(scope);
+
+	if (scope->scope.parent_scope) {
+		zend_async_scope_remove_child(scope->scope.parent_scope, &scope->scope);
+	}
+
+	zend_object_std_dtor(&scope->std);
+}
+
 void async_register_scope_ce(void)
 {
 	async_ce_scope_provider = register_class_Async_ScopeProvider();
 	async_ce_spawn_strategy = register_class_Async_SpawnStrategy(async_ce_scope_provider);
 	async_ce_scope = register_class_Async_Scope(async_ce_scope_provider);
 
+	async_ce_scope->create_object = scope_object_create;
+
 	async_scope_handlers = std_object_handlers;
 
 	async_scope_handlers.offset   = XtOffsetOf(async_scope_t, std);
-	async_scope_handlers.free_obj = async_scope_free;
+	async_scope_handlers.clone_obj = NULL;
+	async_scope_handlers.dtor_obj = scope_destroy;
+	async_scope_handlers.free_obj = scope_free;
 
 }

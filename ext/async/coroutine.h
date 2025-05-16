@@ -34,7 +34,7 @@ struct _async_coroutine_t {
 	/* Native C fiber context. */
 	zend_fiber_context context;
 
-	/* Current Zend VM execute data being run by the fiber. */
+	/* Current Zend VM execute data being run by the coroutine. */
 	zend_execute_data *execute_data;
 
 	/* Active fiber vm stack. */

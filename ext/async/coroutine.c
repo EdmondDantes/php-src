@@ -24,7 +24,7 @@
 
 static zend_function coroutine_root_function = { ZEND_INTERNAL_FUNCTION };
 
-static void async_coroutine_cleanup(zend_fiber_context *context)
+static void coroutine_cleanup(zend_fiber_context *context)
 {
 	zend_fiber *fiber = zend_fiber_from_context(context);
 
@@ -103,7 +103,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 		transfer->flags = ZEND_FIBER_TRANSFER_FLAG_BAILOUT;
 	} zend_end_try();
 
-	coroutine->context.cleanup = &async_coroutine_cleanup;
+	coroutine->context.cleanup = &coroutine_cleanup;
 	coroutine->vm_stack = EG(vm_stack);
 
 	transfer->context = NULL;
@@ -111,18 +111,108 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	async_scheduler_coroutine_suspend(transfer);
 }
 
-static void async_coroutine_dispose(zend_coroutine_t *coroutine)
+static void coroutine_event_start(zend_async_event_t *event)
+{
+}
+
+static void coroutine_event_stop(zend_async_event_t *event)
+{
+}
+
+static void coroutine_add_callback(zend_async_event_t *event, zend_async_event_callback_t *callback)
+{
+	zend_async_callbacks_push(event, callback);
+}
+
+static void coroutine_del_callback(zend_async_event_t *event, zend_async_event_callback_t *callback)
+{
+	zend_async_callbacks_remove(event, callback);
+}
+
+static zend_string* coroutine_info(zend_async_event_t *event)
+{
+	async_coroutine_t *coroutine = (async_coroutine_t *) event;
+
+	zend_string * zend_coroutine_name = zend_coroutine_callable_name(&coroutine->coroutine);
+
+	if (coroutine->coroutine.waker != NULL) {
+		return zend_strpprintf(0,
+			"Coroutine %d spawned at %s:%d, suspended at %s:%d (%s)",
+			coroutine->std.handle,
+			coroutine->coroutine.filename ? ZSTR_VAL(coroutine->coroutine.filename) : "",
+			coroutine->coroutine.lineno,
+			coroutine->coroutine.waker->filename ? ZSTR_VAL(coroutine->coroutine.waker->filename) : "",
+			coroutine->coroutine.waker->lineno,
+			ZSTR_VAL(zend_coroutine_name)
+		);
+	} else {
+		return zend_strpprintf(0,
+			"Coroutine %d spawned at %s:%d (%s)",
+			coroutine->std.handle,
+			coroutine->coroutine.filename ? ZSTR_VAL(coroutine->coroutine.filename) : "",
+			coroutine->coroutine.lineno,
+			ZSTR_VAL(zend_coroutine_name)
+		);
+	}
+}
+
+static void coroutine_dispose(zend_async_event_t *event)
 {
 
 }
 
+static void coroutine_object_destroy(zend_object *object)
+{
+	async_coroutine_t *coroutine = (async_coroutine_t *) object;
+
+	if (coroutine->coroutine.fcall) {
+		zval_ptr_dtor(&coroutine->coroutine.fcall->fci.function_name);
+		efree(coroutine->coroutine.fcall);
+		coroutine->coroutine.fcall = NULL;
+	}
+
+	if (coroutine->coroutine.filename) {
+		zend_string_release_ex(coroutine->coroutine.filename, 0);
+		coroutine->coroutine.filename = NULL;
+	}
+
+	if (coroutine->coroutine.waker) {
+		zend_async_waker_destroy(&coroutine->coroutine);
+		coroutine->coroutine.waker = NULL;
+	}
+
+	zval_ptr_dtor(&coroutine->coroutine.result);
+}
+
+static void coroutine_free(zend_object *object)
+{
+	async_coroutine_t *coroutine = (async_coroutine_t *) object;
+
+	zend_async_callbacks_free(&coroutine->coroutine.event);
+	zend_object_std_dtor(object);
+}
+
 static zend_object *async_coroutine_object_create(zend_class_entry *class_entry)
 {
-	async_coroutine_t *coroutine = pecalloc(1, sizeof(async_coroutine_t), 0);
+	async_coroutine_t *coroutine = zend_object_alloc(
+		sizeof(async_coroutine_t) + zend_object_properties_size(async_ce_coroutine), class_entry
+	);
 
 	ZVAL_UNDEF(&coroutine->coroutine.result);
 
-	coroutine->coroutine.dispose = async_coroutine_dispose;
+	ZEND_ASYNC_EVENT_SET_ZEND_OBJ(&coroutine->coroutine.event);
+	ZEND_ASYNC_EVENT_SET_NO_FREE_MEMORY(&coroutine->coroutine.event);
+	ZEND_ASYNC_EVENT_SET_ZEND_OBJ_OFFSET(&coroutine->coroutine.event, XtOffsetOf(async_coroutine_t, std));
+
+	zend_async_event_t *event = &coroutine->coroutine.event;
+
+	event->start = coroutine_event_start;
+	event->stop = coroutine_event_stop;
+	event->add_callback = coroutine_add_callback;
+	event->del_callback = coroutine_del_callback;
+	event->info = coroutine_info;
+	event->dispose = coroutine_dispose;
+
 	coroutine->flags = ZEND_FIBER_STATUS_INIT;
 
 	zend_object_std_init(&coroutine->std, class_entry);
@@ -137,6 +227,7 @@ void async_register_coroutine_ce(void)
 	async_ce_coroutine = register_class_Async_Coroutine(async_ce_awaitable);
 
 	coroutine_handlers = std_object_handlers;
-	coroutine_handlers.dtor_obj = async_coroutine_object_destroy;
-	coroutine_handlers.clone_obj = async_coroutine_clone;
+	coroutine_handlers.clone_obj = NULL;
+	coroutine_handlers.dtor_obj = coroutine_object_destroy;
+	coroutine_handlers.free_obj = coroutine_free;
 }
