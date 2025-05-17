@@ -47,6 +47,14 @@ typedef struct _async_scope_object_s {
 	};
 } async_scope_object_t;
 
+
+static zend_always_inline void async_scope_try_dispose(async_scope_t *scope)
+{
+	if (scope->scope.scopes.length == 0 && scope->coroutines.length == 0) {
+		scope->scope.dispose(&scope->scope);
+	}
+}
+
 static zend_always_inline void
 async_scope_add_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
 {
@@ -72,6 +80,7 @@ async_scope_remove_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
 	for (uint32_t i = 0; i < vector->length; ++i) {
 		if (vector->data[i] == coroutine) {
 			vector->data[i] = vector->data[--vector->length];
+			async_scope_try_dispose(scope);
 			return;
 		}
 	}
