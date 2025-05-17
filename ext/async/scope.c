@@ -19,51 +19,7 @@
 
 static zend_object_handlers async_scope_handlers;
 
-static zend_always_inline void
-async_scope_add_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
-{
-	async_coroutines_vector_t *vector = &scope->coroutines;
-
-	if (vector->data == NULL) {
-		vector->data = safe_emalloc(4, sizeof(async_coroutine_t *), 0);
-		vector->capacity = 4;
-	}
-
-	if (vector->length == vector->capacity) {
-		vector->capacity *= 2;
-		vector->data = safe_erealloc(vector->data, vector->capacity, sizeof(async_coroutine_t *), 0);
-	}
-
-	vector->data[vector->length++] = coroutine;
-}
-
-static zend_always_inline void
-async_scope_remove_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
-{
-	async_coroutines_vector_t *vector = &scope->coroutines;
-	for (uint32_t i = 0; i < vector->length; ++i) {
-		if (vector->data[i] == coroutine) {
-			vector->data[i] = vector->data[--vector->length];
-			return;
-		}
-	}
-}
-
-static zend_always_inline void
-async_scope_free_coroutines(async_scope_t *scope)
-{
-	async_coroutines_vector_t *vector = &scope->coroutines;
-
-	if (vector->data != NULL) {
-		efree(vector->data);
-	}
-
-	vector->data = NULL;
-	vector->length = 0;
-	vector->capacity = 0;
-}
-
-static void scope_before_coroutine_enqueue(zend_async_scope_t *zend_scope, zend_coroutine_t *coroutine)
+static void scope_before_coroutine_enqueue(zend_async_scope_t *zend_scope, zend_coroutine_t *coroutine, zval *result)
 {
 	async_scope_t *scope = (async_scope_t *) zend_scope;
 
@@ -74,59 +30,38 @@ static void scope_after_coroutine_enqueue(zend_async_scope_t *scope, zend_corout
 {
 }
 
+static void scope_dispose_coroutines_and_children(async_scope_t *scope)
+{
+	// First dispose all children scopes
+	for (uint32_t i = 0; i < scope->scope.scopes.length; ++i) {
+		async_scope_t *child_scope = (async_scope_t *) scope->scope.scopes.data[i];
+		child_scope->scope.dispose(&child_scope->scope);
+	}
+
+	const bool is_safely = ZEND_ASYNC_SCOPE_IS_DISPOSE_SAFELY(&scope->scope);
+
+	// Then cancel all coroutines
+	for (uint32_t i = 0; i < scope->coroutines.length; ++i) {
+		async_coroutine_t *coroutine = scope->coroutines.data[i];
+		ZEND_ASYNC_CANCEL_EX(&coroutine->coroutine, NULL, false, is_safely);
+	}
+}
+
 static void scope_dispose(zend_async_scope_t *zend_scope)
 {
 	async_scope_t *scope = (async_scope_t *) zend_scope;
-	async_scope_free_coroutines(scope);
-}
 
-zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope)
-{
-	DEFINE_ZEND_INTERNAL_OBJECT(async_scope_t, scope, async_ce_scope);
+	if (scope->coroutines.length > 0 || scope->scope.scopes.length > 0) {
 
-	if (UNEXPECTED(EG(exception))) {
-		return NULL;
+		if (false == ZEND_ASYNC_SCOPE_IS_CLOSED(&scope->scope)) {
+			ZEND_ASYNC_SCOPE_SET_CLOSED(&scope->scope);
+			scope_dispose_coroutines_and_children(scope);
+		}
+
+		if (scope->coroutines.length > 0 || scope->scope.scopes.length > 0) {
+			return;
+		}
 	}
-
-	scope->scope.parent_scope = parent_scope;
-	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ(&scope->scope);
-	ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(&scope->scope);
-	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(&scope->scope, XtOffsetOf(async_scope_t, std));
-
-	scope->scope.before_coroutine_enqueue = scope_before_coroutine_enqueue;
-	scope->scope.after_coroutine_enqueue = scope_after_coroutine_enqueue;
-	scope->scope.dispose = scope_dispose;
-
-	return &scope->scope;
-}
-
-zend_object *scope_object_create(zend_class_entry *class_entry)
-{
-	async_scope_t *scope = (async_scope_t *) zend_object_alloc(
-		sizeof(async_scope_t) + zend_object_properties_size(async_ce_scope), class_entry
-	);
-
-	zend_object_std_init(&scope->std, class_entry);
-	object_properties_init(&scope->std, class_entry);
-
-	if (UNEXPECTED(EG(exception))) {
-		return NULL;
-	}
-
-	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ(&scope->scope);
-	ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(&scope->scope);
-	ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(&scope->scope, XtOffsetOf(async_scope_t, std));
-
-	scope->scope.before_coroutine_enqueue = scope_before_coroutine_enqueue;
-	scope->scope.after_coroutine_enqueue = scope_after_coroutine_enqueue;
-	scope->scope.dispose = scope_dispose;
-
-	return &scope->std;
-}
-
-static void scope_destroy(zend_object *object)
-{
-	async_scope_t *scope = (async_scope_t *) object;
 
 	if (scope->scope.parent_scope) {
 		zend_async_scope_remove_child(scope->scope.parent_scope, &scope->scope);
@@ -136,20 +71,51 @@ static void scope_destroy(zend_object *object)
 	scope->scope.after_coroutine_enqueue = NULL;
 	scope->scope.dispose = NULL;
 
-	zend_object_std_dtor(&scope->std);
+	async_scope_free_coroutines(scope);
+	efree(scope);
 }
 
-static void scope_free(zend_object *object)
+zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope)
 {
-	async_scope_t *scope = (async_scope_t *) object;
+	async_scope_t *scope = ecalloc(1, sizeof(async_scope_t));
 
-	async_scope_free_coroutines(scope);
+	async_scope_object_t *scope_object = zend_object_alloc(sizeof(async_scope_object_t), async_ce_scope);
 
-	if (scope->scope.parent_scope) {
-		zend_async_scope_remove_child(scope->scope.parent_scope, &scope->scope);
+	zend_object_std_init(&scope_object->std, async_ce_scope);
+	object_properties_init(&scope_object->std, async_ce_scope);
+
+	if (UNEXPECTED(EG(exception))) {
+		efree(scope);
+		OBJ_RELEASE(&scope_object->std);
+		return NULL;
 	}
 
-	zend_object_std_dtor(&scope->std);
+	scope_object->scope = scope;
+
+	scope->scope.parent_scope = parent_scope;
+
+	scope->scope.before_coroutine_enqueue = scope_before_coroutine_enqueue;
+	scope->scope.after_coroutine_enqueue = scope_after_coroutine_enqueue;
+	scope->scope.dispose = scope_dispose;
+	scope->scope.scope_object = &scope_object->std;
+
+	return &scope->scope;
+}
+
+zend_object *scope_object_create(zend_class_entry *class_entry)
+{
+	return async_new_scope(NULL)->scope_object;
+}
+
+static void scope_destroy(zend_object *object)
+{
+	async_scope_object_t *scope_object = (async_scope_object_t *) object;
+
+	if (scope_object->scope != NULL) {
+		async_scope_t *scope = scope_object->scope;
+		scope_object->scope = NULL;
+		scope->scope.dispose(&scope->scope);
+	}
 }
 
 void async_register_scope_ce(void)
@@ -162,9 +128,6 @@ void async_register_scope_ce(void)
 
 	async_scope_handlers = std_object_handlers;
 
-	async_scope_handlers.offset   = XtOffsetOf(async_scope_t, std);
 	async_scope_handlers.clone_obj = NULL;
 	async_scope_handlers.dtor_obj = scope_destroy;
-	async_scope_handlers.free_obj = scope_free;
-
 }

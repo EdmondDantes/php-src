@@ -84,10 +84,10 @@ typedef enum
 /**
  * zend_coroutine_t is a Basic data structure that represents a coroutine in the Zend Engine.
  */
-typedef struct _zend_coroutine_t zend_coroutine_t;
+typedef struct _zend_coroutine_s zend_coroutine_t;
 typedef struct _zend_async_waker_t zend_async_waker_t;
 typedef struct _zend_async_microtask_t zend_async_microtask_t;
-typedef struct _zend_async_scope_t zend_async_scope_t;
+typedef struct _zend_async_scope_s zend_async_scope_t;
 typedef struct _zend_fcall_t zend_fcall_t;
 typedef void (*zend_coroutine_entry_t)(void);
 
@@ -130,7 +130,7 @@ typedef zend_async_scope_t * (*zend_async_new_scope_t)(zend_async_scope_t * pare
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope, zend_object *scope_provider);
 typedef void (*zend_async_suspend_t)(void);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
-typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
+typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error, const bool is_safely);
 typedef void (*zend_async_shutdown_t)();
 typedef zend_array* (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
@@ -491,16 +491,21 @@ typedef struct _zend_async_scopes_vector_t {
 	zend_async_scope_t			  **data;    /* dynamically allocated array			*/
 } zend_async_scopes_vector_t;
 
-struct _zend_async_scope_t {
+/**
+ * The internal Scope structure and the Zend object Scope are different data structures.
+ * This separation is intentional to manage their lifetimes independently.
+ * The internal Scope structure can outlive the Zend object.
+ * When the Zend object triggers the dtor_obj method,
+ * it initiates the disposal process of the Scope.
+ *
+ * However, the internal Scope structure remains in memory until the last coroutine has completed.
+ *
+ */
+struct _zend_async_scope_s {
 	/* The scope ZEND_ASYNC_SCOPE_F flags */
 	uint32_t flags;
-	union
-	{
-		/* The refcount of the scope. */
-		uint32_t ref_count;
-		/* The offset of Zend object structure. */
-		uint32_t zend_object_offset;
-	};
+	/* The link to the zend_object structure */
+	zend_object * scope_object;
 
 	zend_async_scopes_vector_t scopes;
 	zend_async_scope_t *parent_scope;
@@ -510,23 +515,22 @@ struct _zend_async_scope_t {
 	zend_async_scope_dispose_t dispose;
 };
 
-#define ZEND_ASYNC_SCOPE_F_CLOSED        (1u << 0)  /* scope was closed */
-#define ZEND_ASYNC_SCOPE_F_ZEND_OBJ 	 (1u << 1)  /* scope is a zend object */
-#define ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY (1u << 2) /* scope will not free memory in dispose handler */
+#define ZEND_ASYNC_SCOPE_F_CLOSED				  (1u << 0)  /* scope was closed */
+#define ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY	      (1u << 1)  /* scope will not free memory in dispose handler */
+#define ZEND_ASYNC_SCOPE_F_DISPOSE_SAFELY 		  (1u << 2)  /* scope will be disposed safely */
 
 #define ZEND_ASYNC_SCOPE_IS_CLOSED(scope)         (((scope)->flags & ZEND_ASYNC_SCOPE_F_CLOSED) != 0)
-#define ZEND_ASYNC_SCOPE_IS_ZEND_OBJ(scope)      (((scope)->flags & ZEND_ASYNC_SCOPE_F_ZEND_OBJ) != 0)
 #define ZEND_ASYNC_SCOPE_IS_NO_FREE_MEMORY(scope) (((scope)->flags & ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY) != 0)
+#define ZEND_ASYNC_SCOPE_IS_DISPOSE_SAFELY(scope) (((scope)->flags & ZEND_ASYNC_SCOPE_F_DISPOSE_SAFELY) != 0)
 
 #define ZEND_ASYNC_SCOPE_SET_CLOSED(scope)        ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_CLOSED)
 #define ZEND_ASYNC_SCOPE_CLR_CLOSED(scope)        ((scope)->flags &= ~ZEND_ASYNC_SCOPE_F_CLOSED)
 
-#define ZEND_ASYNC_SCOPE_SET_ZEND_OBJ(scope)      ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_ZEND_OBJ)
-#define ZEND_ASYNC_SCOPE_SET_ZEND_OBJ_OFFSET(scope, offset) ((scope)->zend_object_offset = (uint32_t) (offset))
 #define ZEND_ASYNC_SCOPE_SET_NO_FREE_MEMORY(scope) ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY)
+#define ZEND_ASYNC_SCOPE_CLR_NO_FREE_MEMORY(scope) ((scope)->flags &= ~ZEND_ASYNC_SCOPE_F_NO_FREE_MEMORY)
 
-#define ZEND_ASYNC_OBJECT_TO_SCOPE(obj) ((zend_async_scope_t *)((char *)(obj) - (obj)->handlers->offset))
-#define ZEND_ASYNC_SCOPE_TO_OBJECT(scope) ((zend_object *)((char *)(scope) + (scope)->zend_object_offset))
+#define ZEND_ASYNC_SCOPE_SET_DISPOSE(scope)        ((scope)->flags |=  ZEND_ASYNC_SCOPE_F_DISPOSE_SAFELY)
+#define ZEND_ASYNC_SCOPE_CLR_DISPOSE(scope)        ((scope)->flags &= ~ZEND_ASYNC_SCOPE_F_DISPOSE_SAFELY)
 
 static zend_always_inline void
 zend_async_scope_add_child(zend_async_scope_t *parent_scope, zend_async_scope_t *child_scope)
@@ -612,7 +616,7 @@ struct _zend_async_waker_t {
  */
 typedef void (*zend_async_coroutine_dispose)(zend_coroutine_t *coroutine);
 
-struct _zend_coroutine_t {
+struct _zend_coroutine_s {
 	zend_async_event_t event;
 	/*
 	 * Callback and info / cache to be used when coroutine is started.
@@ -631,6 +635,8 @@ struct _zend_coroutine_t {
 
 	/* Coroutine waker */
 	zend_async_waker_t *waker;
+	/* Coroutine scope */
+	zend_async_scope_t *scope;
 
 	/* Storage for return value. */
 	zval result;
@@ -642,6 +648,11 @@ struct _zend_coroutine_t {
 	/* Extended dispose handler */
 	zend_async_coroutine_dispose extended_dispose;
 };
+
+/* Coroutine flags */
+#define ZEND_COROUTINE_F_ZOMBIE (1u << 10) /* coroutine is a zombie */
+#define ZEND_COROUTINE_IS_ZOMBIE(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_ZOMBIE) != 0)
+#define ZEND_COROUTINE_SET_ZOMBIE(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_ZOMBIE)
 
 static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_coroutine_t *coroutine)
 {
@@ -797,7 +808,8 @@ END_EXTERN_C()
 #define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn()
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine, NULL, false)
 #define ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, error, transfer_error) zend_async_resume_fn(coroutine, error, transfer_error)
-#define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error)
+#define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error, false)
+#define ZEND_ASYNC_CANCEL_EX(coroutine, error, transfer_error, is_safely) zend_async_cancel_fn(coroutine, error, transfer_error, is_safely)
 #define ZEND_ASYNC_SHUTDOWN() zend_async_shutdown_fn()
 #define ZEND_ASYNC_GET_COROUTINES() zend_async_get_coroutines_fn()
 #define ZEND_ASYNC_ADD_MICROTASK(microtask) zend_async_add_microtask_fn(microtask)

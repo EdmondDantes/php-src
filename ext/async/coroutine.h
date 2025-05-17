@@ -21,9 +21,9 @@
 ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer);
 extern ZEND_API zend_class_entry * async_ce_coroutine;
 
-typedef struct _async_coroutine_t async_coroutine_t;
+typedef struct _async_coroutine_s async_coroutine_t;
 
-struct _async_coroutine_t {
+struct _async_coroutine_s {
 
 	/* Basic structure for coroutine. */
 	zend_coroutine_t coroutine;

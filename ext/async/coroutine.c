@@ -18,6 +18,7 @@
 #include "php_async.h"
 
 #include "scheduler.h"
+#include "scope.h"
 #include "zend_common.h"
 #include "zend_exceptions.h"
 #include "zend_ini.h"
@@ -158,12 +159,17 @@ static zend_string* coroutine_info(zend_async_event_t *event)
 
 static void coroutine_dispose(zend_async_event_t *event)
 {
-
+	async_coroutine_t *coroutine = (async_coroutine_t *) event;
+	OBJ_RELEASE(&coroutine->std);
 }
 
 static void coroutine_object_destroy(zend_object *object)
 {
 	async_coroutine_t *coroutine = (async_coroutine_t *) object;
+
+	if (coroutine->coroutine.scope != NULL) {
+		async_scope_remove_coroutine((async_scope_t *) coroutine->coroutine.scope, coroutine);
+	}
 
 	if (coroutine->coroutine.fcall) {
 		zval_ptr_dtor(&coroutine->coroutine.fcall->fci.function_name);
@@ -192,7 +198,7 @@ static void coroutine_free(zend_object *object)
 	zend_object_std_dtor(object);
 }
 
-static zend_object *async_coroutine_object_create(zend_class_entry *class_entry)
+static zend_object *coroutine_object_create(zend_class_entry *class_entry)
 {
 	async_coroutine_t *coroutine = zend_object_alloc(
 		sizeof(async_coroutine_t) + zend_object_properties_size(async_ce_coroutine), class_entry
@@ -216,6 +222,7 @@ static zend_object *async_coroutine_object_create(zend_class_entry *class_entry)
 	coroutine->flags = ZEND_FIBER_STATUS_INIT;
 
 	zend_object_std_init(&coroutine->std, class_entry);
+	object_properties_init(&coroutine->std, class_entry);
 
 	return &coroutine->std;
 }
@@ -225,6 +232,8 @@ static zend_object_handlers coroutine_handlers;
 void async_register_coroutine_ce(void)
 {
 	async_ce_coroutine = register_class_Async_Coroutine(async_ce_awaitable);
+
+	async_ce_coroutine->create_object = coroutine_object_create;
 
 	coroutine_handlers = std_object_handlers;
 	coroutine_handlers.clone_obj = NULL;

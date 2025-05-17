@@ -22,7 +22,7 @@ extern ZEND_API zend_class_entry * async_ce_scope;
 extern ZEND_API zend_class_entry * async_ce_scope_provider;
 extern ZEND_API zend_class_entry * async_ce_spawn_strategy;
 
-typedef struct _async_scope_t async_scope_t;
+typedef struct _async_scope_s async_scope_t;
 
 typedef struct async_coroutines_vector_t {
 	uint32_t                      length;    /* current number of items      */
@@ -30,11 +30,66 @@ typedef struct async_coroutines_vector_t {
 	async_coroutine_t			  **data;    /* dynamically allocated array	 */
 } async_coroutines_vector_t;
 
-struct _async_scope_t {
+struct _async_scope_s {
 	zend_async_scope_t scope;
 	async_coroutines_vector_t coroutines;
-	zend_object std;
 };
+
+typedef struct _async_scope_object_s {
+	union
+	{
+		/* PHP object handle. */
+		zend_object std;
+		struct {
+			char _padding[sizeof(zend_object) - sizeof(zval)];
+			async_scope_t *scope;
+		};
+	};
+} async_scope_object_t;
+
+static zend_always_inline void
+async_scope_add_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
+{
+	async_coroutines_vector_t *vector = &scope->coroutines;
+
+	if (vector->data == NULL) {
+		vector->data = safe_emalloc(4, sizeof(async_coroutine_t *), 0);
+		vector->capacity = 4;
+	}
+
+	if (vector->length == vector->capacity) {
+		vector->capacity *= 2;
+		vector->data = safe_erealloc(vector->data, vector->capacity, sizeof(async_coroutine_t *), 0);
+	}
+
+	vector->data[vector->length++] = coroutine;
+}
+
+static zend_always_inline void
+async_scope_remove_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
+{
+	async_coroutines_vector_t *vector = &scope->coroutines;
+	for (uint32_t i = 0; i < vector->length; ++i) {
+		if (vector->data[i] == coroutine) {
+			vector->data[i] = vector->data[--vector->length];
+			return;
+		}
+	}
+}
+
+static zend_always_inline void
+async_scope_free_coroutines(async_scope_t *scope)
+{
+	async_coroutines_vector_t *vector = &scope->coroutines;
+
+	if (vector->data != NULL) {
+		efree(vector->data);
+	}
+
+	vector->data = NULL;
+	vector->length = 0;
+	vector->capacity = 0;
+}
 
 zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope);
 void async_register_scope_ce(void);
