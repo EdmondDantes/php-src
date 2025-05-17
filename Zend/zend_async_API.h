@@ -131,7 +131,7 @@ typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope, zend
 typedef void (*zend_async_suspend_t)(void);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error, const bool is_safely);
-typedef void (*zend_async_shutdown_t)();
+typedef void (*zend_async_shutdown_t)(void);
 typedef zend_array* (*zend_async_get_coroutines_t)();
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
 typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine_t * coroutine);
@@ -650,9 +650,26 @@ struct _zend_coroutine_s {
 };
 
 /* Coroutine flags */
-#define ZEND_COROUTINE_F_ZOMBIE (1u << 10) /* coroutine is a zombie */
+#define ZEND_COROUTINE_F_STARTED (1u << 10) /* coroutine is started */
+#define ZEND_COROUTINE_F_CANCELLED (1u << 11) /* coroutine is cancelled */
+#define ZEND_COROUTINE_F_ZOMBIE (1u << 12) /* coroutine is a zombie */
+#define ZEND_COROUTINE_F_PROTECTED (1u << 13) /* coroutine is protected */
+#define ZEND_COROUTINE_F_EXCEPTION_HANDLED (1u << 14) /* exception has been caught and processed */
+
 #define ZEND_COROUTINE_IS_ZOMBIE(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_ZOMBIE) != 0)
 #define ZEND_COROUTINE_SET_ZOMBIE(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_ZOMBIE)
+#define ZEND_COROUTINE_IS_STARTED(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_STARTED) != 0)
+#define ZEND_COROUTINE_IS_CANCELLED(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_CANCELLED) != 0)
+#define ZEND_COROUTINE_IS_FINISHED(coroutine) (((coroutine)->event.flags & ZEND_ASYNC_EVENT_F_CLOSED) != 0)
+#define ZEND_COROUTINE_IS_PROTECTED(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_PROTECTED) != 0)
+#define ZEND_COROUTINE_IS_EXCEPTION_HANDLED(coroutine) (((coroutine)->event.flags & ZEND_COROUTINE_F_EXCEPTION_HANDLED) != 0)
+#define ZEND_COROUTINE_SET_STARTED(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_STARTED)
+#define ZEND_COROUTINE_SET_CANCELLED(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_CANCELLED)
+#define ZEND_COROUTINE_SET_FINISHED(coroutine) ((coroutine)->event.flags |= ZEND_ASYNC_EVENT_F_CLOSED)
+#define ZEND_COROUTINE_SET_PROTECTED(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_PROTECTED)
+#define ZEND_COROUTINE_CLR_PROTECTED(coroutine) ((coroutine)->event.flags &= ~ZEND_COROUTINE_F_PROTECTED)
+#define ZEND_COROUTINE_SET_EXCEPTION_HANDLED(coroutine) ((coroutine)->event.flags |= ZEND_COROUTINE_F_EXCEPTION_HANDLED)
+#define ZEND_COROUTINE_CLR_EXCEPTION_HANDLED(coroutine) ((coroutine)->event.flags &= ~ZEND_COROUTINE_F_EXCEPTION_HANDLED)
 
 static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_coroutine_t *coroutine)
 {

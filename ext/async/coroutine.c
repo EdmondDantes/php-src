@@ -15,6 +15,7 @@
 */
 #include "coroutine.h"
 #include "coroutine_arginfo.h"
+#include "exceptions.h"
 #include "php_async.h"
 
 #include "scheduler.h"
@@ -44,6 +45,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	ZEND_ASSERT(!transfer->flags && "No flags should be set on initial transfer");
 
 	async_coroutine_t *coroutine = (async_coroutine_t *) EG(coroutine);
+	ZEND_COROUTINE_SET_STARTED(&coroutine->coroutine);
 
 	/* Determine the current error_reporting ini setting. */
 	zend_long error_reporting = INI_INT("error_reporting");
@@ -85,6 +87,48 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 			ZVAL_UNDEF(&coroutine->coroutine.fcall->fci.function_name);
 		} else {
 			coroutine->coroutine.internal_entry();
+		}
+
+		ZEND_COROUTINE_SET_FINISHED(&coroutine->coroutine);
+
+		// call coroutines handlers
+		zend_object * exception = NULL;
+		ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(&coroutine->coroutine.event);
+
+		if (EG(exception)) {
+			if (EG(prev_exception)) {
+				zend_exception_set_previous(EG(exception), EG(prev_exception));
+			}
+
+			exception = EG(exception);
+			GC_ADDREF(exception);
+
+			zend_clear_exception();
+
+			if (instanceof_function(EG(exception)->ce, async_ce_cancellation_exception)
+				|| zend_is_graceful_exit(EG(exception))
+				|| zend_is_unwind_exit(EG(exception))) {
+				OBJ_RELEASE(exception);
+				exception = NULL;
+			}
+		}
+
+		zend_exception_save();
+		// Mark second parameter of zend_async_callbacks_notify as ZVAL
+		ZEND_ASYNC_EVENT_SET_ZVAL_RESULT(&coroutine->coroutine.event);
+		ZEND_COROUTINE_CLR_EXCEPTION_HANDLED(&coroutine->coroutine);
+		zend_async_callbacks_notify(&coroutine->coroutine.event, &coroutine->coroutine.result, exception);
+		zend_exception_restore();
+
+		// If the exception was handled by any handler, we do not propagate it further.
+		if (exception != NULL && ZEND_COROUTINE_IS_EXCEPTION_HANDLED(&coroutine->coroutine)) {
+			OBJ_RELEASE(exception);
+			exception = NULL;
+		}
+
+		// Otherwise, we rethrow the exception.
+		if (exception != NULL) {
+			zend_throw_exception_internal(exception);
 		}
 
 		if (EG(exception)) {

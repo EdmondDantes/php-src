@@ -124,7 +124,7 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 	}
 
 	if (UNEXPECTED(coroutine->waker == NULL)) {
-		coroutine->dispose(coroutine);
+		coroutine->event.dispose(&coroutine->event);
 		return true;
 	}
 
@@ -137,13 +137,13 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 		// in this case, it is deallocated differently than usual.
 		// Finalizing handlers are called. Memory is freed in the correct order!
 		//
-		coroutine->dispose(coroutine);
+		coroutine->event.dispose(&coroutine->event);
 		return true;
 	}
 
 	if (UNEXPECTED(waker->status == ZEND_ASYNC_WAKER_WAITING)) {
 		zend_error(E_ERROR, "Attempt to resume a fiber that has not been resolved");
-		coroutine->dispose(coroutine);
+		coroutine->event.dispose(&coroutine->event);
 		return false;
 	}
 
@@ -171,7 +171,7 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 
 	// Free if it is completed
 	if (async_coroutine->context.status == ZEND_FIBER_STATUS_DEAD) {
-		coroutine->dispose(coroutine);
+		coroutine->event.dispose(&coroutine->event);
 	}
 
 	return true;
@@ -296,7 +296,7 @@ static void dispose_coroutines(void)
 			coroutine->waker->status = ZEND_ASYNC_WAKER_IGNORED;
 		}
 
-		coroutine->dispose(coroutine);
+		coroutine->event.dispose(&coroutine->event);
 
 		if (EG(exception)) {
 			zend_exception_save();
@@ -320,7 +320,7 @@ static void cancel_queued_coroutines(void)
 		if (((async_coroutine_t *) coroutine)->context.status == ZEND_FIBER_STATUS_INIT) {
 			// No need to cancel the fiber if it has not been started.
 			coroutine->waker->status = ZEND_ASYNC_WAKER_IGNORED;
-			coroutine->dispose(coroutine);
+			coroutine->event.dispose(&coroutine->event);
 		} else {
 			ZEND_ASYNC_CANCEL(coroutine, cancellation_exception, false);
 		}
@@ -481,7 +481,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 	if (UNEXPECTED(
 		false == has_handles
 		&& false == is_next_coroutine
-		&& &ASYNC_G(active_coroutine_count) > 0
+		&& ASYNC_G(active_coroutine_count) > 0
 		&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 		&& resolve_deadlocks()
 		)) {

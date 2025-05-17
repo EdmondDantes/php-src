@@ -42,7 +42,7 @@ zend_async_scope_t * async_provide_scope(zend_object *scope_provider)
 	}
 
 	if (Z_TYPE(retval) == IS_OBJECT && instanceof_function(Z_OBJCE(retval), async_ce_scope)) {
-		zend_async_scope_t *scope = ZEND_ASYNC_OBJECT_TO_SCOPE(Z_OBJ(retval));
+		zend_async_scope_t *scope = &((async_scope_object_t *)Z_OBJ(retval))->scope->scope;
 		zval_ptr_dtor(&retval);
 		return scope;
 	}
@@ -106,7 +106,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	zval_dtor(&options);
 
 	if (UNEXPECTED(EG(exception))) {
-		coroutine->coroutine.dispose(&coroutine->coroutine);
+		coroutine->coroutine.event.dispose(&coroutine->coroutine.event);
 		return NULL;
 	}
 
@@ -114,7 +114,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	if (scope_provider != NULL) {
 		zval coroutine_zval, scope_zval;
 		ZVAL_OBJ(&coroutine_zval, &coroutine->std);
-		ZVAL_OBJ(&scope_zval, ZEND_ASYNC_SCOPE_TO_OBJECT(scope));
+		ZVAL_OBJ(&scope_zval, scope->scope_object);
 
 		if (zend_call_method_with_2_params(
 			scope_provider,
@@ -125,7 +125,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 			&coroutine_zval,
 			&scope_zval) == NULL) {
 
-			coroutine->coroutine.dispose(&coroutine->coroutine);
+			coroutine->coroutine.event.dispose(&coroutine->coroutine.event);
 			return NULL;
 		}
 
@@ -134,14 +134,14 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 
 	zend_async_waker_t *waker = zend_async_waker_new(&coroutine->coroutine);
 	if (UNEXPECTED(EG(exception))) {
-		coroutine->coroutine.dispose(&coroutine->coroutine);
+		coroutine->coroutine.event.dispose(&coroutine->coroutine.event);
 		return NULL;
 	}
 
 	waker->status = ZEND_ASYNC_WAKER_QUEUED;
 
 	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true)) == FAILURE) {
-		coroutine->coroutine.dispose(&coroutine->coroutine);
+		coroutine->coroutine.event.dispose(&coroutine->coroutine.event);
 		async_throw_error("Failed to enqueue coroutine");
 		return NULL;
 	}
@@ -156,7 +156,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	if (scope_provider != NULL) {
 		zval coroutine_zval, scope_zval;
 		ZVAL_OBJ(&coroutine_zval, &coroutine->std);
-		ZVAL_OBJ(&scope_zval, ZEND_ASYNC_SCOPE_TO_OBJECT(scope));
+		ZVAL_OBJ(&scope_zval, scope->scope_object);
 
 		if (zend_call_method_with_2_params(
 			scope_provider,
@@ -221,19 +221,38 @@ void resume(zend_coroutine_t *coroutine, zend_object * error, const bool transfe
 	coroutine->waker->status = ZEND_ASYNC_WAKER_QUEUED;
 }
 
-void cancel(zend_coroutine_t *coroutine, zend_object *error, const bool transfer_error)
+void cancel(zend_coroutine_t *zend_coroutine, zend_object *error, const bool transfer_error, const bool is_safely)
 {
-	if (coroutine->waker == NULL) {
-		zend_async_waker_new(coroutine);
+	// If the coroutine hasn't even started, do nothing.
+	if (false == ZEND_COROUTINE_IS_STARTED(zend_coroutine) || ZEND_COROUTINE_IS_FINISHED(zend_coroutine)) {
+		if (transfer_error && error != NULL) {
+			OBJ_RELEASE(error);
+		}
+
+		return;
 	}
 
-	if (UNEXPECTED(coroutine->waker == NULL)) {
+	if (zend_coroutine->waker == NULL) {
+		zend_async_waker_new(zend_coroutine);
+	}
+
+	if (UNEXPECTED(zend_coroutine->waker == NULL)) {
 		async_throw_error("Waker is not initialized");
 
 		if (transfer_error) {
 			OBJ_RELEASE(error);
 		}
 
+		return;
+	}
+
+	ZEND_COROUTINE_SET_CANCELLED(zend_coroutine);
+
+	// In safely mode, we don't forcibly terminate the coroutine,
+	// but we do mark it as a Zombie.
+	if (is_safely && error == NULL) {
+		ZEND_COROUTINE_SET_ZOMBIE(zend_coroutine);
+		DECREASE_COROUTINE_COUNT
 		return;
 	}
 
@@ -246,12 +265,12 @@ void cancel(zend_coroutine_t *coroutine, zend_object *error, const bool transfer
 		}
 	}
 
-	if (coroutine->waker->error != NULL) {
-		zend_exception_set_previous(error, coroutine->waker->error);
-		OBJ_RELEASE(coroutine->waker->error);
+	if (zend_coroutine->waker->error != NULL) {
+		zend_exception_set_previous(error, zend_coroutine->waker->error);
+		OBJ_RELEASE(zend_coroutine->waker->error);
 	}
 
-	coroutine->waker->error = error;
+	zend_coroutine->waker->error = error;
 
 	if (false == transfer_error && false == is_error_null) {
 		GC_ADDREF(error);
@@ -394,11 +413,7 @@ void async_waiting_callback(
 	}
 
 	if (await_context->resolved_count >= await_context->waiting_count) {
-		ZEND_ASYNC_RESUME(
-			await_callback->callback.coroutine,
-			NULL,
-			false
-		);
+		ZEND_ASYNC_RESUME(await_callback->callback.coroutine);
 	}
 }
 

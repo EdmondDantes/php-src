@@ -19,7 +19,7 @@
 #include <stdbool.h>
 
 #include "iterator.h"
-#include "zend_async_API.h"
+#include <Zend/zend_async_API.h>
 
 typedef struct _async_await_context_t async_await_context_t;
 typedef void (*async_await_context_dtor_t) (async_await_context_t *context);
