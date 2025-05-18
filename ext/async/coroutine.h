@@ -45,5 +45,6 @@ struct _async_coroutine_s {
 };
 
 void async_register_coroutine_ce(void);
+zend_coroutine_t *new_coroutine(zend_async_scope_t *scope);
 
 #endif //COROUTINE_H

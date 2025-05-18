@@ -699,7 +699,6 @@ ZEND_MINIT_FUNCTION(async)
 
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_reactor_register();
-	ZEND_IS_ASYNC_ON = true;
 #endif
 
 	return SUCCESS;
@@ -731,6 +730,7 @@ PHP_MINFO_FUNCTION(async) {
 PHP_RINIT_FUNCTION(async) /* {{{ */
 {
 	//async_host_name_list_ctor();
+	ZEND_IS_ASYNC_ON = true;
 	return SUCCESS;
 } /* }}} */
 
@@ -747,7 +747,7 @@ zend_module_entry async_module_entry = {
 	ext_functions,
 	PHP_MINIT(async),
 	PHP_MSHUTDOWN(async),
-	NULL,
+	PHP_RINIT(async),
 	PHP_RSHUTDOWN(async),
 	PHP_MINFO(async),
 	PHP_ASYNC_VERSION,

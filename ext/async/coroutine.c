@@ -373,6 +373,20 @@ static zend_object *coroutine_object_create(zend_class_entry *class_entry)
 	return &coroutine->std;
 }
 
+zend_coroutine_t *new_coroutine(zend_async_scope_t *scope)
+{
+	zend_object * object = coroutine_object_create(async_ce_coroutine);
+
+	if (UNEXPECTED(EG(exception))) {
+		return NULL;
+	}
+
+	async_coroutine_t *coroutine = (async_coroutine_t *) ZEND_ASYNC_OBJECT_TO_EVENT(object);
+	coroutine->coroutine.scope = scope;
+
+	return &coroutine->coroutine;
+}
+
 static zend_object_handlers coroutine_handlers;
 
 void async_register_coroutine_ce(void)
@@ -381,7 +395,10 @@ void async_register_coroutine_ce(void)
 
 	async_ce_coroutine->create_object = coroutine_object_create;
 
+	async_ce_coroutine->default_object_handlers = &coroutine_handlers;
+
 	coroutine_handlers = std_object_handlers;
+	coroutine_handlers.offset = XtOffsetOf(async_coroutine_t, std);
 	coroutine_handlers.clone_obj = NULL;
 	coroutine_handlers.dtor_obj = coroutine_object_destroy;
 	coroutine_handlers.free_obj = coroutine_free;

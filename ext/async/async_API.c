@@ -22,17 +22,6 @@
 #include "scope.h"
 #include "zend_common.h"
 
-zend_coroutine_t *new_coroutine(zend_async_scope_t *scope)
-{
-	DEFINE_ZEND_INTERNAL_OBJECT(async_coroutine_t, coroutine, async_ce_coroutine);
-
-	if (UNEXPECTED(EG(exception))) {
-		return NULL;
-	}
-
-	return &coroutine->coroutine;
-}
-
 zend_async_scope_t * async_provide_scope(zend_object *scope_provider)
 {
 	zval retval;
