@@ -311,10 +311,11 @@ static void coroutine_dispose(zend_async_event_t *event)
 
 static void coroutine_object_destroy(zend_object *object)
 {
-	async_coroutine_t *coroutine = (async_coroutine_t *) object;
+	async_coroutine_t *coroutine = (async_coroutine_t *) ZEND_ASYNC_OBJECT_TO_EVENT(object);
 
 	if (coroutine->coroutine.scope != NULL) {
 		async_scope_remove_coroutine((async_scope_t *) coroutine->coroutine.scope, coroutine);
+		coroutine->coroutine.scope = NULL;
 	}
 
 	if (coroutine->coroutine.fcall) {
@@ -338,7 +339,7 @@ static void coroutine_object_destroy(zend_object *object)
 
 static void coroutine_free(zend_object *object)
 {
-	async_coroutine_t *coroutine = (async_coroutine_t *) object;
+	async_coroutine_t *coroutine = (async_coroutine_t *) ZEND_ASYNC_OBJECT_TO_EVENT(object);
 
 	zend_async_callbacks_free(&coroutine->coroutine.event);
 	zend_object_std_dtor(object);

@@ -199,6 +199,9 @@ zend_async_scope_t * async_new_scope(zend_async_scope_t * parent_scope)
 	scope->scope.after_coroutine_enqueue = scope_after_coroutine_enqueue;
 	scope->scope.dispose = scope_dispose;
 	scope->scope.scope_object = &scope_object->std;
+	scope->coroutines.length = 0;
+	scope->coroutines.capacity = 0;
+	scope->coroutines.data = NULL;
 
 	return &scope->scope;
 }
