@@ -114,11 +114,11 @@ PHP_FUNCTION(Async_spawnWith)
 
 	// If scope_provider is an instance of async_ce_scope
 	if (instanceof_function(scope_provider->ce, async_ce_scope)) {
-		scope = ZEND_ASYNC_OBJECT_TO_SCOPE(scope_provider);
+		scope = &((async_scope_object_t *)scope_provider)->scope->scope;
 	}
 
-	async_coroutine_t * coroutine = scope_provider ? ZEND_ASYNC_SPAWN_WITH_PROVIDER(scope_provider)
-							 : (async_coroutine_t *) ZEND_ASYNC_SPAWN_WITH(scope);
+	async_coroutine_t * coroutine = (async_coroutine_t *)(scope_provider ? ZEND_ASYNC_SPAWN_WITH_PROVIDER(scope_provider)
+									: ZEND_ASYNC_SPAWN_WITH(scope));
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		RETURN_THROWS();
@@ -154,7 +154,7 @@ PHP_FUNCTION(Async_suspend)
 	}
 
 	THROW_IF_SCHEDULER_CONTEXT;
-	ZEND_ASYNC_SUSPEND(NULL);
+	ZEND_ASYNC_SUSPEND();
 }
 
 PHP_FUNCTION(Async_protect)
