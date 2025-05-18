@@ -277,7 +277,7 @@ void cancel(zend_coroutine_t *zend_coroutine, zend_object *error, const bool tra
 	}
 }
 
-void shutdown(void)
+static void graceful_shutdown(void)
 {
 	start_graceful_shutdown();
 }
@@ -779,7 +779,7 @@ void async_api_register(void)
 		suspend,
 		resume,
 		cancel,
-		shutdown,
+		graceful_shutdown,
 		get_coroutines,
 		add_microtask,
 		get_awaiting_info,

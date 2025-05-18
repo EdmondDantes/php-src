@@ -21,12 +21,12 @@
 
 BEGIN_EXTERN_C()
 
-extern ZEND_API zend_class_entry * async_ce_async_exception;
-extern ZEND_API zend_class_entry * async_ce_cancellation_exception;
-extern ZEND_API zend_class_entry * async_ce_input_output_exception;
-extern ZEND_API zend_class_entry * async_ce_timeout_exception;
-extern ZEND_API zend_class_entry * async_ce_poll_exception;
-extern ZEND_API zend_class_entry * async_ce_dns_exception;
+extern zend_class_entry * async_ce_async_exception;
+extern zend_class_entry * async_ce_cancellation_exception;
+extern zend_class_entry * async_ce_input_output_exception;
+extern zend_class_entry * async_ce_timeout_exception;
+extern zend_class_entry * async_ce_poll_exception;
+extern zend_class_entry * async_ce_dns_exception;
 
 void async_register_exceptions_ce(void);
 ZEND_API ZEND_COLD zend_object * async_new_exception(zend_class_entry *exception_ce, const char *format, ...);

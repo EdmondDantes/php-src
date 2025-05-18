@@ -20,6 +20,13 @@
 
 #include "exceptions_arginfo.h"
 
+zend_class_entry * async_ce_async_exception = NULL;
+zend_class_entry * async_ce_cancellation_exception = NULL;
+zend_class_entry * async_ce_input_output_exception = NULL;
+zend_class_entry * async_ce_timeout_exception = NULL;
+zend_class_entry * async_ce_poll_exception = NULL;
+zend_class_entry * async_ce_dns_exception = NULL;
+
 void async_register_exceptions_ce(void)
 {
 	zend_class_entry* exception_ce = zend_exception_get_default();

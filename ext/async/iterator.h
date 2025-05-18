@@ -57,8 +57,8 @@ struct _async_iterator_t {
 	/* An array. */
 	zval array;
 	HashTable *target_hash;
-	HashPosition position	= 0;
-	uint32_t hash_iterator	= -1;
+	HashPosition position;
+	uint32_t hash_iterator;
 	/* The iterator object, which may be NULL if there is no iterator. */
 	zend_object_iterator *zend_iterator;
 };
