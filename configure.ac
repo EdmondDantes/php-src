@@ -1713,6 +1713,7 @@ PHP_ADD_SOURCES([Zend], m4_normalize([
     zend_alloc.c
     zend_API.c
     zend_ast.c
+    zend_async_API.c
     zend_atomic.c
     zend_attributes.c
     zend_builtin_functions.c
