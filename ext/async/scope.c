@@ -19,20 +19,115 @@
 #include "zend_common.h"
 #include "php_async.h"
 
+#define METHOD(name) PHP_METHOD(Async_Scope, name)
+
 zend_class_entry * async_ce_scope = NULL;
 zend_class_entry * async_ce_scope_provider = NULL;
 zend_class_entry * async_ce_spawn_strategy = NULL;
 
 static zend_object_handlers async_scope_handlers;
 
-static void scope_before_coroutine_enqueue(zend_async_scope_t *zend_scope, zend_coroutine_t *coroutine, zval *result)
+//////////////////////////////////////////////////////////
+/// Scope methods
+//////////////////////////////////////////////////////////
+
+METHOD(inherit)
+{
+
+}
+
+METHOD(provideScope)
+{
+
+}
+
+METHOD(__construct)
+{
+
+}
+
+METHOD(asNotSafely)
+{
+
+}
+
+METHOD(spawn)
+{
+
+}
+
+METHOD(cancel)
+{
+
+}
+
+METHOD(awaitCompletion)
+{
+
+}
+
+METHOD(awaitAfterCancellation)
+{
+
+}
+
+METHOD(isFinished)
+{
+
+}
+
+METHOD(isClosed)
+{
+
+}
+
+METHOD(setExceptionHandler)
+{
+
+}
+
+METHOD(setChildScopeExceptionHandler)
+{
+
+}
+
+METHOD(onFinally)
+{
+
+}
+
+METHOD(dispose)
+{
+
+}
+
+METHOD(disposeSafely)
+{
+
+}
+
+METHOD(disposeAfterTimeout)
+{
+
+}
+
+METHOD(getChildScopes)
+{
+
+}
+
+//////////////////////////////////////////////////////////
+/// Scope methods end
+//////////////////////////////////////////////////////////
+
+static void scope_before_coroutine_enqueue(zend_coroutine_t *coroutine, zend_async_scope_t *zend_scope, zval *result)
 {
 	async_scope_t *scope = (async_scope_t *) zend_scope;
 
 	async_scope_add_coroutine(scope, (async_coroutine_t *) coroutine);
 }
 
-static void scope_after_coroutine_enqueue(zend_async_scope_t *scope, zend_coroutine_t *coroutine)
+static void scope_after_coroutine_enqueue(zend_coroutine_t *coroutine, zend_async_scope_t *scope)
 {
 }
 

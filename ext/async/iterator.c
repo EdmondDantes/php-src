@@ -59,7 +59,7 @@ void iterator_microtask(zend_async_microtask_t *microtask)
 	coroutine->extended_dispose = coroutine_extended_dispose;
 }
 
-void iterator_dtor(async_iterator_t *iterator)
+void iterator_dtor(zend_async_microtask_t *microtask)
 {
 }
 

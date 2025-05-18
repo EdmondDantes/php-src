@@ -309,12 +309,12 @@ static void cancel_queued_coroutines(void)
 {
 	zend_exception_save();
 
-	// 1. Walk through all fibers and cancel them if they are suspended.
+	// 1. Walk through all coroutines and cancel them if they are suspended.
 	zval * current;
 
 	zend_object * cancellation_exception = async_new_exception(async_ce_cancellation_exception, "Graceful shutdown");
 
-	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutine_queue), current) {
+	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), current) {
 		zend_coroutine_t *coroutine = Z_PTR_P(current);
 
 		if (((async_coroutine_t *) coroutine)->context.status == ZEND_FIBER_STATUS_INIT) {

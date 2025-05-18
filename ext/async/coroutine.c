@@ -24,9 +24,109 @@
 #include "zend_exceptions.h"
 #include "zend_ini.h"
 
+#define METHOD(name) PHP_METHOD(Async_Coroutine, name)
+
 zend_class_entry * async_ce_coroutine = NULL;
 
 static zend_function coroutine_root_function = { ZEND_INTERNAL_FUNCTION };
+
+///////////////////////////////////////////////////////////
+/// Coroutine methods
+///////////////////////////////////////////////////////////
+
+METHOD(getId)
+{
+
+}
+
+METHOD(asHiPriority)
+{
+
+}
+
+METHOD(getContext)
+{
+
+}
+
+METHOD(getTrace)
+{
+
+}
+
+METHOD(getSpawnFileAndLine)
+{
+
+}
+
+METHOD(getSpawnLocation)
+{
+
+}
+
+METHOD(getSuspendFileAndLine)
+{
+
+}
+
+METHOD(getSuspendLocation)
+{
+
+}
+
+METHOD(isStarted)
+{
+
+}
+
+METHOD(isQueued)
+{
+
+}
+
+METHOD(isRunning)
+{
+
+}
+
+METHOD(isSuspended)
+{
+
+}
+
+METHOD(isCancelled)
+{
+
+}
+
+METHOD(isCancellationRequested)
+{
+
+}
+
+METHOD(isFinished)
+{
+
+}
+
+METHOD(getAwaitingInfo)
+{
+
+}
+
+METHOD(cancel)
+{
+
+}
+
+METHOD(onFinally)
+{
+
+}
+
+///////////////////////////////////////////////////////////
+/// Coroutine methods end
+///////////////////////////////////////////////////////////
 
 static void coroutine_cleanup(zend_fiber_context *context)
 {
