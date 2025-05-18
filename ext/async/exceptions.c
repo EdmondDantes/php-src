@@ -29,14 +29,12 @@ zend_class_entry * async_ce_dns_exception = NULL;
 
 void async_register_exceptions_ce(void)
 {
-	zend_class_entry* exception_ce = zend_exception_get_default();
-
-	async_ce_async_exception = register_class_Async_AsyncException(exception_ce);
+	async_ce_async_exception = register_class_Async_AsyncException(zend_ce_exception);
 	async_ce_cancellation_exception = register_class_Async_CancellationException(zend_ce_cancellation_exception);
-	async_ce_input_output_exception = register_class_Async_InputOutputException(exception_ce);
-	async_ce_timeout_exception = register_class_Async_TimeoutException(exception_ce);
-	async_ce_poll_exception = register_class_Async_PollException(exception_ce);
-	async_ce_dns_exception = register_class_Async_DnsException(exception_ce);
+	async_ce_input_output_exception = register_class_Async_InputOutputException(zend_ce_exception);
+	async_ce_timeout_exception = register_class_Async_TimeoutException(zend_ce_exception);
+	async_ce_poll_exception = register_class_Async_PollException(zend_ce_exception);
+	async_ce_dns_exception = register_class_Async_DnsException(zend_ce_exception);
 }
 
 zend_object * async_new_exception(zend_class_entry *exception_ce, const char *format, ...)
