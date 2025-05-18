@@ -128,7 +128,7 @@ typedef struct _zend_async_task_s zend_async_task_t;
 typedef zend_coroutine_t * (*zend_async_new_coroutine_t)(zend_async_scope_t *scope);
 typedef zend_async_scope_t * (*zend_async_new_scope_t)(zend_async_scope_t * parent_scope);
 typedef zend_coroutine_t * (*zend_async_spawn_t)(zend_async_scope_t *scope, zend_object *scope_provider);
-typedef void (*zend_async_suspend_t)(void);
+typedef void (*zend_async_suspend_t)(bool from_main);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error, const bool is_safely);
 typedef void (*zend_async_shutdown_t)(void);
@@ -826,7 +826,8 @@ END_EXTERN_C()
 #define ZEND_ASYNC_SPAWN_WITH_PROVIDER(scope_provider) zend_async_spawn_fn(NULL, scope_provider)
 #define ZEND_ASYNC_NEW_COROUTINE(scope) zend_async_new_coroutine_fn(scope)
 #define ZEND_ASYNC_NEW_SCOPE(parent) zend_async_new_scope_fn(parent)
-#define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn()
+#define ZEND_ASYNC_SUSPEND() zend_async_suspend_fn(false)
+#define ZEND_ASYNC_RETURN_MAIN() zend_async_suspend_fn(true)
 #define ZEND_ASYNC_RESUME(coroutine) zend_async_resume_fn(coroutine, NULL, false)
 #define ZEND_ASYNC_RESUME_WITH_ERROR(coroutine, error, transfer_error) zend_async_resume_fn(coroutine, error, transfer_error)
 #define ZEND_ASYNC_CANCEL(coroutine, error, transfer_error) zend_async_cancel_fn(coroutine, error, transfer_error, false)

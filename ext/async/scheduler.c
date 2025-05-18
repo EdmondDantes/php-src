@@ -405,7 +405,7 @@ void async_scheduler_main_loop(void);
  */
 void async_scheduler_launch(void)
 {
-	if (ZEND_IS_ASYNC_ON) {
+	if (ASYNC_G(scheduler)) {
 		async_throw_error("The scheduler cannot be started when is already enabled");
 		return;
 	}
@@ -454,7 +454,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 	 * Note that the Scheduler is initialized after the first use of suspend,
 	 * not at the start of the Zend engine.
 	 */
-	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
+	if (UNEXPECTED(ASYNC_G(scheduler) == NULL)) {
 		async_scheduler_launch();
 
 		if (UNEXPECTED(EG(exception) != NULL)) {

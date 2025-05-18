@@ -85,6 +85,10 @@
 #include "rfc1867.h"
 
 #include "main_arginfo.h"
+
+#ifdef PHP_ASYNC
+#include "zend_async_API.h"
+#endif
 /* }}} */
 
 PHPAPI int (*php_register_internal_extensions_func)(void) = php_register_internal_extensions;
@@ -2596,6 +2600,9 @@ PHPAPI bool php_execute_script_ex(zend_file_handle *primary_file, zval *retval)
 		if (append_file_p && result) {
 			result = zend_execute_script(ZEND_REQUIRE, NULL, append_file_p) == SUCCESS;
 		}
+		#ifdef PHP_ASYNC
+			ZEND_ASYNC_RETURN_MAIN();
+		#endif
 	} zend_catch {
 		result = false;
 	} zend_end_try();

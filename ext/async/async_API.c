@@ -174,8 +174,15 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	return &coroutine->coroutine;
 }
 
-void suspend(void)
+void suspend(const bool from_main)
 {
+	if (UNEXPECTED(from_main
+		&& circular_buffer_is_empty(&ASYNC_G(coroutine_queue))
+		&& circular_buffer_is_empty(&ASYNC_G(microtasks))))
+	{
+		return;
+	}
+
 	async_scheduler_coroutine_suspend(NULL);
 }
 
