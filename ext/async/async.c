@@ -30,6 +30,9 @@
 #include "libuv_reactor.h"
 #endif
 
+zend_class_entry * async_ce_awaitable = NULL;
+zend_class_entry * async_ce_timeout = NULL;
+
 ///////////////////////////////////////////////////////////////
 /// Module functions
 ///////////////////////////////////////////////////////////////
@@ -384,7 +387,7 @@ PHP_FUNCTION(Async_awaitAllWithErrors)
 	RETURN_ARR(return_array);
 }
 
-PHP_FUNCTION(Async_awaitAnyOff)
+PHP_FUNCTION(Async_awaitAnyOf)
 {
 	zval * futures;
 	zend_object * cancellation = NULL;
@@ -568,6 +571,11 @@ PHP_FUNCTION(Async_exec)
 }
 */
 
+PHP_METHOD(Async_Timeout, __construct)
+{
+	async_throw_error("Timeout cannot be constructed directly");
+}
+
 ///////////////////////////////////////////////////////////////
 /// Register Async Module
 ///////////////////////////////////////////////////////////////
@@ -661,6 +669,7 @@ static PHP_GSHUTDOWN_FUNCTION(async)
 ZEND_MINIT_FUNCTION(async)
 {
 	async_register_awaitable_ce();
+	async_register_timeout_ce();
 	async_register_scope_ce();
 	async_register_coroutine_ce();
 	async_register_exceptions_ce();

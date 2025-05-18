@@ -14,8 +14,14 @@
   +----------------------------------------------------------------------+
 */
 #include "scope.h"
+#include "zend_attributes.h"
 #include "scope_arginfo.h"
 #include "zend_common.h"
+#include "php_async.h"
+
+zend_class_entry * async_ce_scope = NULL;
+zend_class_entry * async_ce_scope_provider = NULL;
+zend_class_entry * async_ce_spawn_strategy = NULL;
 
 static zend_object_handlers async_scope_handlers;
 

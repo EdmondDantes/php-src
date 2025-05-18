@@ -19,7 +19,7 @@
 #include <Zend/zend_async_API.h>
 
 ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer);
-extern ZEND_API zend_class_entry * async_ce_coroutine;
+extern zend_class_entry * async_ce_coroutine;
 
 typedef struct _async_coroutine_s async_coroutine_t;
 

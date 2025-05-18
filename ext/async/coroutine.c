@@ -24,6 +24,8 @@
 #include "zend_exceptions.h"
 #include "zend_ini.h"
 
+zend_class_entry * async_ce_coroutine = NULL;
+
 static zend_function coroutine_root_function = { ZEND_INTERNAL_FUNCTION };
 
 static void coroutine_cleanup(zend_fiber_context *context)

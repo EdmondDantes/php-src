@@ -18,9 +18,9 @@
 
 #include "php_async.h"
 
-extern ZEND_API zend_class_entry * async_ce_scope;
-extern ZEND_API zend_class_entry * async_ce_scope_provider;
-extern ZEND_API zend_class_entry * async_ce_spawn_strategy;
+extern zend_class_entry * async_ce_scope;
+extern zend_class_entry * async_ce_scope_provider;
+extern zend_class_entry * async_ce_spawn_strategy;
 
 typedef struct _async_scope_s async_scope_t;
 
