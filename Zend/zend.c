@@ -827,8 +827,12 @@ static void executor_globals_ctor(zend_executor_globals *executor_globals) /* {{
 	executor_globals->main_fiber_context = NULL;
 	executor_globals->active_fiber = NULL;
 #ifdef PHP_ASYNC
+	executor_globals->is_async = false;
+	executor_globals->in_scheduler_context = false;
+	executor_globals->graceful_shutdown = false;
 	executor_globals->coroutine = NULL;
 	executor_globals->async_scope = NULL;
+	executor_globals->exit_exception = NULL;
 #endif
 #ifdef ZEND_WIN32
 	zend_get_windows_version_info(&executor_globals->windows_version_info);

@@ -25,6 +25,7 @@
 #include "zend_compile.h"
 #include "zend_execute.h"
 #include "zend_API.h"
+#include "Zend_async_API.h"
 #include "zend_stack.h"
 #include "zend_constants.h"
 #include "zend_extensions.h"
@@ -201,6 +202,7 @@ void init_executor(void) /* {{{ */
 
 	zend_max_execution_timer_init();
 	zend_fiber_init();
+	zend_async_init();
 	zend_weakrefs_init();
 
 	EG(active) = 1;
@@ -451,6 +453,7 @@ void shutdown_executor(void) /* {{{ */
 	zend_weakrefs_shutdown();
 	zend_max_execution_timer_shutdown();
 	zend_fiber_shutdown();
+	zend_async_shutdown();
 
 	zend_try {
 		zend_llist_apply(&zend_extensions, (llist_apply_func_t) zend_extension_deactivator);

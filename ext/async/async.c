@@ -39,7 +39,7 @@ zend_class_entry * async_ce_timeout = NULL;
 
 static zend_object *async_timeout_create(zend_ulong ms, bool is_periodic);
 
-#define THROW_IF_SCHEDULER_CONTEXT if (UNEXPECTED(ZEND_IN_SCHEDULER_CONTEXT)) {				\
+#define THROW_IF_SCHEDULER_CONTEXT if (UNEXPECTED(ZEND_IS_SCHEDULER_CONTEXT)) {				\
 		async_throw_error("The operation cannot be executed in the scheduler context");		\
 		RETURN_THROWS();																	\
 	}
@@ -653,13 +653,26 @@ static PHP_GINIT_FUNCTION(async)
 #if defined(COMPILE_DL_ASYNC) && defined(ZTS)
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
+
+	// Initialize module globals
+	async_globals->active_coroutine_count = 0;
+	async_globals->active_event_count = 0;
+
+	circular_buffer_ctor(&async_globals->microtasks, 64, sizeof(zend_async_microtask_t *), &zend_std_allocator);
+	circular_buffer_ctor(&async_globals->coroutine_queue, 128, sizeof(zend_coroutine_t *), &zend_std_allocator);
+	zend_hash_init(&async_globals->coroutines, 128, NULL, ZVAL_PTR_DTOR, 0);
+
+	async_globals->scheduler = NULL;
+	async_globals->reactor = NULL;
 }
 
 /* {{{ PHP_GSHUTDOWN_FUNCTION */
 static PHP_GSHUTDOWN_FUNCTION(async)
 {
+	circular_buffer_dtor(&async_globals->microtasks);
+	circular_buffer_dtor(&async_globals->coroutine_queue);
+	zend_hash_destroy(&async_globals->coroutines);
 #ifdef PHP_WIN32
-	//zend_hash_destroy(&async_globals);
 #endif
 }
 /* }}} */
@@ -686,6 +699,7 @@ ZEND_MINIT_FUNCTION(async)
 
 #ifdef PHP_ASYNC_LIBUV
 	async_libuv_reactor_register();
+	ZEND_IS_ASYNC_ON = true;
 #endif
 
 	return SUCCESS;
