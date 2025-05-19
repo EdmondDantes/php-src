@@ -92,7 +92,7 @@ PHP_FUNCTION(Async_spawn)
 
 	coroutine->coroutine.fcall = fcall;
 
-	RETURN_OBJ(&coroutine->std);
+	RETURN_OBJ_COPY(&coroutine->std);
 }
 
 PHP_FUNCTION(Async_spawnWith)

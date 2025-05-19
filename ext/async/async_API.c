@@ -129,7 +129,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 
 	waker->status = ZEND_ASYNC_WAKER_QUEUED;
 
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true)) == FAILURE) {
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), &coroutine, true)) == FAILURE) {
 		coroutine->coroutine.event.dispose(&coroutine->coroutine.event);
 		async_throw_error("Failed to enqueue coroutine");
 		return NULL;
@@ -209,7 +209,7 @@ void resume(zend_coroutine_t *coroutine, zend_object * error, const bool transfe
 		return;
 	}
 
-	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), coroutine, true)) == FAILURE) {
+	if (UNEXPECTED(circular_buffer_push(&ASYNC_G(coroutine_queue), &coroutine, true)) == FAILURE) {
 		async_throw_error("Failed to enqueue coroutine");
 		return;
 	}

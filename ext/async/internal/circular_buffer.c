@@ -302,7 +302,7 @@ zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_t *buff
 
 
 /**
- * Push a new zval into the circular buffer.
+ * Push a value into the circular buffer.
  *
  * The push operation not only implicitly changes the size of the buffer but also reduces it.
  * This allows structural modification operations to be concentrated solely on the writing side of the buffer.
