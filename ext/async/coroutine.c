@@ -367,6 +367,7 @@ static zend_object *coroutine_object_create(zend_class_entry *class_entry)
 	event->dispose = coroutine_dispose;
 
 	coroutine->flags = ZEND_FIBER_STATUS_INIT;
+	coroutine->coroutine.extended_data = NULL;
 
 	zend_object_std_init(&coroutine->std, class_entry);
 	object_properties_init(&coroutine->std, class_entry);

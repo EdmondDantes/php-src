@@ -151,7 +151,7 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 
 	zend_object * error = waker->error;
 	waker->error = NULL;
-	waker->dtor(coroutine);
+	zend_async_waker_destroy(coroutine);
 
 	if (transfer != NULL) {
 		define_transfer(async_coroutine, error, transfer);

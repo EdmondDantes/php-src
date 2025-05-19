@@ -284,6 +284,7 @@ ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine)
 	}
 
 	zend_async_waker_t * waker = coroutine->waker;
+	coroutine->waker = NULL;
 
 	// default dtor
 	if (waker->error != NULL) {

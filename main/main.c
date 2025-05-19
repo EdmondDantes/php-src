@@ -2601,7 +2601,7 @@ PHPAPI bool php_execute_script_ex(zend_file_handle *primary_file, zval *retval)
 			result = zend_execute_script(ZEND_REQUIRE, NULL, append_file_p) == SUCCESS;
 		}
 		#ifdef PHP_ASYNC
-			ZEND_ASYNC_RETURN_MAIN();
+			ZEND_ASYNC_RUN_SCHEDULER_AFTER_MAIN();
 		#endif
 	} zend_catch {
 		result = false;
