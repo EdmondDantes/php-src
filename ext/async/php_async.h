@@ -59,6 +59,10 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	circular_buffer_t coroutine_queue;
 	/* List of coroutines  */
 	HashTable coroutines;
+	/* The transfer structure is used to return to the main execution context. */
+	zend_fiber_transfer *main_transfer;
+	/* The main flow stack */
+	zend_vm_stack main_vm_stack;
 	/* Scheduler coroutine */
 	zend_coroutine_t *scheduler;
 

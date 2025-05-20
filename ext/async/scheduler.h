@@ -33,6 +33,7 @@ void start_graceful_shutdown(void);
  * @param transfer (optional) The transfer object that contains the context of the coroutine.
  */
 void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer);
+void async_scheduler_main_coroutine_suspend(void);
 
 END_EXTERN_C()
 

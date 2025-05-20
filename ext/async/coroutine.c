@@ -135,7 +135,7 @@ static zend_always_inline async_coroutine_t *coroutine_from_context(zend_fiber_c
 	return (async_coroutine_t *)(((char *) context) - XtOffsetOf(async_coroutine_t, context));
 }
 
-static void coroutine_cleanup(zend_fiber_context *context)
+void async_coroutine_cleanup(zend_fiber_context *context)
 {
 	async_coroutine_t *coroutine = coroutine_from_context(context);
 
@@ -144,6 +144,76 @@ static void coroutine_cleanup(zend_fiber_context *context)
 	zend_vm_stack_destroy();
 	EG(vm_stack) = current_stack;
 	coroutine->execute_data = NULL;
+}
+
+void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t * coroutine)
+{
+	ZEND_COROUTINE_SET_FINISHED(&coroutine->coroutine);
+
+	// call coroutines handlers
+	zend_object * exception = NULL;
+	ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(&coroutine->coroutine.event);
+
+	if (EG(exception)) {
+		if (EG(prev_exception)) {
+			zend_exception_set_previous(EG(exception), EG(prev_exception));
+		}
+
+		exception = EG(exception);
+		GC_ADDREF(exception);
+
+		zend_clear_exception();
+
+		if (instanceof_function(EG(exception)->ce, async_ce_cancellation_exception)
+			|| zend_is_graceful_exit(EG(exception))
+			|| zend_is_unwind_exit(EG(exception))) {
+			OBJ_RELEASE(exception);
+			exception = NULL;
+		}
+	}
+
+	zend_exception_save();
+	// Mark second parameter of zend_async_callbacks_notify as ZVAL
+	ZEND_ASYNC_EVENT_SET_ZVAL_RESULT(&coroutine->coroutine.event);
+	ZEND_COROUTINE_CLR_EXCEPTION_HANDLED(&coroutine->coroutine);
+	zend_async_callbacks_notify(&coroutine->coroutine.event, &coroutine->coroutine.result, exception);
+	zend_exception_restore();
+
+	// If the exception was handled by any handler, we do not propagate it further.
+	if (exception != NULL && ZEND_COROUTINE_IS_EXCEPTION_HANDLED(&coroutine->coroutine)) {
+		OBJ_RELEASE(exception);
+		exception = NULL;
+	}
+
+	// Otherwise, we rethrow the exception.
+	if (exception != NULL) {
+		zend_throw_exception_internal(exception);
+	}
+
+	if (EG(exception)) {
+		if (!(coroutine->flags & ZEND_FIBER_FLAG_DESTROYED)
+			|| !(zend_is_graceful_exit(EG(exception)) || zend_is_unwind_exit(EG(exception)))
+		) {
+			coroutine->flags |= ZEND_FIBER_FLAG_THREW;
+			transfer->flags = ZEND_FIBER_TRANSFER_FLAG_ERROR;
+
+			ZVAL_OBJ_COPY(&transfer->value, EG(exception));
+		}
+
+		zend_clear_exception();
+	}
+
+	if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
+		// Permanently remove the coroutine from the Scheduler.
+		if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
+			async_throw_error("Failed to remove coroutine from the list");
+		}
+
+		// Decrease the active coroutine count if the coroutine is not a zombie.
+		if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
+			DECREASE_COROUTINE_COUNT
+		}
+	}
 }
 
 ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
@@ -196,72 +266,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 			coroutine->coroutine.internal_entry();
 		}
 
-		ZEND_COROUTINE_SET_FINISHED(&coroutine->coroutine);
-
-		// call coroutines handlers
-		zend_object * exception = NULL;
-		ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(&coroutine->coroutine.event);
-
-		if (EG(exception)) {
-			if (EG(prev_exception)) {
-				zend_exception_set_previous(EG(exception), EG(prev_exception));
-			}
-
-			exception = EG(exception);
-			GC_ADDREF(exception);
-
-			zend_clear_exception();
-
-			if (instanceof_function(EG(exception)->ce, async_ce_cancellation_exception)
-				|| zend_is_graceful_exit(EG(exception))
-				|| zend_is_unwind_exit(EG(exception))) {
-				OBJ_RELEASE(exception);
-				exception = NULL;
-			}
-		}
-
-		zend_exception_save();
-		// Mark second parameter of zend_async_callbacks_notify as ZVAL
-		ZEND_ASYNC_EVENT_SET_ZVAL_RESULT(&coroutine->coroutine.event);
-		ZEND_COROUTINE_CLR_EXCEPTION_HANDLED(&coroutine->coroutine);
-		zend_async_callbacks_notify(&coroutine->coroutine.event, &coroutine->coroutine.result, exception);
-		zend_exception_restore();
-
-		// If the exception was handled by any handler, we do not propagate it further.
-		if (exception != NULL && ZEND_COROUTINE_IS_EXCEPTION_HANDLED(&coroutine->coroutine)) {
-			OBJ_RELEASE(exception);
-			exception = NULL;
-		}
-
-		// Otherwise, we rethrow the exception.
-		if (exception != NULL) {
-			zend_throw_exception_internal(exception);
-		}
-
-		if (EG(exception)) {
-			if (!(coroutine->flags & ZEND_FIBER_FLAG_DESTROYED)
-				|| !(zend_is_graceful_exit(EG(exception)) || zend_is_unwind_exit(EG(exception)))
-			) {
-				coroutine->flags |= ZEND_FIBER_FLAG_THREW;
-				transfer->flags = ZEND_FIBER_TRANSFER_FLAG_ERROR;
-
-				ZVAL_OBJ_COPY(&transfer->value, EG(exception));
-			}
-
-			zend_clear_exception();
-		}
-
-		if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
-			// Permanently remove the coroutine from the Scheduler.
-			if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
-				async_throw_error("Failed to remove coroutine from the list");
-			}
-
-			// Decrease the active coroutine count if the coroutine is not a zombie.
-			if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
-				DECREASE_COROUTINE_COUNT
-			}
-		}
+		async_coroutine_finalize(transfer, coroutine);
 
 	} zend_catch {
 		coroutine->flags |= ZEND_FIBER_FLAG_BAILOUT;
@@ -280,8 +285,22 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 		}
 	} zend_end_try();
 
-	coroutine->context.cleanup = &coroutine_cleanup;
+	coroutine->context.cleanup = &async_coroutine_cleanup;
 	coroutine->vm_stack = EG(vm_stack);
+
+	//
+	// The scheduler coroutine always terminates into the main execution flow.
+	//
+	if (UNEXPECTED(&coroutine->coroutine == ASYNC_G(scheduler))) {
+		if (transfer != ASYNC_G(main_transfer)) {
+			transfer->context = ASYNC_G(main_transfer)->context;
+			transfer->flags = ASYNC_G(main_transfer)->flags;
+			ZVAL_COPY_VALUE(&transfer->value, &ASYNC_G(main_transfer)->value);
+			ZVAL_UNDEF(&ASYNC_G(main_transfer)->value);
+		}
+
+		return;
+	}
 
 	transfer->context = NULL;
 

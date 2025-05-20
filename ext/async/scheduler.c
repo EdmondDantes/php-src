@@ -396,7 +396,6 @@ static void finally_shutdown(void)
 static void async_scheduler_launch(void);
 void async_scheduler_main_loop(void);
 
-
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
 	    if(ZEND_GRACEFUL_SHUTDOWN) { \
@@ -427,20 +426,84 @@ void async_scheduler_launch(void)
 		return;
 	}
 
-	ZEND_ASYNC_ON;
+	//
+	// We convert the current main execution flow into the main coroutine.
+	// The main coroutine differs from others in that it is already started, and its handle is NULL.
+	// We also carefully normalize the state of the main coroutine as
+	// if it had actually been started via the spawn function.
+	//
 
-	zend_coroutine_t * coroutine = ZEND_ASYNC_NEW_COROUTINE(NULL);
-	if (UNEXPECTED(coroutine == NULL)) {
-		async_throw_error("Failed to create the coroutine");
-		return;
-	}
+	async_coroutine_t * main_coroutine = (async_coroutine_t *) ZEND_ASYNC_NEW_COROUTINE(NULL);
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
 		return;
 	}
 
-	coroutine->internal_entry = async_scheduler_main_loop;
-	ASYNC_G(scheduler) = coroutine;
+	if (UNEXPECTED(main_coroutine == NULL)) {
+		async_throw_error("Failed to create the main coroutine");
+		return;
+	}
+
+	// Copy the main coroutine context
+	main_coroutine->context = *EG(main_fiber_context);
+	zend_fiber_switch_blocked();
+
+	// Normalize the main coroutine state
+	ZEND_COROUTINE_SET_STARTED(&main_coroutine->coroutine);
+	ZEND_COROUTINE_SET_MAIN(&main_coroutine->coroutine);
+
+	if (UNEXPECTED(zend_hash_index_add_ptr(&ASYNC_G(coroutines), main_coroutine->std.handle, main_coroutine) == NULL)) {
+		async_throw_error("Failed to add the main coroutine to the list");
+		return;
+	}
+
+	ASYNC_G(active_coroutine_count)++;
+	ZEND_CURRENT_COROUTINE = &main_coroutine->coroutine;
+
+	// The current execution context is the main coroutine,
+	// to which we must return after the Scheduler completes.
+	zend_fiber_transfer *main_transfer = ecalloc(1, sizeof(zend_fiber_transfer));
+	main_transfer->context = EG(main_fiber_context);
+	main_transfer->flags = 0;
+	ZVAL_NULL(&main_transfer->value);
+
+	ASYNC_G(main_transfer) = main_transfer;
+	ASYNC_G(main_vm_stack) = EG(vm_stack);
+
+	zend_coroutine_t * scheduler_coroutine = ZEND_ASYNC_NEW_COROUTINE(NULL);
+	if (UNEXPECTED(EG(exception) != NULL)) {
+		return;
+	}
+
+	if (UNEXPECTED(scheduler_coroutine == NULL)) {
+		async_throw_error("Failed to create the scheduler coroutine");
+		return;
+	}
+
+	scheduler_coroutine->internal_entry = async_scheduler_main_loop;
+	ASYNC_G(scheduler) = scheduler_coroutine;
+}
+
+void async_scheduler_main_coroutine_suspend(void)
+{
+	if (UNEXPECTED(ASYNC_G(scheduler) == NULL)) {
+		async_scheduler_launch();
+
+		if (UNEXPECTED(EG(exception) != NULL)) {
+			return;
+		}
+	}
+
+	async_coroutine_t * coroutine = (async_coroutine_t *)ZEND_CURRENT_COROUTINE;
+	zend_fiber_transfer * transfer = ASYNC_G(main_transfer);
+
+	// We reach this point when the main coroutine has completed its execution.
+	async_coroutine_finalize(transfer, coroutine);
+
+	coroutine->context.cleanup = NULL;
+	coroutine->vm_stack = EG(vm_stack);
+
+	async_scheduler_coroutine_suspend(NULL);
 }
 
 #define TRY_HANDLE_SUSPEND_EXCEPTION() \

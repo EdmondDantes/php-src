@@ -46,5 +46,7 @@ struct _async_coroutine_s {
 
 void async_register_coroutine_ce(void);
 zend_coroutine_t *new_coroutine(zend_async_scope_t *scope);
+void async_coroutine_cleanup(zend_fiber_context *context);
+void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t * coroutine);
 
 #endif //COROUTINE_H
