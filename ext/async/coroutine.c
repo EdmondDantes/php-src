@@ -128,17 +128,22 @@ METHOD(onFinally)
 /// Coroutine methods end
 ///////////////////////////////////////////////////////////
 
+static zend_always_inline async_coroutine_t *coroutine_from_context(zend_fiber_context *context)
+{
+	ZEND_ASSERT(context->kind == async_ce_coroutine && "Fiber context does not belong to a Coroutine fiber");
+
+	return (async_coroutine_t *)(((char *) context) - XtOffsetOf(async_coroutine_t, context));
+}
+
 static void coroutine_cleanup(zend_fiber_context *context)
 {
-	zend_fiber *fiber = zend_fiber_from_context(context);
+	async_coroutine_t *coroutine = coroutine_from_context(context);
 
 	zend_vm_stack current_stack = EG(vm_stack);
-	EG(vm_stack) = fiber->vm_stack;
+	EG(vm_stack) = coroutine->vm_stack;
 	zend_vm_stack_destroy();
 	EG(vm_stack) = current_stack;
-	fiber->execute_data = NULL;
-	fiber->stack_bottom = NULL;
-	fiber->caller = NULL;
+	coroutine->execute_data = NULL;
 }
 
 ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
@@ -245,9 +250,34 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 
 			zend_clear_exception();
 		}
+
+		if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
+			// Permanently remove the coroutine from the Scheduler.
+			if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
+				async_throw_error("Failed to remove coroutine from the list");
+			}
+
+			// Decrease the active coroutine count if the coroutine is not a zombie.
+			if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
+				DECREASE_COROUTINE_COUNT
+			}
+		}
+
 	} zend_catch {
 		coroutine->flags |= ZEND_FIBER_FLAG_BAILOUT;
 		transfer->flags = ZEND_FIBER_TRANSFER_FLAG_BAILOUT;
+
+		if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
+			// Permanently remove the coroutine from the Scheduler.
+			if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
+				async_throw_error("Failed to remove coroutine from the list");
+			}
+
+			// Decrease the active coroutine count if the coroutine is not a zombie.
+			if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
+				DECREASE_COROUTINE_COUNT
+			}
+		}
 	} zend_end_try();
 
 	coroutine->context.cleanup = &coroutine_cleanup;

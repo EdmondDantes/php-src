@@ -57,6 +57,12 @@ zend_always_inline static void execute_microtasks(void)
 
 static zend_always_inline void define_transfer(async_coroutine_t *coroutine, zend_object * exception, zend_fiber_transfer *transfer)
 {
+	if (UNEXPECTED(coroutine->context.handle == NULL
+		&& zend_fiber_init_context(&coroutine->context, async_ce_coroutine, async_coroutine_execute, EG(fiber_stack_size)) == FAILURE)) {
+		zend_throw_error(NULL, "Failed to initialize coroutine context");
+		return;
+	}
+
 	transfer->context = &coroutine->context;
 	transfer->flags = exception != NULL ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0;
 
@@ -76,7 +82,7 @@ static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend
 		.flags = exception != NULL ? ZEND_FIBER_TRANSFER_FLAG_ERROR : 0,
 	};
 
-	if (coroutine->context.status == ZEND_FIBER_STATUS_INIT
+	if (coroutine->context.handle == NULL
 		&& zend_fiber_init_context(&coroutine->context, async_ce_coroutine, async_coroutine_execute, EG(fiber_stack_size)) == FAILURE) {
 		zend_throw_error(NULL, "Failed to initialize coroutine context");
 		return;
@@ -181,7 +187,7 @@ static zend_always_inline void switch_to_scheduler(zend_fiber_transfer *transfer
 {
 	async_coroutine_t *async_coroutine = (async_coroutine_t *) ASYNC_G(scheduler);
 
-	ZEND_ASSERT(async_coroutine == NULL && "Scheduler coroutine is not initialized");
+	ZEND_ASSERT(async_coroutine != NULL && "Scheduler coroutine is not initialized");
 
 	if (transfer != NULL) {
 		define_transfer(async_coroutine, NULL, transfer);
