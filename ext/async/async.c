@@ -92,6 +92,9 @@ PHP_FUNCTION(Async_spawn)
 
 	coroutine->coroutine.fcall = fcall;
 
+	// Keep a reference to closures or callable objects while the coroutine is running.
+	Z_TRY_ADDREF(fcall->fci.function_name);
+
 	RETURN_OBJ_COPY(&coroutine->std);
 }
 
