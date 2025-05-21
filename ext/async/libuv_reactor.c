@@ -135,7 +135,7 @@ static void libuv_remove_callback(zend_async_event_t *event, zend_async_event_ca
 //////////////////////////////////////////////////////////////////////////////
 
 /* {{{ on_poll_event */
-static void on_poll_event(const uv_poll_t* handle, const int status, const int events)
+static void on_poll_event(const uv_poll_t* handle, int status, int events)
 {
 	async_poll_event_t *poll = handle->data;
 	zend_object *exception = NULL;

@@ -154,7 +154,6 @@ void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t *
 
 	// call coroutines handlers
 	zend_object * exception = NULL;
-	ZEND_ASYNC_EVENT_WILL_ZVAL_RESULT(&coroutine->coroutine.event);
 
 	if (EG(exception)) {
 		if (EG(prev_exception)) {
