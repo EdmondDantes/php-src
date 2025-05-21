@@ -13,24 +13,15 @@ if test "$PHP_ASYNC" = "yes"; then
   AC_DEFINE([PHP_ASYNC], 1, [Enable True Async API])
 
   dnl Register extension source files.
-  PHP_NEW_EXTENSION(
-    [async],
-    [async.c reactor.c scheduler.c \
-    internal/allocator.c internal/circular_buffer.c \
-    php_layer/closure.c \
-    php_layer/channel.c \
-    php_layer/reactor_handles.c \
-    php_layer/exceptions.c \
-    php_layer/module_entry.c \
-    php_layer/notifier.c \
-    php_layer/resume.c \
-    php_layer/zend_common.c],
-    $ext_shared
-  )
+  PHP_NEW_EXTENSION([async],
+    [async.c coroutine.c scope.c scheduler.c exceptions.c iterator.c async_API.c \
+     internal/allocator.c internal/circular_buffer.c \
+     zend_common.c],
+    $ext_shared)
 
   dnl Optionally install headers (if desired for public use).
-  PHP_INSTALL_HEADERS([ext/async], [php_async.h scheduler.h])
-  PHP_INSTALL_HEADERS([ext/async/php_layer], [callback.h channel.h reactor_handles.h exceptions.h module_entry.h notifier.h resume.h])
+  PHP_INSTALL_HEADERS([ext/async],
+    [php_async.h coroutine.h scope.h scheduler.h exceptions.h iterator.h async_API.h])
 
   if test "$PHP_ASYNC_LIBUV" = "yes"; then
     if test "$PHP_ASYNC" != "yes"; then
@@ -91,7 +82,7 @@ if test "$PHP_ASYNC" = "yes"; then
     PHP_ADD_LIBRARY([uv], 1, ASYNC_SHARED_LIBADD)
 
     dnl Add libuv-specific reactor code.
-    PHP_ADD_SOURCES([ext/async/libuv], [libuv_reactor.c])
-    PHP_INSTALL_HEADERS([ext/async/libuv], [libuv_reactor.h])
+    PHP_ADD_SOURCES([ext/async], [libuv_reactor.c])
+    PHP_INSTALL_HEADERS([ext/async], [libuv_reactor.h])
   fi
 fi
