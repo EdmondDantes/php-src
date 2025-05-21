@@ -759,13 +759,13 @@ static void libuv_process_event_stop(zend_async_event_t *event)
 // Unix process handle
 static void libuv_process_event_start(zend_async_event_t *handle)
 {
-	libuv_process_t *process = (libuv_process_t *) handle;
+	//libuv_process_t *process = (libuv_process_t *) handle;
 
 }
 
 static void libuv_process_event_stop(zend_async_event_t *handle)
 {
-	libuv_process_t *process = (libuv_process_t *) handle;
+	//libuv_process_t *process = (libuv_process_t *) handle;
 
 }
 #endif
