@@ -19,7 +19,12 @@
 #define LIBUV_REACTOR_VERSION "0.5.0 (libuv 1.44.2)"
 #define LIBUV_REACTOR_NAME "Libuv Reactor 0.5.0 (libuv 1.44.2)"
 #include <Zend/zend_async_API.h>
+
+#ifdef PHP_WIN32
 #include "libuv/uv.h"
+#else
+#include <uv.h>
+#endif
 
 typedef struct _async_poll_event_t async_poll_event_t;
 typedef struct _async_socket_event_t async_socket_event_t;
