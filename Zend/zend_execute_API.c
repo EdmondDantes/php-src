@@ -25,7 +25,7 @@
 #include "zend_compile.h"
 #include "zend_execute.h"
 #include "zend_API.h"
-#include "Zend_async_API.h"
+#include "zend_async_API.h"
 #include "zend_stack.h"
 #include "zend_constants.h"
 #include "zend_extensions.h"

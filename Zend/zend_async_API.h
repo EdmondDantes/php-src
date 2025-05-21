@@ -19,6 +19,10 @@
 #include "zend_fibers.h"
 #include "zend_globals.h"
 
+#ifndef PHP_WIN32
+#include <netdb.h>
+#endif
+
 /* Reactor Poll API */
 typedef enum {
 	ASYNC_READABLE = 1,

@@ -16,7 +16,7 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
-#include <Zend/Zend_async_API.h>
+#include <Zend/zend_async_API.h>
 
 typedef struct _async_iterator_t async_iterator_t;
 
