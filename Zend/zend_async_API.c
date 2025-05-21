@@ -60,6 +60,7 @@ zend_async_new_filesystem_event_t zend_async_new_filesystem_event_fn = NULL;
 zend_async_getnameinfo_t zend_async_getnameinfo_fn = NULL;
 zend_async_getaddrinfo_t zend_async_getaddrinfo_fn = NULL;
 
+zend_async_new_exec_event_t zend_async_new_exec_event_fn = NULL;
 zend_async_exec_t zend_async_exec_fn = NULL;
 
 static zend_string * thread_pool_module_name = NULL;
@@ -233,7 +234,7 @@ ZEND_API zend_async_waker_t *zend_async_waker_define(zend_coroutine_t *coroutine
 		coroutine = ZEND_CURRENT_COROUTINE;
 	}
 
-	if (UNEXPECTED(coroutine) == NULL) {
+	if (UNEXPECTED(coroutine == NULL)) {
 		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
 		return NULL;
 	}
@@ -251,7 +252,7 @@ ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine)
 		coroutine = ZEND_CURRENT_COROUTINE;
 	}
 
-	if (UNEXPECTED(coroutine) == NULL) {
+	if (UNEXPECTED(coroutine == NULL)) {
 		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
 		return NULL;
 	}
@@ -479,7 +480,7 @@ ZEND_API zend_async_waker_t * zend_async_waker_new_with_timeout(
 		coroutine = ZEND_CURRENT_COROUTINE;
 	}
 
-	if (UNEXPECTED(coroutine) == NULL) {
+	if (UNEXPECTED(coroutine == NULL)) {
 		zend_error(E_CORE_ERROR, "Cannot create waker for a coroutine that is not running");
 		return NULL;
 	}
