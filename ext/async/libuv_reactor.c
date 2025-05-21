@@ -370,11 +370,6 @@ static void libuv_timer_dispose(zend_async_event_t *event)
 /* {{{ libuv_new_timer_event */
 zend_async_timer_event_t* libuv_new_timer_event(const zend_ulong timeout, const bool is_periodic, size_t size)
 {
-	if (UNEXPECTED(timeout < 0)) {
-		zend_throw_exception(zend_ce_type_error, "Invalid timeout", 0);
-		return NULL;
-	}
-
 	async_timer_event_t *event = pecalloc(1, size != 0 ? size : sizeof(async_timer_event_t), 0);
 
 	const int error = uv_timer_init(UVLOOP, &event->uv_handle);
