@@ -757,13 +757,13 @@ static void libuv_process_event_stop(zend_async_event_t *event)
 
 #else
 // Unix process handle
-static void libuv_process_event_start(reactor_handle_t *handle)
+static void libuv_process_event_start(zend_async_event_t *handle)
 {
 	libuv_process_t *process = (libuv_process_t *) handle;
 
 }
 
-static void libuv_process_event_stop(reactor_handle_t *handle)
+static void libuv_process_event_stop(zend_async_event_t *handle)
 {
 	libuv_process_t *process = (libuv_process_t *) handle;
 
