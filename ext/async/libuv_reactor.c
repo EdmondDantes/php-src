@@ -135,7 +135,7 @@ static void libuv_remove_callback(zend_async_event_t *event, zend_async_event_ca
 //////////////////////////////////////////////////////////////////////////////
 
 /* {{{ on_poll_event */
-static void on_poll_event(const uv_poll_t* handle, int status, int events)
+static void on_poll_event(uv_poll_t* handle, int status, int events)
 {
 	async_poll_event_t *poll = handle->data;
 	zend_object *exception = NULL;
@@ -238,7 +238,7 @@ zend_async_poll_event_t* libuv_new_poll_event(
 		error = uv_poll_init_socket(UVLOOP, &poll->uv_handle, socket);
 		poll->event.is_socket = true;
 		poll->event.socket = socket;
-	} else if (fh != NULL) {
+	} else if (fh != ZEND_FD_NULL) {
 #ifdef PHP_WIN32
 		async_throw_error("Windows does not support file descriptor polling");
 		pefree(poll, 0);
