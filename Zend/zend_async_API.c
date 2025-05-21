@@ -305,6 +305,7 @@ ZEND_API void zend_async_waker_destroy(zend_coroutine_t *coroutine)
 
 	zval_ptr_dtor(&waker->result);
 	zend_hash_destroy(&waker->events);
+	efree(waker);
 }
 
 static void event_callback_dispose(zend_async_event_callback_t *callback, zend_async_event_t * event)

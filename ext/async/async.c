@@ -663,7 +663,7 @@ static PHP_GINIT_FUNCTION(async)
 
 	circular_buffer_ctor(&async_globals->microtasks, 64, sizeof(zend_async_microtask_t *), &zend_std_allocator);
 	circular_buffer_ctor(&async_globals->coroutine_queue, 128, sizeof(zend_coroutine_t *), &zend_std_allocator);
-	zend_hash_init(&async_globals->coroutines, 128, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&async_globals->coroutines, 128, NULL, NULL, 0);
 
 	async_globals->scheduler = NULL;
 	async_globals->reactor = NULL;
