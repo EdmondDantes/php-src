@@ -71,6 +71,7 @@ async_scope_add_coroutine(async_scope_t *scope, async_coroutine_t *coroutine)
 	}
 
 	vector->data[vector->length++] = coroutine;
+	coroutine->coroutine.scope = &scope->scope;
 }
 
 static zend_always_inline void

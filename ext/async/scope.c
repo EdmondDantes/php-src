@@ -172,6 +172,12 @@ static void scope_dispose(zend_async_scope_t *zend_scope)
 	scope->scope.after_coroutine_enqueue = NULL;
 	scope->scope.dispose = NULL;
 
+	if (scope->scope.scope_object != NULL) {
+		((async_scope_object_t *) scope->scope.scope_object)->scope = NULL;
+		OBJ_RELEASE(scope->scope.scope_object);
+		scope->scope.scope_object = NULL;
+	}
+
 	async_scope_free_coroutines(scope);
 	efree(scope);
 }
