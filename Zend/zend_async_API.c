@@ -18,13 +18,13 @@
 
 #define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
 
-static zend_coroutine_t * spawn(zend_async_scope_t *scope)
+static zend_coroutine_t * spawn(zend_async_scope_t *scope, zend_object *scope_provider)
 {
 	ASYNC_THROW_ERROR("Async API is not enabled");
 	return NULL;
 }
 
-static void suspend(zend_coroutine_t *coroutine) {}
+static void suspend(bool from_main) {}
 
 static zend_class_entry * get_exception_ce(zend_async_exception_type type)
 {
@@ -33,6 +33,8 @@ static zend_class_entry * get_exception_ce(zend_async_exception_type type)
 
 static zend_string * scheduler_module_name = NULL;
 zend_async_spawn_t zend_async_spawn_fn = spawn;
+zend_async_new_coroutine_t zend_async_new_coroutine_fn = NULL;
+zend_async_new_scope_t zend_async_new_scope_fn = NULL;
 zend_async_suspend_t zend_async_suspend_fn = suspend;
 zend_async_resume_t zend_async_resume_fn = NULL;
 zend_async_cancel_t zend_async_cancel_fn = NULL;
