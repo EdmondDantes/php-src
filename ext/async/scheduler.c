@@ -280,6 +280,8 @@ static void async_scheduler_dtor(void)
 	} ZEND_HASH_FOREACH_END();
 
 	zend_hash_clean(&ASYNC_G(coroutines));
+	zend_hash_destroy(&ASYNC_G(coroutines));
+	zend_hash_init(&ASYNC_G(coroutines), 0, NULL, NULL, 0);
 
 	ZEND_ASYNC_REACTOR_SHUTDOWN();
 

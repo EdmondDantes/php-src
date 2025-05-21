@@ -15,5 +15,5 @@ echo "end\n";
 ?>
 --EXPECT--
 start
-
 end
+coroutine
