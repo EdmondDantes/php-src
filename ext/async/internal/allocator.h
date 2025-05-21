@@ -27,7 +27,7 @@ struct _allocator_s {
 	void (*m_free)(void *ptr);
 };
 
-allocator_t zend_std_allocator;
-allocator_t zend_std_persistent_allocator;
+extern allocator_t zend_std_allocator;
+extern allocator_t zend_std_persistent_allocator;
 
 #endif //ASYNC_ALLOCATOR_H
