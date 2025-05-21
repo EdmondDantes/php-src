@@ -166,6 +166,10 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 		switch_context(async_coroutine, error);
 	}
 
+	//
+	// At this point, the async_coroutine must already be destroyed
+	//
+
 	if (error != NULL) {
 		OBJ_RELEASE(error);
 	}
@@ -174,11 +178,6 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 	if (UNEXPECTED(EG(exception) && instanceof_function(EG(exception)->ce, async_ce_cancellation_exception))) {
         zend_clear_exception();
     }
-
-	// Free if it is completed
-	if (async_coroutine->context.status == ZEND_FIBER_STATUS_DEAD) {
-		coroutine->event.dispose(&coroutine->event);
-	}
 
 	return true;
 }
@@ -505,6 +504,11 @@ void async_scheduler_main_coroutine_suspend(void)
 	OBJ_RELEASE(&coroutine->std);
 
 	async_scheduler_coroutine_suspend(NULL);
+
+	if (ASYNC_G(main_transfer)) {
+		efree(ASYNC_G(main_transfer));
+		ASYNC_G(main_transfer) = NULL;
+	}
 }
 
 #define TRY_HANDLE_SUSPEND_EXCEPTION() \

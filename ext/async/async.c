@@ -676,10 +676,6 @@ static PHP_GSHUTDOWN_FUNCTION(async)
 	circular_buffer_dtor(&async_globals->coroutine_queue);
 	zend_hash_destroy(&async_globals->coroutines);
 
-	if (async_globals->main_transfer) {
-		efree(async_globals->main_transfer);
-	}
-
 #ifdef PHP_WIN32
 #endif
 }
