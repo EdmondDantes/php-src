@@ -154,7 +154,7 @@ typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(
 );
 typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(const zend_ulong timeout, const bool is_periodic, size_t size);
 typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum, size_t size);
-typedef zend_async_process_event_t* (*zend_async_new_process_event_t)(void);
+typedef zend_async_process_event_t* (*zend_async_new_process_event_t)(zend_process_t process_handle, size_t size);
 typedef void (*zend_async_thread_entry_t)(void *arg, size_t size);
 typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)(zend_async_thread_entry_t entry, void *arg, size_t size);
 typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags, size_t size);

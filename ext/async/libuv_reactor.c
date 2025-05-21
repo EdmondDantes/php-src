@@ -276,7 +276,7 @@ zend_async_poll_event_t* libuv_new_poll_event(
 /* {{{ libuv_new_socket_event */
 zend_async_poll_event_t* libuv_new_socket_event(zend_socket_t socket, async_poll_event events, size_t size)
 {
-	return libuv_new_poll_event(NULL, socket, events, size);
+	return libuv_new_poll_event(ZEND_FD_NULL, socket, events, size);
 }
 /* }}} */
 
@@ -1430,7 +1430,7 @@ static void libuv_exec_dispose(zend_async_event_t *event)
 }
 /* }}} */
 
-/* {{{ libuv_new_process_event */
+/* {{{ libuv_new_exec_event */
 static zend_async_exec_event_t * libuv_new_exec_event(
 	zend_async_exec_mode exec_mode,
 	const char *cmd,
