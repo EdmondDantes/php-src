@@ -1477,8 +1477,8 @@ static zend_async_exec_event_t * libuv_new_exec_event(
 	snprintf(exec->quoted_cmd, cmd_buffer_size, "\"%s\"", cmd);
 	options->args = (char*[]) { "cmd.exe", "/s", "/c", exec->quoted_cmd, NULL };
 #else
-	options.file = "/bin/sh";
-	options.args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
+	options->file = "/bin/sh";
+	options->args = (char*[]) { "sh", "-c", (char *)cmd, NULL };
 #endif
 
 	options->stdio = (uv_stdio_container_t[]) {
