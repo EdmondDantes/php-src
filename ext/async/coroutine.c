@@ -144,6 +144,8 @@ void async_coroutine_cleanup(zend_fiber_context *context)
 	zend_vm_stack_destroy();
 	EG(vm_stack) = current_stack;
 	coroutine->execute_data = NULL;
+
+	OBJ_RELEASE(&coroutine->std);
 }
 
 void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t * coroutine)

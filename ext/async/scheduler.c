@@ -501,7 +501,8 @@ void async_scheduler_main_coroutine_suspend(void)
 	async_coroutine_finalize(transfer, coroutine);
 
 	coroutine->context.cleanup = NULL;
-	coroutine->vm_stack = EG(vm_stack);
+
+	OBJ_RELEASE(&coroutine->std);
 
 	async_scheduler_coroutine_suspend(NULL);
 }
@@ -569,6 +570,8 @@ void async_scheduler_main_loop(void)
 	zend_try
 	{
 		bool has_handles = true;
+		bool has_next_coroutine = true;
+		bool was_executed = false;
 
 		do {
 
@@ -577,7 +580,8 @@ void async_scheduler_main_loop(void)
 			execute_microtasks();
 			TRY_HANDLE_EXCEPTION();
 
-			has_handles = ZEND_ASYNC_REACTOR_EXECUTE(circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue)));
+			has_next_coroutine = circular_buffer_is_not_empty(&ASYNC_G(coroutine_queue));
+			has_handles = ZEND_ASYNC_REACTOR_EXECUTE(has_next_coroutine);
 			TRY_HANDLE_EXCEPTION();
 
 			execute_microtasks();
@@ -585,13 +589,18 @@ void async_scheduler_main_loop(void)
 
 			ZEND_IN_SCHEDULER_CONTEXT = false;
 
-			bool was_executed = execute_next_coroutine(NULL);
+			if (EXPECTED(has_next_coroutine)) {
+				was_executed = execute_next_coroutine(NULL);
+			} else {
+				was_executed = false;
+			}
+
 			TRY_HANDLE_EXCEPTION();
 
 			if (UNEXPECTED(
 				false == has_handles
 				&& false == was_executed
-				&& &ASYNC_G(active_coroutine_count) > 0
+				&& ASYNC_G(active_coroutine_count) > 0
 				&& circular_buffer_is_empty(&ASYNC_G(coroutine_queue))
 				&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 				&& resolve_deadlocks()
