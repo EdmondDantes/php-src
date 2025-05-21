@@ -785,9 +785,10 @@ static void libuv_process_event_dispose(zend_async_event_t *event)
 
 	zend_async_callbacks_free(event);
 
+#ifdef PHP_WIN32
+
 	async_process_event_t *process = (async_process_event_t *)(event);
 
-#ifdef PHP_WIN32
 	if (process->hProcess != NULL) {
 		CloseHandle(process->hProcess);
 		process->hProcess = NULL;
