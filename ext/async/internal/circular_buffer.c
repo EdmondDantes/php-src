@@ -283,7 +283,7 @@ static zend_always_inline zend_result circular_buffer_header_next(circular_buffe
 /**
  * Move the tail to the next position.
  */
-zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_t *buffer)
+static zend_always_inline zend_result circular_buffer_tail_next(circular_buffer_t *buffer)
 {
 	if(UNEXPECTED(buffer->tail == buffer->head)) {
 		return FAILURE;
