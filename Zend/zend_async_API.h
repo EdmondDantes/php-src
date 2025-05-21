@@ -136,15 +136,15 @@ typedef void (*zend_async_suspend_t)(bool from_main);
 typedef void (*zend_async_resume_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error);
 typedef void (*zend_async_cancel_t)(zend_coroutine_t *coroutine, zend_object * error, const bool transfer_error, const bool is_safely);
 typedef void (*zend_async_shutdown_t)(void);
-typedef zend_array* (*zend_async_get_coroutines_t)();
+typedef zend_array* (*zend_async_get_coroutines_t)(void);
 typedef void (*zend_async_add_microtask_t)(zend_async_microtask_t *microtask);
 typedef zend_array* (*zend_async_get_awaiting_info_t)(zend_coroutine_t * coroutine);
 typedef zend_class_entry* (*zend_async_get_exception_ce_t)(zend_async_exception_type type);
 
-typedef void (*zend_async_reactor_startup_t)();
-typedef void (*zend_async_reactor_shutdown_t)();
+typedef void (*zend_async_reactor_startup_t)(void);
+typedef void (*zend_async_reactor_shutdown_t)(void);
 typedef bool (*zend_async_reactor_execute_t)(bool no_wait);
-typedef bool (*zend_async_reactor_loop_alive_t)();
+typedef bool (*zend_async_reactor_loop_alive_t)(void);
 
 typedef zend_async_poll_event_t* (*zend_async_new_socket_event_t)(zend_socket_t socket, async_poll_event events, size_t size);
 typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(
@@ -152,7 +152,7 @@ typedef zend_async_poll_event_t* (*zend_async_new_poll_event_t)(
 );
 typedef zend_async_timer_event_t* (*zend_async_new_timer_event_t)(const zend_ulong timeout, const bool is_periodic, size_t size);
 typedef zend_async_signal_event_t* (*zend_async_new_signal_event_t)(int signum, size_t size);
-typedef zend_async_process_event_t* (*zend_async_new_process_event_t)();
+typedef zend_async_process_event_t* (*zend_async_new_process_event_t)(void);
 typedef void (*zend_async_thread_entry_t)(void *arg, size_t size);
 typedef zend_async_thread_event_t* (*zend_async_new_thread_event_t)(zend_async_thread_entry_t entry, void *arg, size_t size);
 typedef zend_async_filesystem_event_t* (*zend_async_new_filesystem_event_t)(zend_string * path, const unsigned int flags, size_t size);
