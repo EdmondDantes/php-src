@@ -803,6 +803,8 @@ ZEND_API void zend_async_thread_pool_register(
 	zend_string *module, bool allow_override, zend_async_queue_task_t queue_task_fn
 );
 
+ZEND_API zend_string* zend_coroutine_gen_info(zend_coroutine_t *coroutine, char *zend_coroutine_name);
+
 /* Waker API */
 ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine);
 ZEND_API zend_async_waker_t * zend_async_waker_new_with_timeout(

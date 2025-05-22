@@ -206,6 +206,31 @@ ZEND_API void zend_async_thread_pool_register(zend_string *module, bool allow_ov
     zend_async_queue_task_fn = queue_task_fn;
 }
 
+ZEND_API zend_string* zend_coroutine_gen_info(zend_coroutine_t *coroutine, char *zend_coroutine_name)
+{
+	if (zend_coroutine_name == NULL) {
+		zend_coroutine_name = "";
+	}
+
+	if (coroutine->waker != NULL) {
+		return zend_strpprintf(0,
+			"Coroutine spawned at %s:%d, suspended at %s:%d (%s)",
+			coroutine->filename ? ZSTR_VAL(coroutine->filename) : "",
+			coroutine->lineno,
+			coroutine->waker->filename ? ZSTR_VAL(coroutine->waker->filename) : "",
+			coroutine->waker->lineno,
+			zend_coroutine_name
+		);
+	} else {
+		return zend_strpprintf(0,
+			"Coroutine spawned at %s:%d (%s)",
+			coroutine->filename ? ZSTR_VAL(coroutine->filename) : "",
+			coroutine->lineno,
+			zend_coroutine_name
+		);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////
 /* Waker API */
 //////////////////////////////////////////////////////////////////////
