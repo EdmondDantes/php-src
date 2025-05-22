@@ -1958,6 +1958,8 @@ static void zend_gc_collect_cycles_microtask_dtor(zend_async_microtask_t *task)
 
 static void zend_gc_collect_cycles_coroutine(void)
 {
+	GC_TRACE("GC coroutine started");
+
 	if (GC_G(microtask) == NULL) {
 		zend_async_microtask_t *task = ecalloc(1, sizeof(zend_async_microtask_t));
 		task->handler = zend_gc_collect_cycles_microtask;
@@ -1977,19 +1979,21 @@ static zend_string* coroutine_info(zend_async_event_t *event)
 		return zend_coroutine_gen_info(coroutine, "zend_gc_collect_cycles");
 	}
 
-	// Return className::__destructor
-	zend_object * obj = coroutine->extended_data;
+	zend_object *obj = coroutine->extended_data;
 	const char *class_name = ZSTR_VAL(obj->ce->name);
 	const char *method_name = "__destructor";
-	char buf[1024];
-	snprintf(buf, sizeof(buf), "%s::%s", class_name, method_name);
 
-	return zend_coroutine_gen_info(coroutine, buf);
+	zend_string *tmp = zend_strpprintf(0, "%s::%s", class_name, method_name);
+	zend_string *result = zend_coroutine_gen_info(coroutine, ZSTR_VAL(tmp));
+	zend_string_release(tmp);
+
+	return result;
 }
 
 static void coroutine_dispose(zend_coroutine_t *coroutine)
 {
 	if (coroutine == GC_G(dtor_coroutine)) {
+		GC_TRACE("GC coroutine finished");
 		GC_G(dtor_coroutine) = NULL;
 
 		if (GC_G(microtask) != NULL) {
@@ -2027,6 +2031,8 @@ static void zend_gc_collect_cycles_microtask(zend_async_microtask_t *task)
 
 static zend_always_inline void start_gc_in_coroutine(void)
 {
+	GC_TRACE("Try to start GC in coroutine");
+
 	if (GC_G(dtor_scope) == NULL) {
 		GC_G(dtor_scope) = ZEND_ASYNC_NEW_SCOPE(NULL);
 
