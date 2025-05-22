@@ -1964,6 +1964,7 @@ static void zend_gc_collect_cycles_coroutine(void)
 		zend_async_microtask_t *task = ecalloc(1, sizeof(zend_async_microtask_t));
 		task->handler = zend_gc_collect_cycles_microtask;
 		task->dtor = zend_gc_collect_cycles_microtask_dtor;
+		task->ref_count = 1;
 		GC_G(microtask) = task;
 	}
 
