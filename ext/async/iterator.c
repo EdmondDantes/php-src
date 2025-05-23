@@ -268,7 +268,7 @@ static void coroutine_entry(void)
 		return;
 	}
 
-	async_iterator_t *iterator = (async_iterator_t *) ZEND_CURRENT_COROUTINE->extended_data;
+	async_iterator_t *iterator = (async_iterator_t *) ZEND_ASYNC_CURRENT_COROUTINE->extended_data;
 
 	async_run_iterator(iterator);
 

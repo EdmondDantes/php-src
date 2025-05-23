@@ -16,6 +16,18 @@
 #include "zend_async_API.h"
 #include "zend_exceptions.h"
 
+#ifdef ZTS
+int zend_async_globals_id = 0;
+size_t zend_async_globals_offset = 0;
+// Pointers to the default data structure that is used when no other extensions are present.
+static int _zend_async_globals_id = 0;
+static size_t _zend_async_globals_offset = 0;
+#else
+zend_async_globals_t *zend_async_globals = NULL;
+// The default data structure that is used when no other extensions are present.
+zend_async_globals_t _zend_async_globals = {0};
+#endif
+
 #define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
 
 static zend_coroutine_t * spawn(zend_async_scope_t *scope, zend_object *scope_provider)
@@ -81,14 +93,59 @@ ZEND_API bool zend_async_reactor_is_enabled(void)
 	return zend_async_reactor_startup_fn != NULL;
 }
 
-ZEND_API void zend_async_init(void)
+static void ts_globals_ctor(zend_async_globals_t * globals)
 {
-	// Initialization code for async API
+	globals->is_async = false;
+	globals->in_scheduler_context = false;
+	globals->graceful_shutdown = false;
+	globals->active_coroutine_count = 0;
+	globals->active_event_count = 0;
+	globals->coroutine = NULL;
+	globals->scope = NULL;
+	globals->scheduler = NULL;
+	globals->exit_exception = NULL;
 }
 
-ZEND_API void zend_async_shutdown(void)
+static void ts_globals_dtor(zend_async_globals_t * globals)
 {
-	// Shutdown code for async API
+
+}
+
+static void zend_async_globals_ctor(void)
+{
+#ifdef ZTS
+	ts_allocate_fast_id(
+		&_zend_async_globals_id,
+		&_zend_async_globals_offset,
+		sizeof(zend_async_globals_t),
+		(ts_allocate_ctor) ts_globals_ctor,
+		(ts_allocate_dtor) ts_globals_dtor
+	);
+#else
+	zend_async_globals = &_zend_async_globals;
+	ts_globals_ctor(zend_async_globals);
+#endif
+}
+
+void zend_async_init(void)
+{
+	zend_async_globals_ctor();
+}
+
+static void zend_async_globals_dtor(void)
+{
+#ifdef ZTS
+	zend_async_globals_id = _zend_async_globals_id;
+	zend_async_globals_offset = _zend_async_globals_offset;
+#else
+	zend_async_globals = &_zend_async_globals;
+	ts_globals_dtor(zend_async_globals);
+#endif
+}
+
+void zend_async_shutdown(void)
+{
+	zend_async_globals_dtor();
 }
 
 ZEND_API void zend_async_scheduler_register(
@@ -256,7 +313,7 @@ static void waker_triggered_events_dtor(zval *item)
 ZEND_API zend_async_waker_t *zend_async_waker_define(zend_coroutine_t *coroutine)
 {
 	if (coroutine == NULL) {
-		coroutine = ZEND_CURRENT_COROUTINE;
+		coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
 	}
 
 	if (UNEXPECTED(coroutine == NULL)) {
@@ -274,7 +331,7 @@ ZEND_API zend_async_waker_t *zend_async_waker_define(zend_coroutine_t *coroutine
 ZEND_API zend_async_waker_t *zend_async_waker_new(zend_coroutine_t *coroutine)
 {
 	if (coroutine == NULL) {
-		coroutine = ZEND_CURRENT_COROUTINE;
+		coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
 	}
 
 	if (UNEXPECTED(coroutine == NULL)) {
@@ -502,7 +559,7 @@ ZEND_API zend_async_waker_t * zend_async_waker_new_with_timeout(
 )
 {
 	if (coroutine == NULL) {
-		coroutine = ZEND_CURRENT_COROUTINE;
+		coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
 	}
 
 	if (UNEXPECTED(coroutine == NULL)) {

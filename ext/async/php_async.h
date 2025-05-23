@@ -49,10 +49,6 @@ typedef struct
 #define Z_ASYNC_TIMEOUT_P(zv)  ASYNC_TIMEOUT_FROM_OBJ(Z_OBJ_P(zv))
 
 ZEND_BEGIN_MODULE_GLOBALS(async)
-	/* Number of active coroutines */
-	unsigned int active_coroutine_count;
-	/* Number of active event handles */
-	unsigned int active_event_count;
 	// Microtask queue
 	circular_buffer_t microtasks;
 	/* Queue of coroutine_queue */
@@ -63,8 +59,6 @@ ZEND_BEGIN_MODULE_GLOBALS(async)
 	zend_fiber_transfer *main_transfer;
 	/* The main flow stack */
 	zend_vm_stack main_vm_stack;
-	/* Scheduler coroutine */
-	zend_coroutine_t *scheduler;
 
 	/* Link to the reactor structure */
 	void * reactor;
@@ -80,17 +74,5 @@ ZEND_EXTERN_MODULE_GLOBALS(async)
 # if defined(ZTS) && defined(COMPILE_DL_ASYNC)
 ZEND_TSRMLS_CACHE_EXTERN()
 # endif
-
-#define DECREASE_EVENT_HANDLE_COUNT  if (ASYNC_G(active_event_count) > 0) { \
-		ASYNC_G(active_event_count)--; \
-	} else { \
-		ZEND_ASSERT("The event handle count is already zero."); \
-	}
-
-#define DECREASE_COROUTINE_COUNT  if (ASYNC_G(active_coroutine_count) > 0) { \
-		ASYNC_G(active_coroutine_count)--; \
-	} else { \
-		ZEND_ASSERT("The coroutine count is already zero."); \
-	}
 
 #endif //ASYNC_H

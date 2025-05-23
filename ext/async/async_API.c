@@ -64,14 +64,14 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 	if (scope == NULL) {
 
 		if (UNEXPECTED(ZEND_CURRENT_ASYNC_SCOPE == NULL)) {
-			ZEND_CURRENT_ASYNC_SCOPE = async_new_scope(NULL);
+			ZEND_ASYNC_CURRENT_SCOPE = async_new_scope(NULL);
 
 			if (UNEXPECTED(EG(exception))) {
 				return NULL;
 			}
 		}
 
-		scope = ZEND_CURRENT_ASYNC_SCOPE;
+		scope = ZEND_ASYNC_CURRENT_SCOPE;
 	}
 
 	if (UNEXPECTED(scope == NULL)) {
@@ -169,7 +169,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 		return NULL;
 	}
 
-	ASYNC_G(active_coroutine_count)++;
+	ZEND_ASYNC_INCREASE_COROUTINE_COUNT;
 
 	return &coroutine->coroutine;
 }
@@ -252,7 +252,7 @@ void cancel(zend_coroutine_t *zend_coroutine, zend_object *error, const bool tra
 	// but we do mark it as a Zombie.
 	if (is_safely && error == NULL) {
 		ZEND_COROUTINE_SET_ZOMBIE(zend_coroutine);
-		DECREASE_COROUTINE_COUNT
+		ZEND_ASYNC_DECREASE_COROUTINE_COUNT
 		return;
 	}
 
@@ -477,7 +477,7 @@ zend_result await_iterator_handler(async_iterator_t *iterator, zval *current, zv
 
 void iterator_coroutine_entry(void)
 {
-	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
+	zend_coroutine_t *coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
 
 	if (UNEXPECTED(coroutine == NULL)) {
 		async_throw_error("Cannot run iterator coroutine");
@@ -607,7 +607,7 @@ void async_await_futures(
 		return;
 	}
 
-	zend_coroutine_t *coroutine = ZEND_CURRENT_COROUTINE;
+	zend_coroutine_t *coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
 
 	if (UNEXPECTED(coroutine == NULL)) {
 		async_throw_error("Cannot await futures outside of a coroutine");

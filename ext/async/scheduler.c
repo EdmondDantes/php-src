@@ -72,7 +72,7 @@ static zend_always_inline void define_transfer(async_coroutine_t *coroutine, zen
 		ZVAL_NULL(&transfer->value);
 	}
 
-	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
+	ZEND_ASYNC_CURRENT_COROUTINE = &coroutine->coroutine;
 }
 
 static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend_object * exception)
@@ -94,16 +94,16 @@ static zend_always_inline void switch_context(async_coroutine_t *coroutine, zend
 		ZVAL_NULL(&transfer.value);
 	}
 
-	zend_coroutine_t * previous_coroutine = ZEND_CURRENT_COROUTINE;
-	ZEND_CURRENT_COROUTINE = &coroutine->coroutine;
+	zend_coroutine_t * previous_coroutine = ZEND_ASYNC_CURRENT_COROUTINE;
+	ZEND_ASYNC_CURRENT_COROUTINE = &coroutine->coroutine;
 
 	zend_fiber_switch_context(&transfer);
 
-	ZEND_CURRENT_COROUTINE = previous_coroutine;
+	ZEND_ASYNC_CURRENT_COROUTINE = previous_coroutine;
 
 	/* Forward bailout into current coroutine. */
 	if (UNEXPECTED(transfer.flags & ZEND_FIBER_TRANSFER_FLAG_BAILOUT)) {
-		ZEND_CURRENT_COROUTINE = NULL;
+		ZEND_ASYNC_CURRENT_COROUTINE = NULL;
 		zend_bailout();
 	}
 }
@@ -184,7 +184,7 @@ static bool execute_next_coroutine(zend_fiber_transfer *transfer)
 
 static zend_always_inline void switch_to_scheduler(zend_fiber_transfer *transfer)
 {
-	async_coroutine_t *async_coroutine = (async_coroutine_t *) ASYNC_G(scheduler);
+	async_coroutine_t *async_coroutine = (async_coroutine_t *) ZEND_ASYNC_SCHEDULER;
 
 	ZEND_ASSERT(async_coroutine != NULL && "Scheduler coroutine is not initialized");
 
@@ -200,7 +200,7 @@ static bool resolve_deadlocks(void)
 	zval *value;
 
 	async_warning(
-		"No active coroutines, deadlock detected. Coroutines in waiting: %u", ASYNC_G(active_coroutine_count)
+		"No active coroutines, deadlock detected. Coroutines in waiting: %u", ZEND_ASYNC_ACTIVE_COROUTINE_COUNT
 	);
 
 	ZEND_HASH_FOREACH_VAL(&ASYNC_G(coroutines), value)
@@ -250,11 +250,11 @@ zend_always_inline static void execute_queued_coroutines(void)
 
 static void async_scheduler_dtor(void)
 {
-	ZEND_IN_SCHEDULER_CONTEXT = true;
+	ZEND_ASYNC_SCHEDULER_CONTEXT = true;
 
 	execute_microtasks();
 
-	ZEND_IN_SCHEDULER_CONTEXT = false;
+	ZEND_ASYNC_SCHEDULER_CONTEXT = false;
 
 	if (UNEXPECTED(false == circular_buffer_is_empty(&ASYNC_G(microtasks)))) {
 		async_warning(
@@ -345,7 +345,7 @@ static void cancel_queued_coroutines(void)
 
 void start_graceful_shutdown(void)
 {
-	if (ZEND_GRACEFUL_SHUTDOWN) {
+	if (ZEND_ASYNC_GRACEFUL_SHUTDOWN) {
 		return;
 	}
 
@@ -353,17 +353,17 @@ void start_graceful_shutdown(void)
 		async_throw_error("Graceful shutdown mode is activated");
 	}
 
-	ZEND_GRACEFUL_SHUTDOWN = true;
-	ZEND_EXIT_EXCEPTION = EG(exception);
+	ZEND_ASYNC_GRACEFUL_SHUTDOWN = true;
+	ZEND_ASYNC_EXIT_EXCEPTION = EG(exception);
 	GC_ADDREF(EG(exception));
 
 	zend_clear_exception();
 	cancel_queued_coroutines();
 
 	if (UNEXPECTED(EG(exception) != NULL)) {
-		zend_exception_set_previous(EG(exception), EG(exit_exception));
-		GC_DELREF(ZEND_EXIT_EXCEPTION);
-		ZEND_EXIT_EXCEPTION = EG(exception);
+		zend_exception_set_previous(EG(exception), ZEND_ASYNC_EXIT_EXCEPTION);
+		GC_DELREF(ZEND_ASYNC_EXIT_EXCEPTION);
+		ZEND_ASYNC_EXIT_EXCEPTION = EG(exception);
 		GC_ADDREF(EG(exception));
 		zend_clear_exception();
 	}
@@ -371,10 +371,10 @@ void start_graceful_shutdown(void)
 
 static void finally_shutdown(void)
 {
-	if (ZEND_EXIT_EXCEPTION != NULL && EG(exception) != NULL) {
-		zend_exception_set_previous(EG(exception), ZEND_EXIT_EXCEPTION);
-		GC_DELREF(ZEND_EXIT_EXCEPTION);
-		ZEND_EXIT_EXCEPTION = EG(exception);
+	if (ZEND_ASYNC_EXIT_EXCEPTION != NULL && EG(exception) != NULL) {
+		zend_exception_set_previous(EG(exception), ZEND_ASYNC_EXIT_EXCEPTION);
+		GC_DELREF(ZEND_ASYNC_EXIT_EXCEPTION);
+		ZEND_ASYNC_EXIT_EXCEPTION = EG(exception);
 		GC_ADDREF(EG(exception));
 		zend_clear_exception();
 	}
@@ -385,10 +385,10 @@ static void finally_shutdown(void)
 	execute_microtasks();
 
 	if (UNEXPECTED(EG(exception))) {
-		if (ZEND_EXIT_EXCEPTION != NULL) {
-			zend_exception_set_previous(EG(exception), ZEND_EXIT_EXCEPTION);
-			GC_DELREF(ZEND_EXIT_EXCEPTION);
-			ZEND_EXIT_EXCEPTION = EG(exception);
+		if (ZEND_ASYNC_EXIT_EXCEPTION != NULL) {
+			zend_exception_set_previous(EG(exception), ZEND_ASYNC_EXIT_EXCEPTION);
+			GC_DELREF(ZEND_ASYNC_EXIT_EXCEPTION);
+			ZEND_ASYNC_EXIT_EXCEPTION = EG(exception);
 			GC_ADDREF(EG(exception));
 		}
 	}
@@ -399,7 +399,7 @@ void async_scheduler_main_loop(void);
 
 #define TRY_HANDLE_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
-	    if(ZEND_GRACEFUL_SHUTDOWN) { \
+	    if(ZEND_ASYNC_GRACEFUL_SHUTDOWN) { \
 			finally_shutdown(); \
             break; \
         } \
@@ -411,7 +411,7 @@ void async_scheduler_main_loop(void);
  */
 void async_scheduler_launch(void)
 {
-	if (ASYNC_G(scheduler)) {
+	if (ZEND_ASYNC_SCHEDULER) {
 		async_throw_error("The scheduler cannot be started when is already enabled");
 		return;
 	}
@@ -458,8 +458,8 @@ void async_scheduler_launch(void)
 		return;
 	}
 
-	ASYNC_G(active_coroutine_count)++;
-	ZEND_CURRENT_COROUTINE = &main_coroutine->coroutine;
+	ZEND_ASYNC_INCREASE_COROUTINE_COUNT;
+	ZEND_ASYNC_CURRENT_COROUTINE = &main_coroutine->coroutine;
 
 	// The current execution context is the main coroutine,
 	// to which we must return after the Scheduler completes.
@@ -482,12 +482,12 @@ void async_scheduler_launch(void)
 	}
 
 	scheduler_coroutine->internal_entry = async_scheduler_main_loop;
-	ASYNC_G(scheduler) = scheduler_coroutine;
+	ZEND_ASYNC_SCHEDULER = scheduler_coroutine;
 }
 
 void async_scheduler_main_coroutine_suspend(void)
 {
-	if (UNEXPECTED(ASYNC_G(scheduler) == NULL)) {
+	if (UNEXPECTED(ZEND_ASYNC_SCHEDULER == NULL)) {
 		async_scheduler_launch();
 
 		if (UNEXPECTED(EG(exception) != NULL)) {
@@ -495,7 +495,7 @@ void async_scheduler_main_coroutine_suspend(void)
 		}
 	}
 
-	async_coroutine_t * coroutine = (async_coroutine_t *)ZEND_CURRENT_COROUTINE;
+	async_coroutine_t * coroutine = (async_coroutine_t *)ZEND_ASYNC_CURRENT_COROUTINE;
 	zend_fiber_transfer * transfer = ASYNC_G(main_transfer);
 
 	// We reach this point when the main coroutine has completed its execution.
@@ -515,7 +515,7 @@ void async_scheduler_main_coroutine_suspend(void)
 
 #define TRY_HANDLE_SUSPEND_EXCEPTION() \
 	if (UNEXPECTED(EG(exception) != NULL)) { \
-		if(ZEND_GRACEFUL_SHUTDOWN) { \
+		if(ZEND_ASYNC_GRACEFUL_SHUTDOWN) { \
 			finally_shutdown(); \
 			return; \
 		} \
@@ -530,7 +530,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 	 * Note that the Scheduler is initialized after the first use of suspend,
 	 * not at the start of the Zend engine.
 	 */
-	if (UNEXPECTED(ASYNC_G(scheduler) == NULL)) {
+	if (UNEXPECTED(ZEND_ASYNC_SCHEDULER == NULL)) {
 		async_scheduler_launch();
 
 		if (UNEXPECTED(EG(exception) != NULL)) {
@@ -538,7 +538,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 		}
 	}
 
-	ZEND_IN_SCHEDULER_CONTEXT = true;
+	ZEND_ASYNC_SCHEDULER_CONTEXT = true;
 
 	execute_microtasks();
 	TRY_HANDLE_SUSPEND_EXCEPTION();
@@ -548,7 +548,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 
 	execute_microtasks();
 
-	ZEND_IN_SCHEDULER_CONTEXT = false;
+	ZEND_ASYNC_SCHEDULER_CONTEXT = false;
 
 	TRY_HANDLE_SUSPEND_EXCEPTION();
 
@@ -557,7 +557,7 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 	if (UNEXPECTED(
 		false == has_handles
 		&& false == is_next_coroutine
-		&& ASYNC_G(active_coroutine_count) > 0
+		&& ZEND_ASYNC_ACTIVE_COROUTINE_COUNT > 0
 		&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 		&& resolve_deadlocks()
 		)) {
@@ -581,7 +581,7 @@ void async_scheduler_main_loop(void)
 
 		do {
 
-			ZEND_IN_SCHEDULER_CONTEXT = true;
+			ZEND_ASYNC_SCHEDULER_CONTEXT = true;
 
 			execute_microtasks();
 			TRY_HANDLE_EXCEPTION();
@@ -593,7 +593,7 @@ void async_scheduler_main_loop(void)
 			execute_microtasks();
 			TRY_HANDLE_EXCEPTION();
 
-			ZEND_IN_SCHEDULER_CONTEXT = false;
+			ZEND_ASYNC_SCHEDULER_CONTEXT = false;
 
 			if (EXPECTED(has_next_coroutine)) {
 				was_executed = execute_next_coroutine(NULL);
@@ -606,7 +606,7 @@ void async_scheduler_main_loop(void)
 			if (UNEXPECTED(
 				false == has_handles
 				&& false == was_executed
-				&& ASYNC_G(active_coroutine_count) > 0
+				&& ZEND_ASYNC_ACTIVE_COROUTINE_COUNT > 0
 				&& circular_buffer_is_empty(&ASYNC_G(coroutine_queue))
 				&& circular_buffer_is_empty(&ASYNC_G(microtasks))
 				&& resolve_deadlocks()
@@ -627,8 +627,8 @@ void async_scheduler_main_loop(void)
 
 	ZEND_ASSERT(ZEND_ASYNC_REACTOR_LOOP_ALIVE() == false && "The event loop must be stopped");
 
-	zend_object * exit_exception = ZEND_EXIT_EXCEPTION;
-	ZEND_EXIT_EXCEPTION = NULL;
+	zend_object * exit_exception = ZEND_ASYNC_EXIT_EXCEPTION;
+	ZEND_ASYNC_EXIT_EXCEPTION = NULL;
 
 	async_scheduler_dtor();
 

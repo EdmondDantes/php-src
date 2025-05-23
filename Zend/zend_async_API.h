@@ -698,23 +698,87 @@ static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_c
 	return zend_string_init("internal function", sizeof("internal function") - 1, 0);
 }
 
-#define ZEND_IS_ASYNC_ON EG(is_async)
-#define ZEND_IS_ASYNC_OFF !EG(is_async)
-#define ZEND_ASYNC_ON EG(is_async) = true
-#define ZEND_IN_SCHEDULER_CONTEXT EG(in_scheduler_context)
-#define ZEND_IS_SCHEDULER_CONTEXT EG(in_scheduler_context) == true
-#define ZEND_GRACEFUL_SHUTDOWN EG(graceful_shutdown)
-#define ZEND_EXIT_EXCEPTION EG(exit_exception)
-#define ZEND_CURRENT_COROUTINE EG(coroutine)
-#define ZEND_CURRENT_ASYNC_SCOPE EG(async_scope)
+///////////////////////////////////////////////////////////////
+/// Global Macros
+///////////////////////////////////////////////////////////////
+typedef struct {
+	/* Equal TRUE if the asynchronous context is enabled */
+	bool is_async;
+	/* Equal TRUE if the scheduler executed now */
+	bool in_scheduler_context;
+	/* Equal TRUE if the reactor is in the process of shutting down */
+	bool graceful_shutdown;
+	/* Number of active coroutines */
+	unsigned int active_coroutine_count;
+	/* Number of active event handles */
+	unsigned int active_event_count;
+	/* The current coroutine context. */
+	zend_coroutine_t *coroutine;
+	/* The current async scope. */
+	zend_async_scope_t *scope;
+	/* Scheduler coroutine */
+	zend_coroutine_t *scheduler;
+	/* Exit exception object */
+	zend_object *exit_exception;
+} zend_async_globals_t;
+
+BEGIN_EXTERN_C()
+#ifdef ZTS
+ZEND_API extern int zend_async_globals_id;
+ZEND_API extern size_t zend_async_globals_offset;
+#define ZEND_ASYNC_G(v) ZEND_TSRMG_FAST(zend_async_globals_offset, zend_async_globals_t *, v)
+#else
+#define ZEND_ASYNC_G(v) (zend_async_globals.v)
+ZEND_API extern zend_async_globals_t zend_async_globals;
+#endif
+END_EXTERN_C()
+
+#define ZEND_ASYNC_ON (ZEND_ASYNC_G(is_async) == true)
+#define ZEND_ASYNC_OFF (ZEND_ASYNC_G(is_async) == false)
+#define ZEND_ASYNC_ACTIVATE ZEND_ASYNC_G(is_async) = true
+#define ZEND_ASYNC_DEACTIVATE ZEND_ASYNC_G(is_async) = false
+#define ZEND_ASYNC_SCHEDULER_CONTEXT ZEND_ASYNC_G(in_scheduler_context)
+#define ZEND_ASYNC_IS_SCHEDULER_CONTEXT (ZEND_ASYNC_G(in_scheduler_context) == true)
+#define ZEND_ASYNC_ACTIVE_COROUTINE_COUNT ZEND_ASYNC_G(active_coroutine_count)
+#define ZEND_ASYNC_ACTIVE_EVENT_COUNT ZEND_ASYNC_G(active_event_count)
+#define ZEND_ASYNC_GRACEFUL_SHUTDOWN ZEND_ASYNC_G(graceful_shutdown)
+#define ZEND_ASYNC_EXIT_EXCEPTION ZEND_ASYNC_G(exit_exception)
+#define ZEND_ASYNC_CURRENT_COROUTINE ZEND_ASYNC_G(coroutine)
+#define ZEND_ASYNC_CURRENT_SCOPE ZEND_ASYNC_G(scope)
+#define ZEND_ASYNC_SCHEDULER ZEND_ASYNC_G(scheduler)
+
+#define ZEND_ASYNC_INCREASE_EVENT_COUNT  if (ZEND_ASYNC_G(active_event_count) < UINT_MAX) { \
+		ZEND_ASYNC_G(active_event_count)++; \
+	} else { \
+		ZEND_ASSERT("The event count is already max."); \
+	}
+
+#define ZEND_ASYNC_DECREASE_EVENT_COUNT  if (ZEND_ASYNC_G(active_event_count) > 0) { \
+		ZEND_ASYNC_G(active_event_count)--; \
+	} else { \
+		ZEND_ASSERT("The event count is already zero."); \
+	}
+
+#define ZEND_ASYNC_INCREASE_COROUTINE_COUNT  if (ZEND_ASYNC_G(active_coroutine_count) < UINT_MAX) { \
+		ZEND_ASYNC_G(active_coroutine_count)++; \
+	} else { \
+		ZEND_ASSERT("The coroutine count is already max."); \
+	}
+
+#define ZEND_ASYNC_DECREASE_COROUTINE_COUNT  if (ZEND_ASYNC_G(active_coroutine_count) > 0) { \
+		ZEND_ASYNC_G(active_coroutine_count)--; \
+	} else { \
+		ZEND_ASSERT("The coroutine count is already zero."); \
+	}
+
 
 BEGIN_EXTERN_C()
 
 ZEND_API bool zend_async_is_enabled(void);
 ZEND_API bool zend_scheduler_is_enabled(void);
 
-ZEND_API void zend_async_init(void);
-ZEND_API void zend_async_shutdown(void);
+void zend_async_init(void);
+void zend_async_shutdown(void);
 
 ZEND_API ZEND_COLD zend_object * zend_async_new_exception(zend_async_exception_type type, const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw(zend_async_exception_type type, const char *format, ...);

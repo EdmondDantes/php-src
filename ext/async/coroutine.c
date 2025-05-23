@@ -204,7 +204,7 @@ void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t *
 		zend_clear_exception();
 	}
 
-	if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
+	if (EXPECTED(ZEND_ASYNC_SCHEDULER != &coroutine->coroutine)) {
 		// Permanently remove the coroutine from the Scheduler.
 		if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
 			async_throw_error("Failed to remove coroutine from the list");
@@ -212,7 +212,7 @@ void async_coroutine_finalize(zend_fiber_transfer *transfer, async_coroutine_t *
 
 		// Decrease the active coroutine count if the coroutine is not a zombie.
 		if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
-			DECREASE_COROUTINE_COUNT
+			ZEND_ASYNC_DECREASE_COROUTINE_COUNT
 		}
 	}
 }
@@ -222,7 +222,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	ZEND_ASSERT(Z_TYPE(transfer->value) == IS_NULL && "Initial transfer value to coroutine context must be NULL");
 	ZEND_ASSERT(!transfer->flags && "No flags should be set on initial transfer");
 
-	async_coroutine_t *coroutine = (async_coroutine_t *) EG(coroutine);
+	async_coroutine_t *coroutine = (async_coroutine_t *) ZEND_ASYNC_CURRENT_COROUTINE;
 	ZEND_COROUTINE_SET_STARTED(&coroutine->coroutine);
 
 	/* Determine the current error_reporting ini setting. */
@@ -273,7 +273,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 		coroutine->flags |= ZEND_FIBER_FLAG_BAILOUT;
 		transfer->flags = ZEND_FIBER_TRANSFER_FLAG_BAILOUT;
 
-		if (EXPECTED(ASYNC_G(scheduler) != &coroutine->coroutine)) {
+		if (EXPECTED(ZEND_ASYNC_SCHEDULER != &coroutine->coroutine)) {
 			// Permanently remove the coroutine from the Scheduler.
 			if (UNEXPECTED(zend_hash_index_del(&ASYNC_G(coroutines), coroutine->std.handle) == FAILURE)) {
 				async_throw_error("Failed to remove coroutine from the list");
@@ -281,7 +281,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 
 			// Decrease the active coroutine count if the coroutine is not a zombie.
 			if (false == ZEND_COROUTINE_IS_ZOMBIE(&coroutine->coroutine)) {
-				DECREASE_COROUTINE_COUNT
+				ZEND_ASYNC_DECREASE_COROUTINE_COUNT
 			}
 		}
 	} zend_end_try();
@@ -292,7 +292,7 @@ ZEND_STACK_ALIGNED void async_coroutine_execute(zend_fiber_transfer *transfer)
 	//
 	// The scheduler coroutine always terminates into the main execution flow.
 	//
-	if (UNEXPECTED(&coroutine->coroutine == ASYNC_G(scheduler))) {
+	if (UNEXPECTED(&coroutine->coroutine == ZEND_ASYNC_SCHEDULER)) {
 		if (transfer != ASYNC_G(main_transfer)) {
 			transfer->context = ASYNC_G(main_transfer)->context;
 			transfer->flags = ASYNC_G(main_transfer)->flags;

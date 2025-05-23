@@ -176,7 +176,7 @@ static void libuv_poll_start(zend_async_event_t *event)
     }
 
 	event->loop_ref_count++;
-    ASYNC_G(active_event_count)++;
+    ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -193,7 +193,7 @@ static void libuv_poll_stop(zend_async_event_t *event)
 	const int error = uv_poll_stop(&poll->uv_handle);
 
 	event->loop_ref_count = 0;
-	ASYNC_G(active_event_count)--;
+	ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
 	if (error < 0) {
 		async_throw_error("Failed to stop poll handle: %s", uv_strerror(error));
@@ -318,7 +318,7 @@ static void libuv_timer_start(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count++;
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -335,7 +335,7 @@ static void libuv_timer_stop(zend_async_event_t *event)
 	const int error = uv_timer_stop(&timer->uv_handle);
 
 	event->loop_ref_count = 0;
-	ASYNC_G(active_event_count)--;
+	ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
 	if (error < 0) {
 		async_throw_error("Failed to stop timer handle: %s", uv_strerror(error));
@@ -431,7 +431,7 @@ static void libuv_signal_start(zend_async_event_t *event)
     }
 
     event->loop_ref_count++;
-    ASYNC_G(active_event_count)++;
+    ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -448,7 +448,7 @@ static void libuv_signal_stop(zend_async_event_t *event)
     const int error = uv_signal_stop(&signal->uv_handle);
 
     event->loop_ref_count = 0;
-    ASYNC_G(active_event_count)--;
+    ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
     if (error < 0) {
         async_throw_error("Failed to stop signal handle: %s", uv_strerror(error));
@@ -584,7 +584,7 @@ static void on_process_event(uv_async_t *handle)
 
 		if (reactor->countWaitingDescriptors > 0) {
 			reactor->countWaitingDescriptors--;
-			DECREASE_EVENT_HANDLE_COUNT;
+			ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
 			if (reactor->countWaitingDescriptors == 0) {
 				libuv_stop_process_watcher();
@@ -738,7 +738,7 @@ static void libuv_process_event_start(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count++;
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 	LIBUV_REACTOR->countWaitingDescriptors++;
 }
 /* }}} */
@@ -893,7 +893,7 @@ static void libuv_filesystem_start(zend_async_event_t *event)
     }
 
     event->loop_ref_count++;
-    ASYNC_G(active_event_count)++;
+    ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -910,7 +910,7 @@ static void libuv_filesystem_stop(zend_async_event_t *event)
     const int error = uv_fs_event_stop(&fs_event->uv_handle);
 
     event->loop_ref_count = 0;
-    ASYNC_G(active_event_count)--;
+    ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
     if (error < 0) {
         async_throw_error("Failed to stop filesystem handle: %s", uv_strerror(error));
@@ -1024,7 +1024,7 @@ static void libuv_dns_nameinfo_start(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count++;
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -1037,7 +1037,7 @@ static void libuv_dns_nameinfo_stop(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count = 0;
-	ASYNC_G(active_event_count)--;
+	ZEND_ASYNC_DECREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -1122,7 +1122,7 @@ static void libuv_dns_getaddrinfo_start(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count++;
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -1135,7 +1135,7 @@ static void libuv_dns_getaddrinfo_stop(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count = 0;
-	ASYNC_G(active_event_count)--;
+	ZEND_ASYNC_DECREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -1206,7 +1206,7 @@ static void exec_on_exit(uv_process_t* process, const int64_t exit_status, int t
 
 	if (exec->event.terminated != true) {
 		exec->event.terminated = true;
-		DECREASE_EVENT_HANDLE_COUNT;
+		ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
 		zend_async_callbacks_notify(&exec->event.base, NULL, NULL);
 	}
@@ -1294,7 +1294,7 @@ static void exec_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
 
 		if (exec->terminated != true) {
 			exec->terminated = true;
-			DECREASE_EVENT_HANDLE_COUNT;
+			ZEND_ASYNC_DECREASE_EVENT_COUNT;
 			zend_async_callbacks_notify(&event->event.base, NULL, NULL);
 		}
 	}
@@ -1352,7 +1352,7 @@ static void libuv_exec_start(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count++;
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 }
 /* }}} */
 
@@ -1371,7 +1371,7 @@ static void libuv_exec_stop(zend_async_event_t *event)
 	}
 
 	event->loop_ref_count = 0;
-	ASYNC_G(active_event_count)--;
+	ZEND_ASYNC_DECREASE_EVENT_COUNT;
 
 	if (exec->process != NULL) {
 		uv_process_kill(exec->process, ZEND_ASYNC_SIGTERM);
@@ -1517,7 +1517,7 @@ static zend_async_exec_event_t * libuv_new_exec_event(
 	uv_read_start((uv_stream_t*) exec->stdout_pipe, exec_alloc_cb, exec_read_cb);
 	uv_read_start((uv_stream_t*) exec->stderr_pipe, exec_std_err_alloc_cb, exec_std_err_read_cb);
 
-	ASYNC_G(active_event_count)++;
+	ZEND_ASYNC_INCREASE_EVENT_COUNT;
 
 	exec->event.base.add_callback = libuv_add_callback;
 	exec->event.base.del_callback = libuv_remove_callback;
