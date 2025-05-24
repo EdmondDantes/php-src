@@ -243,7 +243,7 @@ static zend_always_inline void iterate(async_iterator_t *iterator)
 
 void async_run_iterator(async_iterator_t *iterator)
 {
-	if (UNEXPECTED(ZEND_IS_SCHEDULER_CONTEXT)) {
+	if (UNEXPECTED(ZEND_ASYNC_IS_SCHEDULER_CONTEXT)) {
 		async_throw_error("The iterator cannot be run in the scheduler context");
 		return;
 	}
@@ -263,7 +263,7 @@ void async_run_iterator(async_iterator_t *iterator)
 
 static void coroutine_entry(void)
 {
-	if (UNEXPECTED(ZEND_CURRENT_COROUTINE == NULL || ZEND_CURRENT_COROUTINE->extended_data == NULL)) {
+	if (UNEXPECTED(ZEND_ASYNC_CURRENT_COROUTINE == NULL || ZEND_ASYNC_CURRENT_COROUTINE->extended_data == NULL)) {
 		async_throw_error("Invalid coroutine context for concurrent iterator");
 		return;
 	}

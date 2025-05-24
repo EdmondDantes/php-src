@@ -285,9 +285,9 @@ static void async_scheduler_dtor(void)
 
 	ZEND_ASYNC_REACTOR_SHUTDOWN();
 
-	EG(graceful_shutdown) = false;
-	EG(in_scheduler_context) = false;
-	EG(is_async) = false;
+	ZEND_ASYNC_GRACEFUL_SHUTDOWN = false;
+	ZEND_ASYNC_SCHEDULER_CONTEXT = false;
+	ZEND_ASYNC_DEACTIVATE;
 
 	zend_exception_restore();
 }
@@ -483,6 +483,7 @@ void async_scheduler_launch(void)
 
 	scheduler_coroutine->internal_entry = async_scheduler_main_loop;
 	ZEND_ASYNC_SCHEDULER = scheduler_coroutine;
+	ZEND_ASYNC_ACTIVATE;
 }
 
 void async_scheduler_main_coroutine_suspend(void)

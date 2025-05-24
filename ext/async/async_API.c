@@ -48,7 +48,7 @@ zend_async_scope_t * async_provide_scope(zend_object *scope_provider)
 
 zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 {
-	if (UNEXPECTED(ZEND_IS_ASYNC_OFF)) {
+	if (UNEXPECTED(ZEND_ASYNC_OFF)) {
 		async_throw_error("Cannot spawn a coroutine when async is disabled");
 		return NULL;
 	}
@@ -63,7 +63,7 @@ zend_coroutine_t *spawn(zend_async_scope_t *scope, zend_object * scope_provider)
 
 	if (scope == NULL) {
 
-		if (UNEXPECTED(ZEND_CURRENT_ASYNC_SCOPE == NULL)) {
+		if (UNEXPECTED(ZEND_ASYNC_CURRENT_SCOPE == NULL)) {
 			ZEND_ASYNC_CURRENT_SCOPE = async_new_scope(NULL);
 
 			if (UNEXPECTED(EG(exception))) {
@@ -700,7 +700,7 @@ void async_await_futures(
 
 		// Coroutines associated with concurrent iteration are created in a child Scope,
 		// which ensures that all child tasks are stopped if the main task is cancelled.
-		zend_async_scope_t * scope = ZEND_ASYNC_NEW_SCOPE(ZEND_CURRENT_ASYNC_SCOPE);
+		zend_async_scope_t * scope = ZEND_ASYNC_NEW_SCOPE(ZEND_ASYNC_CURRENT_SCOPE);
 
 		if (UNEXPECTED(scope == NULL || EG(exception))) {
 			await_context->dtor(await_context);

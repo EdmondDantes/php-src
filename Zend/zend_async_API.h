@@ -701,9 +701,20 @@ static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_c
 ///////////////////////////////////////////////////////////////
 /// Global Macros
 ///////////////////////////////////////////////////////////////
+/*
+ * Async module state
+ */
+typedef enum {
+	// The module is inactive.
+	ZEND_ASYNC_OFF = 0,
+	// The module is ready for use but has not been activated yet.
+	ZEND_ASYNC_READY = 1,
+	// The module is active and can be used.
+	ZEND_ASYNC_ACTIVE = 2
+} zend_async_state_t;
+
 typedef struct {
-	/* Equal TRUE if the asynchronous context is enabled */
-	bool is_async;
+	zend_async_state_t state;
 	/* The flag is TRUE if the Scheduler was able to gain control. */
 	zend_atomic_bool heartbeat;
 	/* Equal TRUE if the scheduler executed now */
@@ -735,10 +746,13 @@ ZEND_API extern zend_async_globals_t zend_async_globals;
 #endif
 END_EXTERN_C()
 
-#define ZEND_ASYNC_ON (ZEND_ASYNC_G(is_async) == true)
-#define ZEND_ASYNC_OFF (ZEND_ASYNC_G(is_async) == false)
-#define ZEND_ASYNC_ACTIVATE ZEND_ASYNC_G(is_async) = true
-#define ZEND_ASYNC_DEACTIVATE ZEND_ASYNC_G(is_async) = false
+#define ZEND_ASYNC_ON (ZEND_ASYNC_G(state) > ZEND_ASYNC_OFF)
+#define ZEND_ASYNC_IS_ACTIVE (ZEND_ASYNC_G(state) == ZEND_ASYNC_ACTIVE)
+#define ZEND_ASYNC_OFF (ZEND_ASYNC_G(state) == ZEND_ASYNC_OFF)
+#define ZEND_ASYNC_IS_READY (ZEND_ASYNC_G(state) == ZEND_ASYNC_READY)
+#define ZEND_ASYNC_ACTIVATE ZEND_ASYNC_G(state) = ZEND_ASYNC_ACTIVE
+#define ZEND_ASYNC_READY ZEND_ASYNC_G(state) = ZEND_ASYNC_READY
+#define ZEND_ASYNC_DEACTIVATE ZEND_ASYNC_G(state) = ZEND_ASYNC_OFF
 #define ZEND_ASYNC_SCHEDULER_ALIVE (zend_atomic_bool_load(&ZEND_ASYNC_G(heartbeat)) == true)
 #define ZEND_ASYNC_SCHEDULER_HEARTBEAT zend_atomic_bool_store(&ZEND_ASYNC_G(heartbeat), true)
 #define ZEND_ASYNC_SCHEDULER_WAIT zend_atomic_bool_store(&ZEND_ASYNC_G(heartbeat), false)
@@ -784,6 +798,8 @@ ZEND_API bool zend_scheduler_is_enabled(void);
 
 void zend_async_init(void);
 void zend_async_shutdown(void);
+void zend_async_globals_ctor(void);
+void zend_async_globals_dtor(void);
 
 ZEND_API ZEND_COLD zend_object * zend_async_new_exception(zend_async_exception_type type, const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw(zend_async_exception_type type, const char *format, ...);

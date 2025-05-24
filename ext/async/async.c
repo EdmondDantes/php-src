@@ -729,12 +729,12 @@ PHP_MINFO_FUNCTION(async) {
 PHP_RINIT_FUNCTION(async) /* {{{ */
 {
 	//async_host_name_list_ctor();
+	ZEND_ASYNC_READY;
 	return SUCCESS;
 } /* }}} */
 
 PHP_RSHUTDOWN_FUNCTION(async) /* {{{ */
 {
-	//async_globals_dtor(ASYNC_GLOBAL);
 	//async_host_name_list_dtor();
 	return SUCCESS;
 } /* }}} */

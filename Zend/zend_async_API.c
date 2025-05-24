@@ -19,13 +19,9 @@
 #ifdef ZTS
 int zend_async_globals_id = 0;
 size_t zend_async_globals_offset = 0;
-// Pointers to the default data structure that is used when no other extensions are present.
-static int _zend_async_globals_id = 0;
-static size_t _zend_async_globals_offset = 0;
 #else
-zend_async_globals_t *zend_async_globals = NULL;
 // The default data structure that is used when no other extensions are present.
-zend_async_globals_t _zend_async_globals = {0};
+zend_async_globals_t zend_async_globals = {0};
 #endif
 
 #define ASYNC_THROW_ERROR(error) zend_throw_error(NULL, error);
@@ -80,22 +76,23 @@ zend_async_queue_task_t zend_async_queue_task_fn = NULL;
 
 ZEND_API bool zend_async_is_enabled(void)
 {
-	return EG(is_async);
+	return scheduler_module_name != NULL && reactor_module_name != NULL;
 }
 
 ZEND_API bool zend_scheduler_is_enabled(void)
 {
-	return zend_async_spawn_fn != NULL && zend_async_spawn_fn != spawn;
+	return scheduler_module_name != NULL;
 }
 
 ZEND_API bool zend_async_reactor_is_enabled(void)
 {
-	return zend_async_reactor_startup_fn != NULL;
+	return reactor_module_name != NULL;
 }
 
 static void ts_globals_ctor(zend_async_globals_t * globals)
 {
-	globals->is_async = false;
+	globals->state = ZEND_ASYNC_OFF;
+	zend_atomic_bool_store(&globals->heartbeat, false);
 	globals->in_scheduler_context = false;
 	globals->graceful_shutdown = false;
 	globals->active_coroutine_count = 0;
@@ -111,34 +108,32 @@ static void ts_globals_dtor(zend_async_globals_t * globals)
 
 }
 
-static void zend_async_globals_ctor(void)
+void zend_async_globals_ctor(void)
 {
 #ifdef ZTS
 	ts_allocate_fast_id(
-		&_zend_async_globals_id,
-		&_zend_async_globals_offset,
+		&zend_async_globals_id,
+		&zend_async_globals_offset,
 		sizeof(zend_async_globals_t),
 		(ts_allocate_ctor) ts_globals_ctor,
 		(ts_allocate_dtor) ts_globals_dtor
 	);
+
+	ZEND_ASSERT(zend_async_globals_id != 0 && "zend_async_globals allocation failed");
+
 #else
-	zend_async_globals = &_zend_async_globals;
 	ts_globals_ctor(zend_async_globals);
 #endif
 }
 
 void zend_async_init(void)
 {
-	zend_async_globals_ctor();
 }
 
-static void zend_async_globals_dtor(void)
+void zend_async_globals_dtor(void)
 {
 #ifdef ZTS
-	zend_async_globals_id = _zend_async_globals_id;
-	zend_async_globals_offset = _zend_async_globals_offset;
 #else
-	zend_async_globals = &_zend_async_globals;
 	ts_globals_dtor(zend_async_globals);
 #endif
 }

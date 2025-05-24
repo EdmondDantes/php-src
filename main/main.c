@@ -2180,6 +2180,9 @@ zend_result php_module_startup(sapi_module_struct *sf, zend_module_entry *additi
 	php_startup_ticks();
 #endif
 	gc_globals_ctor();
+#ifdef PHP_ASYNC
+	zend_async_globals_ctor();
+#endif
 
 	zend_observer_startup();
 #if ZEND_DEBUG
@@ -2508,6 +2511,9 @@ void php_module_shutdown(void)
 #ifndef ZTS
 	core_globals_dtor(&core_globals);
 	gc_globals_dtor();
+	#ifdef PHP_ASYNC
+	zend_async_globals_dtor();
+	#endif
 #else
 	ts_free_id(core_globals_id);
 #endif
@@ -2775,6 +2781,9 @@ PHPAPI void php_reserve_tsrm_memory(void)
 		TSRM_ALIGNED_SIZE(zend_gc_globals_size()) +
 		TSRM_ALIGNED_SIZE(sizeof(php_core_globals)) +
 		TSRM_ALIGNED_SIZE(sizeof(sapi_globals_struct))
+#ifdef PHP_ASYNC
+		+ TSRM_ALIGNED_SIZE(sizeof(zend_async_globals_t))
+#endif
 	);
 }
 /* }}} */
