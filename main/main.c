@@ -146,6 +146,9 @@ PHPAPI char *php_get_version(sapi_module_struct *sapi_module)
 #ifdef HAVE_GCOV
 		" GCOV"
 #endif
+#ifdef PHP_ASYNC
+		" " ZEND_ASYNC_API
+#endif
 	);
 	smart_string_appends(&version_info, "Copyright (c) The PHP Group\n");
 	if (php_build_provider()) {
@@ -153,7 +156,6 @@ PHPAPI char *php_get_version(sapi_module_struct *sapi_module)
 	}
 	smart_string_appends(&version_info, get_zend_version());
 	smart_string_0(&version_info);
-
 	return version_info.c;
 }
 

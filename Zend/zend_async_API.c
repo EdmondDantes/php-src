@@ -143,6 +143,11 @@ void zend_async_shutdown(void)
 	zend_async_globals_dtor();
 }
 
+ZEND_API int zend_async_get_api_version_number(void)
+{
+	return ZEND_ASYNC_API_VERSION_NUMBER;
+}
+
 ZEND_API void zend_async_scheduler_register(
 	zend_string *module,
 	bool allow_override,

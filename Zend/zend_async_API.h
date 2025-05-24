@@ -19,6 +19,16 @@
 #include "zend_fibers.h"
 #include "zend_globals.h"
 
+#define ZEND_ASYNC_API "ZendAsync API v1.0.0-dev"
+#define ZEND_ASYNC_API_VERSION_MAJOR 1
+#define ZEND_ASYNC_API_VERSION_MINOR 0
+#define ZEND_ASYNC_API_VERSION_PATCH 0
+
+#define ZEND_ASYNC_API_VERSION_NUMBER \
+	((ZEND_ASYNC_API_VERSION_MAJOR << 16) | \
+	(ZEND_ASYNC_API_VERSION_MINOR << 8)  | \
+	(ZEND_ASYNC_API_VERSION_PATCH))
+
 #ifndef PHP_WIN32
 #include <netdb.h>
 #endif
@@ -800,6 +810,9 @@ void zend_async_init(void);
 void zend_async_shutdown(void);
 void zend_async_globals_ctor(void);
 void zend_async_globals_dtor(void);
+
+ZEND_API const char * zend_async_get_api_version(void);
+ZEND_API int zend_async_get_api_version_number(void);
 
 ZEND_API ZEND_COLD zend_object * zend_async_new_exception(zend_async_exception_type type, const char *format, ...);
 ZEND_API ZEND_COLD zend_object * zend_async_throw(zend_async_exception_type type, const char *format, ...);
