@@ -538,6 +538,8 @@ void async_scheduler_coroutine_suspend(zend_fiber_transfer *transfer)
 		}
 	}
 
+	ZEND_ASYNC_SCHEDULER_HEARTBEAT;
+
 	ZEND_ASYNC_SCHEDULER_CONTEXT = true;
 
 	execute_microtasks();
@@ -580,6 +582,8 @@ void async_scheduler_main_loop(void)
 		bool was_executed = false;
 
 		do {
+
+			ZEND_ASYNC_SCHEDULER_HEARTBEAT;
 
 			ZEND_ASYNC_SCHEDULER_CONTEXT = true;
 

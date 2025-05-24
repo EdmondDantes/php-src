@@ -704,6 +704,8 @@ static zend_always_inline zend_string *zend_coroutine_callable_name(const zend_c
 typedef struct {
 	/* Equal TRUE if the asynchronous context is enabled */
 	bool is_async;
+	/* The flag is TRUE if the Scheduler was able to gain control. */
+	zend_atomic_bool heartbeat;
 	/* Equal TRUE if the scheduler executed now */
 	bool in_scheduler_context;
 	/* Equal TRUE if the reactor is in the process of shutting down */
@@ -737,6 +739,9 @@ END_EXTERN_C()
 #define ZEND_ASYNC_OFF (ZEND_ASYNC_G(is_async) == false)
 #define ZEND_ASYNC_ACTIVATE ZEND_ASYNC_G(is_async) = true
 #define ZEND_ASYNC_DEACTIVATE ZEND_ASYNC_G(is_async) = false
+#define ZEND_ASYNC_SCHEDULER_ALIVE (zend_atomic_bool_load(&ZEND_ASYNC_G(heartbeat)) == true)
+#define ZEND_ASYNC_SCHEDULER_HEARTBEAT zend_atomic_bool_store(&ZEND_ASYNC_G(heartbeat), true)
+#define ZEND_ASYNC_SCHEDULER_WAIT zend_atomic_bool_store(&ZEND_ASYNC_G(heartbeat), false)
 #define ZEND_ASYNC_SCHEDULER_CONTEXT ZEND_ASYNC_G(in_scheduler_context)
 #define ZEND_ASYNC_IS_SCHEDULER_CONTEXT (ZEND_ASYNC_G(in_scheduler_context) == true)
 #define ZEND_ASYNC_ACTIVE_COROUTINE_COUNT ZEND_ASYNC_G(active_coroutine_count)
